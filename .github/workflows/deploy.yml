@@ -65,10 +65,11 @@ jobs:
 
     - name: Copy script to EC2
       run: |
+        ESCAPED_SCRIPT=$(sed 's/"/\\"/g; s/\$/\\$/g; s/`/\\`/g' deploy.sh | sed ':a;N;$!ba;s/\n/\\n/g')
         aws ssm send-command \
           --instance-ids "${{ env.EC2_INSTANCE_ID }}" \
           --document-name "AWS-RunShellScript" \
-          --parameters '{"commands":["cat > /tmp/deploy.sh << EOL\n'"$(cat deploy.sh)"'\nEOL\n","chmod +x /tmp/deploy.sh"]}' \
+          --parameters "{\"commands\":[\"echo '$ESCAPED_SCRIPT' > /tmp/deploy.sh\",\"chmod +x /tmp/deploy.sh\"]}" \
           --output text
 
     - name: Execute deployment script
