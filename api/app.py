@@ -1,8 +1,11 @@
 import json
 import boto3
 import logging
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from typing import List, Optional
+
+import sample_data
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -43,6 +46,70 @@ async def add_feedback(feedback: dict):
         return
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+@app.get("/bills")
+async def get_bills(
+    limit: int = Query(10, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    tags: Optional[List[str]] = Query(None)
+):
+    bills = sample_data.bills
+
+    if tags:
+        bills = [bill for bill in bills if any(tag in bill.get('tags', []) for tag in tags)]
+
+    total = len(bills)
+    bills = bills[offset:offset + limit]
+
+    return {
+        "bills": bills,
+        "total": total,
+        "limit": limit,
+        "offset": offset
+    }
+
+@app.get("/bills/{bill_id}/text")
+async def get_bill_text(bill_id: str):
+    lorem_ipsum = "Lorem ipsum dolor sit amet"
+    return {"bill_id": bill_id, "text": lorem_ipsum}
+
+@app.get("/legislators")
+async def get_legislators():
+    return sample_data.legislators
+
+@app.get("/legislator-vote-events")
+async def get_legislator_vote_events():
+    return sample_data.legislator_vote_events
+
+@app.get("/legislator-votes")
+async def get_legislator_votes():
+    return sample_data.legislators
+
+@app.get("/user-votes")
+async def get_user_votes(user_id: str = Query(...)):
+    return sample_data.user_votes.get(user_id, [])
+
+@app.get("/comments")
+async def get_comments():
+    return [
+        {
+            "user": "John Doe",
+            "text": "This bill seems promising. I particularly like the focus on environmental protection.",
+            "timestamp": "2024-09-16T14:00:00Z",
+            "parentId": None,
+            "billId": 1,
+            "upvotes": [3,5,2] # These are user IDs of users that have upvoted
+        },
+        {
+            "user": "Jane Smith",
+            "text": "I agree, but I'm concerned about the potential economic impact. Has there been an analysis?",
+            "timestamp": "2024-09-16T15:00:00Z",
+            "parentId": None,
+            "billId": 1,
+            "upvotes": [3,5,2]
+        }
+    ]
+
 
 
 if __name__ == "__main__":
