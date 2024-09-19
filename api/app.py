@@ -4,8 +4,7 @@ import logging
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
-
-from . import sample_data
+from pathlib import Path
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,6 +22,14 @@ s3 = boto3.client('s3')
 
 BUCKET_NAME = 'referendum-app-alpha'
 FILE_NAME = 'feedback.json'
+
+# TODO - replace this with database creation/seeding
+current_dir = Path(__file__).parent
+sample_data = {}
+for table in ["Bills", "Legislators", "LegislatorVotes", "LegislatorVoteEvents", "UserVotes", "Comments"]:
+    filepath = f"{current_dir}/sample_data/{table}.json"
+    with open(filepath, 'r') as f:
+        sample_data[table] = json.load(f)
 
 
 @app.post("/feedback")
@@ -53,7 +60,7 @@ async def get_bills(
     offset: int = Query(0, ge=0),
     tags: Optional[List[str]] = Query(None)
 ):
-    bills = sample_data.bills
+    bills = sample_data["Bills"]
 
     if tags:
         bills = [bill for bill in bills if any(tag in bill.get('tags', []) for tag in tags)]
@@ -75,40 +82,23 @@ async def get_bill_text(bill_id: str):
 
 @app.get("/legislators")
 async def get_legislators():
-    return sample_data.legislators
+    return sample_data["Legislators"]
 
 @app.get("/legislator-vote-events")
 async def get_legislator_vote_events():
-    return sample_data.legislator_vote_events
+    return sample_data["LegislatorVoteEvents"]
 
 @app.get("/legislator-votes")
 async def get_legislator_votes():
-    return sample_data.legislators
+    return sample_data["LegislatorVotes"]
 
 @app.get("/user-votes")
 async def get_user_votes(user_id: str = Query(...)):
-    return sample_data.user_votes.get(user_id, [])
+    return [vote for vote in sample_data["UserVotes"] if vote.get("user_id") == user_id]
 
 @app.get("/comments")
 async def get_comments():
-    return [
-        {
-            "user": "John Doe",
-            "text": "This bill seems promising. I particularly like the focus on environmental protection.",
-            "timestamp": "2024-09-16T14:00:00Z",
-            "parentId": None,
-            "billId": 1,
-            "upvotes": [3,5,2] # These are user IDs of users that have upvoted
-        },
-        {
-            "user": "Jane Smith",
-            "text": "I agree, but I'm concerned about the potential economic impact. Has there been an analysis?",
-            "timestamp": "2024-09-16T15:00:00Z",
-            "parentId": None,
-            "billId": 1,
-            "upvotes": [3,5,2]
-        }
-    ]
+    return sample_data["Comments"]
 
 
 

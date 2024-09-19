@@ -1,0 +1,18 @@
+[
+        {
+            "user": "John Doe",
+            "text": "This bill seems promising. I particularly like the focus on environmental protection.",
+            "timestamp": "2024-09-16T14:00:00Z",
+            "parentId": null,
+            "billId": 1,
+            "upvotes": [3,5,2]
+        },
+        {
+            "user": "Jane Smith",
+            "text": "I agree, but I'm concerned about the potential economic impact. Has there been an analysis?",
+            "timestamp": "2024-09-16T15:00:00Z",
+            "parentId": null,
+            "billId": 1,
+            "upvotes": [3,5,2]
+        }
+    ]

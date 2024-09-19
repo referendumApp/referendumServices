@@ -1,0 +1,702 @@
+[
+    {
+        "id": 1,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 0
+    },
+    {
+        "id": 2,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 1
+    },
+    {
+        "id": 3,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 2
+    },
+    {
+        "id": 4,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 3
+    },
+    {
+        "id": 5,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 4
+    },
+    {
+        "id": 6,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 5
+    },
+    {
+        "id": 7,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 6
+    },
+    {
+        "id": 8,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 7
+    },
+    {
+        "id": 9,
+        "billId": 0,
+        "vote": "absent",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 8
+    },
+    {
+        "id": 10,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 9
+    },
+    {
+        "id": 11,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 10
+    },
+    {
+        "id": 12,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 11
+    },
+    {
+        "id": 13,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 12
+    },
+    {
+        "id": 14,
+        "billId": 0,
+        "vote": "no",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 13
+    },
+    {
+        "id": 15,
+        "billId": 0,
+        "vote": "absent",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 14
+    },
+    {
+        "id": 16,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 15
+    },
+    {
+        "id": 17,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 16
+    },
+    {
+        "id": 18,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 17
+    },
+    {
+        "id": 19,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 18
+    },
+    {
+        "id": 20,
+        "billId": 0,
+        "vote": "abstain",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 19
+    },
+    {
+        "id": 21,
+        "billId": 0,
+        "vote": "no",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 20
+    },
+    {
+        "id": 22,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 21
+    },
+    {
+        "id": 23,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 22
+    },
+    {
+        "id": 24,
+        "billId": 0,
+        "vote": "absent",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 23
+    },
+    {
+        "id": 25,
+        "billId": 0,
+        "vote": "no",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 24
+    },
+    {
+        "id": 26,
+        "billId": 0,
+        "vote": "no",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 25
+    },
+    {
+        "id": 27,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 26
+    },
+    {
+        "id": 28,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 27
+    },
+    {
+        "id": 29,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 28
+    },
+    {
+        "id": 30,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 29
+    },
+    {
+        "id": 31,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 30
+    },
+    {
+        "id": 32,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 31
+    },
+    {
+        "id": 33,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 32
+    },
+    {
+        "id": 34,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 33
+    },
+    {
+        "id": 35,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 34
+    },
+    {
+        "id": 36,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 35
+    },
+    {
+        "id": 37,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 36
+    },
+    {
+        "id": 38,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 37
+    },
+    {
+        "id": 39,
+        "billId": 0,
+        "vote": "no",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 38
+    },
+    {
+        "id": 40,
+        "billId": 0,
+        "vote": "no",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 39
+    },
+    {
+        "id": 41,
+        "billId": 0,
+        "vote": "no",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 40
+    },
+    {
+        "id": 42,
+        "billId": 0,
+        "vote": "no",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 41
+    },
+    {
+        "id": 43,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 42
+    },
+    {
+        "id": 44,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 43
+    },
+    {
+        "id": 45,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 44
+    },
+    {
+        "id": 46,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 45
+    },
+    {
+        "id": 47,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 46
+    },
+    {
+        "id": 48,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 47
+    },
+    {
+        "id": 49,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 48
+    },
+    {
+        "id": 50,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 49
+    },
+    {
+        "id": 51,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 50
+    },
+    {
+        "id": 52,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 51
+    },
+    {
+        "id": 53,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 52
+    },
+    {
+        "id": 54,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 53
+    },
+    {
+        "id": 55,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 54
+    },
+    {
+        "id": 56,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 55
+    },
+    {
+        "id": 57,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 56
+    },
+    {
+        "id": 58,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 57
+    },
+    {
+        "id": 59,
+        "billId": 0,
+        "vote": "no",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 58
+    },
+    {
+        "id": 60,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 59
+    },
+    {
+        "id": 61,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 60
+    },
+    {
+        "id": 62,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 61
+    },
+    {
+        "id": 63,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 62
+    },
+    {
+        "id": 64,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 63
+    },
+    {
+        "id": 65,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 64
+    },
+    {
+        "id": 66,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 65
+    },
+    {
+        "id": 67,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 66
+    },
+    {
+        "id": 68,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 67
+    },
+    {
+        "id": 69,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 68
+    },
+    {
+        "id": 70,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 69
+    },
+    {
+        "id": 71,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 70
+    },
+    {
+        "id": 72,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 71
+    },
+    {
+        "id": 73,
+        "billId": 0,
+        "vote": "no",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 72
+    },
+    {
+        "id": 74,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 73
+    },
+    {
+        "id": 75,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 74
+    },
+    {
+        "id": 76,
+        "billId": 0,
+        "vote": "absent",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 75
+    },
+    {
+        "id": 77,
+        "billId": 0,
+        "vote": "no",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 76
+    },
+    {
+        "id": 78,
+        "billId": 0,
+        "vote": "no",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 77
+    },
+    {
+        "id": 79,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 78
+    },
+    {
+        "id": 80,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 79
+    },
+    {
+        "id": 81,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 80
+    },
+    {
+        "id": 82,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 81
+    },
+    {
+        "id": 83,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 82
+    },
+    {
+        "id": 84,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 83
+    },
+    {
+        "id": 85,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 84
+    },
+    {
+        "id": 86,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 85
+    },
+    {
+        "id": 87,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 86
+    },
+    {
+        "id": 88,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 87
+    },
+    {
+        "id": 89,
+        "billId": 0,
+        "vote": "no",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 88
+    },
+    {
+        "id": 90,
+        "billId": 0,
+        "vote": "no",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 89
+    },
+    {
+        "id": 91,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 90
+    },
+    {
+        "id": 92,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 91
+    },
+    {
+        "id": 93,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 92
+    },
+    {
+        "id": 94,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 93
+    },
+    {
+        "id": 95,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 94
+    },
+    {
+        "id": 96,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 95
+    },
+    {
+        "id": 97,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 96
+    },
+    {
+        "id": 98,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 97
+    },
+    {
+        "id": 99,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 98
+    },
+    {
+        "id": 100,
+        "billId": 0,
+        "vote": "yes",
+        "legislatorVoteEventId": 0,
+        "legislatorId": 99
+    }
+]
