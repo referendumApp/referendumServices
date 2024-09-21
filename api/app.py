@@ -126,12 +126,55 @@ async def get_bill_text(bill_id: str):                                  ### THIS
     lorem_ipsum = "Lorem ipsum dolor sit amet"
     return {"bill_id": bill_id, "text": lorem_ipsum}
 
-@app.delete("/bills/{bill_id}")                                         ### DELETES USER ###
+@app.delete("/bills/{bill_id}")                                         ### DELETES BILL ###
 async def delete_bill(bill_id: int, db = Depends(get_db)):
     db_bill = crud.get_bill(db, bill_id=bill_id)
     if db_bill is None:
         raise HTTPException(status_code=404, detail=f"Bill not found for ID: {bill_id}")
-    return crud.delete_bill(db, user_id=bill_id)
+    return crud.delete_bill(db, bill_id=bill_id)
+
+######################################################################################
+
+@app.put("/legislator")                                                       ### ADDS LEGISLATOR ###
+async def add_legislator(legislator: schemas.LegislatorCreate, db = Depends(get_db)):     ### figure out how to check if legislator exists ###
+    return crud.create_legislator(db=db, legislator=legislator)
+
+@app.post("/legislator")                                                      ### UPDATES LEGISLATOR ###
+async def update_legislator(legislator: schemas.Legislator, db = Depends(get_db)): ### figure out how to check if bill exists ###
+    db_legislator = crud.get_legislator(db, legislator_id=legislator)
+    if db_legislator:
+        return crud.update_legislator(db=db, db_legislator=db_legislator)
+    raise HTTPException(status_code=404, detail=f"Legislator not found for ID: {legislator.id}")
+
+@app.get("/legislators/{legislator_id}")                                            ### GETS LEGISLATOR ###
+async def get_legislator(legislator_id: int,db = Depends(get_db)):                  ### THIS DOESNT WORK ###
+    db_legislator = crud.get_legislator(db, legislator_id=legislator_id)
+    if db_legislator:    
+        return db_legislator
+    raise HTTPException(status_code=404, detail=f"legislator not found for ID: {legislator_id}")
+
+@app.delete("/legislators/{legislator_id}")                                         ### DELETES LEGISLATOR ###
+async def delete_legislator(legislator_id: int, db = Depends(get_db)):
+    db_legislator = crud.get_legislator(db, legislator_id=legislator_id)
+    if db_legislator is None:
+        raise HTTPException(status_code=404, detail=f"Legislator not found for ID: {legislator_id}")
+    return crud.delete_legislator(db, legislator_id=legislator_id)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # @app.get("/bills")
@@ -155,35 +198,25 @@ async def delete_bill(bill_id: int, db = Depends(get_db)):
 #         "offset": offset
 #     }
 
+# @app.get("/legislators")
+# async def get_legislators():
+#     return sample_data["Legislators"]
 
+# @app.get("/legislator-vote-events")
+# async def get_legislator_vote_events():
+#     return sample_data["LegislatorVoteEvents"]
 
+# @app.get("/legislator-votes")
+# async def get_legislator_votes():
+#     return sample_data["LegislatorVotes"]
 
+# @app.get("/user-votes")
+# async def get_user_votes(user_id: str = Query(...)):
+#     return [vote for vote in sample_data["UserVotes"] if vote.get("user_id") == user_id]
 
-
-
-
-
-
-
-@app.get("/legislators")
-async def get_legislators():
-    return sample_data["Legislators"]
-
-@app.get("/legislator-vote-events")
-async def get_legislator_vote_events():
-    return sample_data["LegislatorVoteEvents"]
-
-@app.get("/legislator-votes")
-async def get_legislator_votes():
-    return sample_data["LegislatorVotes"]
-
-@app.get("/user-votes")
-async def get_user_votes(user_id: str = Query(...)):
-    return [vote for vote in sample_data["UserVotes"] if vote.get("user_id") == user_id]
-
-@app.get("/comments")
-async def get_comments():
-    return sample_data["Comments"]
+# @app.get("/comments")
+# async def get_comments():
+#     return sample_data["Comments"]
 
 
 

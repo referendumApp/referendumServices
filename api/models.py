@@ -46,6 +46,7 @@ class Bill(Base):
     userVote = Column(String, default="null")
 #    topics = relationship("Topic", secondary=bill_topics, back_populates="bills" )
 
+
 # class Topic(Base):
 #     __tablename__ = "topics"
 
@@ -54,5 +55,21 @@ class Bill(Base):
 #     bills = relationship("Bill", secondary=bill_topics, back_populates="topics")
 
 
+class Legislator(Base):
+    __tablename__ = "legislators"
 
-
+    chamber = Column(String)
+    district = Column(String)
+    email = Column(String)
+    facebook = Column(String)
+#    fundingRecord = []
+    id = Column(int)
+    imageUrl = Column(String)
+    instagram = Column(String)
+    name = Column(String)
+    office = Column(String)
+    party = Column(String)
+    phone = Column(String)
+    state = Column(String)
+#    topIssues = []
+    twitter = Column(String)

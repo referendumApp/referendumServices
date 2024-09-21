@@ -53,6 +53,7 @@ def create_bill(db: Session, bill: schemas.BillCreate):
         yesVotes=bill.yesVotes,
         noVotes=bill.noVotes,
         userVote=bill.userVote
+#        topics = 
     )
     db.add(db_bill)
     db.commit()
@@ -83,11 +84,43 @@ def delete_bill(db: Session, bill_id: int):
 
 # ### LEGISLATORS ###
 
-# def create_legislator():
-#     pass
+def create_legislator(db: Session, legislator: schemas.LegislatorCreate):
+    db_legislator = models.Legislator(
+        chamber=legislator.chamber,
+        district=legislator.district,
+        email=legislator.email,
+        facebook=legislator.facebook,
+#        fundingRecord=legislator.fundingRecord,
+        imageUrl=legislator.imageUrl,
+        instagram=legislator.instagram,
+        name=legislator.name,
+        office=legislator.office,
+        party=legislator.party,
+        phone=legislator.phone,
+        state=legislator.state,
+#        topIssues=legislator.topIssues,
+        twitter=legislator.twitter
 
-# def get_legislator():
-#     pass
+    )
+    db.add(db_legislator)
+    db.commit()
+    db.refresh(db_legislator)
+    return db_legislator
 
-# def get_legislators():
-#     pass
+def get_legislator(db: Session, legislator_id: int):
+    return db.query(models.Legislator).filter(models.Legislator.id == legislator_id).first()
+
+def get_legislators(db: Session, skip: int = 0, limit: int = 10):
+    return db.query(models.Legislator).offset(skip).limit(limit).all()
+
+def get_legislator_by_tags():
+    pass
+
+def update_legislator(db: Session, db_legislator: models.Legislator):
+    db.add()
+    db.commit()
+    db.refresh(db_legislator)
+    return db_legislator
+
+def delete_legislator(db: Session, legislator_id: int):
+    return db.query(models.Legislator).filter(models.Legislator.id == legislator_id).delete()
