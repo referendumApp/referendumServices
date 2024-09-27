@@ -25,7 +25,7 @@ def get_users(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.User).offset(skip).limit(limit).all()
 
 def update_user(db: Session, db_user: models.User):
-    db.add()
+    db.add(db_user)
     db.commit()
     db.refresh(db_user)
     return db_user
@@ -73,7 +73,7 @@ def get_bill_by_tags():
     pass
 
 def update_bill(db: Session, db_bill: models.Bill):
-    db.add()
+    db.add(db_bill)
     db.commit()
     db.refresh(db_bill)
     return db_bill
@@ -113,8 +113,11 @@ def create_legislator(db: Session, legislator: schemas.LegislatorCreate):
 def get_legislator(db: Session, legislator_id: int):
     return db.query(models.Legislator).filter(models.Legislator.id == legislator_id).first()
 
-def get_legislator_by_name(db: Session, name: int):
-    return db.query(models.Legislator).filter(models.Legislator.name == name).first()
+def get_legislator_by_name_and_state(db: Session, name: str, state: str):
+    return db.query(models.Legislator).filter(
+        models.Legislator.name == name,
+        models.Legislator.state == state
+    ).first()
 
 def get_legislators(db: Session, skip: int = 0, limit: int = 10):
     return db.query(models.Legislator).offset(skip).limit(limit).all()
@@ -123,7 +126,7 @@ def get_legislator_by_tags():
     pass
 
 def update_legislator(db: Session, db_legislator: models.Legislator):
-    db.add()
+    db.add(db_legislator)
     db.commit()
     db.refresh(db_legislator)
     return db_legislator
