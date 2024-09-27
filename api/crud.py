@@ -66,6 +66,9 @@ def get_bill(db: Session, bill_id: int):
 def get_bills(db: Session, skip: int = 0, limit: int = 10):
     return db.query(models.Bill).offset(skip).limit(limit).all()
 
+def get_bill_by_legiscanID(db: Session, legiscan_id: int):
+    return db.query(models.Bill).filter(models.Bill.legiscanID == legiscan_id).first()
+
 def get_bill_by_tags():
     pass
 
@@ -86,6 +89,7 @@ def delete_bill(db: Session, bill_id: int):
 
 def create_legislator(db: Session, legislator: schemas.LegislatorCreate):
     db_legislator = models.Legislator(
+
         chamber=legislator.chamber,
         district=legislator.district,
         email=legislator.email,
@@ -100,7 +104,6 @@ def create_legislator(db: Session, legislator: schemas.LegislatorCreate):
         state=legislator.state,
 #        topIssues=legislator.topIssues,
         twitter=legislator.twitter
-
     )
     db.add(db_legislator)
     db.commit()
@@ -109,6 +112,9 @@ def create_legislator(db: Session, legislator: schemas.LegislatorCreate):
 
 def get_legislator(db: Session, legislator_id: int):
     return db.query(models.Legislator).filter(models.Legislator.id == legislator_id).first()
+
+def get_legislator_by_name(db: Session, name: int):
+    return db.query(models.Legislator).filter(models.Legislator.name == name).first()
 
 def get_legislators(db: Session, skip: int = 0, limit: int = 10):
     return db.query(models.Legislator).offset(skip).limit(limit).all()

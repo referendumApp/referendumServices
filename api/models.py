@@ -30,6 +30,7 @@ class User(Base):
 class Bill(Base):
     __tablename__ = "bills"
 
+    legiscanID = Column(Integer, primary_key=True)
     id = Column(Integer, primary_key=True)
     identifier = Column(String)
     title = Column(String)

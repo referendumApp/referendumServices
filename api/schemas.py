@@ -20,6 +20,7 @@ class User(UserBase):
 
 ### BILLS ###
 class BillBase(BaseModel):
+    legiscanID: int
     identifier: str
     title: str
     description: str
