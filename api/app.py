@@ -1,10 +1,9 @@
 import json
 import boto3
 import logging
-from fastapi import FastAPI, HTTPException, Query, Depends
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List, Optional
-from pathlib import Path
+from sqlalchemy import text
 
 from api import schemas, crud, database, models
 
@@ -36,13 +35,12 @@ def get_db():
         db.close()
 
 
-# TODO - replace this with database creation/seeding
-current_dir = Path(__file__).parent
-sample_data = {}
-for table in ["Bills", "Legislators", "LegislatorVotes", "LegislatorVoteEvents", "UserVotes", "Comments"]:
-    filepath = f"{current_dir}/sample_data/{table}.json"
-    with open(filepath, 'r') as f:
-        sample_data[table] = json.load(f)
+########################################################################################################
+
+@app.get("/health")
+async def healthcheck(db = Depends(get_db)):
+    db.execute(text("SELECT 1"))
+    return
 
 
 ########################################################################################################

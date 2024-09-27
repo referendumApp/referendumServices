@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import List
 
 
@@ -13,8 +13,9 @@ class UserCreate(UserBase):
 class User(UserBase):
     id: int
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(
+        from_attributes=True
+    )
 
 
 
@@ -39,10 +40,9 @@ class BillCreate(BillBase):
 class Bill(BillBase):
     id: int
 
-    class Config:
-        orm_mode = True
-
-
+    model_config = ConfigDict(
+        from_attributes=True
+    )
 
 # ### LEGISLATORS ###
 class LegislatorBase(BaseModel):
@@ -66,8 +66,9 @@ class LegislatorCreate(LegislatorBase):
 class Legislator(LegislatorBase):
     id: int
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(
+        from_attributes=True
+    )
 
 
 
