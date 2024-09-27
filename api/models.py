@@ -30,7 +30,7 @@ class User(Base):
 class Bill(Base):
     __tablename__ = "bills"
 
-    legiscanID = Column(Integer, primary_key=True)
+    legiscanID = Column(Integer, index=True)
     id = Column(Integer, primary_key=True)
     identifier = Column(String)
     title = Column(String)
@@ -39,12 +39,8 @@ class Bill(Base):
     body = Column(String, index=True)
     session = Column(String, index=True)
     briefing = Column(String)
-    sponsorIds = Column(Integer)
     status = Column(String)
     latestAction = Column(String)
-    yesVotes = Column(Integer)
-    noVotes = Column(Integer)
-    userVote = Column(String, default="null")
 #    topics = relationship("Topic", secondary=bill_topics, back_populates="bills" )
 
 
@@ -63,7 +59,6 @@ class Legislator(Base):
     district = Column(String)
     email = Column(String)
     facebook = Column(String)
-#    fundingRecord = []
     id = Column(int)
     imageUrl = Column(String)
     instagram = Column(String)
@@ -72,5 +67,5 @@ class Legislator(Base):
     party = Column(String)
     phone = Column(String)
     state = Column(String)
-#    topIssues = []
+    topIssues = Column(String)
     twitter = Column(String)
