@@ -31,9 +31,6 @@ class BillBase(BaseModel):
     sponsorIds: int
     status: str
     latestAction: str
-    yesVotes: int
-    noVotes: int
-    userVote: str
 #    topics: 
 
 class BillCreate(BillBase):
@@ -49,20 +46,19 @@ class Bill(BillBase):
 
 # ### LEGISLATORS ###
 class LegislatorBase(BaseModel):
-    chamber = str
-    district = str
-    email = str
-    facebook = str
-#    fundingRecord = []
-    imageUrl = str
-    instagram = str
-    name = str
-    office = str
-    party = str
-    phone = str
-    state = str
-#    topIssues = []
-    twitter = str
+    chamber: str
+    district: str
+    email: str
+    facebook: str
+    imageUrl: str
+    instagram: str
+    name: str
+    office: str
+    party: str
+    phone: str
+    state: str
+    topIssues: List
+    twitter: str
 
 class LegislatorCreate(LegislatorBase):
     pass
