@@ -61,7 +61,7 @@ async def update_user(user: schemas.UserCreate, db = Depends(get_db)):
         fake_hashed_password = user.password + "notreallyhashed"
         db_user.hashed_password = fake_hashed_password
         db_user.name = user.name
-        return crud.update_user(db=db, db_user=db_user)
+        return crud.update_user(db=db, db_user=user)
     raise HTTPException(status_code=404, detail=f"User not found for email: {user.email}.")
 
 @app.get("/users/{user_id}")                                            ### GETS USER ###
@@ -114,11 +114,11 @@ async def add_bill(bill: schemas.BillCreate, db = Depends(get_db)):
 async def update_bill(bill: schemas.Bill, db = Depends(get_db)):        
     db_bill = crud.get_bill_by_legiscanID(db, legiscan_id=bill.legiscanID)
     if db_bill:
-        return crud.update_bill(db=db, db_bill=db_bill.id)              ### not sure if 'db_bill=db_bill.id' is thr right action
+        return crud.update_bill(db=db, db_bill=bill)             
     raise HTTPException(status_code=404, detail=f"Bill not found for ID: {bill.id}.")
 
 @app.get("/bills/{bill_id}")                                            ### GETS BILL ###
-async def get_bill(bill_id: int,db = Depends(get_db)):                  ### THIS DOESNT WORK ###
+async def get_bill(bill_id: int,db = Depends(get_db)):                  
     db_bill = crud.get_bill(db, bill_id=bill_id)
     if db_bill:    
         return db_bill
@@ -145,7 +145,7 @@ async def add_legislator(legislator: schemas.LegislatorCreate, db = Depends(get_
         raise HTTPException(status_code=400, detail="Legislator already exists.")
     return crud.create_legislator(db=db, legislator=legislator)
 
-@app.post("/legislator")                                                      ### UPDATES LEGISLATOR ###
+@app.post("/legislator")                                                            ### UPDATES LEGISLATOR ###
 async def update_legislator(legislator: schemas.Legislator, db = Depends(get_db)): 
     db_legislator = crud.get_legislator_by_name_and_state(db, name=legislator.name, state=legislator.state)
     if db_legislator:
@@ -153,7 +153,7 @@ async def update_legislator(legislator: schemas.Legislator, db = Depends(get_db)
     raise HTTPException(status_code=404, detail=f"Could not update legislator ID: {legislator.id}.")
 
 @app.get("/legislators/{legislator_id}")                                            ### GETS LEGISLATOR ###
-async def get_legislator(legislator_id: int,db = Depends(get_db)):                  ### THIS DOESNT WORK ###
+async def get_legislator(legislator_id: int,db = Depends(get_db)):                  
     db_legislator = crud.get_legislator(db, legislator_id=legislator_id)
     if db_legislator:    
         return db_legislator
