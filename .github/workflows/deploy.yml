@@ -48,7 +48,7 @@ jobs:
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
-        docker-compose build app
+        docker compose build app
         docker tag referendumapi_app:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}
 
@@ -65,8 +65,8 @@ jobs:
               "echo \"ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}\" > .env",
               "echo \"ECR_REPOSITORY=${{ env.ECR_REPOSITORY }}\" >> .env",
               "echo \"IMAGE_TAG=${{ env.IMAGE_TAG }}\" >> .env",
-              "docker-compose -f docker-compose.prod.yml down",
-              "docker-compose -f docker-compose.prod.yml up -d",
+              "docker compose -f docker-compose.prod.yml down",
+              "docker compose -f docker-compose.prod.yml up -d",
               "echo ${{ env.DEPLOY_ENV }} deployment completed successfully!"
             ]
           }'
