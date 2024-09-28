@@ -48,7 +48,8 @@ jobs:
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }} .
+        docker-compose build app
+        docker tag referendumapi_app:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}
 
     - name: Deploy to EC2
@@ -61,10 +62,11 @@ jobs:
           --parameters '{
             "commands": [
               "aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}",
-              "docker pull ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
-              "docker stop ${{ env.DEPLOY_ENV }}-app || true",
-              "docker rm ${{ env.DEPLOY_ENV }}-app || true",
-              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.DEPLOY_ENV == 'prod' && '80:80' || '8080:80' }} ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
+              "echo \"ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}\" > .env",
+              "echo \"ECR_REPOSITORY=${{ env.ECR_REPOSITORY }}\" >> .env",
+              "echo \"IMAGE_TAG=${{ env.IMAGE_TAG }}\" >> .env",
+              "docker-compose -f docker-compose.prod.yml down",
+              "docker-compose -f docker-compose.prod.yml up -d",
               "echo ${{ env.DEPLOY_ENV }} deployment completed successfully!"
             ]
           }'
