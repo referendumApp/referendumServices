@@ -78,13 +78,13 @@ jobs:
           --instance-ids "${{ env.EC2_INSTANCE_ID }}" \
           --document-name "AWS-RunShellScript" \
           --parameters '{"commands":["curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8080/health"]}' \
-          --output text
-          --query "Command.CommandInvocations[].CommandPlugins[].Output")
+          --output text \
+          --query "Command.CommandId")
         HEALTH_CHECK_STATUS_CODE=$(aws ssm list-command-invocations \
-          --command-id "$HEALTH_CHECK_COMMAND_ID"
-          --details
-          --query "CommandInvocations[].CommandPlugins[].Output"
-          --output text
+          --command-id "$HEALTH_CHECK_COMMAND_ID" \
+          --details \
+          --output text \
+          --query "CommandInvocations[].CommandPlugins[].Output")
         
         if [ "$HEALTH_CHECK_STATUS_CODE" != "200" ]; then
           echo "Deployment verification failed. Health check returned: $HEALTH_CHECK"
