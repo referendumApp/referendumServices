@@ -65,10 +65,22 @@ jobs:
               "docker stop ${{ env.DEPLOY_ENV }}-app || true",
               "docker rm ${{ env.DEPLOY_ENV }}-app || true",
               "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.DEPLOY_ENV == 'prod' && '80:80' || '8080:80' }} ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
-              "echo ${{ env.DEPLOY_ENV }} deployment completed successfully!"
+              "echo ${{ env.DEPLOY_ENV }} deployment completed"
             ]
           }'
 
     - name: Verify Deployment
       run: |
-        aws ec2 describe-instance-status --instance-ids ${{ env.EC2_INSTANCE_ID }}
+        sleep 30
+        HEALTH_CHECK=$(aws ssm send-command \
+          --instance-ids "${{ env.EC2_INSTANCE_ID }}" \
+          --document-name "AWS-RunShellScript" \
+          --parameters '{"commands":["curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8080/health"]}' \
+          --output text --query "Command.CommandInvocations[].CommandPlugins[].Output")
+        
+        if [ "$HEALTH_CHECK" != "200" ]; then
+          echo "Deployment verification failed. Health check returned: $HEALTH_CHECK"
+          exit 1
+        fi
+        
+        echo "Deployment verified"
