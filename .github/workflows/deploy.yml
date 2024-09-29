@@ -50,8 +50,7 @@ jobs:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
         docker compose build app
-        docker tag referendumapi-app:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}
+         docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}
 
     - name: Deploy to EC2
       env:
@@ -74,13 +73,19 @@ jobs:
     - name: Verify Deployment
       run: |
         sleep 30
-        HEALTH_CHECK=$(aws ssm send-command \
+        HEALTH_CHECK_COMMAND_ID=$(aws ssm send-command \
           --instance-ids "${{ env.EC2_INSTANCE_ID }}" \
           --document-name "AWS-RunShellScript" \
           --parameters '{"commands":["curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8080/health"]}' \
-          --output text --query "Command.CommandInvocations[].CommandPlugins[].Output")
+          --output text
+          --query "Command.CommandInvocations[].CommandPlugins[].Output")
+        HEALTH_CHECK_STATUS_CODE=$(aws ssm list-command-invocations \
+          --command-id "$HEALTH_CHECK_COMMAND_ID"
+          --details
+          --query "CommandInvocations[].CommandPlugins[].Output"
+          --output text
         
-        if [ "$HEALTH_CHECK" != "200" ]; then
+        if [ "$HEALTH_CHECK_STATUS_CODE" != "200" ]; then
           echo "Deployment verification failed. Health check returned: $HEALTH_CHECK"
           exit 1
         fi
