@@ -49,7 +49,7 @@ jobs:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
         docker compose build app
-        IMAGE_NAME=$(docker compose config | grep 'name:' | awk '{print $2}')
+        IMAGE_NAME=$(docker compose config --images | awk 'NR==1 {print $1; exit}')
         echo $IMAGE_NAME
         docker tag ${IMAGE_NAME} $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}
