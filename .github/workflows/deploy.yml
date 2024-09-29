@@ -64,7 +64,7 @@ jobs:
               "docker pull ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
               "docker stop ${{ env.DEPLOY_ENV }}-app || true",
               "docker rm ${{ env.DEPLOY_ENV }}-app || true",
-              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.DEPLOY_ENV == '\''prod'\'' && '\''80:80'\'' || '\''8080:80'\'' }} ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
+              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.DEPLOY_ENV == '"'"'prod'"'"' && '"'"'80:80'"'"' || '"'"'8080:80'"'"' }} ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
               "echo ${{ env.DEPLOY_ENV }} deployment completed"
             ]
           }'
