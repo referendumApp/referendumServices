@@ -49,7 +49,8 @@ jobs:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
         docker compose build app
-        docker tag referendumapi_app:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}
+        IMAGE_NAME=$(docker compose config | grep 'image:' | awk '{print $2}')
+        docker tag ${IMAGE_NAME} $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}
 
     - name: Deploy to EC2
@@ -67,10 +68,23 @@ jobs:
               "echo \"IMAGE_TAG=${{ env.IMAGE_TAG }}\" >> .env",
               "docker compose -f docker-compose.prod.yml down",
               "docker compose -f docker-compose.prod.yml up -d",
+              "if [ $? -ne 0 ]; then docker-compose -f docker-compose.prod.yml logs --tail=100; exit 1; fi",
               "echo ${{ env.DEPLOY_ENV }} deployment completed successfully!"
             ]
           }'
 
     - name: Verify Deployment
       run: |
-        aws ec2 describe-instance-status --instance-ids ${{ env.EC2_INSTANCE_ID }}
+        sleep 30
+        HEALTH_CHECK=$(aws ssm send-command \
+          --instance-ids "${{ env.EC2_INSTANCE_ID }}" \
+          --document-name "AWS-RunShellScript" \
+          --parameters '{"commands":["curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8080/health"]}' \
+          --output text --query "Command.CommandInvocations[].CommandPlugins[].Output")
+        
+        if [ "$HEALTH_CHECK" != "200" ]; then
+          echo "Deployment verification failed. Health check returned: $HEALTH_CHECK"
+          exit 1
+        fi
+        
+        echo "Deployment verified successfully!"
