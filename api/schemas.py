@@ -29,7 +29,6 @@ class BillBase(BaseModel):
     body: str
     session: str
     briefing: str
-    sponsorIds: int
     status: str
     latestAction: str
 #    topics: 

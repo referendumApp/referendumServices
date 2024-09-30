@@ -59,7 +59,7 @@ async def update_user(user: schemas.UserCreate, db = Depends(get_db)):
         fake_hashed_password = user.password + "notreallyhashed"
         db_user.hashed_password = fake_hashed_password
         db_user.name = user.name
-        return crud.update_user(db=db, db_user=user)
+        return crud.update_user(db=db, db_user=db_user)
     raise HTTPException(status_code=404, detail=f"User not found for email: {user.email}.")
 
 @app.get("/users/{user_id}")                                            ### GETS USER ###
