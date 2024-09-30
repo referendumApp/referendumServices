@@ -109,10 +109,12 @@ async def add_bill(bill: schemas.BillCreate, db = Depends(get_db)):
     return crud.create_bill(db=db, bill=bill)
 
 @app.post("/bill")                                                      ### UPDATES BILL ###
-async def update_bill(bill: schemas.Bill, db = Depends(get_db)):        
+async def update_bill(bill: schemas.Bill, db = Depends(get_db)):  
+      
     db_bill = crud.get_bill_by_legiscanID(db, legiscan_id=bill.legiscanID)
     if db_bill:
-        return crud.update_bill(db=db, db_bill=bill)             
+        db_bill.title = bill.title
+        return crud.update_bill(db=db, db_bill=db_bill)             
     raise HTTPException(status_code=404, detail=f"Bill not found for ID: {bill.id}.")
 
 @app.get("/bills/{bill_id}")                                            ### GETS BILL ###
