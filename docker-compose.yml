@@ -8,6 +8,7 @@ services:
     depends_on:
       local-init:
         condition: service_completed_successfully
+        required: false
     entrypoint: ["/code/entrypoint.sh"]
 
   db:
@@ -39,6 +40,7 @@ services:
       db:
         condition: service_healthy
     command: ["/code/local_init.sh"]
+    profiles: ["local"]
 
   test:
     build:
