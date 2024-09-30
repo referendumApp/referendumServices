@@ -1,5 +1,0 @@
-services:
-  app:
-    image: ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}
-    ports:
-      - "80:80"
