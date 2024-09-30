@@ -149,6 +149,9 @@ async def add_legislator(legislator: schemas.LegislatorCreate, db = Depends(get_
 async def update_legislator(legislator: schemas.Legislator, db = Depends(get_db)): 
     db_legislator = crud.get_legislator_by_name_and_state(db, name=legislator.name, state=legislator.state)
     if db_legislator:
+        update_data = legislator.model_dump()
+        for key,value in update_data.items():
+            setattr(db_legislator, key, value)
         return crud.update_legislator(db=db, db_legislator=db_legislator)
     raise HTTPException(status_code=404, detail=f"Could not update legislator ID: {legislator.id}.")
 

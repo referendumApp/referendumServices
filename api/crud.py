@@ -124,4 +124,6 @@ def update_legislator(db: Session, db_legislator: models.Legislator):
     return db_legislator
 
 def delete_legislator(db: Session, legislator_id: int):
-    return db.query(models.Legislator).filter(models.Legislator.id == legislator_id).delete()
+    db.query(models.Legislator).filter(models.Legislator.id == legislator_id).delete()
+    db.commit()
+    return 

@@ -56,7 +56,6 @@ class LegislatorBase(BaseModel):
     party: str
     phone: str
     state: str
-    topIssues: List
     twitter: str
 
 class LegislatorCreate(LegislatorBase):
