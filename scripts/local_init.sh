@@ -14,17 +14,14 @@ until PGPASSWORD=$POSTGRES_PASSWORD psql -h "db" -U "user" -d "postgres" -c '\l'
 done
 echo "PostgreSQL is up - executing initialization"
 
-echo "Listing databases:"
 PGPASSWORD=$POSTGRES_PASSWORD psql -h "db" -U "user" -d "postgres" -c '\l'
 if PGPASSWORD=$POSTGRES_PASSWORD psql -h "db" -U "user" -d "postgres" -lqt | cut -d \| -f 1 | grep -qw $DB_NAME; then
     echo "Database $DB_NAME already exists"
 else
     echo "Database $DB_NAME does not exist. Creating..."
     PGPASSWORD=$POSTGRES_PASSWORD createdb -h "db" -U "user" $DB_NAME
+    PGPASSWORD=$POSTGRES_PASSWORD psql -h "db" -U "user" -d "postgres" -c '\l'
 fi
-
-echo "Verifying database creation:"
-PGPASSWORD=$POSTGRES_PASSWORD psql -h "db" -U "user" -d "postgres" -c '\l'
 
 echo "Running migrations..."
 alembic upgrade head
