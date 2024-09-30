@@ -3,6 +3,7 @@ fastapi[standard]
 
 alembic
 sqlalchemy
+pandas
 psycopg2-binary
 
 pytest
