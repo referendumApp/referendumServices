@@ -5,8 +5,45 @@ services:
       target: app
     ports:
       - "80:80"
+    depends_on:
+      local-init:
+        condition: service_completed_successfully
+    entrypoint: ["/code/entrypoint.sh"]
+
+  db:
+    image: postgres:13
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=local-db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d local-db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    command:
+      - "postgres"
+      - "-c"
+      - "log_statement=all"
+
+  local-init:
+    build:
+      context: .
+      target: local-init
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/local-db
+      - POSTGRES_PASSWORD=password
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["/code/local_init.sh"]
 
   test:
     build:
       context: .
       target: test
+
+volumes:
+  postgres_data:
