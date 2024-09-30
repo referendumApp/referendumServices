@@ -5,9 +5,6 @@ services:
       target: app
     ports:
       - "80:80"
-    depends_on:
-      local-init:
-        condition: service_completed_successfully
     entrypoint: ["/code/entrypoint.sh"]
 
   db:
@@ -39,12 +36,16 @@ services:
       db:
         condition: service_healthy
     command: ["/code/local_init.sh"]
-    profiles: ["local"]
+    profiles: ["local", "test"]
 
   test:
     build:
       context: .
       target: test
+    depends_on:
+      local-init:
+        condition: service_completed_successfully
+    profiles: ["test"]
 
 volumes:
   postgres_data:

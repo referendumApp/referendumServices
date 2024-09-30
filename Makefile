@@ -1,16 +1,16 @@
-.PHONY: build run test clean
+.PHONY: build run test clean shell logs restart
 
 # Build the Docker images
 build:
 	docker compose build
 
-# Run the application
+# Run the application in local development mode
 run: build
-	docker compose --profile local up app
+	docker compose --profile local up
 
 # Run the tests
 test: build
-	docker compose --profile local run --rm test
+	docker compose --profile test up --exit-code-from test
 
 # Clean up Docker resources
 clean:
@@ -25,5 +25,5 @@ shell:
 logs:
 	docker compose logs -f
 
-# Rebuild and restart the app
+# Rebuild and restart the app in local development mode
 restart: clean build run
