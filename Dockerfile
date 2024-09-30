@@ -10,6 +10,7 @@ RUN pip install --no-cache-dir --upgrade -r requirements.txt
 FROM base AS app
 
 COPY src/api /code/api
+COPY src/database /code/database
 COPY scripts/entrypoint.sh /code/entrypoint.sh
 
 RUN chmod +x /code/entrypoint.sh
@@ -31,8 +32,9 @@ RUN chmod +x /code/local_init.sh
 # Test stage
 FROM base AS test
 
-COPY ./src /code
-COPY ./tests /code/tests
+COPY src /code
+COPY src/database /code/database
+COPY tests /code/tests
 
 ENV PYTHONPATH=/app:$PYTHONPATH
 
