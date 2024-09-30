@@ -1,4 +1,12 @@
-# ReferendumApi
+# Referendum Services
+
+## Architecture
+
+The Referendum system consists of the following services:
+- app: The application service that runs the API
+- db: PostgreSQL database service for local development
+- local-init: A service that runs initialization scripts for local development
+- test: A service which runs the test suite in an isolated environment
 
 ## Prerequisites
 * Python 3.9 or later

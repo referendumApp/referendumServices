@@ -7,7 +7,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
 # App stage
-FROM base AS app
+FROM base AS api
 
 COPY src/api /code/api
 COPY src/database /code/database
