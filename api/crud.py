@@ -37,7 +37,8 @@ def update_user(db: Session, db_user: models.User):
 def delete_user(db: Session, user_id: int):
     db.query(models.User).filter(models.User.id == user_id).delete()
     db.commit()
-    return 
+    return
+
 
 ### BILLS ###
 
@@ -53,7 +54,7 @@ def create_bill(db: Session, bill: schemas.BillCreate):
         session=bill.session,
         briefing=bill.briefing,
         status=bill.status,
-        latestAction=bill.latestAction, 
+        latestAction=bill.latestAction,
     )
     db.add(db_bill)
     db.commit()
@@ -83,7 +84,8 @@ def update_bill(db: Session, db_bill: models.Bill):
 def delete_bill(db: Session, bill_id: int):
     db.query(models.Bill).filter(models.Bill.id == bill_id).delete()
     db.commit()
-    return 
+    return
+
 
 # ### LEGISLATORS ###
 
@@ -132,5 +134,4 @@ def update_legislator(db: Session, db_legislator: models.Legislator):
 def delete_legislator(db: Session, legislator_id: int):
     db.query(models.Legislator).filter(models.Legislator.id == legislator_id).delete()
     db.commit()
-    return 
-
+    return
