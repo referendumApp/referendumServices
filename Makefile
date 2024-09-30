@@ -1,4 +1,4 @@
-.PHONY: build run test clean shell logs restart
+.PHONY: build run test clean shell logs restart pipeline
 
 # Build the Docker images
 build:
@@ -6,11 +6,15 @@ build:
 
 # Run the application in local development mode
 run: build
-	docker compose --profile local up
+	docker compose --profile service-local up
 
 # Run the tests
 test: build
 	docker compose --profile test up --exit-code-from test
+
+# Run the pipeline
+pipeline: build
+	docker compose --profile pipeline up pipeline
 
 # Clean up Docker resources
 clean:
@@ -19,7 +23,7 @@ clean:
 
 # Start a shell in the app container
 shell:
-	docker compose --profile local run --rm app sh
+	docker compose --profile service-local run --rm app sh
 
 # View logs
 logs:

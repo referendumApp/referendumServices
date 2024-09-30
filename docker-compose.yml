@@ -6,6 +6,7 @@ services:
     ports:
       - "80:80"
     entrypoint: ["/code/entrypoint.sh"]
+    profiles: ["service", "service-local"]
 
   db:
     image: postgres:13
@@ -24,6 +25,7 @@ services:
       - "postgres"
       - "-c"
       - "log_statement=all"
+    profiles: ["service-local", "test"]
 
   local-init:
     build:
@@ -36,7 +38,18 @@ services:
       db:
         condition: service_healthy
     command: ["/code/local_init.sh"]
-    profiles: ["local", "test"]
+    profiles: ["service-local", "test"]
+
+  pipeline:
+    build:
+      context: .
+      target: pipeline
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/local-db
+    profiles: ["pipeline"]
 
   test:
     build:

@@ -15,6 +15,16 @@ COPY scripts/entrypoint.sh /code/entrypoint.sh
 
 RUN chmod +x /code/entrypoint.sh
 
+
+# Pipeline stage
+FROM base AS app
+
+COPY src/pipeline /code/pipeline
+COPY src/database /code/database
+
+CMD ["python", "-m", "pipeline.run"]
+
+
 # Local init stage
 FROM base AS local-init
 
@@ -28,6 +38,7 @@ COPY scripts/local_init.sh /code/local_init.sh
 COPY scripts/load_database.py /code/load_database.py
 
 RUN chmod +x /code/local_init.sh
+
 
 # Test stage
 FROM base AS test
