@@ -6,11 +6,11 @@ build:
 
 # Run the application
 run: build
-	docker compose up app
+	docker compose --profile local up app
 
 # Run the tests
 test: build
-	docker compose run --rm test
+	docker compose --profile local run --rm test
 
 # Clean up Docker resources
 clean:
@@ -19,7 +19,7 @@ clean:
 
 # Start a shell in the app container
 shell:
-	docker compose run --rm app sh
+	docker compose --profile local run --rm app sh
 
 # View logs
 logs:
