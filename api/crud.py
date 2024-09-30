@@ -8,7 +8,7 @@ from . import models, schemas
 
 def create_user(db: Session, user: schemas.UserCreate):
     fake_hashed_password = user.password + "notreallyhashed"
-    db_user = models.User(email=user.email, hashed_password=fake_hashed_password)
+    db_user = models.User(name=user.name, email=user.email, hashed_password=fake_hashed_password)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -35,7 +35,9 @@ def update_user(db: Session, db_user: models.User):
 
 
 def delete_user(db: Session, user_id: int):
-    return db.query(models.User).filter(models.User.id == user_id).delete()
+    db.query(models.User).filter(models.User.id == user_id).delete()
+    db.commit()
+    return
 
 
 ### BILLS ###
@@ -43,6 +45,7 @@ def delete_user(db: Session, user_id: int):
 
 def create_bill(db: Session, bill: schemas.BillCreate):
     db_bill = models.Bill(
+        legiscanID=bill.legiscanID,
         identifier=bill.identifier,
         title=bill.title,
         description=bill.description,
@@ -50,13 +53,8 @@ def create_bill(db: Session, bill: schemas.BillCreate):
         body=bill.body,
         session=bill.session,
         briefing=bill.briefing,
-        sponsorIds=bill.sponsorIds,
         status=bill.status,
         latestAction=bill.latestAction,
-        yesVotes=bill.yesVotes,
-        noVotes=bill.noVotes,
-        userVote=bill.userVote,
-        #        topics =
     )
     db.add(db_bill)
     db.commit()
@@ -84,7 +82,9 @@ def update_bill(db: Session, db_bill: models.Bill):
 
 
 def delete_bill(db: Session, bill_id: int):
-    return db.query(models.Bill).filter(models.Bill.id == bill_id).delete()
+    db.query(models.Bill).filter(models.Bill.id == bill_id).delete()
+    db.commit()
+    return
 
 
 # ### LEGISLATORS ###
@@ -132,4 +132,6 @@ def update_legislator(db: Session, db_legislator: models.Legislator):
 
 
 def delete_legislator(db: Session, legislator_id: int):
-    return db.query(models.Legislator).filter(models.Legislator.id == legislator_id).delete()
+    db.query(models.Legislator).filter(models.Legislator.id == legislator_id).delete()
+    db.commit()
+    return

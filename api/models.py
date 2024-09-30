@@ -62,5 +62,4 @@ class Legislator(Base):
     party = Column(String)
     phone = Column(String)
     state = Column(String)
-    topIssues = Column(String)
     twitter = Column(String)

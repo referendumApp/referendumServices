@@ -28,7 +28,6 @@ class BillBase(BaseModel):
     body: str
     session: str
     briefing: str
-    sponsorIds: int
     status: str
     latestAction: str
 
@@ -59,7 +58,6 @@ class LegislatorBase(BaseModel):
     party: str
     phone: str
     state: str
-    topIssues: List
     twitter: str
 
 
