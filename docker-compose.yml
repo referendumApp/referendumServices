@@ -1,8 +1,8 @@
 services:
-  app:
+  api:
     build:
       context: .
-      target: app
+      target: api
     ports:
       - "80:80"
     entrypoint: ["/code/entrypoint.sh"]
