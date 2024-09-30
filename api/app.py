@@ -21,10 +21,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-s3 = boto3.client('s3')
+s3 = boto3.client("s3")
 
-BUCKET_NAME = 'referendum-app-alpha'
-FILE_NAME = 'feedback.json'
+BUCKET_NAME = "referendum-app-alpha"
+FILE_NAME = "feedback.json"
+
 
 # Dependency
 def get_db():
@@ -37,23 +38,26 @@ def get_db():
 
 ########################################################################################################
 
+
 @app.get("/health")
-async def healthcheck(db = Depends(get_db)):
+async def healthcheck(db=Depends(get_db)):
     db.execute(text("SELECT 1"))
     return
 
 
 ########################################################################################################
 
-@app.put("/user")                                                       ### ADDS USER ###
-async def add_user(user: schemas.UserCreate, db = Depends(get_db)):
-    db_user = crud.get_user_by_email(db, email=user.email)                      
-    if db_user:                                                         
+
+@app.put("/user")  ### ADDS USER ###
+async def add_user(user: schemas.UserCreate, db=Depends(get_db)):
+    db_user = crud.get_user_by_email(db, email=user.email)
+    if db_user:
         raise HTTPException(status_code=400, detail="Email already registered.")
     return crud.create_user(db=db, user=user)
 
-@app.post("/user")                                                      ### UPDATES USER ###
-async def update_user(user: schemas.UserCreate, db = Depends(get_db)):
+
+@app.post("/user")  ### UPDATES USER ###
+async def update_user(user: schemas.UserCreate, db=Depends(get_db)):
     db_user = crud.get_user_by_email(db, email=user.email)
     if db_user:
         fake_hashed_password = user.password + "notreallyhashed"
@@ -62,123 +66,115 @@ async def update_user(user: schemas.UserCreate, db = Depends(get_db)):
         return crud.update_user(db=db, db_user=user)
     raise HTTPException(status_code=404, detail=f"User not found for email: {user.email}.")
 
-@app.get("/users/{user_id}")                                            ### GETS USER ###
-async def get_user(user_id: int,db = Depends(get_db)):
+
+@app.get("/users/{user_id}")  ### GETS USER ###
+async def get_user(user_id: int, db=Depends(get_db)):
     db_user = crud.get_user(db, user_id=user_id)
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found.")
     return db_user
 
-@app.delete("/users/{user_id}")                                         ### DELETES USER ###
-async def delete_user(user_id: int, db = Depends(get_db)):
+
+@app.delete("/users/{user_id}")  ### DELETES USER ###
+async def delete_user(user_id: int, db=Depends(get_db)):
     db_user = crud.get_user(db, user_id=user_id)
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found.")
     return crud.delete_user(db, user_id=user_id)
 
-@app.post("/feedback")                                                  ### ADDS FEEDBACK ###
+
+@app.post("/feedback")  ### ADDS FEEDBACK ###
 async def add_feedback(feedback: dict):
     try:
         try:
             response = s3.get_object(Bucket=BUCKET_NAME, Key=FILE_NAME)
-            file_content = json.loads(response['Body'].read().decode('utf-8'))
+            file_content = json.loads(response["Body"].read().decode("utf-8"))
         except s3.exceptions.NoSuchKey:
             logger.warning(f"File {FILE_NAME} not found in bucket {BUCKET_NAME}. Creating new file.")
             file_content = {"feedbackMessages": []}
 
-        file_content['feedbackMessages'].append(feedback)
+        file_content["feedbackMessages"].append(feedback)
 
-        s3.put_object(
-            Bucket=BUCKET_NAME,
-            Key=FILE_NAME,
-            Body=json.dumps(file_content),
-            ContentType='application/json'
-        )
+        s3.put_object(Bucket=BUCKET_NAME, Key=FILE_NAME, Body=json.dumps(file_content), ContentType="application/json")
         return
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}.")
 
+
 #############################################################################################################
 
 
-@app.put("/bill")                                                       ### ADDS BILL ###
-async def add_bill(bill: schemas.BillCreate, db = Depends(get_db)):     
-    db_bill = crud.get_bill_by_legiscanID(db, legiscan_id=bill.legiscanID)                      
-    if db_bill:                                                         
+@app.put("/bill")  ### ADDS BILL ###
+async def add_bill(bill: schemas.BillCreate, db=Depends(get_db)):
+    db_bill = crud.get_bill_by_legiscanID(db, legiscan_id=bill.legiscanID)
+    if db_bill:
         raise HTTPException(status_code=400, detail="Bill already exists.")
     return crud.create_bill(db=db, bill=bill)
 
-@app.post("/bill")                                                      ### UPDATES BILL ###
-async def update_bill(bill: schemas.Bill, db = Depends(get_db)):        
+
+@app.post("/bill")  ### UPDATES BILL ###
+async def update_bill(bill: schemas.Bill, db=Depends(get_db)):
     db_bill = crud.get_bill_by_legiscanID(db, legiscan_id=bill.legiscanID)
     if db_bill:
-        return crud.update_bill(db=db, db_bill=bill)             
+        return crud.update_bill(db=db, db_bill=bill)
     raise HTTPException(status_code=404, detail=f"Bill not found for ID: {bill.id}.")
 
-@app.get("/bills/{bill_id}")                                            ### GETS BILL ###
-async def get_bill(bill_id: int,db = Depends(get_db)):                  
+
+@app.get("/bills/{bill_id}")  ### GETS BILL ###
+async def get_bill(bill_id: int, db=Depends(get_db)):
     db_bill = crud.get_bill(db, bill_id=bill_id)
-    if db_bill:    
+    if db_bill:
         return db_bill
     raise HTTPException(status_code=404, detail=f"Bill not found for ID: {bill_id}.")
 
-@app.get("/bills/{bill_id}/text")                                       ### GETS BILL TEXT ###
-async def get_bill_text(bill_id: str):                                  ### THIS ISNT DONE ###
+
+@app.get("/bills/{bill_id}/text")  ### GETS BILL TEXT ###
+async def get_bill_text(bill_id: str):  ### THIS ISNT DONE ###
     lorem_ipsum = "Lorem ipsum dolor sit amet"
     return {"bill_id": bill_id, "text": lorem_ipsum}
 
-@app.delete("/bills/{bill_id}")                                         ### DELETES BILL ###
-async def delete_bill(bill_id: int, db = Depends(get_db)):
+
+@app.delete("/bills/{bill_id}")  ### DELETES BILL ###
+async def delete_bill(bill_id: int, db=Depends(get_db)):
     db_bill = crud.get_bill(db, bill_id=bill_id)
     if db_bill is None:
         raise HTTPException(status_code=404, detail=f"Bill not found for ID: {bill_id}.")
     return crud.delete_bill(db, bill_id=bill_id)
 
+
 ######################################################################################
 
-@app.put("/legislator")                                                       ### ADDS LEGISLATOR ###
-async def add_legislator(legislator: schemas.LegislatorCreate, db = Depends(get_db)):     
+
+@app.put("/legislator")  ### ADDS LEGISLATOR ###
+async def add_legislator(legislator: schemas.LegislatorCreate, db=Depends(get_db)):
     db_legislator = crud.get_legislator_by_name_and_state(db, name=legislator.name, state=legislator.state)
     if db_legislator:
         raise HTTPException(status_code=400, detail="Legislator already exists.")
     return crud.create_legislator(db=db, legislator=legislator)
 
-@app.post("/legislator")                                                            ### UPDATES LEGISLATOR ###
-async def update_legislator(legislator: schemas.Legislator, db = Depends(get_db)): 
+
+@app.post("/legislator")  ### UPDATES LEGISLATOR ###
+async def update_legislator(legislator: schemas.Legislator, db=Depends(get_db)):
     db_legislator = crud.get_legislator_by_name_and_state(db, name=legislator.name, state=legislator.state)
     if db_legislator:
         return crud.update_legislator(db=db, db_legislator=db_legislator)
     raise HTTPException(status_code=404, detail=f"Could not update legislator ID: {legislator.id}.")
 
-@app.get("/legislators/{legislator_id}")                                            ### GETS LEGISLATOR ###
-async def get_legislator(legislator_id: int,db = Depends(get_db)):                  
+
+@app.get("/legislators/{legislator_id}")  ### GETS LEGISLATOR ###
+async def get_legislator(legislator_id: int, db=Depends(get_db)):
     db_legislator = crud.get_legislator(db, legislator_id=legislator_id)
-    if db_legislator:    
+    if db_legislator:
         return db_legislator
     raise HTTPException(status_code=404, detail=f"legislator not found for ID: {legislator_id}.")
 
-@app.delete("/legislators/{legislator_id}")                                         ### DELETES LEGISLATOR ###
-async def delete_legislator(legislator_id: int, db = Depends(get_db)):
+
+@app.delete("/legislators/{legislator_id}")  ### DELETES LEGISLATOR ###
+async def delete_legislator(legislator_id: int, db=Depends(get_db)):
     db_legislator = crud.get_legislator(db, legislator_id=legislator_id)
     if db_legislator is None:
         raise HTTPException(status_code=404, detail=f"Legislator not found for ID: {legislator_id}.")
     return crud.delete_legislator(db, legislator_id=legislator_id)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # @app.get("/bills")
@@ -221,7 +217,6 @@ async def delete_legislator(legislator_id: int, db = Depends(get_db)):
 # @app.get("/comments")
 # async def get_comments():
 #     return sample_data["Comments"]
-
 
 
 if __name__ == "__main__":
