@@ -32,7 +32,6 @@ def update_user(db: Session, db_user: models.User):
     
     
 def delete_user(db: Session, user_id: int):
-    print(user_id)
     db.query(models.User).filter(models.User.id == user_id).delete()
     db.commit()
     return 
@@ -71,7 +70,6 @@ def get_bill_by_legiscanID(db: Session, legiscan_id: int):
 def update_bill(db: Session, db_bill: models.Bill):
     db.add(db_bill)
     db.commit()
-    print(db_bill)
     db.refresh(db_bill)
     return db_bill
 

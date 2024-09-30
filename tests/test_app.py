@@ -11,7 +11,7 @@ def test_health():
 def test_user_workflow():
     # Step 1: Add a new user
     user_payload = {"name": "John Smith", "email": "js@yahoo.com", "password": "1234"}
-    response = client.put("/user", json=user_payload)
+    response = client.put("/users", json=user_payload)
     assert response.status_code == 200
 
     # Verify user creation by checking for correct email in the PUT response
@@ -25,9 +25,9 @@ def test_user_workflow():
     assert get_response.json()["name"] == "John Smith"
     assert get_response.json()["email"] == "js@yahoo.com"
 
-    # Step 3: Update the user (change the name)
+    # Step 3: Update the user (change the name)                 ### revisit ###
     user_payload["name"] = "Bob Jones"
-    update = client.post("/user", json=user_payload)
+    update = client.post("/users", json=user_payload)
     assert update.status_code == 200
 
     # Step 4: Get the user again after the update to verify the changes
@@ -59,7 +59,7 @@ def test_user_workflow():
     # docker rm $(docker ps -aq) - remove everything
     # docker image prune, network prune, system prune - prune a bunch of stuff
 
-def test_bill_workflor():
+def test_bill_workflow():
     # Step 1: Add a new bill
     original_bill_payload = {
     "legiscanID": 11,
@@ -73,7 +73,7 @@ def test_bill_workflor():
     "status": "str",
     "latestAction": "str"
         }
-    response = client.put("/bill", json=original_bill_payload)
+    response = client.put("/bills", json=original_bill_payload)
     assert response.status_code == 200
 
     # Verify bill creation by checking for correct legiscanID in the PUT response
@@ -88,9 +88,7 @@ def test_bill_workflor():
    
     # Step 3: Update the bill (change the title)
     created_bill["title"] = "new title"
-    update_response = client.post("/bill", json=created_bill)
-    updated_bill = update_response.json()
-    print(updated_bill)
+    update_response = client.post("/bills", json=created_bill)
     assert update_response.status_code == 200
 
     # Step 4: Get the bill again after the update to verify the changes
