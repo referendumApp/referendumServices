@@ -4,11 +4,11 @@ def extract():
 
 
 def transform():
-    print("Extracting")
+    print("Transforming")
 
 
 def load():
-    print("Extracting")
+    print("Loading")
 
 
 def orchestrate_etl():
