@@ -52,7 +52,7 @@ The API image is built with GitHub Actions, pushed to ECR, and then deployed on 
 
 Environment-specific variables are stored in AWS Systems Manager Parameter Store. They are organized under paths:
 - Production: `/prod/`
-- Test: `/test/`
+- Test: `/dev/`
 
 Required parameters for each environment:
 - POSTGRES_HOST
@@ -82,8 +82,8 @@ Both environments are run on the same EC2 server, with different tags and ports:
   - Runs on port 80
   - Uses parameters from `/prod/` in SSM Parameter Store
 
-- **Test**: 
+- **Dev**: 
   - Can be deployed manually using Github Actions workflow dispatch
   - Runs on port 8080
-  - Uses parameters from `/test/` in SSM Parameter Store
+  - Uses parameters from `/dev/` in SSM Parameter Store
 

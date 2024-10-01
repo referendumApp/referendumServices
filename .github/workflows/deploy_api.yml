@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to deploy to (prod/test)'
+        description: 'Environment to deploy to (prod/dev)'
         required: true
-        default: 'test'
+        default: 'dev'
 
 env:
   AWS_REGION: us-east-2
