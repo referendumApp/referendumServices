@@ -26,6 +26,7 @@ fi
 echo "Running migrations..."
 alembic upgrade head
 
-python /code/load_database.py
+# TODO - add this back
+#python /code/load_database.py
 
 echo "Local initialization completed"
