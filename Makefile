@@ -6,8 +6,8 @@ build:
 
 # Run the application in local development mode
 api:
-	docker compose --profile dev --profile api build
-	docker compose --profile dev --profile api up
+	docker compose --profile dev build
+	docker compose --profile dev up
 
 # Run the pipeline in local development mode
 pipeline:

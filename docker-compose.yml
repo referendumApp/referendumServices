@@ -1,5 +1,5 @@
 services:
-  api:
+  api-base:
     build:
       context: .
       target: api
@@ -11,7 +11,17 @@ services:
       - REFERENDUM_DATABASE=referendum
     ports:
       - "80:80"
+
+  api:
+    extends:
+      service: api-base
     profiles: ["api"]
+
+
+  api-dev:
+    extends:
+      service: api-base
+    profiles: [ "dev" ]
 
   db:
     image: postgres:13
