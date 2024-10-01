@@ -17,7 +17,7 @@ CMD ["/code/entrypoint.sh"]
 
 
 # Pipeline stage
-FROM base AS app
+FROM base AS pipeline
 
 COPY src/pipeline /code/pipeline
 COPY src/database /code/database

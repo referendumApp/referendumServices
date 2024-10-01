@@ -2,19 +2,22 @@
 
 # Build the Docker images
 build:
-	docker compose --profile dev build
+	docker compose --profile "*" build
 
 # Run the application in local development mode
-run: build
-	docker compose --profile dev up
+api:
+	docker compose --profile dev --profile api build
+	docker compose --profile dev --profile api up
+
+# Run the pipeline in local development mode
+pipeline:
+	docker compose --profile dev --profile pipeline build
+	docker compose --profile dev --profile pipeline up
 
 # Run the tests
-test: build
+test:
+	docker compose --profile test build
 	docker compose --profile test up --exit-code-from test
-
-# Run the pipeline
-pipeline: build
-	docker compose --profile pipeline up pipeline
 
 # Clean up Docker resources
 clean:

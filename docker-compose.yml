@@ -5,7 +5,7 @@ services:
       target: api
     ports:
       - "80:80"
-    profiles: ["service", "dev"]
+    profiles: ["api"]
 
   db:
     image: postgres:13
