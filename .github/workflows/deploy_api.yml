@@ -75,6 +75,8 @@ jobs:
               "ENV_VARS=$(echo \"$AWS_JSON\" | jq -r \".[] | \\\"-e \\\" + .Name + \\\"=\\\" + .Value\" | sed \"s/\\/[^\\/]*\\///g\" | tr \"\\n\" \" \")",
               "echo $ENV_VARS | xargs -n1 echo -e",
               "POSTGRES_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${{ env.POSTGRES_PASSWORD_SECRET_NAME }} --query SecretString --output text)",
+              "echo $POSTGRES_PASSWORD",
+              "echo -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" $(echo $ENV_VARS | xargs -n1 echo -e) ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
               "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" $(echo $ENV_VARS | xargs -n1 echo -e) ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
               "docker system prune -f",
               "echo ${{ env.DEPLOY_ENV }} deployment completed"
