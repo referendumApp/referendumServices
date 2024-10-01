@@ -2,7 +2,7 @@
 
 # Build the Docker images
 build:
-	docker compose build
+	docker compose --profile dev build
 
 # Run the application in local development mode
 run: build

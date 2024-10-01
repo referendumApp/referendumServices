@@ -5,12 +5,12 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
-from database import schemas, crud, database, models
+from database import crud, database, orms, pydantic_models
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-models.Base.metadata.create_all(bind=database.engine)
+orms.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI()
 app.add_middleware(
@@ -49,7 +49,7 @@ async def healthcheck(db=Depends(get_db)):
 
 
 @app.put("/users")  ### ADDS USER ###
-async def add_user(user: schemas.UserCreate, db=Depends(get_db)):
+async def add_user(user: pydantic_models.UserCreate, db=Depends(get_db)):
     db_user = crud.get_user_by_email(db, email=user.email)
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered.")
@@ -57,7 +57,7 @@ async def add_user(user: schemas.UserCreate, db=Depends(get_db)):
 
 
 @app.post("/users")  ### UPDATES USER ###
-async def update_user(user: schemas.UserCreate, db=Depends(get_db)):
+async def update_user(user: pydantic_models.UserCreate, db=Depends(get_db)):
     db_user = crud.get_user_by_email(db, email=user.email)
     if db_user:
         fake_hashed_password = user.password + "notreallyhashed"
@@ -105,7 +105,7 @@ async def add_feedback(feedback: dict):
 
 
 @app.put("/bills")  ### ADDS BILL ###
-async def add_bill(bill: schemas.BillCreate, db=Depends(get_db)):
+async def add_bill(bill: pydantic_models.BillCreate, db=Depends(get_db)):
     db_bill = crud.get_bill_by_legiscanID(db, legiscan_id=bill.legiscanID)
     if db_bill:
         raise HTTPException(status_code=400, detail="Bill already exists.")
@@ -113,7 +113,7 @@ async def add_bill(bill: schemas.BillCreate, db=Depends(get_db)):
 
 
 @app.post("/bills")  ### UPDATES BILL ###
-async def update_bill(bill: schemas.Bill, db=Depends(get_db)):
+async def update_bill(bill: pydantic_models.Bill, db=Depends(get_db)):
 
     db_bill = crud.get_bill_by_legiscanID(db, legiscan_id=bill.legiscanID)
     if db_bill:
@@ -148,7 +148,7 @@ async def delete_bill(bill_id: int, db=Depends(get_db)):
 
 
 @app.put("/legislators")  ### ADDS LEGISLATOR ###
-async def add_legislator(legislator: schemas.LegislatorCreate, db=Depends(get_db)):
+async def add_legislator(legislator: pydantic_models.LegislatorCreate, db=Depends(get_db)):
     db_legislator = crud.get_legislator_by_name_and_state(db, name=legislator.name, state=legislator.state)
     if db_legislator:
         raise HTTPException(status_code=400, detail="Legislator already exists.")
@@ -156,7 +156,7 @@ async def add_legislator(legislator: schemas.LegislatorCreate, db=Depends(get_db
 
 
 @app.post("/legislators")  ### UPDATES LEGISLATOR ###
-async def update_legislator(legislator: schemas.Legislator, db=Depends(get_db)):
+async def update_legislator(legislator: pydantic_models.Legislator, db=Depends(get_db)):
     db_legislator = crud.get_legislator_by_name_and_state(db, name=legislator.name, state=legislator.state)
     if db_legislator:
         update_data = legislator.model_dump()

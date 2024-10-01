@@ -32,7 +32,7 @@ RUN chmod +x /code/local_init.sh
 # Test stage
 FROM base AS test
 
-COPY src /code
+COPY src/api /code/api
 COPY src/database /code/database
 COPY tests /code/tests
 
