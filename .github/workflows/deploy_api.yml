@@ -75,23 +75,37 @@ jobs:
               "echo ${{ env.DEPLOY_ENV }} deployment completed"
             ]
           }' \
-          --output text \
-          --query "Command.CommandId")
+          --output json)
+        
+        DEPLOY_COMMAND_ID=$(echo "$DEPLOY_COMMAND_OUTPUT" | jq -r '.Command.CommandId')
+        
+        echo "Deployment command ID: $DEPLOY_COMMAND_ID"
         
         # Wait for the command to complete and check its status
         while true; do
-          STATUS=$(aws ssm list-commands \
+          COMMAND_RESULT=$(aws ssm list-command-invocations \
             --command-id "$DEPLOY_COMMAND_ID" \
-            --query "Commands[0].Status" \
-            --output text)
+            --details \
+            --output json)
+          
+          STATUS=$(echo "$COMMAND_RESULT" | jq -r '.CommandInvocations[0].Status')
+          
           if [ "$STATUS" = "Success" ]; then
             echo "Deployment command executed successfully"
             break
           elif [ "$STATUS" = "Failed" ]; then
             echo "Deployment command failed"
+            echo "Command output:"
+            echo "$COMMAND_RESULT" | jq -r '.CommandInvocations[0].CommandPlugins[0].Output'
+            exit 1
+          elif [ "$STATUS" = "TimedOut" ]; then
+            echo "Deployment command timed out"
+            echo "Command output:"
+            echo "$COMMAND_RESULT" | jq -r '.CommandInvocations[0].CommandPlugins[0].Output'
             exit 1
           fi
-          echo "Waiting for deployment command to complete..."
+          
+          echo "Waiting for deployment command to complete... Current status: $STATUS"
           sleep 10
         done
 
