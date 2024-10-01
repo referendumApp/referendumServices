@@ -33,7 +33,7 @@ class Bill(Base):
     briefing = Column(String)
     status = Column(String)
     latestAction = Column(String)
-#    topics = relationship("Topic", secondary=bill_topics, back_populates="bills" )
+    # topics = relationship("Topic", secondary=bill_topics, back_populates="bills" )
 
 
 # class Topic(Base):
