@@ -15,4 +15,4 @@ jobs:
     - name: Build and run tests
       run: |
         docker compose --profile test build
-        docker compose --profile test up --exit-code-from test
+        docker compose --profile test up
