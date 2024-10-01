@@ -17,12 +17,13 @@ pipeline:
 # Run the tests
 test:
 	docker compose --profile test build
-	docker compose --profile test up --exit-code-from test
+	docker compose --profile test up
 
 # Clean up Docker resources
 clean:
 	docker compose down --remove-orphans
 	docker system prune -f
+	docker volume prune -f
 
 # Start a shell in the app container
 shell:

@@ -91,21 +91,7 @@ def delete_bill(db: Session, bill_id: int):
 
 
 def create_legislator(db: Session, legislator: pydantic_models.LegislatorCreate):
-    db_legislator = orms.Legislator(
-        chamber=legislator.chamber,
-        district=legislator.district,
-        email=legislator.email,
-        facebook=legislator.facebook,
-        imageUrl=legislator.imageUrl,
-        instagram=legislator.instagram,
-        name=legislator.name,
-        office=legislator.office,
-        party=legislator.party,
-        phone=legislator.phone,
-        state=legislator.state,
-        #        topIssues=legislator.topIssues,
-        twitter=legislator.twitter,
-    )
+    db_legislator = orms.Legislator(**legislator.model_dump())
     db.add(db_legislator)
     db.commit()
     db.refresh(db_legislator)
