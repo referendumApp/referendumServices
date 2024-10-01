@@ -60,7 +60,7 @@ def upgrade():
         sa.Column("district", sa.String(), nullable=True),
         sa.Column("email", sa.String(), nullable=True),
         sa.Column("facebook", sa.String(), nullable=True),
-        sa.Column("imageUrl", sa.String(), nullable=True),
+        sa.Column("image_url", sa.String(), nullable=True),
         sa.Column("instagram", sa.String(), nullable=True),
         sa.Column("name", sa.String(), nullable=True),
         sa.Column("office", sa.String(), nullable=True),

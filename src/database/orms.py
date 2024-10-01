@@ -52,7 +52,7 @@ class Legislator(Base):
     district = Column(String)
     email = Column(String)
     facebook = Column(String)
-    imageUrl = Column(String)
+    image_url = Column(String)
     instagram = Column(String)
     name = Column(String)
     office = Column(String)
