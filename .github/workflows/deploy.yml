@@ -45,6 +45,9 @@ jobs:
           echo "PORT_MAPPING=8080:80" >> $GITHUB_ENV
         fi
 
+    - name: Check Docker Compose version
+      run: docker compose version
+
     - name: Build, tag, and push image to Amazon ECR
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
