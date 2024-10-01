@@ -49,7 +49,6 @@ jobs:
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
-
         docker compose --profile service build api
         docker tag referendumservices-api:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}

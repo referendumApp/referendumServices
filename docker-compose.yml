@@ -5,7 +5,7 @@ services:
       target: api
     ports:
       - "80:80"
-    profiles: ["service", "dev"]
+    profiles: ["api"]
 
   db:
     image: postgres:13
@@ -34,6 +34,17 @@ services:
         condition: service_healthy
     command: ["/code/local_init.sh"]
     profiles: ["dev", "test"]
+
+  pipeline:
+    build:
+      context: .
+      target: pipeline
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/local-db
+    profiles: ["pipeline"]
 
   test:
     build:
