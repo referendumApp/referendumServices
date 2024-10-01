@@ -82,10 +82,9 @@ def update_bill(db: Session, db_bill: orms.Bill):
 
 
 def delete_bill(db: Session, bill_id: int):
-    return db.query(models.Bill).filter(models.Bill.id == bill_id).delete()
-
-
-
+    db.query(orms.Bill).filter(orms.Bill.id == bill_id).delete()
+    db.commit()
+    return
 
 
 # ### LEGISLATORS ###
