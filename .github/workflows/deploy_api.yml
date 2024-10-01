@@ -1,4 +1,4 @@
-name: Deploy to AWS
+name: Deploy API to AWS
 
 on:
   push:
@@ -12,7 +12,7 @@ on:
 
 env:
   AWS_REGION: us-east-2
-  ECR_REPOSITORY: referendum/services
+  ECR_REPOSITORY: referendum/api
   EC2_INSTANCE_ID: i-08edd9a77b42449b2
 
 jobs:
@@ -43,6 +43,14 @@ jobs:
         echo "DEPLOY_ENV=$DEPLOY_ENV" >> $GITHUB_ENV
         echo "IMAGE_TAG=$DEPLOY_ENV-${{ github.sha }}" >> $GITHUB_ENV
         echo "PORT_MAPPING=$([ "$DEPLOY_ENV" == "prod" ] && echo "80:80" || echo "8080:80")" >> $GITHUB_ENV
+       
+        # Get the current 'stable' image tag for potential rollback
+        STABLE_TAG=$(aws ecr describe-images --repository-name $ECR_REPOSITORY --image-ids imageTag=$DEPLOY_ENV-stable --query 'imageDetails[0].imageTags[?@!=`'$DEPLOY_ENV'-stable`]' --output text || echo "")
+        if [ -z "$STABLE_TAG" ]; then
+          echo "No stable tag found. This might be the first deployment."
+          STABLE_TAG=$IMAGE_TAG
+        fi
+        echo "STABLE_TAG=$STABLE_TAG" >> $GITHUB_ENV
 
     - name: Build, tag, and push image to Amazon ECR
       env:
@@ -50,9 +58,7 @@ jobs:
       run: |
         docker compose --profile service build api
         docker tag referendumservices-api:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}
-        docker tag referendumservices-api:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.DEPLOY_ENV }}-latest
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.DEPLOY_ENV }}-latest
 
     - name: Deploy to EC2
       env:
@@ -91,7 +97,7 @@ jobs:
         
         if [ "$HEALTH_CHECK_STATUS_CODE" != "200" ]; then
           echo "Deployment verification failed. Health check returned: $HEALTH_CHECK_STATUS_CODE"
-          echo "Rolling back to previous version..."
+          echo "Rolling back to previous stable version..."
           aws ssm send-command \
             --instance-ids "${{ env.EC2_INSTANCE_ID }}" \
             --document-name "AWS-RunShellScript" \
@@ -99,10 +105,14 @@ jobs:
               "commands": [
                 "docker stop ${{ env.DEPLOY_ENV }}-app || true",
                 "docker rm ${{ env.DEPLOY_ENV }}-app || true",
-                "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} --env-file /etc/environment/${{ env.DEPLOY_ENV }}.env ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.DEPLOY_ENV }}-latest"
+                "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.STABLE_TAG }}"
               ]
             }'
           exit 1
+        else
+          echo "Deployment successful. Updating stable tag."
+          docker tag ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.DEPLOY_ENV }}-stable
+          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.DEPLOY_ENV }}-stable
         fi
         
         echo "Deployment successful"
