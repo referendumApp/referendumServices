@@ -14,6 +14,7 @@ env:
   AWS_REGION: us-east-2
   ECR_REPOSITORY: referendum/api
   EC2_INSTANCE_ID: i-08edd9a77b42449b2
+  POSTGRES_PASSWORD_SECRET_NAME: rds!db-a5c629ff-4d6e-4d68-9680-6cdab848369c
 
 jobs:
   deploy:
@@ -70,7 +71,8 @@ jobs:
               "docker stop ${{ env.DEPLOY_ENV }}-app || true",
               "docker rm ${{ env.DEPLOY_ENV }}-app || true",
               "ENV_VARS=$(aws ssm get-parameters-by-path --path /${{ env.DEPLOY_ENV }}/ --with-decryption --query \"Parameters[*].{Name:Name,Value:Value}\" --output json | jq -r \".[].Name + \\\"=\\\" + .[].Value\" | tr \"\\n\" \" \" | sed \"s/\\/[^\\/]*\\///g\" | sed \"s/^/export /\" | tr \"\\n\" \" \")",
-              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} --env-file <(echo \"$ENV_VARS\") ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
+              "POSTGRES_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${{ env.POSTGRES_PASSWORD_SECRET_NAME }} --query SecretString --output text)",
+              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} --env-file <(echo \"$ENV_VARS\") -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
               "docker system prune -f",
               "echo ${{ env.DEPLOY_ENV }} deployment completed"
             ]
@@ -157,7 +159,8 @@ jobs:
               "docker rm ${{ env.DEPLOY_ENV }}-app || true",
               "docker rmi ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} || true",
               "ENV_VARS=$(aws ssm get-parameters-by-path --path /${{ env.DEPLOY_ENV }}/ --with-decryption --query \"Parameters[*].{Name:Name,Value:Value}\" --output json | jq -r \".[].Name + \\\"=\\\" + .[].Value\" | tr \"\\n\" \" \" | sed \"s/\\/[^\\/]*\\///g\" | sed \"s/^/export /\" | tr \"\\n\" \" \")",
-              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} --env-file <(echo \"$ENV_VARS\") ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.DEPLOY_ENV }}-stable"
+              "POSTGRES_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${{ env.POSTGRES_PASSWORD_SECRET_ID }} --query SecretString --output text)",
+              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} --env-file <(echo \"$ENV_VARS\") -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.DEPLOY_ENV }}-stable",
             ]
           }'
         exit 1
