@@ -1,4 +1,4 @@
-FROM python:3.9 AS base
+FROM python:3.11 AS base
 
 WORKDIR /code
 COPY requirements.txt .
