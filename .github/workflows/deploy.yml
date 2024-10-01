@@ -36,12 +36,13 @@ jobs:
     - name: Set deployment variables
       run: |
         if [[ "${{ github.event_name }}" == "push" ]]; then
-          echo "DEPLOY_ENV=prod" >> $GITHUB_ENV
+          DEPLOY_ENV="prod"
         else
-          echo "DEPLOY_ENV=${{ github.event.inputs.environment }}" >> $GITHUB_ENV
+          DEPLOY_ENV="${{ github.event.inputs.environment }}"
         fi
-        echo "IMAGE_TAG=${{ env.DEPLOY_ENV }}-${{ github.sha }}" >> $GITHUB_ENV
-        echo "PORT_MAPPING=${{ env.DEPLOY_ENV == 'prod' && '80:80' || '8080:80' }}" >> $GITHUB_ENV
+        echo "DEPLOY_ENV=$DEPLOY_ENV" >> $GITHUB_ENV
+        echo "IMAGE_TAG=$DEPLOY_ENV-${{ github.sha }}" >> $GITHUB_ENV
+        echo "PORT_MAPPING=$([ "$DEPLOY_ENV" == "prod" ] && echo "80:80" || echo "8080:80")" >> $GITHUB_ENV
 
     - name: Build, tag, and push image to Amazon ECR
       env:
