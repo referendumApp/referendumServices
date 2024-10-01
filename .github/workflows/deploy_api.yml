@@ -48,7 +48,7 @@ jobs:
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
-        set -e  # Exit immediately if a command exits with a non-zero status
+        set -e
         docker compose --profile api build
         docker tag referendumservices-api:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}
@@ -57,7 +57,7 @@ jobs:
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
-        set -e  # Exit immediately if a command exits with a non-zero status
+        set -e
         echo "Deploying to EC2..."
         DEPLOY_COMMAND_ID=$(aws ssm send-command \
           --instance-ids "${{ env.EC2_INSTANCE_ID }}" \
@@ -69,10 +69,8 @@ jobs:
               "docker pull ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
               "docker stop ${{ env.DEPLOY_ENV }}-app || true",
               "docker rm ${{ env.DEPLOY_ENV }}-app || true",
-              "ENV_VARS=$(aws ssm get-parameters-by-path --path /${{ env.DEPLOY_ENV }}/ --with-decryption --query \"Parameters[*].{Name:Name,Value:Value}\" --output json | jq -r '.[].Name + \"=\" + .[].Value' | tr \"\n\" \" \" | sed \"s/\\/[^\\/]*\\///g\" | sed \"s/^/export /\" | tr \"\n\" \" \")",
-              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} \\
-                --env-file <(echo \"$ENV_VARS\") \\
-                ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
+              "ENV_VARS=$(aws ssm get-parameters-by-path --path /${{ env.DEPLOY_ENV }}/ --with-decryption --query \"Parameters[*].{Name:Name,Value:Value}\" --output json | jq -r \".[].Name + \\\"=\\\" + .[].Value\" | tr \"\\n\" \" \" | sed \"s/\\/[^\\/]*\\///g\" | sed \"s/^/export /\" | tr \"\\n\" \" \")",
+              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} --env-file <(echo \"$ENV_VARS\") ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
               "docker system prune -f",
               "echo ${{ env.DEPLOY_ENV }} deployment completed"
             ]
@@ -99,7 +97,7 @@ jobs:
 
     - name: Verify Deployment
       run: |
-        set -e  # Exit immediately if a command exits with a non-zero status
+        set -e
         echo "Verifying deployment..."
         PORT="${{ env.DEPLOY_ENV == 'prod' && '80' || '8080' }}"
         MAX_RETRIES=5
@@ -144,10 +142,8 @@ jobs:
               "docker stop ${{ env.DEPLOY_ENV }}-app || true",
               "docker rm ${{ env.DEPLOY_ENV }}-app || true",
               "docker rmi ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} || true",
-              "ENV_VARS=$(aws ssm get-parameters-by-path --path /${{ env.DEPLOY_ENV }}/ --with-decryption --query \"Parameters[*].{Name:Name,Value:Value}\" --output json | jq -r '.[].Name + \"=\" + .[].Value' | tr \"\n\" \" \" | sed \"s/\\/[^\\/]*\\///g\" | sed \"s/^/export /\" | tr \"\n\" \" \")",
-              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} \\
-                  --env-file <(echo \"$ENV_VARS\") \\
-                  ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.STABLE_TAG }}"
+              "ENV_VARS=$(aws ssm get-parameters-by-path --path /${{ env.DEPLOY_ENV }}/ --with-decryption --query \"Parameters[*].{Name:Name,Value:Value}\" --output json | jq -r \".[].Name + \\\"=\\\" + .[].Value\" | tr \"\\n\" \" \" | sed \"s/\\/[^\\/]*\\///g\" | sed \"s/^/export /\" | tr \"\\n\" \" \")",
+              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} --env-file <(echo \"$ENV_VARS\") ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.DEPLOY_ENV }}-stable"
             ]
           }'
         exit 1
