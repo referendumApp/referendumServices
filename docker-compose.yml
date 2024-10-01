@@ -6,6 +6,7 @@ services:
     ports:
       - "80:80"
     entrypoint: ["/code/entrypoint.sh"]
+    profiles: ["service", "dev"]
 
   db:
     image: postgres:13
@@ -24,6 +25,7 @@ services:
       - "postgres"
       - "-c"
       - "log_statement=all"
+    profiles: ["dev", "test"]
 
   local-init:
     build:
@@ -36,7 +38,7 @@ services:
       db:
         condition: service_healthy
     command: ["/code/local_init.sh"]
-    profiles: ["local", "test"]
+    profiles: ["dev", "test"]
 
   test:
     build:

@@ -50,7 +50,7 @@ jobs:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
 
-        docker compose build api
+        docker compose build --profile service api
         docker tag referendumservices-api:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}
 
@@ -88,7 +88,7 @@ jobs:
           --query "CommandInvocations[].CommandPlugins[].Output")
         
         if [ "$HEALTH_CHECK_STATUS_CODE" != "200" ]; then
-          echo "Deployment verification failed. Health check returned: $HEALTH_CHECK"
+          echo "Deployment verification failed. Health check returned: $HEALTH_CHECK_STATUS_CODE"
           exit 1
         fi
         
