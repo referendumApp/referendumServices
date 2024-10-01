@@ -119,7 +119,7 @@ def test_legislator_workflow():
         "district": "str",
         "email": "str",
         "facebook": "str",
-        "imageUrl": "str",
+        "image_url": "str",
         "instagram": "str",
         "name": "str",
         "office": "str",
