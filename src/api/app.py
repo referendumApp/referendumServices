@@ -5,12 +5,12 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
-from database import crud, database, orms, pydantic_models
+from database.referendum import core, crud, orms, pydantic_models
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-orms.Base.metadata.create_all(bind=database.engine)
+orms.Base.metadata.create_all(bind=core.engine)
 
 app = FastAPI()
 app.add_middleware(
@@ -29,7 +29,7 @@ FILE_NAME = "feedback.json"
 
 # Dependency
 def get_db():
-    db = database.SessionLocal()
+    db = core.SessionLocal()
     try:
         yield db
     finally:
