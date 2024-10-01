@@ -4,14 +4,14 @@ services:
       context: .
       target: api
     environment:
-      - RDS_URL=db
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
       - REFERENDUM_DATABASE=referendum
     ports:
       - "80:80"
     profiles: ["api"]
-    depends_on:
-      db:
-        condition: service_healthy
 
   db:
     image: postgres:13
