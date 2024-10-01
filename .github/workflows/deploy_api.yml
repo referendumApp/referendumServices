@@ -49,7 +49,7 @@ jobs:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
         set -e  # Exit immediately if a command exits with a non-zero status
-        docker compose --profile service build api
+        docker compose --profile api build
         docker tag referendumservices-api:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}
 
