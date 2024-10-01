@@ -3,20 +3,19 @@ from typing import List
 
 
 ### USERS ###
-class UserBase(BaseModel):      
+class UserBase(BaseModel):
     email: str
     name: str
+
 
 class UserCreate(UserBase):
     password: str
 
+
 class User(UserBase):
     id: int
 
-    model_config = ConfigDict(
-        from_attributes=True
-    )
-
+    model_config = ConfigDict(from_attributes=True)
 
 
 ### BILLS ###
@@ -29,20 +28,22 @@ class BillBase(BaseModel):
     body: str
     session: str
     briefing: str
-    sponsorIds: int
     status: str
     latestAction: str
-#    topics: 
+
+
+#    topics:
+
 
 class BillCreate(BillBase):
     pass
 
+
 class Bill(BillBase):
     id: int
 
-    model_config = ConfigDict(
-        from_attributes=True
-    )
+    model_config = ConfigDict(from_attributes=True)
+
 
 # ### LEGISLATORS ###
 class LegislatorBase(BaseModel):
@@ -57,29 +58,14 @@ class LegislatorBase(BaseModel):
     party: str
     phone: str
     state: str
-    topIssues: List
     twitter: str
+
 
 class LegislatorCreate(LegislatorBase):
     pass
 
+
 class Legislator(LegislatorBase):
     id: int
 
-    model_config = ConfigDict(
-        from_attributes=True
-    )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    model_config = ConfigDict(from_attributes=True)
