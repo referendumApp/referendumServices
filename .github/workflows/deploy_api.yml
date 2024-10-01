@@ -1,4 +1,4 @@
-name: Deploy to AWS
+name: Deploy API to AWS
 
 on:
   push:
@@ -12,7 +12,7 @@ on:
 
 env:
   AWS_REGION: us-east-2
-  ECR_REPOSITORY: referendum/services
+  ECR_REPOSITORY: referendum/api
   EC2_INSTANCE_ID: i-08edd9a77b42449b2
 
 jobs:
