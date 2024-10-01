@@ -67,7 +67,10 @@ jobs:
               "docker pull ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
               "docker stop ${{ env.DEPLOY_ENV }}-app || true",
               "docker rm ${{ env.DEPLOY_ENV }}-app || true",
-              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
+              "ENV_VARS=$(aws ssm get-parameters-by-path --path /${{ env.DEPLOY_ENV }}/ --with-decryption --query \"Parameters[*].{Name:Name,Value:Value}\" --output json | jq -r '.[].Name + \"=\" + .[].Value' | tr \"\n\" \" \" | sed \"s/\\/[^\\/]*\\///g\" | sed \"s/^/export /\" | tr \"\n\" \" \")",
+              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} \\
+                --env-file <(echo \"$ENV_VARS\") \\
+                ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
               "docker system prune -af",
               "echo ${{ env.DEPLOY_ENV }} deployment completed"
             ]
@@ -99,7 +102,10 @@ jobs:
               "commands": [
                 "docker stop ${{ env.DEPLOY_ENV }}-app || true",
                 "docker rm ${{ env.DEPLOY_ENV }}-app || true",
-                "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} --env-file /etc/environment/${{ env.DEPLOY_ENV }}.env ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.DEPLOY_ENV }}-latest"
+                "ENV_VARS=$(aws ssm get-parameters-by-path --path /${{ env.DEPLOY_ENV }}/ --with-decryption --query \"Parameters[*].{Name:Name,Value:Value}\" --output json | jq -r '.[].Name + \"=\" + .[].Value' | tr \"\n\" \" \" | sed \"s/\\/[^\\/]*\\///g\" | sed \"s/^/export /\" | tr \"\n\" \" \")",
+                "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} \\
+                  --env-file <(echo \"$ENV_VARS\") \\
+                  ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.DEPLOY_ENV }}-latest"
               ]
             }'
           exit 1

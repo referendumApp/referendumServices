@@ -2,10 +2,16 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-# Get the DATABASE_URL from environment variable
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@db:5432/local-db")
 
-engine = create_engine(DATABASE_URL)
+def get_connection_string():
+    return (
+        f"postgresql://{os.getenv('POSTGRES_USER')}:{os.getenv('POSTGRES_PASSWORD')}@"
+        f"{os.getenv('POSTGRES_HOST')}:{os.getenv('POSTGRES_PORT')}/{os.getenv('REFERENDUM_DATABASE')}"
+    )
+
+
+connection_string = get_connection_string()
+engine = create_engine(connection_string)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()

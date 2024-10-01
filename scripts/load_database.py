@@ -5,8 +5,15 @@ from sqlalchemy import create_engine
 from sqlalchemy.types import JSON
 
 # Database connection
-DATABASE_URL = os.getenv("DATABASE_URL")
-engine = create_engine(DATABASE_URL)
+def get_connection_string():
+    return (
+        f"postgresql://{os.getenv('POSTGRES_USER')}:{os.getenv('POSTGRES_PASSWORD')}@"
+        f"{os.getenv('POSTGRES_HOST')}:{os.getenv('POSTGRES_PORT')}/{os.getenv('REFERENDUM_DATABASE')}"
+    )
+
+
+connection_string = get_connection_string()
+engine = create_engine(connection_string)
 
 
 def load_json_files(directory):
