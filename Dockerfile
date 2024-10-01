@@ -47,6 +47,6 @@ COPY src/api /code/api
 COPY src/database /code/database
 COPY tests /code/tests
 
-ENV PYTHONPATH=/app:$PYTHONPATH
+ENV PYTHONPATH=/code:$PYTHONPATH
 
 CMD ["pytest"]

@@ -106,7 +106,7 @@ async def add_feedback(feedback: dict):
 
 @app.put("/bills")  ### ADDS BILL ###
 async def add_bill(bill: pydantic_models.BillCreate, db=Depends(get_db)):
-    db_bill = crud.get_bill_by_legiscanID(db, legiscan_id=bill.legiscanID)
+    db_bill = crud.get_bill_by_legiscan_id(db, legiscan_id=bill.legiscan_id)
     if db_bill:
         raise HTTPException(status_code=400, detail="Bill already exists.")
     return crud.create_bill(db=db, bill=bill)
@@ -115,7 +115,7 @@ async def add_bill(bill: pydantic_models.BillCreate, db=Depends(get_db)):
 @app.post("/bills")  ### UPDATES BILL ###
 async def update_bill(bill: pydantic_models.Bill, db=Depends(get_db)):
 
-    db_bill = crud.get_bill_by_legiscanID(db, legiscan_id=bill.legiscanID)
+    db_bill = crud.get_bill_by_legiscan_id(db, legiscan_id=bill.legiscan_id)
     if db_bill:
         db_bill.title = bill.title
         return crud.update_bill(db=db, db_bill=db_bill)

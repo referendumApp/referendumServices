@@ -63,7 +63,7 @@ def test_user_workflow():
 def test_bill_workflow():
     # Step 1: Add a new bill
     original_bill_payload = {
-        "legiscanID": 11,
+        "legiscan_id": 11,
         "identifier": "str",
         "title": "str",
         "description": "str",
@@ -79,13 +79,13 @@ def test_bill_workflow():
 
     # Verify bill creation by checking for correct legiscanID in the PUT response
     created_bill = response.json()
-    assert created_bill["legiscanID"] == 11
+    assert created_bill["legiscan_id"] == 11
 
     # Step 2: Get the bill by the newly created bill ID
     bill_id = created_bill["id"]
     get_response = client.get(f"/bills/{bill_id}")
     assert get_response.status_code == 200
-    assert created_bill["legiscanID"] == 11
+    assert created_bill["legiscan_id"] == 11
 
     # Step 3: Update the bill (change the title)
     created_bill["title"] = "new title"

@@ -13,7 +13,7 @@ from database.database import Base
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
@@ -22,8 +22,8 @@ class User(Base):
 class Bill(Base):
     __tablename__ = "bills"
 
-    legiscanID = Column(Integer, index=True)
-    id = Column(Integer, primary_key=True)
+    legiscan_id = Column(Integer, index=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     identifier = Column(String)
     title = Column(String)
     description = Column(String)
@@ -47,11 +47,11 @@ class Bill(Base):
 class Legislator(Base):
     __tablename__ = "legislators"
 
+    id = Column(Integer, primary_key=True, autoincrement=True)
     chamber = Column(String)
     district = Column(String)
     email = Column(String)
     facebook = Column(String)
-    id = Column(Integer, primary_key=True)
     imageUrl = Column(String)
     instagram = Column(String)
     name = Column(String)

@@ -3,6 +3,8 @@ services:
     build:
       context: .
       target: api
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/local-db
     ports:
       - "80:80"
     profiles: ["api"]
@@ -51,8 +53,12 @@ services:
       context: .
       target: test
     depends_on:
+      db:
+        condition: service_healthy
       local-init:
         condition: service_completed_successfully
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/local-db
     profiles: ["test"]
 
 volumes:

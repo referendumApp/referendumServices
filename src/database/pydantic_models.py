@@ -20,7 +20,7 @@ class User(UserBase):
 
 ### BILLS ###
 class BillBase(BaseModel):
-    legiscanID: int
+    legiscan_id: int
     identifier: str
     title: str
     description: str
@@ -30,9 +30,7 @@ class BillBase(BaseModel):
     briefing: str
     status: str
     latestAction: str
-
-
-#    topics:
+    # topics:
 
 
 class BillCreate(BillBase):
