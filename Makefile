@@ -17,7 +17,7 @@ pipeline:
 # Run the tests
 test:
 	docker compose --profile test build
-	docker compose --profile test up
+	docker compose --profile test run --rm test
 
 # Clean up Docker resources
 clean:
