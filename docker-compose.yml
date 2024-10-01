@@ -53,6 +53,8 @@ services:
       context: .
       target: test
     depends_on:
+      db:
+        condition: service_healthy
       local-init:
         condition: service_completed_successfully
     environment:

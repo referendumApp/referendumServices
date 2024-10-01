@@ -3,18 +3,15 @@ set -e
 
 echo "Starting local-init.sh"
 
-DB_NAME=$(echo $DATABASE_URL | awk -F'/' '{print $NF}')
-echo "Database name: $DB_NAME"
+DB_NAME="local-db"
 
 echo "Waiting for PostgreSQL to be ready..."
-echo $(psql -h "db" -U "user" -c '\l')
 until PGPASSWORD=$POSTGRES_PASSWORD psql -h "db" -U "user" -d "postgres" -c '\l' >/dev/null 2>&1; do
   echo "Postgres is unavailable - sleeping"
   sleep 1
 done
 echo "PostgreSQL is up - executing initialization"
 
-PGPASSWORD=$POSTGRES_PASSWORD psql -h "db" -U "user" -d "postgres" -c '\l'
 if PGPASSWORD=$POSTGRES_PASSWORD psql -h "db" -U "user" -d "postgres" -lqt | cut -d \| -f 1 | grep -qw $DB_NAME; then
     echo "Database $DB_NAME already exists"
 else
@@ -24,7 +21,10 @@ else
 fi
 
 echo "Running migrations..."
-alembic upgrade head
+if ! alembic upgrade head; then
+  echo "Error running migrations"
+  exit 1
+fi
 
 # TODO - add this back
 #python /code/load_database.py

@@ -45,7 +45,7 @@ def delete_user(db: Session, user_id: int):
 
 def create_bill(db: Session, bill: pydantic_models.BillCreate):
     db_bill = orms.Bill(
-        legiscanID=bill.legiscanID,
+        legiscan_id=bill.legiscan_id,
         identifier=bill.identifier,
         title=bill.title,
         description=bill.description,
@@ -70,8 +70,8 @@ def get_bills(db: Session, skip: int = 0, limit: int = 10):
     return db.query(orms.Bill).offset(skip).limit(limit).all()
 
 
-def get_bill_by_legiscanID(db: Session, legiscan_id: int):
-    return db.query(orms.Bill).filter(orms.Bill.legiscanID == legiscan_id).first()
+def get_bill_by_legiscan_id(db: Session, legiscan_id: int):
+    return db.query(orms.Bill).filter(orms.Bill.legiscan_id == legiscan_id).first()
 
 
 def update_bill(db: Session, db_bill: orms.Bill):
