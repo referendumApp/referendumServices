@@ -43,19 +43,12 @@ jobs:
         echo "DEPLOY_ENV=$DEPLOY_ENV" >> $GITHUB_ENV
         echo "IMAGE_TAG=$DEPLOY_ENV-${{ github.sha }}" >> $GITHUB_ENV
         echo "PORT_MAPPING=$([ "$DEPLOY_ENV" == "prod" ] && echo "80:80" || echo "8080:80")" >> $GITHUB_ENV
-       
-        # Get the current 'stable' image tag for potential rollback
-        STABLE_TAG=$(aws ecr describe-images --repository-name $ECR_REPOSITORY --image-ids imageTag=$DEPLOY_ENV-stable --query 'imageDetails[0].imageTags[?@!=`'$DEPLOY_ENV'-stable`]' --output text || echo "")
-        if [ -z "$STABLE_TAG" ]; then
-          echo "No stable tag found. This might be the first deployment."
-          STABLE_TAG=$IMAGE_TAG
-        fi
-        echo "STABLE_TAG=$STABLE_TAG" >> $GITHUB_ENV
 
     - name: Build, tag, and push image to Amazon ECR
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
+        set -e  # Exit immediately if a command exits with a non-zero status
         docker compose --profile service build api
         docker tag referendumservices-api:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}
@@ -64,55 +57,90 @@ jobs:
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
-        aws ssm send-command \
+        set -e  # Exit immediately if a command exits with a non-zero status
+        echo "Deploying to EC2..."
+        DEPLOY_COMMAND_ID=$(aws ssm send-command \
           --instance-ids "${{ env.EC2_INSTANCE_ID }}" \
           --document-name "AWS-RunShellScript" \
           --parameters '{
             "commands": [
+              "set -e",
               "aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}",
               "docker pull ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
               "docker stop ${{ env.DEPLOY_ENV }}-app || true",
               "docker rm ${{ env.DEPLOY_ENV }}-app || true",
               "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
-              "docker system prune -af",
+              "docker system prune -f",
               "echo ${{ env.DEPLOY_ENV }} deployment completed"
             ]
-          }'
+          }' \
+          --output text \
+          --query "Command.CommandId")
+        
+        # Wait for the command to complete and check its status
+        while true; do
+          STATUS=$(aws ssm list-commands \
+            --command-id "$DEPLOY_COMMAND_ID" \
+            --query "Commands[0].Status" \
+            --output text)
+          if [ "$STATUS" = "Success" ]; then
+            echo "Deployment command executed successfully"
+            break
+          elif [ "$STATUS" = "Failed" ]; then
+            echo "Deployment command failed"
+            exit 1
+          fi
+          echo "Waiting for deployment command to complete..."
+          sleep 10
+        done
 
     - name: Verify Deployment
       run: |
-        sleep 30
+        set -e  # Exit immediately if a command exits with a non-zero status
+        echo "Verifying deployment..."
         PORT="${{ env.DEPLOY_ENV == 'prod' && '80' || '8080' }}"
-        HEALTH_CHECK_COMMAND_ID=$(aws ssm send-command \
-          --instance-ids "${{ env.EC2_INSTANCE_ID }}" \
-          --document-name "AWS-RunShellScript" \
-          --parameters "{\"commands\":[\"curl -s -o /dev/null -w \\\"%{http_code}\\\" http://localhost:$PORT/health\"]}" \
-          --output text \
-          --query "Command.CommandId")
-        HEALTH_CHECK_STATUS_CODE=$(aws ssm list-command-invocations \
-          --command-id "$HEALTH_CHECK_COMMAND_ID" \
-          --details \
-          --output text \
-          --query "CommandInvocations[].CommandPlugins[].Output")
+        MAX_RETRIES=5
+        RETRY_INTERVAL=10
         
-        if [ "$HEALTH_CHECK_STATUS_CODE" != "200" ]; then
-          echo "Deployment verification failed. Health check returned: $HEALTH_CHECK_STATUS_CODE"
-          echo "Rolling back to previous stable version..."
-          aws ssm send-command \
+        for i in $(seq 1 $MAX_RETRIES); do
+          echo "Attempt $i of $MAX_RETRIES"
+          HEALTH_CHECK_COMMAND_ID=$(aws ssm send-command \
             --instance-ids "${{ env.EC2_INSTANCE_ID }}" \
             --document-name "AWS-RunShellScript" \
-            --parameters '{
-              "commands": [
-                "docker stop ${{ env.DEPLOY_ENV }}-app || true",
-                "docker rm ${{ env.DEPLOY_ENV }}-app || true",
-                "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.STABLE_TAG }}"
-              ]
-            }'
-          exit 1
-        else
-          echo "Deployment successful. Updating stable tag."
-          docker tag ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.DEPLOY_ENV }}-stable
-          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.DEPLOY_ENV }}-stable
-        fi
+            --parameters "{\"commands\":[\"curl -s -o /dev/null -w \\\"%{http_code}\\\" http://localhost:$PORT/health\"]}" \
+            --output text \
+            --query "Command.CommandId")
+          
+          sleep $RETRY_INTERVAL
+          
+          HEALTH_CHECK_STATUS_CODE=$(aws ssm list-command-invocations \
+            --command-id "$HEALTH_CHECK_COMMAND_ID" \
+            --details \
+            --output text \
+            --query "CommandInvocations[].CommandPlugins[].Output")
+          
+          if [ "$HEALTH_CHECK_STATUS_CODE" == "200" ]; then
+            echo "Deployment verified successfully"
+            echo "Updating stable tag..."
+            docker tag ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.DEPLOY_ENV }}-stable
+            docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.DEPLOY_ENV }}-stable
+            echo "Deployment successful"
+            exit 0
+          fi
+          
+          echo "Health check failed. Status code: $HEALTH_CHECK_STATUS_CODE"
+        done
         
-        echo "Deployment successful"
+        echo "Deployment verification failed after $MAX_RETRIES attempts"
+        echo "Rolling back to previous stable version..."
+        aws ssm send-command \
+          --instance-ids "${{ env.EC2_INSTANCE_ID }}" \
+          --document-name "AWS-RunShellScript" \
+          --parameters '{
+            "commands": [
+              "docker stop ${{ env.DEPLOY_ENV }}-app || true",
+              "docker rm ${{ env.DEPLOY_ENV }}-app || true",
+              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.DEPLOY_ENV }}-stable"
+            ]
+          }'
+        exit 1
