@@ -7,9 +7,10 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
 # App stage
-FROM base AS app
+FROM base AS api
 
-COPY ./api /code/api
+COPY src/api /code/api
+COPY src/database /code/database
 COPY scripts/entrypoint.sh /code/entrypoint.sh
 
 RUN chmod +x /code/entrypoint.sh
@@ -19,7 +20,7 @@ FROM base AS local-init
 
 RUN apt-get update && apt-get install -y postgresql-client
 
-COPY ./api /code/api
+COPY src/api /code/api
 COPY alembic.ini /code/alembic.ini
 COPY alembic /code/alembic
 COPY data /code/data
@@ -31,8 +32,10 @@ RUN chmod +x /code/local_init.sh
 # Test stage
 FROM base AS test
 
-COPY . .
+COPY src/api /code/api
+COPY src/database /code/database
+COPY tests /code/tests
 
-ENV PATH="/usr/local/bin:${PATH}"
+ENV PYTHONPATH=/app:$PYTHONPATH
 
 CMD ["pytest"]

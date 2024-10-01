@@ -2,11 +2,11 @@
 
 # Build the Docker images
 build:
-	docker compose build
+	docker compose --profile dev build
 
 # Run the application in local development mode
 run: build
-	docker compose --profile local up
+	docker compose --profile dev up
 
 # Run the tests
 test: build
@@ -19,7 +19,7 @@ clean:
 
 # Start a shell in the app container
 shell:
-	docker compose --profile local run --rm app sh
+	docker compose --profile dev run --rm app sh
 
 # View logs
 logs:
