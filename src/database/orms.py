@@ -3,18 +3,11 @@ from sqlalchemy import Column, Integer, String
 from database.database import Base
 
 
-
-
-
-
-
-
 # Junction table for Bill-Tag relationship
 # bill_topics = Table('bill_topics', Base.metadata,
 #     Column('bill_id', Integer, ForeignKey('bills.id'), primary_key=True),
 #     Column('topic_id', Integer, ForeignKey('topics.id'), primary_key=True)
 #     )
-
 
 
 class User(Base):
@@ -24,7 +17,7 @@ class User(Base):
     name = Column(String)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
-    
+
 
 class Bill(Base):
     __tablename__ = "bills"
@@ -66,5 +59,4 @@ class Legislator(Base):
     party = Column(String)
     phone = Column(String)
     state = Column(String)
-    topIssues = Column(String)
     twitter = Column(String)

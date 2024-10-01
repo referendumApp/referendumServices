@@ -1,19 +1,19 @@
 FROM python:3.9 AS base
 
 WORKDIR /code
-
 COPY requirements.txt .
-
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
-# App stage
+
+# API stage
 FROM base AS api
 
 COPY src/api /code/api
 COPY src/database /code/database
 COPY scripts/entrypoint.sh /code/entrypoint.sh
-
 RUN chmod +x /code/entrypoint.sh
+
+CMD ["/code/entrypoint.sh"]
 
 
 # Pipeline stage
@@ -43,7 +43,7 @@ RUN chmod +x /code/local_init.sh
 # Test stage
 FROM base AS test
 
-COPY src /code
+COPY src/api /code/api
 COPY src/database /code/database
 COPY tests /code/tests
 
