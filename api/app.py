@@ -1,14 +1,16 @@
+import boto3
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
+import json
+import logging
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from common.database.referendum import connection, crud, schemas
 
-from .auth import authenticate_user, create_access_token, get_current_user, get_token, get_password_hash
-from .schemas import Token, User, UserCreate
-from .models import Base, UserDB
+from .auth import authenticate_user, create_access_token, get_user_for_token, get_token, get_password_hash
+from .schemas import Token
 from .config import settings
 
 logging.basicConfig(level=logging.INFO)
@@ -39,19 +41,6 @@ def get_db():
 ########################################################################################################
 
 
-@app.post("/register", response_model=User)
-def register_user(user: UserCreate, db: Session = Depends(get_db)):
-    db_user = db.query(UserDB).filter(UserDB.username == user.username).first()
-    if db_user:
-        raise HTTPException(status_code=400, detail="Username already registered")
-    hashed_password = get_password_hash(user.password)
-    db_user = UserDB(username=user.username, email=user.email, full_name=user.full_name, hashed_password=hashed_password)
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
-
-
 @app.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = authenticate_user(db, form_data.username, form_data.password)
@@ -63,12 +52,6 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         )
     access_token = create_access_token(data={"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer"}
-
-
-@app.get("/users/me", response_model=User)
-async def get_current_user(token: str = Depends(get_token), db: Session = Depends(get_db)):
-    current_user = await get_current_user(token, db)
-    return current_user
 
 
 ########################################################################################################
@@ -86,28 +69,30 @@ async def healthcheck(db: Session = Depends(get_db)):
 
 
 ########################################################################################################
+# Users
+########################################################################################################
 
 
-@app.put("/users")  ### ADDS USER ###
+@app.put("/users")
 async def add_user(user: schemas.UserCreate, db=Depends(get_db)):
     db_user = crud.get_user_by_email(db, email=user.email)
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered.")
-    return crud.create_user(db=db, user=user)
+    hashed_password = get_password_hash(user.password)
+    return crud.create_user(db=db, user=user, hashed_password=hashed_password)
 
 
-@app.post("/users")  ### UPDATES USER ###
+@app.post("/users")
 async def update_user(user: schemas.UserCreate, db=Depends(get_db)):
     db_user = crud.get_user_by_email(db, email=user.email)
     if db_user:
-        fake_hashed_password = user.password + "notreallyhashed"
-        db_user.hashed_password = fake_hashed_password
+        db_user.hashed_password = get_password_hash(user.password)
         db_user.name = user.name
         return crud.update_user(db=db, db_user=db_user)
     raise HTTPException(status_code=404, detail=f"User not found for email: {user.email}.")
 
 
-@app.get("/users/{user_id}")  ### GETS USER ###
+@app.get("/users/{user_id}")
 async def get_user(user_id: int, db=Depends(get_db)):
     db_user = crud.get_user(db, user_id=user_id)
     if db_user is None:
@@ -115,7 +100,13 @@ async def get_user(user_id: int, db=Depends(get_db)):
     return db_user
 
 
-@app.delete("/users/{user_id}")  ### DELETES USER ###
+@app.get("/users/me")
+async def get_current_user(token: str = Depends(get_token), db: Session = Depends(get_db)):
+    current_user = await get_user_for_token(token, db)
+    return current_user
+
+
+@app.delete("/users/{user_id}")
 async def delete_user(user_id: int, db=Depends(get_db)):
     db_user = crud.get_user(db, user_id=user_id)
     if db_user is None:
@@ -123,19 +114,31 @@ async def delete_user(user_id: int, db=Depends(get_db)):
     return crud.delete_user(db, user_id=user_id)
 
 
-@app.post("/feedback")  ### ADDS FEEDBACK ###
+########################################################################################################
+# User Feedback
+########################################################################################################
+
+
+@app.post("/feedback")
 async def add_feedback(feedback: dict):
     try:
         try:
-            response = s3.get_object(Bucket=BUCKET_NAME, Key=FILE_NAME)
+            response = s3.get_object(Bucket=settings.ALPHA_BUCKET_NAME, Key=settings.FEEDBACK_FILE_NAME)
             file_content = json.loads(response["Body"].read().decode("utf-8"))
         except s3.exceptions.NoSuchKey:
-            logger.warning(f"File {FILE_NAME} not found in bucket {BUCKET_NAME}. Creating new file.")
+            logger.warning(
+                f"File {settings.FEEDBACK_FILE_NAME} not found in bucket {settings.ALPHA_BUCKET_NAME}. Creating new file."
+            )
             file_content = {"feedbackMessages": []}
 
         file_content["feedbackMessages"].append(feedback)
 
-        s3.put_object(Bucket=BUCKET_NAME, Key=FILE_NAME, Body=json.dumps(file_content), ContentType="application/json")
+        s3.put_object(
+            Bucket=settings.ALPHA_BUCKET_NAME,
+            Key=settings.FEEDBACK_FILE_NAME,
+            Body=json.dumps(file_content),
+            ContentType="application/json",
+        )
         return
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}.")

@@ -5,8 +5,9 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
-from .models import UserDB
-from .schemas import TokenData, User
+from common.database.referendum import crud
+
+from .schemas import TokenData
 from .config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -21,8 +22,8 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 
-def authenticate_user(db: Session, username: str, password: str):
-    user = db.query(UserDB).filter(UserDB.username == username).first()
+def authenticate_user(db: Session, email: str, password: str):
+    user = crud.get_user_by_email(db, email)
     if not user or not verify_password(password, user.hashed_password):
         return False
     return user
@@ -36,7 +37,7 @@ def create_access_token(data: dict):
     return encoded_jwt
 
 
-async def get_current_user(token: str, db: Session):
+async def get_user_for_token(token: str, db: Session):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -44,16 +45,16 @@ async def get_current_user(token: str, db: Session):
     )
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
+        email: str = payload.get("sub")
+        if email is None:
             raise credentials_exception
-        token_data = TokenData(username=username)
+        token_data = TokenData(email=email)
     except JWTError:
         raise credentials_exception
-    user = db.query(UserDB).filter(UserDB.username == token_data.username).first()
+    user = crud.get_user_by_email(db, token_data.email)
     if user is None:
         raise credentials_exception
-    return User(username=user.username, email=user.email, full_name=user.full_name)
+    return user
 
 
 def get_token(token: str = Depends(oauth2_scheme)):

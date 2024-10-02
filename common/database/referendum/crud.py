@@ -6,9 +6,8 @@ from common.database.referendum import models, schemas
 ### USERS ###
 
 
-def create_user(db: Session, user: schemas.UserCreate):
-    fake_hashed_password = user.password + "notreallyhashed"
-    db_user = models.User(name=user.name, email=user.email, hashed_password=fake_hashed_password)
+def create_user(db: Session, user: schemas.UserCreate, hashed_password: str):
+    db_user = models.User(name=user.name, email=user.email, hashed_password=hashed_password)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
