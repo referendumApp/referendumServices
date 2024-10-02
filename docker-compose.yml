@@ -11,6 +11,7 @@ services:
       - REFERENDUM_DB_NAME=referendum
     ports:
       - "80:80"
+    profiles: ["base"]
 
   api:
     extends:
@@ -21,7 +22,7 @@ services:
   api-dev:
     extends:
       service: api-base
-    profiles: [ "dev" ]
+    profiles: ["dev"]
 
   db:
     image: postgres:13
@@ -61,6 +62,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      local-init:
+        condition: service_completed_successfully
     environment:
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=password

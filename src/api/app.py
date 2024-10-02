@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
-from database.referendum import core, crud, schemas
+from database.referendum import connection, crud, schemas
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ FILE_NAME = "feedback.json"
 
 # Dependency
 def get_db():
-    db = core.SessionLocal()
+    db = connection.SessionLocal()
     try:
         yield db
     finally:

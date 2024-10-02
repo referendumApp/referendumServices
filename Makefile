@@ -11,8 +11,8 @@ api:
 
 # Run the pipeline in local development mode
 pipeline:
-	docker compose --profile dev --profile pipeline build
-	docker compose --profile dev --profile pipeline up
+	docker compose --profile pipeline --profile dev build
+	docker compose --profile pipeline --profile dev up
 
 # Run the tests
 test:
