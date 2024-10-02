@@ -70,7 +70,7 @@ jobs:
             "commands": [
               "set -e",
               "aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}",
-              "docker pull ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} >/dev/null",
+              "docker pull ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
               "docker stop ${{ env.DEPLOY_ENV }}-app || true",
               "docker rm ${{ env.DEPLOY_ENV }}-app || true",
               "SSM_PARAMS_JSON=$(aws ssm get-parameters-by-path --path /${{ env.DEPLOY_ENV }}/ --with-decryption --query \"Parameters[*].{Name:Name,Value:Value}\" --output json)",
@@ -79,43 +79,14 @@ jobs:
               "POSTGRES_PASSWORD=$(echo $POSTGRES_SECRET | jq -r '.password')",
               "echo \"Running: docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e POSTGRES_PASSWORD=<redacted> $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}\"",
               "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
-              "docker system prune -f",
+              "docker container prune -f",
+              "docker volume prune -f",
+              "docker network prune -f",
+              "docker images \"${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}\" --format '{{.ID}}' | sort -r | tail -n +4 | xargs -r docker rmi",
               "echo ${{ env.DEPLOY_ENV }} deployment completed"
             ]
           }' \
           --output json)
-        
-        DEPLOY_COMMAND_ID=$(echo "$DEPLOY_COMMAND_OUTPUT" | jq -r '.Command.CommandId')
-        
-        echo "Deployment command ID: $DEPLOY_COMMAND_ID"
-        
-        # Wait for the command to complete and check its status
-        while true; do
-          COMMAND_RESULT=$(aws ssm list-command-invocations \
-            --command-id "$DEPLOY_COMMAND_ID" \
-            --details \
-            --output json)
-          
-          STATUS=$(echo "$COMMAND_RESULT" | jq -r '.CommandInvocations[0].Status')
-          
-          if [ "$STATUS" = "Success" ]; then
-            echo "Deployment command executed successfully"
-            break
-          elif [ "$STATUS" = "Failed" ]; then
-            echo "Deployment command failed"
-            echo "Command output:"
-            echo "$COMMAND_RESULT" | jq -r '.CommandInvocations[0].CommandPlugins[0].Output'
-            exit 1
-          elif [ "$STATUS" = "TimedOut" ]; then
-            echo "Deployment command timed out"
-            echo "Command output:"
-            echo "$COMMAND_RESULT" | jq -r '.CommandInvocations[0].CommandPlugins[0].Output'
-            exit 1
-          fi
-          
-          echo "Waiting for deployment command to complete... Current status: $STATUS"
-          sleep 10
-        done
 
     - name: Verify Deployment
       run: |
