@@ -41,6 +41,7 @@ RUN chmod +x /code/local_init.sh
 FROM base AS test
 
 COPY api /code/api
+COPY pipeline /code/pipeline
 COPY common /code/common
 
 ENV PYTHONPATH=/code:$PYTHONPATH

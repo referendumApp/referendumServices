@@ -2,8 +2,8 @@ import logging
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from database.referendum import connection as referendum_connection
-from database.legiscan_api import connection as legiscan_api_connection
+from common.database.referendum import connection as referendum_connection
+from common.database.legiscan_api import connection as legiscan_api_connection
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
