@@ -24,8 +24,6 @@ app.add_middleware(
 )
 
 s3 = boto3.client("s3")
-BUCKET_NAME = "referendum-app-alpha"
-FILE_NAME = "feedback.json"
 
 
 def get_db():

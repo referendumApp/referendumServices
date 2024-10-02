@@ -3,8 +3,8 @@ from functools import lru_cache
 
 
 class Settings(BaseSettings):
-    # Database settings
-    DATABASE_URL: str = "sqlite:///./test.db"
+    ALPHA_BUCKET_NAME: str = "referendum-app-alpha"
+    FEEDBACK_FILE_NAME: str = "feedback.json"
 
     # Security settings
     SECRET_KEY: str
