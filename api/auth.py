@@ -10,7 +10,13 @@ from common.database.referendum import crud
 from .schemas import TokenData
 from .config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(
+    schemes=["argon2"],
+    deprecated="auto",
+    argon2__time_cost=2,  # number of iterations
+    argon2__memory_cost=102400,  # 100 MB
+    argon2__parallelism=8,  # number of parallel threads
+)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 

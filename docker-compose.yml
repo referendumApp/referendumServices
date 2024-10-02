@@ -89,6 +89,7 @@ services:
       - POSTGRES_PORT=5432
       - LEGISCAN_API_DB_NAME=legiscan_api
       - REFERENDUM_DB_NAME=referendum
+      - SYSTEM_ACCESS_TOKEN=12345
     profiles: ["test"]
 
 volumes:

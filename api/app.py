@@ -9,7 +9,7 @@ from sqlalchemy import text
 
 from common.database.referendum import connection, crud, schemas
 
-from .auth import authenticate_user, create_access_token, get_user_for_token, get_token, get_password_hash, oauth2_scheme
+from .auth import authenticate_user, create_access_token, get_user_for_token, get_password_hash, oauth2_scheme
 from .schemas import Token
 from .config import settings
 
