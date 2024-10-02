@@ -163,7 +163,7 @@ cython_debug/
 myenv/
 
 # Versioning
-*_version.py
+_version.py
 
 # Local
 local_tools
