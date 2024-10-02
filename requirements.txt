@@ -4,6 +4,10 @@ fastapi[standard]
 alembic
 sqlalchemy
 pandas
+passlib[bcrypt]
 psycopg2-binary
+pydantic
+pydantic-settings
+python-jose[cryptography]
 
 pytest
