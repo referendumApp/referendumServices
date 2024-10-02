@@ -18,13 +18,16 @@ if config.config_file_name is not None:
 target_metadata = None
 
 
-def get_url():
-    return os.getenv("DATABASE_URL")
+def get_connection_string():
+    return (
+        f"postgresql://{os.getenv('POSTGRES_USER')}:{os.getenv('POSTGRES_PASSWORD')}@"
+        f"{os.getenv('POSTGRES_HOST')}:{os.getenv('POSTGRES_PORT')}/{os.getenv('REFERENDUM_DB_NAME')}"
+    )
 
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
-    url = get_url()
+    url = get_connection_string()
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -38,7 +41,7 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
     configuration = config.get_section(config.config_ini_section)
-    configuration["sqlalchemy.url"] = get_url()
+    configuration["sqlalchemy.url"] = get_connection_string()
     connectable = engine_from_config(
         configuration,
         prefix="sqlalchemy.",

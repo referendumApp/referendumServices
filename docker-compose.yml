@@ -1,13 +1,27 @@
 services:
-  api:
+  api-base:
     build:
       context: .
       target: api
     environment:
-      - DATABASE_URL=postgresql://user:password@db:5432/local-db
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - REFERENDUM_DB_NAME=referendum
     ports:
       - "80:80"
+
+  api:
+    extends:
+      service: api-base
     profiles: ["api"]
+
+
+  api-dev:
+    extends:
+      service: api-base
+    profiles: [ "dev" ]
 
   db:
     image: postgres:13
@@ -16,9 +30,8 @@ services:
     environment:
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=local-db
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d local-db"]
+      test: ["CMD-SHELL", "pg_isready -U user"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -29,8 +42,12 @@ services:
       context: .
       target: local-init
     environment:
-      - DATABASE_URL=postgresql://user:password@db:5432/local-db
+      - POSTGRES_USER=user
       - POSTGRES_PASSWORD=password
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - LEGISCAN_API_DB_NAME=legiscan_api
+      - REFERENDUM_DB_NAME=referendum
     depends_on:
       db:
         condition: service_healthy
@@ -45,7 +62,12 @@ services:
       db:
         condition: service_healthy
     environment:
-      - DATABASE_URL=postgresql://user:password@db:5432/local-db
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - LEGISCAN_API_DB_NAME=legiscan_api
+      - REFERENDUM_DB_NAME=referendum
     profiles: ["pipeline"]
 
   test:
@@ -58,7 +80,12 @@ services:
       local-init:
         condition: service_completed_successfully
     environment:
-      - DATABASE_URL=postgresql://user:password@db:5432/local-db
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - LEGISCAN_API_DB_NAME=legiscan_api
+      - REFERENDUM_DB_NAME=referendum
     profiles: ["test"]
 
 volumes:

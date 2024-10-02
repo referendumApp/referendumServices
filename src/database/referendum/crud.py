@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from . import orms, pydantic_models
+from database.referendum import pydantic_models, orms
 
 
 ### USERS ###

@@ -6,14 +6,15 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to deploy to (prod/test)'
+        description: 'Environment to deploy to (prod/dev)'
         required: true
-        default: 'test'
+        default: 'dev'
 
 env:
   AWS_REGION: us-east-2
   ECR_REPOSITORY: referendum/api
   EC2_INSTANCE_ID: i-08edd9a77b42449b2
+  POSTGRES_PASSWORD_SECRET_NAME: rds!db-a5c629ff-4d6e-4d68-9680-6cdab848369c
 
 jobs:
   deploy:
@@ -48,8 +49,8 @@ jobs:
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
-        set -e  # Exit immediately if a command exits with a non-zero status
-        docker compose --profile service build api
+        set -e
+        docker compose --profile api build
         docker tag referendumservices-api:latest $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}
 
@@ -57,46 +58,65 @@ jobs:
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
-        set -e  # Exit immediately if a command exits with a non-zero status
+        set -e
         echo "Deploying to EC2..."
-        DEPLOY_COMMAND_ID=$(aws ssm send-command \
+        DEPLOY_COMMAND_OUTPUT=$(aws ssm send-command \
           --instance-ids "${{ env.EC2_INSTANCE_ID }}" \
           --document-name "AWS-RunShellScript" \
           --parameters '{
             "commands": [
               "set -e",
               "aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}",
-              "docker pull ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
+              "docker pull ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} >/dev/null",
               "docker stop ${{ env.DEPLOY_ENV }}-app || true",
               "docker rm ${{ env.DEPLOY_ENV }}-app || true",
-              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
+              "SSM_PARAMS_JSON=$(aws ssm get-parameters-by-path --path /${{ env.DEPLOY_ENV }}/ --with-decryption --query \"Parameters[*].{Name:Name,Value:Value}\" --output json)",
+              "ENV_VARS=$(echo \"$SSM_PARAMS_JSON\" | jq -r \".[] | \\\" -e \\\" + .Name + \\\"=\\\" + .Value\" | sed \"s/\\/[^\\/]*\\///g\" | tr \"\\n\" \" \")",
+              "POSTGRES_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.POSTGRES_PASSWORD_SECRET_NAME }} --query SecretString --output text)",
+              "POSTGRES_PASSWORD=$(echo $POSTGRES_SECRET | jq -r '.password')",
+              "echo \"Running: docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e POSTGRES_PASSWORD=<redacted> $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}\"",
+              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
               "docker system prune -f",
               "echo ${{ env.DEPLOY_ENV }} deployment completed"
             ]
           }' \
-          --output text \
-          --query "Command.CommandId")
+          --output json)
+        
+        DEPLOY_COMMAND_ID=$(echo "$DEPLOY_COMMAND_OUTPUT" | jq -r '.Command.CommandId')
+        
+        echo "Deployment command ID: $DEPLOY_COMMAND_ID"
         
         # Wait for the command to complete and check its status
         while true; do
-          STATUS=$(aws ssm list-commands \
+          COMMAND_RESULT=$(aws ssm list-command-invocations \
             --command-id "$DEPLOY_COMMAND_ID" \
-            --query "Commands[0].Status" \
-            --output text)
+            --details \
+            --output json)
+          
+          STATUS=$(echo "$COMMAND_RESULT" | jq -r '.CommandInvocations[0].Status')
+          
           if [ "$STATUS" = "Success" ]; then
             echo "Deployment command executed successfully"
             break
           elif [ "$STATUS" = "Failed" ]; then
             echo "Deployment command failed"
+            echo "Command output:"
+            echo "$COMMAND_RESULT" | jq -r '.CommandInvocations[0].CommandPlugins[0].Output'
+            exit 1
+          elif [ "$STATUS" = "TimedOut" ]; then
+            echo "Deployment command timed out"
+            echo "Command output:"
+            echo "$COMMAND_RESULT" | jq -r '.CommandInvocations[0].CommandPlugins[0].Output'
             exit 1
           fi
-          echo "Waiting for deployment command to complete..."
+          
+          echo "Waiting for deployment command to complete... Current status: $STATUS"
           sleep 10
         done
 
     - name: Verify Deployment
       run: |
-        set -e  # Exit immediately if a command exits with a non-zero status
+        set -e
         echo "Verifying deployment..."
         PORT="${{ env.DEPLOY_ENV == 'prod' && '80' || '8080' }}"
         MAX_RETRIES=5
@@ -140,7 +160,10 @@ jobs:
             "commands": [
               "docker stop ${{ env.DEPLOY_ENV }}-app || true",
               "docker rm ${{ env.DEPLOY_ENV }}-app || true",
-              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.DEPLOY_ENV }}-stable"
+              "docker rmi ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} || true",
+              "ENV_VARS=$(aws ssm get-parameters-by-path --path /${{ env.DEPLOY_ENV }}/ --with-decryption --query \"Parameters[*].{Name:Name,Value:Value}\" --output json | jq -r \".[].Name + \\\"=\\\" + .[].Value\" | tr \"\\n\" \" \" | sed \"s/\\/[^\\/]*\\///g\" | sed \"s/^/export /\" | tr \"\\n\" \" \")",
+              "POSTGRES_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${{ env.POSTGRES_PASSWORD_SECRET_ID }} --query SecretString --output text)",
+              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} --env-file <(echo \"$ENV_VARS\") -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.DEPLOY_ENV }}-stable"
             ]
           }'
         exit 1
