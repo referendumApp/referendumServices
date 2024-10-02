@@ -163,7 +163,7 @@ jobs:
               "docker rmi ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} || true",
               "ENV_VARS=$(aws ssm get-parameters-by-path --path /${{ env.DEPLOY_ENV }}/ --with-decryption --query \"Parameters[*].{Name:Name,Value:Value}\" --output json | jq -r \".[].Name + \\\"=\\\" + .[].Value\" | tr \"\\n\" \" \" | sed \"s/\\/[^\\/]*\\///g\" | sed \"s/^/export /\" | tr \"\\n\" \" \")",
               "POSTGRES_PASSWORD=$(aws secretsmanager get-secret-value --secret-id ${{ env.POSTGRES_PASSWORD_SECRET_ID }} --query SecretString --output text)",
-              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} --env-file <(echo \"$ENV_VARS\") -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.DEPLOY_ENV }}-stable",
+              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} --env-file <(echo \"$ENV_VARS\") -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.DEPLOY_ENV }}-stable"
             ]
           }'
         exit 1
