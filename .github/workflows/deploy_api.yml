@@ -80,9 +80,9 @@ jobs:
               "echo \"Running: docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e POSTGRES_PASSWORD=<redacted> $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}\"",
               "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
               "docker container prune -f",
-              "docker volume prune -f",
+              "docker image prune -af",
               "docker network prune -f",
-              "docker images \"${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}\" --format '{{.ID}}' | sort -r | tail -n +4 | xargs -r docker rmi",
+              "docker volume prune -af",
               "echo ${{ env.DEPLOY_ENV }} deployment completed"
             ]
           }' \
