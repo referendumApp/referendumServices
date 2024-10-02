@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String
 
-from database.referendum.core import Base
+from database.common.core import Base
 
 
 # Junction table for Bill-Tag relationship
