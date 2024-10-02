@@ -70,7 +70,7 @@ jobs:
             "commands": [
               "set -e",
               "aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}",
-              "docker pull ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} >/dev/null",
+              "docker pull ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
               "docker stop ${{ env.DEPLOY_ENV }}-app || true",
               "docker rm ${{ env.DEPLOY_ENV }}-app || true",
               "SSM_PARAMS_JSON=$(aws ssm get-parameters-by-path --path /${{ env.DEPLOY_ENV }}/ --with-decryption --query \"Parameters[*].{Name:Name,Value:Value}\" --output json)",
@@ -79,7 +79,10 @@ jobs:
               "POSTGRES_PASSWORD=$(echo $POSTGRES_SECRET | jq -r '.password')",
               "echo \"Running: docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e POSTGRES_PASSWORD=<redacted> $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}\"",
               "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
-              "docker system prune -f",
+              "docker container prune -f",
+              "docker volume prune -f",
+              "docker network prune -f",
+              "docker images \"${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}\" --format '{{.ID}}' | sort -r | tail -n +4 | xargs -r docker rmi",
               "echo ${{ env.DEPLOY_ENV }} deployment completed"
             ]
           }' \
@@ -180,11 +183,34 @@ jobs:
         echo "current_version=$current_version" >> $GITHUB_OUTPUT
         
         version="$current_version"
-        release_notes="Release notes for version $version"
-        # You can customize the release notes here, e.g., by adding commit messages
-        # git log --pretty=format:"- %s" $(git describe --tags --abbrev=0)..HEAD >> release_notes.txt
         
+        # Generate release notes
+        echo "Generating release notes for version $version"
+        echo "# Release Notes for version $version" > release_notes.md
+        echo "" >> release_notes.md
+        echo "## Changes in this release:" >> release_notes.md
+        echo "" >> release_notes.md
+        
+        # Get commits since the last tag
+        last_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+        if [ -z "$last_tag" ]; then
+          git log --pretty=format:"- %s (%h)" >> release_notes.md
+        else
+          git log --pretty=format:"- %s (%h)" $last_tag..HEAD >> release_notes.md
+        fi
+        
+        # Add any breaking changes
+        echo "" >> release_notes.md
+        echo "## Breaking Changes:" >> release_notes.md
+        git log --pretty=format:"- %s (%h)" $last_tag..HEAD | grep -i "BREAKING CHANGE" >> release_notes.md
+        
+        # Add a list of contributors
+        echo "" >> release_notes.md
+        echo "## Contributors:" >> release_notes.md
+        git log --pretty=format:"- %an" $last_tag..HEAD | sort | uniq >> release_notes.md
+        
+        # Create the GitHub release
         gh release create "v$version" \
-          --title "Release $version" \
-          --notes "$release_notes" \
+          --title "API Release $version" \
+          --notes-file release_notes.md \
           --target ${{ github.sha }}
