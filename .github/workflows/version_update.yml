@@ -1,0 +1,50 @@
+name: Update Version
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  update-version:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Get current version
+      id: get_version
+      run: echo "current_version=$(cat version.txt)" >> $GITHUB_OUTPUT
+
+    - name: Bump version
+      id: bump_version
+      run: |
+        current_version=${{ steps.get_version.outputs.current_version }}
+        if [[ "${{ github.event.head_commit.message }}" == *"#major"* ]]; then
+          new_version=$(echo $current_version | awk -F. '{$1 = $1 + 1; $2 = 0; $3 = 0} 1' | sed 's/ /./g')
+        elif [[ "${{ github.event.head_commit.message }}" == *"#minor"* ]]; then
+          new_version=$(echo $current_version | awk -F. '{$2 = $2 + 1; $3 = 0} 1' | sed 's/ /./g')
+        else
+          new_version=$(echo $current_version | awk -F. '{$3 = $3 + 1} 1' | sed 's/ /./g')
+        fi
+        echo $new_version > version.txt
+        echo "new_version=$new_version" >> $GITHUB_OUTPUT
+
+    - name: Commit version update
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add version.txt
+        git commit -m "Bump version to ${{ steps.bump_version.outputs.new_version }}"
+
+    - name: Push changes
+      uses: ad-m/github-push-action@master
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        branch: main
+
+    - name: Create Tag
+      run: |
+        git tag v${{ steps.bump_version.outputs.new_version }}
+        git push origin v${{ steps.bump_version.outputs.new_version }}
