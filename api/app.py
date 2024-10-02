@@ -37,7 +37,7 @@ def get_db():
 
 
 async def get_current_user_or_verify_system_token(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    if token == settings.SYSTEM_ACCESS_TOKEN:
+    if token == settings.API_ACCESS_TOKEN:
         return {"is_system": True}
     try:
         user = await get_user_for_token(token, db)

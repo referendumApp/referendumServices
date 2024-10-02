@@ -4,7 +4,7 @@ from api.config import settings
 
 client = TestClient(app)
 
-headers = {"Authorization": f"Bearer {settings.SYSTEM_ACCESS_TOKEN}"}
+headers = {"Authorization": f"Bearer {settings.API_ACCESS_TOKEN}"}
 
 
 def test_health():
