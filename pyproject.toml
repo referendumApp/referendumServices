@@ -1,17 +1,40 @@
+[build-system]
+requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "referendumServices"
+dynamic = ["version"]
+description = ""
+authors = [{name = "Makani Dalton", email = "makani@referendumapp.com"}]
+readme = "README.md"
+requires-python = ">=3.11"
+
 [tool.black]
 line-length = 128
-target-version = ['py39']
+target-version = ['py311']
 include = '\.pyi?$'
 extend-exclude = '''
-/(
-  # directories
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-)/
-'''
+    /(
+      # directories
+      \.eggs
+      | \.git
+      | \.hg
+      | \.mypy_cache
+      | \.tox
+      | \.venv
+      | build
+      | dist
+    )/
+    '''
+
+[tool.setuptools_scm]
+write_to = "_version.py"
+
+[tool.setuptools_scm.api]
+root = "api"
+write_to = "api/_version.py"
+
+[tool.setuptools_scm.pipeline]
+root = "pipeline"
+write_to = "pipeline/_version.py"

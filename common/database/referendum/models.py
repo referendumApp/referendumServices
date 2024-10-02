@@ -1,7 +1,6 @@
 from sqlalchemy import Column, Integer, String
 
-from database.common.core import Base
-
+from common.database.referendum.core import Base
 
 # Junction table for Bill-Tag relationship
 # bill_topics = Table('bill_topics', Base.metadata,

@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from database.referendum import schemas, models
+from common.database.referendum import models, schemas
 
 
 ### USERS ###

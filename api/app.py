@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
-from database.referendum import connection, crud, schemas
+from common.database.referendum import connection, crud, schemas
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
