@@ -21,7 +21,7 @@ target_metadata = None
 def get_connection_string():
     return (
         f"postgresql://{os.getenv('POSTGRES_USER')}:{os.getenv('POSTGRES_PASSWORD')}@"
-        f"{os.getenv('POSTGRES_HOST')}:{os.getenv('POSTGRES_PORT')}/{os.getenv('REFERENDUM_DATABASE')}"
+        f"{os.getenv('POSTGRES_HOST')}:{os.getenv('POSTGRES_PORT')}/{os.getenv('REFERENDUM_DB_NAME')}"
     )
 
 

@@ -56,10 +56,11 @@ Environment-specific variables are stored in AWS Systems Manager Parameter Store
 
 Required parameters for each environment:
 - POSTGRES_HOST
+- POSTGRES_PORT
 - POSTGRES_USER
 - POSTGRES_PASSWORD
-- POSTGRES_DB
-- POSTGRES_PORT
+- REFERENDUM_DB_NAME
+- LEGISCAN_API_DB_NAME
 
 ### Deployment Workflows
  

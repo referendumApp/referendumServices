@@ -20,22 +20,22 @@ create_database_if_not_exists() {
         echo "Database $DB_NAME created"
     fi
 }
-create_database_if_not_exists $LEGISCAN_DATABASE
-create_database_if_not_exists $REFERENDUM_DATABASE
+create_database_if_not_exists $LEGISCAN_API_DB_NAME
+create_database_if_not_exists $REFERENDUM_DB_NAME
 
-echo "No migrations for LEGISCAN_DATABASE"
+echo "No migrations for LEGISCAN_API_DB_NAME"
 
-echo "Running migrations for REFERENDUM_DATABASE..."
+echo "Running migrations for REFERENDUM_DB_NAME..."
 if ! alembic -c alembic.ini upgrade head; then
-  echo "Error running migrations for REFERENDUM_DATABASE"
+  echo "Error running migrations for REFERENDUM_DB_NAME"
   exit 1
 fi
 
 # TODO - create data loaders
-# echo "Loading data into LEGISCAN_DATABASE..."
-# python /code/load_legiscan_database.py
+# echo "Loading data into LEGISCAN_API_DB_NAME..."
+# python /code/load_LEGISCAN_API_DB_NAME.py
 
-# echo "Loading data into REFERENDUM_DATABASE..."
-# python /code/load_referendum_database.py
+# echo "Loading data into REFERENDUM_DB_NAME..."
+# python /code/load_REFERENDUM_DB_NAME.py
 
 echo "Local initialization completed"

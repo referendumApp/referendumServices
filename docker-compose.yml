@@ -8,7 +8,7 @@ services:
       - POSTGRES_PASSWORD=password
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
-      - REFERENDUM_DATABASE=referendum
+      - REFERENDUM_DB_NAME=referendum
     ports:
       - "80:80"
 
@@ -46,8 +46,8 @@ services:
       - POSTGRES_PASSWORD=password
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
-      - LEGISCAN_DATABASE=legiscan_api
-      - REFERENDUM_DATABASE=referendum
+      - LEGISCAN_API_DB_NAME=legiscan_api
+      - REFERENDUM_DB_NAME=referendum
     depends_on:
       db:
         condition: service_healthy
@@ -66,8 +66,8 @@ services:
       - POSTGRES_PASSWORD=password
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
-      - LEGISCAN_DATABASE=legiscan_api
-      - REFERENDUM_DATABASE=referendum
+      - LEGISCAN_API_DB_NAME=legiscan_api
+      - REFERENDUM_DB_NAME=referendum
     profiles: ["pipeline"]
 
   test:
@@ -84,8 +84,8 @@ services:
       - POSTGRES_PASSWORD=password
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
-      - LEGISCAN_DATABASE=legiscan_api
-      - REFERENDUM_DATABASE=referendum
+      - LEGISCAN_API_DB_NAME=legiscan_api
+      - REFERENDUM_DB_NAME=referendum
     profiles: ["test"]
 
 volumes:
