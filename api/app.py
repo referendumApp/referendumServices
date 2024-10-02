@@ -7,6 +7,8 @@ from sqlalchemy import text
 
 from common.database.referendum import connection, crud, schemas
 
+from .config import settings
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -81,15 +83,22 @@ async def delete_user(user_id: int, db=Depends(get_db)):
 async def add_feedback(feedback: dict):
     try:
         try:
-            response = s3.get_object(Bucket=BUCKET_NAME, Key=FILE_NAME)
+            response = s3.get_object(Bucket=settings.ALPHA_BUCKET_NAME, Key=settings.FEEDBACK_FILE_NAME)
             file_content = json.loads(response["Body"].read().decode("utf-8"))
         except s3.exceptions.NoSuchKey:
-            logger.warning(f"File {FILE_NAME} not found in bucket {BUCKET_NAME}. Creating new file.")
+            logger.warning(
+                f"File {settings.FEEDBACK_FILE_NAME} not found in bucket {settings.ALPHA_BUCKET_NAME}. Creating new file."
+            )
             file_content = {"feedbackMessages": []}
 
         file_content["feedbackMessages"].append(feedback)
 
-        s3.put_object(Bucket=BUCKET_NAME, Key=FILE_NAME, Body=json.dumps(file_content), ContentType="application/json")
+        s3.put_object(
+            Bucket=settings.ALPHA_BUCKET_NAME,
+            Key=settings.FEEDBACK_FILE_NAME,
+            Body=json.dumps(file_content),
+            ContentType="application/json",
+        )
         return
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}.")
