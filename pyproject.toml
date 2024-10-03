@@ -1,17 +1,45 @@
+[build-system]
+requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "referendumServices"
+dynamic = ["version"]
+description = ""
+authors = [{name = "Makani Dalton", email = "makani@referendumapp.com"}]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "boto3",
+    "fastapi[standard]",
+    "alembic",
+    "argon2-cffi",
+    "sqlalchemy",
+    "pandas",
+    "passlib",
+    "psycopg2-binary",
+    "pydantic",
+    "pydantic-settings",
+    "python-jose",
+]
+
+[project.optional-dependencies]
+test = ["pytest", "flake8"]
+
 [tool.black]
-line-length = 128
-target-version = ['py39']
+line-length = 88
+target-version = ['py311']
 include = '\.pyi?$'
 extend-exclude = '''
-/(
-  # directories
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-)/
-'''
+    /(
+      # directories
+      \.eggs
+      | \.git
+      | \.hg
+      | \.mypy_cache
+      | \.tox
+      | \.venv
+      | build
+      | dist
+    )/
+    '''

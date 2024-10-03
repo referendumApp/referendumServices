@@ -1,11 +1,31 @@
 services:
-  app:
+  api-base:
     build:
       context: .
-      target: app
+      target: api
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - REFERENDUM_DB_NAME=referendum
     ports:
       - "80:80"
-    entrypoint: ["/code/entrypoint.sh"]
+    profiles: ["base"]
+
+  api:
+    extends:
+      service: api-base
+    profiles: ["api"]
+
+
+  api-dev:
+    extends:
+      service: api-base
+    environment:
+      - API_ACCESS_TOKEN=12345
+      - SECRET_KEY=12345
+    profiles: ["dev"]
 
   db:
     image: postgres:13
@@ -14,37 +34,66 @@ services:
     environment:
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=local-db
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d local-db"]
+      test: ["CMD-SHELL", "pg_isready -U user"]
       interval: 5s
       timeout: 5s
       retries: 5
-    command:
-      - "postgres"
-      - "-c"
-      - "log_statement=all"
+    profiles: ["dev", "test"]
 
   local-init:
     build:
       context: .
       target: local-init
     environment:
-      - DATABASE_URL=postgresql://user:password@db:5432/local-db
+      - POSTGRES_USER=user
       - POSTGRES_PASSWORD=password
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - LEGISCAN_API_DB_NAME=legiscan_api
+      - REFERENDUM_DB_NAME=referendum
     depends_on:
       db:
         condition: service_healthy
     command: ["/code/local_init.sh"]
-    profiles: ["local", "test"]
+    profiles: ["dev", "test"]
+
+  pipeline:
+    build:
+      context: .
+      target: pipeline
+    depends_on:
+      db:
+        condition: service_healthy
+      local-init:
+        condition: service_completed_successfully
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - LEGISCAN_API_DB_NAME=legiscan_api
+      - REFERENDUM_DB_NAME=referendum
+    profiles: ["pipeline"]
 
   test:
     build:
       context: .
       target: test
     depends_on:
+      db:
+        condition: service_healthy
       local-init:
         condition: service_completed_successfully
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - LEGISCAN_API_DB_NAME=legiscan_api
+      - REFERENDUM_DB_NAME=referendum
+      - API_ACCESS_TOKEN=12345
+      - SECRET_KEY=12345
     profiles: ["test"]
 
 volumes:

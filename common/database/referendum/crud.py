@@ -1,14 +1,15 @@
 from sqlalchemy.orm import Session
 
-from . import models, schemas
+from common.database.referendum import models, schemas
 
 
 ### USERS ###
 
 
-def create_user(db: Session, user: schemas.UserCreate):
-    fake_hashed_password = user.password + "notreallyhashed"
-    db_user = models.User(name=user.name, email=user.email, hashed_password=fake_hashed_password)
+def create_user(db: Session, user: schemas.UserCreate, hashed_password: str):
+    db_user = models.User(
+        name=user.name, email=user.email, hashed_password=hashed_password
+    )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -45,7 +46,7 @@ def delete_user(db: Session, user_id: int):
 
 def create_bill(db: Session, bill: schemas.BillCreate):
     db_bill = models.Bill(
-        legiscanID=bill.legiscanID,
+        legiscan_id=bill.legiscan_id,
         identifier=bill.identifier,
         title=bill.title,
         description=bill.description,
@@ -54,7 +55,7 @@ def create_bill(db: Session, bill: schemas.BillCreate):
         session=bill.session,
         briefing=bill.briefing,
         status=bill.status,
-        latestAction=bill.latestAction,
+        latest_action=bill.latest_action,
     )
     db.add(db_bill)
     db.commit()
@@ -70,8 +71,8 @@ def get_bills(db: Session, skip: int = 0, limit: int = 10):
     return db.query(models.Bill).offset(skip).limit(limit).all()
 
 
-def get_bill_by_legiscanID(db: Session, legiscan_id: int):
-    return db.query(models.Bill).filter(models.Bill.legiscanID == legiscan_id).first()
+def get_bill_by_legiscan_id(db: Session, legiscan_id: int):
+    return db.query(models.Bill).filter(models.Bill.legiscan_id == legiscan_id).first()
 
 
 def update_bill(db: Session, db_bill: models.Bill):
@@ -91,21 +92,7 @@ def delete_bill(db: Session, bill_id: int):
 
 
 def create_legislator(db: Session, legislator: schemas.LegislatorCreate):
-    db_legislator = models.Legislator(
-        chamber=legislator.chamber,
-        district=legislator.district,
-        email=legislator.email,
-        facebook=legislator.facebook,
-        imageUrl=legislator.imageUrl,
-        instagram=legislator.instagram,
-        name=legislator.name,
-        office=legislator.office,
-        party=legislator.party,
-        phone=legislator.phone,
-        state=legislator.state,
-        #        topIssues=legislator.topIssues,
-        twitter=legislator.twitter,
-    )
+    db_legislator = models.Legislator(**legislator.model_dump())
     db.add(db_legislator)
     db.commit()
     db.refresh(db_legislator)
@@ -113,11 +100,19 @@ def create_legislator(db: Session, legislator: schemas.LegislatorCreate):
 
 
 def get_legislator(db: Session, legislator_id: int):
-    return db.query(models.Legislator).filter(models.Legislator.id == legislator_id).first()
+    return (
+        db.query(models.Legislator)
+        .filter(models.Legislator.id == legislator_id)
+        .first()
+    )
 
 
 def get_legislator_by_name_and_state(db: Session, name: str, state: str):
-    return db.query(models.Legislator).filter(models.Legislator.name == name, models.Legislator.state == state).first()
+    return (
+        db.query(models.Legislator)
+        .filter(models.Legislator.name == name, models.Legislator.state == state)
+        .first()
+    )
 
 
 def get_legislators(db: Session, skip: int = 0, limit: int = 10):

@@ -2,8 +2,13 @@ boto3
 fastapi[standard]
 
 alembic
+argon2-cffi
 sqlalchemy
 pandas
+passlib
 psycopg2-binary
+pydantic
+pydantic-settings
+python-jose
 
 pytest
