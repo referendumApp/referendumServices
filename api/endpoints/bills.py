@@ -69,7 +69,6 @@ async def get_bill(
 
 @router.delete(
     "/bills/{bill_id}",
-    response_model=schemas.Bill,
     summary="Delete a bill",
     description="Delete a bill from the system.",
     responses={200: {"description": "Bill successfully deleted"}, 404: {"description": "Bill not found"}},
