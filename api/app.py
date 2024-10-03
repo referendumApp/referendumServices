@@ -1,20 +1,22 @@
 import boto3
-from fastapi import FastAPI, Depends, HTTPException, status, Security
+from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordRequestForm
 import json
 import logging
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
-from common.database.referendum import connection, crud, schemas
+from common.database.referendum import crud, schemas
 
-from .auth import authenticate_user, create_access_token, get_user_for_token, get_password_hash, oauth2_scheme
-from .schemas import Token
+from .auth import get_user_for_token, get_password_hash, oauth2_scheme
 from .config import settings
+from .database import get_db
+from .endpoints import health
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+s3 = boto3.client("s3")
 
 app = FastAPI()
 app.add_middleware(
@@ -25,15 +27,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-s3 = boto3.client("s3")
+app.include_router(health.router)
 
 
-def get_db():
-    db = connection.SessionLocal()
+########################################################################################################
+# Health
+########################################################################################################
+
+
+@app.get("/health")
+async def healthcheck(db: Session = Depends(get_db)):
     try:
-        yield db
-    finally:
-        db.close()
+        db.execute(text("SELECT 1"))
+        return {"status": "healthy"}
+    except Exception:
+        raise HTTPException(status_code=500, detail="Database is not connected")
 
 
 async def get_current_user_or_verify_system_token(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
@@ -75,20 +83,6 @@ async def signup(user: schemas.UserCreate, db: Session = Depends(get_db)):
 #         )
 #     access_token = create_access_token(data={"sub": user.email})
 #     return {"access_token": access_token, "token_type": "bearer"}
-
-
-########################################################################################################
-# Health
-########################################################################################################
-
-
-@app.get("/health")
-async def healthcheck(db: Session = Depends(get_db)):
-    try:
-        db.execute(text("SELECT 1"))
-        return {"status": "healthy"}
-    except Exception:
-        raise HTTPException(status_code=500, detail="Database is not connected")
 
 
 ########################################################################################################
