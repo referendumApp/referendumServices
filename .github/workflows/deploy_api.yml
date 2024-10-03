@@ -44,7 +44,7 @@ jobs:
 
     - name: Set deployment variables
       run: |
-        if [[ "${{ github.event_name }}" == "push" ]]; then
+        if [[ "${{ github.event_name }}" == "workflow-run" ]]; then
           DEPLOY_ENV="prod"
         else
           DEPLOY_ENV="${{ github.event.inputs.environment }}"
@@ -189,7 +189,7 @@ jobs:
         exit 1
 
     - name: Get version and create GitHub Release
-      if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+      if: success() && github.event-name == 'workflow_run' && github.ref == 'refs/heads/main'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
