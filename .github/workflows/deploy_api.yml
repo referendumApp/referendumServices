@@ -245,10 +245,12 @@ jobs:
         version="${{ needs.update-version.outputs.new_version }}"
         tag_name="API-v$version"
         
-        gh release create "$tag_name" \
+        if ! gh release create "$tag_name" \
           --title "API Release $version" \
-          --target ${{ github.sha }} \
-          || echo "Failed to create release"
+          --target ${{ github.sha }}; then
+          log_error "Failed to create release"
+          exit 1
+        fi
 
   deploy-pipeline:
     needs: update-version
