@@ -31,7 +31,7 @@ class Bill(Base):
     session = Column(String, index=True)
     briefing = Column(String)
     status = Column(String)
-    latestAction = Column(String)
+    latest_action = Column(String)
     # topics = relationship("Topic", secondary=bill_topics, back_populates="bills" )
 
 

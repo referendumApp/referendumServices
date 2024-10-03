@@ -90,6 +90,7 @@ services:
       - LEGISCAN_API_DB_NAME=legiscan_api
       - REFERENDUM_DB_NAME=referendum
       - API_ACCESS_TOKEN=12345
+      - SECRET_KEY=12345
     profiles: ["test"]
 
 volumes:

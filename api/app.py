@@ -5,7 +5,7 @@ import json
 import logging
 
 from .config import settings
-from .endpoints import health, authentication, users, bills, legislators
+from .endpoints import health, authentication, users, bills
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -25,7 +25,6 @@ app.include_router(health.router)
 app.include_router(authentication.router)
 app.include_router(users.router)
 app.include_router(bills.router)
-app.include_router(legislators.router)
 
 
 ########################################################################################################
