@@ -82,11 +82,11 @@ jobs:
               "ENV_VARS=$(echo \"$SSM_PARAMS_JSON\" | jq -r \".[] | \\\" -e \\\" + .Name + \\\"=\\\" + .Value\" | sed \"s/\\/[^\\/]*\\///g\" | tr \"\\n\" \" \")",
               "POSTGRES_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.POSTGRES_PASSWORD_SECRET_NAME }} --query SecretString --output text)",
               "POSTGRES_PASSWORD=$(echo $POSTGRES_SECRET | jq -r '.password')",
-              "ACCESS_TOKEN_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.API_ACCESS_TOKEN_SECRET_NAME }} --query SecretString --output text)",
-              "ACCESS_TOKEN=$(echo $ACCESS_TOKEN_SECRET | jq -r '.token')",
+              "API_ACCESS_TOKEN_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.API_ACCESS_TOKEN_SECRET_NAME }} --query SecretString --output text)",
+              "API_ACCESS_TOKEN=$(echo $API_ACCESS_TOKEN_SECRET | jq -r '.token')",
               "SECRET_KEY_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.SECRET_KEY_SECRET_NAME }} --query SecretString --output text)",
               "SECRET_KEY=$(echo $SECRET_KEY_SECRET | jq -r '.token')",
-              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"SECRET_KEY\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
+              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"$SECRET_KEY\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
               "docker container prune -f",
               "docker image prune -af",
               "docker network prune -f",
@@ -175,26 +175,26 @@ jobs:
               "docker stop ${{ env.DEPLOY_ENV }}-app || true",
               "docker rm ${{ env.DEPLOY_ENV }}-app || true",
               "docker rmi ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} || true",
+              "SSM_PARAMS_JSON=$(aws ssm get-parameters-by-path --path /${{ env.DEPLOY_ENV }}/ --with-decryption --query \"Parameters[*].{Name:Name,Value:Value}\" --output json)",
               "ENV_VARS=$(echo \"$SSM_PARAMS_JSON\" | jq -r \".[] | \\\" -e \\\" + .Name + \\\"=\\\" + .Value\" | sed \"s/\\/[^\\/]*\\///g\" | tr \"\\n\" \" \")",
               "POSTGRES_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.POSTGRES_PASSWORD_SECRET_NAME }} --query SecretString --output text)",
               "POSTGRES_PASSWORD=$(echo $POSTGRES_SECRET | jq -r '.password')",
-              "ACCESS_TOKEN_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.API_ACCESS_TOKEN_SECRET_NAME }} --query SecretString --output text)",
-              "ACCESS_TOKEN=$(echo $ACCESS_TOKEN_SECRET | jq -r '.token')",
+              "API_ACCESS_TOKEN_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.API_ACCESS_TOKEN_SECRET_NAME }} --query SecretString --output text)",
+              "API_ACCESS_TOKEN=$(echo $API_ACCESS_TOKEN_SECRET | jq -r '.token')",
               "SECRET_KEY_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.SECRET_KEY_SECRET_NAME }} --query SecretString --output text)",
               "SECRET_KEY=$(echo $SECRET_KEY_SECRET | jq -r '.token')",
-              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"SECRET_KEY\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.DEPLOY_ENV }}-stable",
-
+              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"$SECRET_KEY\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.DEPLOY_ENV }}-stable"
             ]
           }'
         exit 1
 
     - name: Get version and create GitHub Release
-      if: success() && github.event-name == 'workflow_run' && github.ref == 'refs/heads/main'
+      if: success() && github.event_name == 'workflow_run' && github.ref == 'refs/heads/main'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         current_version=$(cat version.txt)
-        echo "current_version=$current_version" >> $GITHUB_OUTPUT
+        echo "current_version=$current_version" >> $GITHUB_ENV
         
         version="$current_version"
         
