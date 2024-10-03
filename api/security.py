@@ -15,11 +15,11 @@ pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
-def verify_password(plain_password, hashed_password):
+def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 
-def get_password_hash(password):
+def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
@@ -30,7 +30,7 @@ def authenticate_user(db: Session, email: str, password: str) -> models.User:
     return user
 
 
-def create_access_token(data: dict):
+def create_access_token(data: dict) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
@@ -72,5 +72,5 @@ async def get_current_user_or_verify_system_token(token: str = Depends(oauth2_sc
         )
 
 
-def get_token(token: str = Depends(oauth2_scheme)):
+def get_token(token: str = Depends(oauth2_scheme)) -> str:
     return token
