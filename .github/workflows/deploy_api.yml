@@ -1,8 +1,11 @@
 name: Deploy API to AWS
 
 on:
-  push:
-    branches: [ main ]
+  workflow_run:
+    workflows: ["Update Version"]
+    types:
+      - completed
+    branches: [main]
   workflow_dispatch:
     inputs:
       environment:
