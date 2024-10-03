@@ -193,66 +193,17 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        set -e  # Exit immediately if a command exits with a non-zero status
-        set -x  # Print commands and their arguments as they are executed
-    
         # Function to log errors
         log_error() {
           echo "ERROR: $1" >&2
         }
-    
+
         # Read version
-        if [ ! -f version.txt ]; then
-          log_error "version.txt file not found"
-          exit 1
-        fi
         current_version=$(cat version.txt)
-        echo "Current version: $current_version"
         echo "current_version=$current_version" >> $GITHUB_ENV
     
         version="$current_version"
         tag_name="API-v$version"
-    
-        # Generate release notes
-        echo "Generating release notes for version $version"
-        echo "# Release Notes for version $version" > release_notes.md
-        echo "" >> release_notes.md
-        echo "## Changes in this release:" >> release_notes.md
-        echo "" >> release_notes.md
-    
-        # Fetch tags and recent history
-        git fetch --tags --depth=100 || log_error "Failed to fetch git history"
-        git log --oneline -n 5 || log_error "Failed to retrieve recent git log"
-    
-        # Get commits since the last tag
-        last_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-        echo "Last tag: $last_tag"
-    
-        if [ -z "$last_tag" ]; then
-          git log --pretty=format:"- %s (%h)" >> release_notes.md || log_error "Failed to get git log"
-        else
-          git log --pretty=format:"- %s (%h)" $last_tag..HEAD >> release_notes.md || log_error "Failed to get git log since last tag"
-        fi
-    
-        # Add any breaking changes
-        echo "" >> release_notes.md
-        echo "## Breaking Changes:" >> release_notes.md
-        git log --pretty=format:"- %s (%h)" $last_tag..HEAD | grep -i "BREAKING CHANGE" >> release_notes.md || true
-    
-        # Add a list of contributors
-        echo "" >> release_notes.md
-        echo "## Contributors:" >> release_notes.md
-        git log --pretty=format:"- %an" $last_tag..HEAD | sort | uniq >> release_notes.md || log_error "Failed to get contributors"
-    
-        # Print release notes content
-        echo "Release notes content:"
-        cat release_notes.md
-    
-        # Check if release notes are empty
-        if [ ! -s release_notes.md ]; then
-          log_error "Release notes are empty. Aborting release creation."
-          exit 1
-        fi
     
         # Check GitHub CLI authentication
         gh auth status || log_error "GitHub CLI is not authenticated"
