@@ -24,10 +24,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest"]
+test = ["pytest", "flake8"]
 
 [tool.black]
-line-length = 128
+line-length = 88
 target-version = ['py311']
 include = '\.pyi?$'
 extend-exclude = '''
@@ -43,3 +43,9 @@ extend-exclude = '''
       | dist
     )/
     '''
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203", "E266", "E501", "W503"]
+max-complexity = 18
+select = ["B", "C", "E", "F", "W", "T4", "B9"]

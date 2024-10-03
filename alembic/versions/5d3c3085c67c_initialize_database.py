@@ -1,7 +1,7 @@
 """Initialize database
 
 Revision ID: 5d3c3085c67c
-Revises: 
+Revises:
 Create Date: 2024-10-01 09:18:59.007473
 
 """
@@ -47,7 +47,9 @@ def upgrade():
         sa.Column("latest_action", sa.String(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f("ix_bills_legiscan_id"), "bills", ["legiscan_id"], unique=False)
+    op.create_index(
+        op.f("ix_bills_legiscan_id"), "bills", ["legiscan_id"], unique=False
+    )
     op.create_index(op.f("ix_bills_state"), "bills", ["state"], unique=False)
     op.create_index(op.f("ix_bills_body"), "bills", ["body"], unique=False)
     op.create_index(op.f("ix_bills_session"), "bills", ["session"], unique=False)

@@ -27,7 +27,9 @@ async def add_user(
     auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> models.User:
     if not auth_info["is_system"]:
-        raise HTTPException(status_code=403, detail="Only system token can create users.")
+        raise HTTPException(
+            status_code=403, detail="Only system token can create users."
+        )
     db_user = crud.get_user_by_email(db, email=user.email)
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered.")
@@ -54,14 +56,18 @@ async def update_user(
     if not auth_info["is_system"]:
         current_user = auth_info["user"]
         if current_user.email != user.email:
-            raise HTTPException(status_code=403, detail="You can only update your own user information.")
+            raise HTTPException(
+                status_code=403, detail="You can only update your own user information."
+            )
     db_user = crud.get_user_by_email(db, email=user.email)
     if db_user:
         hashed_password = get_password_hash(user.password)
         db_user.hashed_password = hashed_password
         db_user.name = user.name
         return crud.update_user(db=db, db_user=db_user)
-    raise HTTPException(status_code=404, detail=f"User not found for email: {user.email}.")
+    raise HTTPException(
+        status_code=404, detail=f"User not found for email: {user.email}."
+    )
 
 
 @router.get(
@@ -76,12 +82,17 @@ async def update_user(
     },
 )
 async def get_user(
-    user_id: int, db: Session = Depends(get_db), auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token)
+    user_id: int,
+    db: Session = Depends(get_db),
+    auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> models.User:
     if not auth_info["is_system"]:
         current_user = auth_info["user"]
         if current_user.id != user_id:
-            raise HTTPException(status_code=403, detail="You can only retrieve your own user information.")
+            raise HTTPException(
+                status_code=403,
+                detail="You can only retrieve your own user information.",
+            )
     db_user = crud.get_user(db, user_id=user_id)
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found.")
@@ -99,10 +110,14 @@ async def get_user(
     },
 )
 async def delete_user(
-    user_id: int, db: Session = Depends(get_db), auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token)
+    user_id: int,
+    db: Session = Depends(get_db),
+    auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> None:
     if not auth_info["is_system"]:
-        raise HTTPException(status_code=403, detail="Only system token can delete users.")
+        raise HTTPException(
+            status_code=403, detail="Only system token can delete users."
+        )
     db_user = crud.get_user(db, user_id=user_id)
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found.")

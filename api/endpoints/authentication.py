@@ -24,7 +24,9 @@ router = APIRouter()
     description="Create a new user account with the provided password.",
     status_code=status.HTTP_201_CREATED,
 )
-async def signup(user: schemas.UserCreate, db: Session = Depends(get_db)) -> schemas.User:
+async def signup(
+    user: schemas.UserCreate, db: Session = Depends(get_db)
+) -> schemas.User:
     db_user = crud.get_user_by_email(db, email=user.email)
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered.")
@@ -46,13 +48,16 @@ async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
 ) -> Dict[str, str]:
     try:
-        user = authenticate_user(db, form_data.username, form_data.password)
-    except:
+        _ = authenticate_user(db, form_data.username, form_data.password)
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="User tokens are not yet available")
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="User tokens are not yet available",
+    )
     # access_token = create_access_token(data={"sub": user.email})
     # return {"access_token": access_token, "token_type": "bearer"}
