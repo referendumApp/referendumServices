@@ -1,4 +1,4 @@
-.PHONY: build run test clean shell logs restart pipeline
+.PHONY: build api pipeline test clean shell logs restart
 
 # Build the Docker images
 build:
@@ -34,4 +34,4 @@ logs:
 	docker compose logs -f
 
 # Rebuild and restart the app in local development mode
-restart: clean build run
+restart: clean build api

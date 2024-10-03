@@ -6,7 +6,11 @@ from api.tests.test_utils import client, system_headers, assert_status_code
 
 @pytest.fixture(scope="function")
 def test_user_session():
-    user_data = {"email": "testuser@example.com", "password": "testpassword", "name": "Test User"}
+    user_data = {
+        "email": "testuser@example.com",
+        "password": "testpassword",
+        "name": "Test User",
+    }
 
     response = client.post("/users", json=user_data, headers=system_headers)
     assert_status_code(response, 200)
@@ -29,7 +33,11 @@ def test_create_user(test_user_session):
 
 def test_create_user_duplicate_email(test_user_session):
     user, _ = test_user_session
-    user_data = {"email": user["email"], "password": "password", "name": "Duplicate User"}
+    user_data = {
+        "email": user["email"],
+        "password": "password",
+        "name": "Duplicate User",
+    }
 
     response = client.post("/users", json=user_data, headers=system_headers)
     assert_status_code(response, 400)
@@ -51,7 +59,11 @@ def test_get_user(test_user_session):
 def test_update_user(test_user_session):
     user, user_headers = test_user_session
 
-    update_data = {"email": user["email"], "password": "newpassword", "name": "Updated User"}
+    update_data = {
+        "email": user["email"],
+        "password": "newpassword",
+        "name": "Updated User",
+    }
     response = client.put("/users", json=update_data, headers=user_headers)
     assert_status_code(response, 200)
     updated_user = response.json()
@@ -61,12 +73,20 @@ def test_update_user(test_user_session):
 def test_update_user_unauthorized(test_user_session):
     _, user_headers = test_user_session
 
-    user_data = {"email": "unauthorizedupdate@example.com", "password": "password", "name": "Unauthorized Update User"}
+    user_data = {
+        "email": "unauthorizedupdate@example.com",
+        "password": "password",
+        "name": "Unauthorized Update User",
+    }
     create_response = client.post("/users", json=user_data, headers=system_headers)
     assert_status_code(create_response, 200)
     created_user = create_response.json()
 
-    update_data = {"email": user_data["email"], "password": "newpassword", "name": "Updated User"}
+    update_data = {
+        "email": user_data["email"],
+        "password": "newpassword",
+        "name": "Updated User",
+    }
     response = client.put("/users", json=update_data, headers=user_headers)
     assert_status_code(response, 403)
 
@@ -75,7 +95,11 @@ def test_update_user_unauthorized(test_user_session):
 
 
 def test_delete_user():
-    user_data = {"email": "deleteuser@example.com", "password": "password", "name": "Delete User"}
+    user_data = {
+        "email": "deleteuser@example.com",
+        "password": "password",
+        "name": "Delete User",
+    }
     create_response = client.post("/users", json=user_data, headers=system_headers)
     assert_status_code(create_response, 200)
     created_user = create_response.json()
@@ -90,7 +114,11 @@ def test_delete_user():
 def test_delete_user_unauthorized(test_user_session):
     _, user_headers = test_user_session
 
-    user_data = {"email": "unauthorizeddelete@example.com", "password": "password", "name": "Unauthorized Delete User"}
+    user_data = {
+        "email": "unauthorizeddelete@example.com",
+        "password": "password",
+        "name": "Unauthorized Delete User",
+    }
     create_response = client.post("/users", json=user_data, headers=system_headers)
     assert_status_code(create_response, 200)
     created_user = create_response.json()

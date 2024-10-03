@@ -2,7 +2,11 @@ from api.tests.test_utils import client, assert_status_code
 
 
 def test_signup_success():
-    user_data = {"email": "newuser@example.com", "name": "Test User", "password": "strongpassword"}
+    user_data = {
+        "email": "newuser@example.com",
+        "name": "Test User",
+        "password": "strongpassword",
+    }
     response = client.post("/signup", json=user_data)
     assert_status_code(response, 201)
 
@@ -12,7 +16,11 @@ def test_signup_success():
 
 
 def test_signup_existing_email():
-    user_data = {"email": "existinguser@example.com", "name": "Test User", "password": "password123"}
+    user_data = {
+        "email": "existinguser@example.com",
+        "name": "Test User",
+        "password": "password123",
+    }
 
     # Create a user first
     client.post("/signup", json=user_data)
@@ -24,7 +32,11 @@ def test_signup_existing_email():
 
 
 def test_signup_invalid_email():
-    user_data = {"email": "invalidemailstring", "name": "Test User", "password": "password123"}
+    user_data = {
+        "email": "invalidemailstring",
+        "name": "Test User",
+        "password": "password123",
+    }
 
     response = client.post("/signup", json=user_data)
     assert_status_code(response, 422)
@@ -32,7 +44,11 @@ def test_signup_invalid_email():
 
 
 def test_signup_invalid_password():
-    user_data = {"email": "invalidpassworduser@example.com", "name": "Test User", "password": "short"}
+    user_data = {
+        "email": "invalidpassworduser@example.com",
+        "name": "Test User",
+        "password": "short",
+    }
 
     response = client.post("/signup", json=user_data)
     assert_status_code(response, 422)
@@ -41,7 +57,11 @@ def test_signup_invalid_password():
 
 def test_login_success():
     # First, create a user
-    user_data = {"email": "loginuser@example.com", "name": "Test User", "password": "correctpassword"}
+    user_data = {
+        "email": "loginuser@example.com",
+        "name": "Test User",
+        "password": "correctpassword",
+    }
     client.post("/signup", json=user_data)
 
     # Now try to login
@@ -58,7 +78,11 @@ def test_login_success():
 
 def test_login_incorrect_password():
     # First, create a user
-    user_data = {"email": "wrongpass@example.com", "name": "Test User", "password": "correctpassword"}
+    user_data = {
+        "email": "wrongpass@example.com",
+        "name": "Test User",
+        "password": "correctpassword",
+    }
     client.post("/signup", json=user_data)
 
     # Now try to login with wrong password
@@ -69,7 +93,11 @@ def test_login_incorrect_password():
 
 
 def test_login_nonexistent_user():
-    login_data = {"username": "nonexistent@example.com", "name": "Test User", "password": "anypassword"}
+    login_data = {
+        "username": "nonexistent@example.com",
+        "name": "Test User",
+        "password": "anypassword",
+    }
     response = client.post("/token", data=login_data)
     assert_status_code(response, 401)
     assert "Incorrect username or password" in response.json()["detail"]
