@@ -224,7 +224,7 @@ jobs:
         git log --pretty=format:"- %an" $last_tag..HEAD | sort | uniq >> release_notes.md
         
         # Create the GitHub release
-        gh release create "v$version" \
+        gh release create "API v$version" \
           --title "API Release $version" \
           --notes-file release_notes.md \
           --target ${{ github.sha }}
