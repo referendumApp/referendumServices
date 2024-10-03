@@ -16,7 +16,6 @@ on:
 env:
   AWS_REGION: us-east-2
   ECR_REPOSITORY: referendum/api
-  EC2_INSTANCE_ID: i-08edd9a77b42449b2
   POSTGRES_PASSWORD_SECRET_NAME: rds!db-a5c629ff-4d6e-4d68-9680-6cdab848369c
   API_ACCESS_TOKEN_SECRET_NAME: /system/API_ACCESS_TOKEN
   SECRET_KEY_SECRET_NAME: /system/SECRET_KEY
@@ -52,6 +51,11 @@ jobs:
         echo "DEPLOY_ENV=$DEPLOY_ENV" >> $GITHUB_ENV
         echo "IMAGE_TAG=$DEPLOY_ENV-${{ github.sha }}" >> $GITHUB_ENV
         echo "PORT_MAPPING=$([ "$DEPLOY_ENV" == "prod" ] && echo "80:80" || echo "8080:80")" >> $GITHUB_ENV
+        
+        # Get EC2 Instance ID from SSM Parameter Store based on environment
+        EC2_INSTANCE_ID_PARAM="/$(echo $DEPLOY_ENV | tr '[:upper:]' '[:lower:]')/API_EC2_INSTANCE_ID"
+        EC2_INSTANCE_ID=$(aws ssm get-parameter --name $EC2_INSTANCE_ID_PARAM --query "Parameter.Value" --output text)
+        echo "EC2_INSTANCE_ID=$EC2_INSTANCE_ID" >> $GITHUB_ENV
 
     - name: Build, tag, and push image to Amazon ECR
       env:
@@ -218,7 +222,6 @@ jobs:
         echo "Creating GitHub release..."
         if ! gh release create "$tag_name" \
           --title "API Release $version" \
-          --notes-file release_notes.md \
           --target ${{ github.sha }}; then
           log_error "Failed to create release"
           exit 1
