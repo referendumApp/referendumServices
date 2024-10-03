@@ -36,7 +36,7 @@ class BillBase(BaseModel):
     session: str
     briefing: str
     status: str
-    latestAction: str
+    latest_action: str
     # topics:
 
 

@@ -53,7 +53,7 @@ def create_bill(db: Session, bill: schemas.BillCreate):
         session=bill.session,
         briefing=bill.briefing,
         status=bill.status,
-        latestAction=bill.latestAction,
+        latest_action=bill.latest_action,
     )
     db.add(db_bill)
     db.commit()

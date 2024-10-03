@@ -44,7 +44,7 @@ def upgrade():
         sa.Column("session", sa.String(), nullable=True),
         sa.Column("briefing", sa.String(), nullable=True),
         sa.Column("status", sa.String(), nullable=True),
-        sa.Column("latestAction", sa.String(), nullable=True),
+        sa.Column("latest_action", sa.String(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_bills_legiscan_id"), "bills", ["legiscan_id"], unique=False)
