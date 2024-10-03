@@ -23,7 +23,9 @@ create_database_if_not_exists() {
 create_database_if_not_exists $LEGISCAN_API_DB_NAME
 create_database_if_not_exists $REFERENDUM_DB_NAME
 
-echo "No migrations for LEGISCAN_API_DB_NAME"
+pwd
+PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$LEGISCAN_API_DB_NAME" -f "/code/data/legiscan_api.sql"
+
 
 echo "Running migrations for REFERENDUM_DB_NAME..."
 if ! alembic -c alembic.ini upgrade head; then

@@ -40,8 +40,10 @@ def extract():
     legiscan_db = next(get_legiscan_api_db())
     if check_db_connection(legiscan_db):
         logger.info("Successfully connected to Legiscan API database")
-        # Perform extraction logic here
         logger.info("Extraction completed")
+        result = legiscan_db.execute(text("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"))
+        tables = result.fetchall()
+        logger.info(tables)
     else:
         logger.error("Failed to connect to Legiscan API database. Extraction aborted.")
         raise ConnectionError("Legiscan API database connection failed")
