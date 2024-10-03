@@ -23,6 +23,22 @@ def test_signup_existing_email():
     assert "Email already registered" in response.json()["detail"]
 
 
+def test_signup_invalid_email():
+    user_data = {"email": "invalidemailstring", "name": "Test User", "password": "password123"}
+
+    response = client.post("/signup", json=user_data)
+    assert_status_code(response, 422)
+    assert "@" in str(response.json()["detail"])
+
+
+def test_signup_invalid_password():
+    user_data = {"email": "invalidpassworduser@example.com", "name": "Test User", "password": "short"}
+
+    response = client.post("/signup", json=user_data)
+    assert_status_code(response, 422)
+    assert "8 characters" in str(response.json()["detail"])
+
+
 def test_login_success():
     # First, create a user
     user_data = {"email": "loginuser@example.com", "name": "Test User", "password": "correctpassword"}
