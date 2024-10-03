@@ -44,7 +44,7 @@ jobs:
 
     - name: Set deployment variables
       run: |
-        if [[ "${{ github.event_name }}" == "workflow-run" ]]; then
+        if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
           DEPLOY_ENV="prod"
         else
           DEPLOY_ENV="${{ github.event.inputs.environment }}"
