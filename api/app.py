@@ -36,7 +36,9 @@ app.include_router(bills.router)
 async def add_feedback(feedback: dict):
     try:
         try:
-            response = s3.get_object(Bucket=settings.ALPHA_BUCKET_NAME, Key=settings.FEEDBACK_FILE_NAME)
+            response = s3.get_object(
+                Bucket=settings.ALPHA_BUCKET_NAME, Key=settings.FEEDBACK_FILE_NAME
+            )
             file_content = json.loads(response["Body"].read().decode("utf-8"))
         except s3.exceptions.NoSuchKey:
             logger.warning(
