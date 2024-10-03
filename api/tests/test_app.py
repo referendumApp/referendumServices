@@ -15,10 +15,10 @@ def test_health():
 def test_user_workflow():
     # Step 1: Add a new user
     user_payload = {"name": "John Smith", "email": "js@yahoo.com", "password": "1234"}
-    response = client.put("/users", json=user_payload, headers=headers)
+    response = client.post("/users", json=user_payload, headers=headers)
     assert response.status_code == 200
 
-    # Verify user creation by checking for correct email in the PUT response
+    # Verify user creation by checking for correct email in the POST response
     created_user = response.json()
     assert created_user["email"] == "js@yahoo.com"
 
@@ -31,7 +31,7 @@ def test_user_workflow():
 
     # Step 3: Update the user (change the name)                 ### revisit ###
     user_payload["name"] = "Bob Jones"
-    update = client.post("/users", json=user_payload, headers=headers)
+    update = client.put("/users", json=user_payload, headers=headers)
     assert update.status_code == 200
 
     # Step 4: Get the user again after the update to verify the changes
@@ -68,7 +68,7 @@ def test_bill_workflow():
         "status": "str",
         "latestAction": "str",
     }
-    response = client.put("/bills", json=original_bill_payload)
+    response = client.put("/bills", json=original_bill_payload, headers=headers)
     assert response.status_code == 200
 
     # Verify bill creation by checking for correct legiscanID in the PUT response
@@ -77,31 +77,31 @@ def test_bill_workflow():
 
     # Step 2: Get the bill by the newly created bill ID
     bill_id = created_bill["id"]
-    get_response = client.get(f"/bills/{bill_id}")
+    get_response = client.get(f"/bills/{bill_id}", headers=headers)
     assert get_response.status_code == 200
     assert created_bill["legiscan_id"] == 11
 
     # Step 3: Update the bill (change the title)
     created_bill["title"] = "new title"
-    update_response = client.post("/bills", json=created_bill)
+    update_response = client.post("/bills", json=created_bill, headers=headers)
     assert update_response.status_code == 200
 
     # Step 4: Get the bill again after the update to verify the changes
-    get_response_after_update = client.get(f"/bills/{bill_id}")
+    get_response_after_update = client.get(f"/bills/{bill_id}", headers=headers)
     assert get_response_after_update.status_code == 200
     assert get_response_after_update.json()["title"] == "new title"
 
     # Step 5: Delete the bill
-    delete_response = client.delete(f"/bills/{bill_id}")
+    delete_response = client.delete(f"/bills/{bill_id}", headers=headers)
     assert delete_response.status_code == 200  # Assuming successful deletion returns 200
 
     # Step 6: Attempt to get the bill again to verify it's been deleted
-    get_response_after_delete = client.get(f"/bills/{bill_id}")
+    get_response_after_delete = client.get(f"/bills/{bill_id}", headers=headers)
     assert get_response_after_delete.status_code == 404
 
     # Step 7: Try to get a non-existent bill
     non_existent_bill_id = 99999
-    get_non_existent = client.get(f"/bills/{non_existent_bill_id}")
+    get_non_existent = client.get(f"/bills/{non_existent_bill_id}", headers=headers)
     assert get_non_existent.status_code == 404
 
 
@@ -122,7 +122,7 @@ def test_legislator_workflow():
         "state": "WA",
         "twitter": "str",
     }
-    response = client.put("/legislators", json=original_legislator_payload)
+    response = client.put("/legislators", json=original_legislator_payload, headers=headers)
     print(response.json())
     assert response.status_code == 200
 
@@ -132,30 +132,30 @@ def test_legislator_workflow():
 
     # Step 2: Get the legislator by the newly created legislator id
     legislator_id = created_legislator["id"]
-    get_response = client.get(f"/legislators/{legislator_id}")
+    get_response = client.get(f"/legislators/{legislator_id}", headers=headers)
     assert get_response.status_code == 200
     assert created_legislator["state"] == "WA"
 
     # Step 3: Update the legislator (change the chamber)
     created_legislator["chamber"] = "senate"
-    update_response = client.post("/legislators", json=created_legislator)
+    update_response = client.post("/legislators", json=created_legislator, headers=headers)
     assert update_response.status_code == 200
 
     # Step 4: Get the legislator again after the update to verify the changes
-    get_response_after_update = client.get(f"/legislators/{legislator_id}")
+    get_response_after_update = client.get(f"/legislators/{legislator_id}", headers=headers)
     assert get_response_after_update.status_code == 200
     assert get_response_after_update.json()["chamber"] == "senate"
 
     # Step 5: Delete the legislator
-    delete_response = client.delete(f"/legislators/{legislator_id}")
+    delete_response = client.delete(f"/legislators/{legislator_id}", headers=headers)
     assert delete_response.status_code == 200  # Assuming successful deletion returns 200
 
     # Step 6: Attempt to get the bill again to verify it's been deleted
-    get_response_after_delete = client.get(f"/legislators/{legislator_id}")
+    get_response_after_delete = client.get(f"/legislators/{legislator_id}", headers=headers)
     print(legislator_id)
     assert get_response_after_delete.status_code == 404
 
     # Step 7: Try to get a non-existent bill
     non_existent_legislator_id = 99999
-    get_non_existent = client.get(f"/legislators/{non_existent_legislator_id}")
+    get_non_existent = client.get(f"/legislators/{non_existent_legislator_id}", headers=headers)
     assert get_non_existent.status_code == 404
