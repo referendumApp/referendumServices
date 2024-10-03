@@ -22,6 +22,9 @@ services:
   api-dev:
     extends:
       service: api-base
+    environment:
+      - API_ACCESS_TOKEN=12345
+      - SECRET_KEY=12345
     profiles: ["dev"]
 
   db:
