@@ -4,4 +4,4 @@ from api import app
 from api.config import settings
 
 client = TestClient(app)
-headers = {"Authorization": f"Bearer {settings.API_ACCESS_TOKEN}"}
+system_headers = {"Authorization": f"Bearer {settings.API_ACCESS_TOKEN}"}

@@ -5,7 +5,7 @@ from typing import Dict, Any
 from common.database.referendum import crud, schemas, models
 
 from ..database import get_db
-from .authentication import get_current_user_or_verify_system_token, get_password_hash
+from ..security import get_password_hash, get_current_user_or_verify_system_token
 
 router = APIRouter()
 
