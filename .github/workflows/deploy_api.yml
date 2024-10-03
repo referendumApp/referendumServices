@@ -193,8 +193,13 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        set -e
-        set -x
+        set -e  # Exit immediately if a command exits with a non-zero status
+        set -x  # Print commands and their arguments as they are executed
+    
+        # Function to log errors
+        log_error() {
+          echo "ERROR: $1" >&2
+        }
     
         # Read version
         if [ ! -f version.txt ]; then
@@ -206,6 +211,7 @@ jobs:
         echo "current_version=$current_version" >> $GITHUB_ENV
     
         version="$current_version"
+        tag_name="API-v$version"
     
         # Generate release notes
         echo "Generating release notes for version $version"
@@ -242,18 +248,24 @@ jobs:
         echo "Release notes content:"
         cat release_notes.md
     
+        # Check if release notes are empty
+        if [ ! -s release_notes.md ]; then
+          log_error "Release notes are empty. Aborting release creation."
+          exit 1
+        fi
+    
         # Check GitHub CLI authentication
         gh auth status || log_error "GitHub CLI is not authenticated"
     
         # Check if release already exists
-        if gh release view "API v$version" &> /dev/null; then
-          log_error "Release API v$version already exists"
+        if gh release view "$tag_name" &> /dev/null; then
+          log_error "Release $tag_name already exists"
           exit 1
         fi
     
         # Create the GitHub release
         echo "Creating GitHub release..."
-        if ! gh release create "API v$version" \
+        if ! gh release create "$tag_name" \
           --title "API Release $version" \
           --notes-file release_notes.md \
           --target ${{ github.sha }}; then
