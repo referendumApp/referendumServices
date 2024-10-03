@@ -16,6 +16,7 @@ env:
   EC2_INSTANCE_ID: i-08edd9a77b42449b2
   POSTGRES_PASSWORD_SECRET_NAME: rds!db-a5c629ff-4d6e-4d68-9680-6cdab848369c
   API_ACCESS_TOKEN_SECRET_NAME: /system/API_ACCESS_TOKEN
+  SECRET_KEY_SECRET_NAME: /system/SECRET_KEY
 
 permissions:
   contents: write
@@ -79,8 +80,10 @@ jobs:
               "POSTGRES_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.POSTGRES_PASSWORD_SECRET_NAME }} --query SecretString --output text)",
               "POSTGRES_PASSWORD=$(echo $POSTGRES_SECRET | jq -r '.password')",
               "ACCESS_TOKEN_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.API_ACCESS_TOKEN_SECRET_NAME }} --query SecretString --output text)",
-              "ACCESS_TOKEN=$(echo $POSTGRES_SECRET | jq -r '.token')",
-              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
+              "ACCESS_TOKEN=$(echo ACCESS_TOKEN_SECRET | jq -r '.token')",
+              "SECRET_KEY_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.SECRET_KEY_SECRET_NAME }} --query SecretString --output text)",
+              "SECRET_KEY=$(echo SECRET_KEY_SECRET | jq -r '.key')",
+              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"SECRET_KEY\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}",
               "docker container prune -f",
               "docker image prune -af",
               "docker network prune -f",
@@ -173,8 +176,10 @@ jobs:
               "POSTGRES_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.POSTGRES_PASSWORD_SECRET_NAME }} --query SecretString --output text)",
               "POSTGRES_PASSWORD=$(echo $POSTGRES_SECRET | jq -r '.password')",
               "ACCESS_TOKEN_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.API_ACCESS_TOKEN_SECRET_NAME }} --query SecretString --output text)",
-              "ACCESS_TOKEN=$(echo $POSTGRES_SECRET | jq -r '.token')",
-              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.DEPLOY_ENV }}-stable",
+              "ACCESS_TOKEN=$(echo ACCESS_TOKEN_SECRET | jq -r '.token')",
+              "SECRET_KEY_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.SECRET_KEY_SECRET_NAME }} --query SecretString --output text)",
+              "SECRET_KEY=$(echo SECRET_KEY_SECRET | jq -r '.key')",
+              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"SECRET_KEY\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.DEPLOY_ENV }}-stable",
 
             ]
           }'
