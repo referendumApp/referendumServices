@@ -10,9 +10,6 @@ from ..schemas import ErrorResponse, TokenResponse
 from ..security import get_password_hash, authenticate_user
 
 
-# Endpoints
-
-
 router = APIRouter()
 
 

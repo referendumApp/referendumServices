@@ -1,4 +1,4 @@
-from api.tests.common import client, system_headers
+from api.tests.test_utils import client, system_headers
 
 
 def test_bill_workflow():

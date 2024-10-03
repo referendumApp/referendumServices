@@ -1,4 +1,4 @@
-from api.tests.common import client
+from api.tests.test_utils import client
 
 
 def test_health():
