@@ -19,12 +19,16 @@ def get_test_bill_payload():
 
 # Helper function to create a test bill
 def create_test_bill():
-    response = client.put("/bills", json=get_test_bill_payload(), headers=system_headers)
+    response = client.put(
+        "/bills", json=get_test_bill_payload(), headers=system_headers
+    )
     return response.json()
 
 
 def test_add_bill_success():
-    response = client.put("/bills", json=get_test_bill_payload(), headers=system_headers)
+    response = client.put(
+        "/bills", json=get_test_bill_payload(), headers=system_headers
+    )
     assert_status_code(response, 200)
     created_bill = response.json()
     assert "id" in created_bill
@@ -38,7 +42,11 @@ def test_add_bill_already_exists():
 
 
 def test_add_bill_unauthorized():
-    response = client.put("/bills", json=get_test_bill_payload(), headers={"Authorization": "Bearer user_token"})
+    response = client.put(
+        "/bills",
+        json=get_test_bill_payload(),
+        headers={"Authorization": "Bearer user_token"},
+    )
     assert_status_code(response, 401)
 
 
@@ -73,7 +81,9 @@ def test_update_bill_not_found():
 def test_update_bill_unauthorized():
     bill = create_test_bill()
     updated_data = {**bill, "title": "Updated Test Bill"}
-    response = client.post("/bills", json=updated_data, headers={"Authorization": "Bearer user_token"})
+    response = client.post(
+        "/bills", json=updated_data, headers={"Authorization": "Bearer user_token"}
+    )
     assert_status_code(response, 401)
 
 
@@ -106,7 +116,9 @@ def test_delete_bill_not_found():
 
 def test_delete_bill_unauthorized():
     bill = create_test_bill()
-    response = client.delete(f"/bills/{bill['id']}", headers={"Authorization": "Bearer user_token"})
+    response = client.delete(
+        f"/bills/{bill['id']}", headers={"Authorization": "Bearer user_token"}
+    )
     assert_status_code(response, 401)
 
 

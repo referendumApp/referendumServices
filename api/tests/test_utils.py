@@ -1,6 +1,6 @@
 from starlette.testclient import TestClient
 
-from api import app
+from api.main import app
 from api.config import settings
 
 client = TestClient(app)

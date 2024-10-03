@@ -2,12 +2,6 @@ from sqlalchemy import Column, Integer, String
 
 from common.database.postgres_core.utils import Base
 
-# Junction table for Bill-Tag relationship
-# bill_topics = Table('bill_topics', Base.metadata,
-#     Column('bill_id', Integer, ForeignKey('bills.id'), primary_key=True),
-#     Column('topic_id', Integer, ForeignKey('topics.id'), primary_key=True)
-#     )
-
 
 class User(Base):
     __tablename__ = "users"
@@ -32,15 +26,6 @@ class Bill(Base):
     briefing = Column(String)
     status = Column(String)
     latest_action = Column(String)
-    # topics = relationship("Topic", secondary=bill_topics, back_populates="bills" )
-
-
-# class Topic(Base):
-#     __tablename__ = "topics"
-
-#     id = Column(Integer, primary_key=True)
-#     name = Column(String)
-#     bills = relationship("Bill", secondary=bill_topics, back_populates="topics")
 
 
 class Legislator(Base):

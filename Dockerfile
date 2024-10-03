@@ -1,8 +1,8 @@
 FROM python:3.11 AS base
 
 WORKDIR /code
-COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade -r requirements.txt
+COPY pyproject.toml .
+RUN pip install --no-cache-dir .
 
 # API stage
 FROM base AS api
@@ -39,6 +39,8 @@ RUN chmod +x /code/local_init.sh
 
 # Test stage
 FROM base AS test
+
+RUN pip install --no-cache-dir .[test]
 
 COPY api /code/api
 COPY pipeline /code/pipeline

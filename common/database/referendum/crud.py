@@ -7,7 +7,9 @@ from common.database.referendum import models, schemas
 
 
 def create_user(db: Session, user: schemas.UserCreate, hashed_password: str):
-    db_user = models.User(name=user.name, email=user.email, hashed_password=hashed_password)
+    db_user = models.User(
+        name=user.name, email=user.email, hashed_password=hashed_password
+    )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -98,11 +100,19 @@ def create_legislator(db: Session, legislator: schemas.LegislatorCreate):
 
 
 def get_legislator(db: Session, legislator_id: int):
-    return db.query(models.Legislator).filter(models.Legislator.id == legislator_id).first()
+    return (
+        db.query(models.Legislator)
+        .filter(models.Legislator.id == legislator_id)
+        .first()
+    )
 
 
 def get_legislator_by_name_and_state(db: Session, name: str, state: str):
-    return db.query(models.Legislator).filter(models.Legislator.name == name, models.Legislator.state == state).first()
+    return (
+        db.query(models.Legislator)
+        .filter(models.Legislator.name == name, models.Legislator.state == state)
+        .first()
+    )
 
 
 def get_legislators(db: Session, skip: int = 0, limit: int = 10):

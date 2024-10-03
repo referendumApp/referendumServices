@@ -25,7 +25,6 @@ class User(UserBase):
     model_config = ConfigDict(from_attributes=True)
 
 
-### BILLS ###
 class BillBase(BaseModel):
     legiscan_id: int
     identifier: str
