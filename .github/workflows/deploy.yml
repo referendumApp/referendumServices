@@ -260,7 +260,6 @@ jobs:
       DEPLOY_ENV: ${{ needs.set-deployment-vars.outputs.deploy_env }}
       IMAGE_TAG: ${{ needs.set-deployment-vars.outputs.image_tag }}
     steps:
-    steps:
       - name: Placeholder for Pipeline deployment
         run: |
           echo "Nothing to do yet"
