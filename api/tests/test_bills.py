@@ -37,7 +37,7 @@ def test_add_bill_success():
 def test_add_bill_already_exists():
     bill_data = create_test_bill()
     response = client.put("/bills", json=bill_data, headers=system_headers)
-    assert_status_code(response, 400)
+    assert_status_code(response, 409)
     assert "Bill already exists" in response.json()["detail"]
 
 
@@ -47,7 +47,7 @@ def test_add_bill_unauthorized():
         json=get_test_bill_payload(),
         headers={"Authorization": "Bearer user_token"},
     )
-    assert_status_code(response, 401)
+    assert_status_code(response, 403)
 
 
 def test_update_bill_success():
@@ -84,7 +84,7 @@ def test_update_bill_unauthorized():
     response = client.post(
         "/bills", json=updated_data, headers={"Authorization": "Bearer user_token"}
     )
-    assert_status_code(response, 401)
+    assert_status_code(response, 403)
 
 
 def test_get_bill_success():
@@ -119,7 +119,7 @@ def test_delete_bill_unauthorized():
     response = client.delete(
         f"/bills/{bill['id']}", headers={"Authorization": "Bearer user_token"}
     )
-    assert_status_code(response, 401)
+    assert_status_code(response, 403)
 
 
 def test_get_bill_text_success():
