@@ -33,11 +33,5 @@ if ! alembic -c alembic.ini upgrade head; then
   exit 1
 fi
 
-# TODO - create data loaders
-# echo "Loading data into LEGISCAN_API_DB_NAME..."
-# python /code/load_LEGISCAN_API_DB_NAME.py
-
-# echo "Loading data into REFERENDUM_DB_NAME..."
-# python /code/load_REFERENDUM_DB_NAME.py
 
 echo "Local initialization completed"
