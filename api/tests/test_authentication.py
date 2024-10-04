@@ -27,7 +27,7 @@ def test_signup_existing_email():
 
     # Try to create another user with the same email
     response = client.post("/signup", json=user_data)
-    assert_status_code(response, 400)
+    assert_status_code(response, 409)
     assert "Email already registered" in response.json()["detail"]
 
 
