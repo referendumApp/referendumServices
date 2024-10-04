@@ -8,9 +8,9 @@ from common.database.referendum.crud import ObjectNotFoundException, DatabaseExc
 from ..database import get_db
 from ..schemas import UserCreateInput
 from ..security import (
-    get_password_hash,
     get_current_user_or_verify_system_token,
     get_user_create_with_hashed_password,
+    verify_system_token,
 )
 
 router = APIRouter()
@@ -30,12 +30,8 @@ router = APIRouter()
 async def add_user(
     user: UserCreateInput,
     db: Session = Depends(get_db),
-    auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+    _: Dict[str, Any] = Depends(verify_system_token),
 ) -> models.User:
-    if not auth_info["is_system"]:
-        raise HTTPException(
-            status_code=403, detail="Only system token can create users."
-        )
     try:
         crud.user.get_user_by_email(db, email=user.email)
         raise HTTPException(status_code=400, detail="Email already registered.")
@@ -125,12 +121,8 @@ async def get_user(
 async def delete_user(
     user_id: int,
     db: Session = Depends(get_db),
-    auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+    _: Dict[str, Any] = Depends(verify_system_token),
 ) -> None:
-    if not auth_info["is_system"]:
-        raise HTTPException(
-            status_code=403, detail="Only system token can delete users."
-        )
     try:
         return crud.user.delete(db=db, obj_id=user_id)
     except ObjectNotFoundException:

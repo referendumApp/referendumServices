@@ -95,6 +95,13 @@ async def get_current_user_or_verify_system_token(
         )
 
 
+async def verify_system_token(token: str = Depends(oauth2_scheme)):
+    if token != settings.API_ACCESS_TOKEN:
+        raise HTTPException(
+            status_code=403, detail="Only system token can perform this action."
+        )
+
+
 def get_token(token: str = Depends(oauth2_scheme)) -> str:
     return token
 

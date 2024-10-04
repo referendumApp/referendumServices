@@ -5,12 +5,12 @@ from typing import Dict, Any
 from common.database.referendum import crud, schemas, models
 from common.database.referendum.crud import (
     ObjectNotFoundException,
-    ObjectAlreadyExistsException,
     DatabaseException,
 )
 
 from ..database import get_db
-from ..security import get_current_user_or_verify_system_token
+from ..security import get_current_user_or_verify_system_token, verify_system_token
+
 
 router = APIRouter()
 
@@ -38,9 +38,8 @@ def check_system_token(auth_info: Dict[str, Any]):
 async def add_bill(
     bill: schemas.BillCreate,
     db: Session = Depends(get_db),
-    auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+    _=Depends(verify_system_token),
 ) -> models.Bill:
-    check_system_token(auth_info)
     try:
         crud.bill.get_bill_by_legiscan_id(db, legiscan_id=bill.legiscan_id)
         raise HTTPException(status_code=409, detail="Bill already exists.")
@@ -66,9 +65,8 @@ async def add_bill(
 async def update_bill(
     bill: schemas.Bill,
     db: Session = Depends(get_db),
-    auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+    _=Depends(verify_system_token),
 ) -> models.Bill:
-    check_system_token(auth_info)
     try:
         db_bill = crud.bill.get_bill_by_legiscan_id(db, legiscan_id=bill.legiscan_id)
         return crud.bill.update(db=db, db_obj=db_bill, obj_in=bill)
@@ -120,9 +118,8 @@ async def get_bill(
 async def delete_bill(
     bill_id: int,
     db: Session = Depends(get_db),
-    auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+    _=Depends(verify_system_token),
 ):
-    check_system_token(auth_info)
     try:
         return crud.bill.delete(db=db, obj_id=bill_id)
     except ObjectNotFoundException:
