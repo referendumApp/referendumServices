@@ -53,7 +53,7 @@ class BillBase(BaseModel):
     briefing: str
     status: str
     latest_action: str
-    # topics.py:
+    # topics
 
 
 class BillCreate(BillBase):

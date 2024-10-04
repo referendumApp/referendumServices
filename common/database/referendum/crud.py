@@ -101,7 +101,7 @@ class CRUDTopic(CRUDBase[models.Topic]):
     def unfollow_topic(self, db: Session, user_id: int, topic_id: int) -> bool:
         db_user = db.query(models.User).filter(models.User.id == user_id).first()
         db_topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
-        if db_user and db_topic and topic in db_user.topics:
+        if db_user and db_topic in db_user.topics:
             db_user.topics.remove(db_topic)
             db.commit()
             return True
