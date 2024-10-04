@@ -3,11 +3,23 @@ from sqlalchemy.orm import Session
 from typing import Dict, Any
 
 from common.database.referendum import crud, schemas, models
+from common.database.referendum.crud import (
+    ObjectNotFoundException,
+    ObjectAlreadyExistsException,
+    DatabaseException,
+)
 
 from ..database import get_db
 from ..security import get_current_user_or_verify_system_token
 
 router = APIRouter()
+
+
+def check_system_token(auth_info: Dict[str, Any]):
+    if not auth_info["is_system"]:
+        raise HTTPException(
+            status_code=403, detail="Only system token can perform this action."
+        )
 
 
 @router.put(
@@ -17,7 +29,10 @@ router = APIRouter()
     description="Add a new bill to the system.",
     responses={
         200: {"description": "Bill successfully created"},
-        400: {"description": "Bill already exists"},
+        400: {"description": "Bad request"},
+        403: {"description": "Forbidden"},
+        409: {"description": "Bill already exists"},
+        500: {"description": "Internal server error"},
     },
 )
 async def add_bill(
@@ -25,14 +40,15 @@ async def add_bill(
     db: Session = Depends(get_db),
     auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> models.Bill:
-    if not auth_info["is_system"]:
-        raise HTTPException(
-            status_code=403, detail="Only system token can create bills."
-        )
-    db_bill = crud.bill.get_bill_by_legiscan_id(db, legiscan_id=bill.legiscan_id)
-    if db_bill:
-        raise HTTPException(status_code=400, detail="Bill already exists.")
-    return crud.bill.create(db=db, obj_in=bill)
+    check_system_token(auth_info)
+    try:
+        crud.bill.get_bill_by_legiscan_id(db, legiscan_id=bill.legiscan_id)
+        raise HTTPException(status_code=409, detail="Bill already exists.")
+    except ObjectNotFoundException:
+        try:
+            return crud.bill.create(db=db, obj_in=bill)
+        except DatabaseException as e:
+            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @router.post(
@@ -42,7 +58,9 @@ async def add_bill(
     description="Update an existing bill's information.",
     responses={
         200: {"description": "Bill information successfully updated"},
+        403: {"description": "Forbidden"},
         404: {"description": "Bill not found"},
+        500: {"description": "Internal server error"},
     },
 )
 async def update_bill(
@@ -50,14 +68,16 @@ async def update_bill(
     db: Session = Depends(get_db),
     auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> models.Bill:
-    if not auth_info["is_system"]:
-        raise HTTPException(
-            status_code=403, detail="Only system token can update bills."
-        )
-    db_bill = crud.bill.get_bill_by_legiscan_id(db, legiscan_id=bill.legiscan_id)
-    if db_bill:
+    check_system_token(auth_info)
+    try:
+        db_bill = crud.bill.get_bill_by_legiscan_id(db, legiscan_id=bill.legiscan_id)
         return crud.bill.update(db=db, db_obj=db_bill, obj_in=bill)
-    raise HTTPException(status_code=404, detail=f"Bill not found for ID: {bill.id}.")
+    except ObjectNotFoundException:
+        raise HTTPException(
+            status_code=404, detail=f"Bill not found for ID: {bill.id}."
+        )
+    except DatabaseException as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @router.get(
@@ -68,6 +88,7 @@ async def update_bill(
     responses={
         200: {"description": "Bill information successfully retrieved"},
         404: {"description": "Bill not found"},
+        500: {"description": "Internal server error"},
     },
 )
 async def get_bill(
@@ -75,10 +96,14 @@ async def get_bill(
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> models.Bill:
-    db_bill = crud.bill.read(db=db, obj_id=bill_id)
-    if db_bill:
-        return db_bill
-    raise HTTPException(status_code=404, detail=f"Bill not found for ID: {bill_id}.")
+    try:
+        return crud.bill.read(db=db, obj_id=bill_id)
+    except ObjectNotFoundException:
+        raise HTTPException(
+            status_code=404, detail=f"Bill not found for ID: {bill_id}."
+        )
+    except DatabaseException as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @router.delete(
@@ -87,7 +112,9 @@ async def get_bill(
     description="Delete a bill from the system.",
     responses={
         200: {"description": "Bill successfully deleted"},
+        403: {"description": "Forbidden"},
         404: {"description": "Bill not found"},
+        500: {"description": "Internal server error"},
     },
 )
 async def delete_bill(
@@ -95,16 +122,15 @@ async def delete_bill(
     db: Session = Depends(get_db),
     auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ):
-    if not auth_info["is_system"]:
-        raise HTTPException(
-            status_code=403, detail="Only system token can update bills."
-        )
-    db_bill = crud.bill.read(db=db, obj_id=bill_id)
-    if db_bill is None:
+    check_system_token(auth_info)
+    try:
+        return crud.bill.delete(db=db, obj_id=bill_id)
+    except ObjectNotFoundException:
         raise HTTPException(
             status_code=404, detail=f"Bill not found for ID: {bill_id}."
         )
-    return crud.bill.delete(db=db, obj_id=bill_id)
+    except DatabaseException as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @router.get(
@@ -112,7 +138,10 @@ async def delete_bill(
     response_model=dict,
     summary="Get bill text",
     description="Retrieve the text of a bill by its ID.",
-    responses={200: {"description": "Bill text successfully retrieved"}},
+    responses={
+        200: {"description": "Bill text successfully retrieved"},
+        404: {"description": "Bill not found"},
+    },
 )
 async def get_bill_text(
     bill_id: str, _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token)

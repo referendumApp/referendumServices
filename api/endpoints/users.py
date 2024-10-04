@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Dict, Any
 
 from common.database.referendum import crud, schemas, models
+from common.database.referendum.crud import ObjectNotFoundException, DatabaseException
 
 from ..database import get_db
 from ..schemas import UserCreateInput
@@ -35,12 +36,15 @@ async def add_user(
         raise HTTPException(
             status_code=403, detail="Only system token can create users."
         )
-    db_user = crud.user.get_user_by_email(db, email=user.email)
-    if db_user:
+    try:
+        crud.user.get_user_by_email(db, email=user.email)
         raise HTTPException(status_code=400, detail="Email already registered.")
-    user_create = get_user_create_with_hashed_password(user)
-
-    return crud.user.create(db=db, obj_in=user_create)
+    except ObjectNotFoundException:
+        try:
+            user_create = get_user_create_with_hashed_password(user)
+            return crud.user.create(db=db, obj_in=user_create)
+        except DatabaseException as e:
+            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @router.put(
@@ -65,14 +69,16 @@ async def update_user(
             raise HTTPException(
                 status_code=403, detail="You can only update your own user information."
             )
-    db_user = crud.user.get_user_by_email(db, email=user.email)
-    if db_user:
+    try:
+        db_user = crud.user.get_user_by_email(db, email=user.email)
         user_create = get_user_create_with_hashed_password(user)
-        return crud.user.update(db=db, db_user=db_user, obj_in=user_create)
-
-    raise HTTPException(
-        status_code=404, detail=f"User not found for email: {user.email}."
-    )
+        return crud.user.update(db=db, db_obj=db_user, obj_in=user_create)
+    except ObjectNotFoundException:
+        raise HTTPException(
+            status_code=404, detail=f"User not found for email: {user.email}."
+        )
+    except DatabaseException as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @router.get(
@@ -98,10 +104,12 @@ async def get_user(
                 status_code=403,
                 detail="You can only retrieve your own user information.",
             )
-    db_user = crud.user.read(db=db, obj_id=user_id)
-    if db_user is None:
-        raise HTTPException(status_code=404, detail="User not found.")
-    return db_user
+    try:
+        return crud.user.read(db=db, obj_id=user_id)
+    except ObjectNotFoundException:
+        raise HTTPException(status_code=404, detail=f"User not found for id: {user_id}")
+    except DatabaseException as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @router.delete(
@@ -123,7 +131,11 @@ async def delete_user(
         raise HTTPException(
             status_code=403, detail="Only system token can delete users."
         )
-    db_user = crud.user.read(db=db, obj_id=user_id)
-    if db_user is None:
-        raise HTTPException(status_code=404, detail="User not found.")
-    return crud.user.delete(db=db, obj_id=user_id)
+    try:
+        return crud.user.delete(db=db, obj_id=user_id)
+    except ObjectNotFoundException:
+        raise HTTPException(
+            status_code=404, detail=f"User not found for ID: {user_id}."
+        )
+    except DatabaseException as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")

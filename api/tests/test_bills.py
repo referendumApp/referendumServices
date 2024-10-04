@@ -37,7 +37,7 @@ def test_add_bill_success():
 def test_add_bill_already_exists():
     bill_data = create_test_bill()
     response = client.put("/bills", json=bill_data, headers=system_headers)
-    assert_status_code(response, 400)
+    assert_status_code(response, 409)
     assert "Bill already exists" in response.json()["detail"]
 
 
