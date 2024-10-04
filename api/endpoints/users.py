@@ -5,7 +5,12 @@ from typing import Dict, Any
 from common.database.referendum import crud, schemas, models
 
 from ..database import get_db
-from ..security import get_password_hash, get_current_user_or_verify_system_token
+from ..schemas import UserCreateInput
+from ..security import (
+    get_password_hash,
+    get_current_user_or_verify_system_token,
+    get_user_create_with_hashed_password,
+)
 
 router = APIRouter()
 
@@ -22,7 +27,7 @@ router = APIRouter()
     },
 )
 async def add_user(
-    user: schemas.UserCreate,
+    user: UserCreateInput,
     db: Session = Depends(get_db),
     auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> models.User:
@@ -30,11 +35,12 @@ async def add_user(
         raise HTTPException(
             status_code=403, detail="Only system token can create users."
         )
-    db_user = crud.get_user_by_email(db, email=user.email)
+    db_user = crud.user.get_user_by_email(db, email=user.email)
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered.")
-    hashed_password = get_password_hash(user.password)
-    return crud.create_user(db=db, user=user, hashed_password=hashed_password)
+    user_create = get_user_create_with_hashed_password(user)
+
+    return crud.user.create(db=db, obj_in=user_create)
 
 
 @router.put(
@@ -49,7 +55,7 @@ async def add_user(
     },
 )
 async def update_user(
-    user: schemas.UserCreate,
+    user: UserCreateInput,
     db: Session = Depends(get_db),
     auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> models.User:
@@ -59,12 +65,11 @@ async def update_user(
             raise HTTPException(
                 status_code=403, detail="You can only update your own user information."
             )
-    db_user = crud.get_user_by_email(db, email=user.email)
+    db_user = crud.user.get_user_by_email(db, email=user.email)
     if db_user:
-        hashed_password = get_password_hash(user.password)
-        db_user.hashed_password = hashed_password
-        db_user.name = user.name
-        return crud.update_user(db=db, db_user=db_user)
+        user_create = get_user_create_with_hashed_password(user)
+        return crud.user.update(db=db, db_user=db_user, obj_in=user_create)
+
     raise HTTPException(
         status_code=404, detail=f"User not found for email: {user.email}."
     )
@@ -93,7 +98,7 @@ async def get_user(
                 status_code=403,
                 detail="You can only retrieve your own user information.",
             )
-    db_user = crud.get_user(db, user_id=user_id)
+    db_user = crud.user.read(db=db, obj_id=user_id)
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found.")
     return db_user
@@ -118,7 +123,7 @@ async def delete_user(
         raise HTTPException(
             status_code=403, detail="Only system token can delete users."
         )
-    db_user = crud.get_user(db, user_id=user_id)
+    db_user = crud.user.read(db=db, obj_id=user_id)
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found.")
-    return crud.delete_user(db, user_id=user_id)
+    return crud.user.delete(db=db, obj_id=user_id)
