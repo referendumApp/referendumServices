@@ -41,7 +41,11 @@ def extract():
     legiscan_db = next(get_legiscan_api_db())
     if check_db_connection(legiscan_db):
         logger.info("Successfully connected to Legiscan API database")
-        result = legiscan_db.execute(text("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"))
+        result = legiscan_db.execute(
+            text(
+                "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
+            )
+        )
         tables = result.fetchall()
         logger.info(f"Finished extracting all tables: {tables}")
 
@@ -49,11 +53,13 @@ def extract():
         dataframes = {}
         with legiscan_db.connection() as conn:
             for table_row in tables:
-                table_name = table_row[0]  
-                df = pd.read_sql(table_name, con = conn)
+                table_name = table_row[0]
+                df = pd.read_sql(table_name, con=conn)
                 dataframes[table_name] = df
-                logger.info(f"Finished extracting rows from table: {table_name}")           
-                logger.info(f"First row from table {table_name}: {dataframes[table_name][:1]}")
+                logger.info(f"Finished extracting rows from table: {table_name}")
+                logger.info(
+                    f"First row from table {table_name}: {dataframes[table_name][:1]}"
+                )
         logger.info("Finished extracting all rows from tables")
         # return dataframes
     else:
@@ -64,17 +70,12 @@ def extract():
 # def transform(dataframes):
 def transform():
     logger.info("Transforming data")
-    
 
     transformed_data = {}
     discarded_tables = []
 
-
-
-
     logger.info("Finished transforming data")
     # return transformed_data
-
 
 
 def load():
