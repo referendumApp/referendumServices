@@ -7,16 +7,7 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    password: str
-
-    @field_validator("password")
-    @classmethod
-    def validate_password(cls, v):
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters long")
-        if len(v) > 100:
-            raise ValueError("Password must not exceed 100 characters")
-        return v
+    hashed_password: str
 
 
 class User(UserBase):

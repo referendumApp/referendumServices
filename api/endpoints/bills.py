@@ -29,10 +29,10 @@ async def add_bill(
         raise HTTPException(
             status_code=403, detail="Only system token can create bills."
         )
-    db_bill = crud.get_bill_by_legiscan_id(db, legiscan_id=bill.legiscan_id)
+    db_bill = crud.bill.get_bill_by_legiscan_id(db, legiscan_id=bill.legiscan_id)
     if db_bill:
         raise HTTPException(status_code=400, detail="Bill already exists.")
-    return crud.create_bill(db=db, bill=bill)
+    return crud.bill.create(db=db, obj_in=bill)
 
 
 @router.post(
@@ -54,10 +54,9 @@ async def update_bill(
         raise HTTPException(
             status_code=403, detail="Only system token can update bills."
         )
-    db_bill = crud.get_bill_by_legiscan_id(db, legiscan_id=bill.legiscan_id)
+    db_bill = crud.bill.get_bill_by_legiscan_id(db, legiscan_id=bill.legiscan_id)
     if db_bill:
-        db_bill.title = bill.title
-        return crud.update_bill(db=db, db_bill=db_bill)
+        return crud.bill.update(db=db, db_obj=db_bill, obj_in=bill)
     raise HTTPException(status_code=404, detail=f"Bill not found for ID: {bill.id}.")
 
 
@@ -76,7 +75,7 @@ async def get_bill(
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> models.Bill:
-    db_bill = crud.get_bill(db, bill_id=bill_id)
+    db_bill = crud.bill.read(db=db, obj_id=bill_id)
     if db_bill:
         return db_bill
     raise HTTPException(status_code=404, detail=f"Bill not found for ID: {bill_id}.")
@@ -100,12 +99,12 @@ async def delete_bill(
         raise HTTPException(
             status_code=403, detail="Only system token can update bills."
         )
-    db_bill = crud.get_bill(db, bill_id=bill_id)
+    db_bill = crud.bill.read(db=db, obj_id=bill_id)
     if db_bill is None:
         raise HTTPException(
             status_code=404, detail=f"Bill not found for ID: {bill_id}."
         )
-    return crud.delete_bill(db, bill_id=bill_id)
+    return crud.bill.delete(db=db, obj_id=bill_id)
 
 
 @router.get(

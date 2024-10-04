@@ -6,10 +6,11 @@ from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from starlette import status
 
+from common.database.referendum import models, crud, schemas
+
 from api.config import settings
 from api.database import get_db
-from api.schemas import TokenData
-from common.database.referendum import models, crud
+from api.schemas import TokenData, UserCreateInput
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -24,7 +25,7 @@ def get_password_hash(password: str) -> str:
 
 
 def authenticate_user(db: Session, email: str, password: str) -> models.User:
-    user = crud.get_user_by_email(db, email)
+    user = crud.user.get_user_by_email(db, email)
     if not user or not verify_password(password, user.hashed_password):
         raise Exception(f"Unable to authorize user with email: {email}")
     return user
@@ -58,7 +59,7 @@ async def get_current_user(
         token_data = TokenData(email=email)
     except JWTError:
         raise credentials_exception
-    user = crud.get_user_by_email(db, token_data.email)
+    user = crud.user.get_user_by_email(db, token_data.email)
     if user is None:
         raise credentials_exception
     return user
@@ -82,3 +83,11 @@ async def get_current_user_or_verify_system_token(
 
 def get_token(token: str = Depends(oauth2_scheme)) -> str:
     return token
+
+
+def get_user_create_with_hashed_password(user: UserCreateInput) -> schemas.UserCreate:
+    user_data = user.model_dump()
+    password = user_data.pop("password")
+    hashed_password = get_password_hash(password)
+
+    return schemas.UserCreate(**user_data, hashed_password=hashed_password)

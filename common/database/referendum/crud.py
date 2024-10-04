@@ -1,132 +1,78 @@
 from sqlalchemy.orm import Session
+from typing import List, Optional, TypeVar, Type, Generic
 
 from common.database.referendum import models, schemas
+
+T = TypeVar("T")
+
+
+class CRUDBase(Generic[T]):
+    def __init__(self, model: Type[T]):
+        self.model = model
+
+    def create(self, db: Session, obj_in: schemas.BaseModel) -> T:
+        db_obj = self.model(**obj_in.model_dump())
+        db.add(db_obj)
+        db.commit()
+        db.refresh(db_obj)
+        return db_obj
+
+    def read(self, db: Session, obj_id: int) -> Optional[T]:
+        return db.query(self.model).filter(self.model.id == obj_id).first()
+
+    def read_all(self, db: Session, skip: int = 0, limit: int = 100) -> List[T]:
+        return db.query(self.model).offset(skip).limit(limit).all()
+
+    def update(self, db: Session, db_obj: T, obj_in: schemas.BaseModel) -> T:
+        obj_data = obj_in.model_dump(exclude_unset=True)
+        for key, value in obj_data.items():
+            setattr(db_obj, key, value)
+        db.add(db_obj)
+        db.commit()
+        db.refresh(db_obj)
+        return db_obj
+
+    def delete(self, db: Session, obj_id: int) -> None:
+        obj = db.get(self.model, obj_id)
+        if obj:
+            db.delete(obj)
+            db.commit()
 
 
 ### USERS ###
 
 
-def create_user(db: Session, user: schemas.UserCreate, hashed_password: str):
-    db_user = models.User(
-        name=user.name, email=user.email, hashed_password=hashed_password
-    )
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
+class CRUDUser(CRUDBase[models.User]):
+    def create_user(
+        self, db: Session, user_create: schemas.UserCreate, hashed_password: str
+    ) -> models.User:
+        db_user = models.User(
+            name=user_create.name,
+            email=user_create.email,
+            hashed_password=hashed_password,
+        )
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+        return db_user
+
+    def get_user_by_email(self, db: Session, email: str) -> Optional[models.User]:
+        return db.query(models.User).filter(models.User.email == email).first()
 
 
-def get_user(db: Session, user_id: int):
-    return db.query(models.User).filter(models.User.id == user_id).first()
-
-
-def get_user_by_email(db: Session, email: str):
-    return db.query(models.User).filter(models.User.email == email).first()
-
-
-def get_users(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.User).offset(skip).limit(limit).all()
-
-
-def update_user(db: Session, db_user: models.User):
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
-
-
-def delete_user(db: Session, user_id: int):
-    db.query(models.User).filter(models.User.id == user_id).delete()
-    db.commit()
-    return
+user = CRUDUser(models.User)
 
 
 ### BILLS ###
 
 
-def create_bill(db: Session, bill: schemas.BillCreate):
-    db_bill = models.Bill(
-        legiscan_id=bill.legiscan_id,
-        identifier=bill.identifier,
-        title=bill.title,
-        description=bill.description,
-        state=bill.state,
-        body=bill.body,
-        session=bill.session,
-        briefing=bill.briefing,
-        status=bill.status,
-        latest_action=bill.latest_action,
-    )
-    db.add(db_bill)
-    db.commit()
-    db.refresh(db_bill)
-    return db_bill
+class CRUDBill(CRUDBase[models.Bill]):
+    def get_bill_by_legiscan_id(
+        self, db: Session, legiscan_id: int
+    ) -> Optional[models.Bill]:
+        return (
+            db.query(models.Bill).filter(models.Bill.legiscan_id == legiscan_id).first()
+        )
 
 
-def get_bill(db: Session, bill_id: int):
-    return db.query(models.Bill).filter(models.Bill.id == bill_id).first()
-
-
-def get_bills(db: Session, skip: int = 0, limit: int = 10):
-    return db.query(models.Bill).offset(skip).limit(limit).all()
-
-
-def get_bill_by_legiscan_id(db: Session, legiscan_id: int):
-    return db.query(models.Bill).filter(models.Bill.legiscan_id == legiscan_id).first()
-
-
-def update_bill(db: Session, db_bill: models.Bill):
-    db.add(db_bill)
-    db.commit()
-    db.refresh(db_bill)
-    return db_bill
-
-
-def delete_bill(db: Session, bill_id: int):
-    db.query(models.Bill).filter(models.Bill.id == bill_id).delete()
-    db.commit()
-    return
-
-
-# ### LEGISLATORS ###
-
-
-def create_legislator(db: Session, legislator: schemas.LegislatorCreate):
-    db_legislator = models.Legislator(**legislator.model_dump())
-    db.add(db_legislator)
-    db.commit()
-    db.refresh(db_legislator)
-    return db_legislator
-
-
-def get_legislator(db: Session, legislator_id: int):
-    return (
-        db.query(models.Legislator)
-        .filter(models.Legislator.id == legislator_id)
-        .first()
-    )
-
-
-def get_legislator_by_name_and_state(db: Session, name: str, state: str):
-    return (
-        db.query(models.Legislator)
-        .filter(models.Legislator.name == name, models.Legislator.state == state)
-        .first()
-    )
-
-
-def get_legislators(db: Session, skip: int = 0, limit: int = 10):
-    return db.query(models.Legislator).offset(skip).limit(limit).all()
-
-
-def update_legislator(db: Session, db_legislator: models.Legislator):
-    db.add(db_legislator)
-    db.commit()
-    db.refresh(db_legislator)
-    return db_legislator
-
-
-def delete_legislator(db: Session, legislator_id: int):
-    db.query(models.Legislator).filter(models.Legislator.id == legislator_id).delete()
-    db.commit()
-    return
+bill = CRUDBill(models.Bill)
