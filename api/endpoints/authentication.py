@@ -13,10 +13,10 @@ from common.database.referendum.crud import (
 from ..database import get_db
 from ..schemas import ErrorResponse, TokenResponse, UserCreateInput
 from ..security import (
-    authenticate_user,
-    get_user_create_with_hashed_password,
     SecurityException,
+    authenticate_user,
     create_access_token,
+    get_user_create_with_hashed_password,
 )
 
 
@@ -39,7 +39,6 @@ router = APIRouter()
 async def signup(user: UserCreateInput, db: Session = Depends(get_db)) -> schemas.User:
     try:
         user_create = get_user_create_with_hashed_password(user)
-        print(user_create)
         return crud.user.create(db=db, obj_in=user_create)
     except ObjectAlreadyExistsException:
         raise HTTPException(
