@@ -69,9 +69,30 @@ jobs:
         git tag v${{ steps.bump_version.outputs.new_version }}
         git push origin v${{ steps.bump_version.outputs.new_version }}
 
-  deploy-api:
-    needs: update-version
+  set-deployment-vars:
     runs-on: ubuntu-latest
+    outputs:
+      deploy_env: ${{ steps.set-vars.outputs.deploy_env }}
+      image_tag: ${{ steps.set-vars.outputs.image_tag }}
+    steps:
+    - name: Set deployment variables
+      id: set-vars
+      run: |
+        if [[ "${{ github.event_name }}" == "push" ]]; then
+          echo "deploy_env=prod" >> $GITHUB_OUTPUT
+          echo "image_tag=prod-${{ github.sha }}" >> $GITHUB_OUTPUT
+        else
+          echo "deploy_env=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          echo "image_tag=${{ github.event.inputs.environment }}-${{ github.sha }}" >> $GITHUB_OUTPUT
+        fi
+
+  deploy-api:
+    needs: [set-deployment-vars, update-version]
+    if: always() && (needs.update-version.result == 'success' || needs.update-version.result == 'skipped')
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_ENV: ${{ needs.set-deployment-vars.outputs.deploy_env }}
+      IMAGE_TAG: ${{ needs.set-deployment-vars.outputs.image_tag }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -87,15 +108,8 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
 
-    - name: Set deployment variables
+    - name: Set additional deployment variables
       run: |
-        if [[ "${{ github.event_name }}" == "push" ]]; then
-          DEPLOY_ENV="prod"
-        else
-          DEPLOY_ENV="${{ github.event.inputs.environment }}"
-        fi
-        echo "DEPLOY_ENV=$DEPLOY_ENV" >> $GITHUB_ENV
-        echo "IMAGE_TAG=$DEPLOY_ENV-${{ github.sha }}" >> $GITHUB_ENV
         echo "PORT_MAPPING=$([ "$DEPLOY_ENV" == "prod" ] && echo "80:80" || echo "8080:80")" >> $GITHUB_ENV
         
         # Get EC2 Instance ID from SSM Parameter Store based on environment
@@ -239,9 +253,14 @@ jobs:
         exit 1
 
   deploy-pipeline:
-    needs: update-version
+    needs: [set-deployment-vars, update-version]
+    if: always() && (needs.update-version.result == 'success' || needs.update-version.result == 'skipped')
     runs-on: ubuntu-latest
+    env:
+      DEPLOY_ENV: ${{ needs.set-deployment-vars.outputs.deploy_env }}
+      IMAGE_TAG: ${{ needs.set-deployment-vars.outputs.image_tag }}
     steps:
-    - name: Placeholder for Pipeline deployment
+    - name: Deploy Pipeline
       run: |
-        echo "Nothing to do yet"
+        echo "Deploying pipeline for environment: $DEPLOY_ENV"
+        echo "Using image tag: $IMAGE_TAG"
