@@ -19,30 +19,30 @@ def get_test_bill_payload():
 
 # Helper function to create a test bill
 def create_test_bill():
-    response = client.put(
+    response = client.post(
         "/bills", json=get_test_bill_payload(), headers=system_headers
     )
     return response.json()
 
 
 def test_add_bill_success():
-    response = client.put(
+    response = client.post(
         "/bills", json=get_test_bill_payload(), headers=system_headers
     )
-    assert_status_code(response, 200)
+    assert_status_code(response, 201)
     created_bill = response.json()
     assert "id" in created_bill
 
 
 def test_add_bill_already_exists():
     bill_data = create_test_bill()
-    response = client.put("/bills", json=bill_data, headers=system_headers)
+    response = client.post("/bills", json=bill_data, headers=system_headers)
     assert_status_code(response, 409)
     assert "Bill already exists" in response.json()["detail"]
 
 
 def test_add_bill_unauthorized():
-    response = client.put(
+    response = client.post(
         "/bills",
         json=get_test_bill_payload(),
         headers={"Authorization": "Bearer user_token"},
@@ -53,7 +53,7 @@ def test_add_bill_unauthorized():
 def test_update_bill_success():
     bill = create_test_bill()
     updated_data = {**bill, "title": "Updated Test Bill"}
-    response = client.post("/bills", json=updated_data, headers=system_headers)
+    response = client.put("/bills", json=updated_data, headers=system_headers)
     assert_status_code(response, 200)
     updated_bill = response.json()
     assert updated_bill["title"] == "Updated Test Bill"
@@ -73,7 +73,7 @@ def test_update_bill_not_found():
         "status": "killed",
         "latest_action": "none",
     }
-    response = client.post("/bills", json=non_existent_bill, headers=system_headers)
+    response = client.put("/bills", json=non_existent_bill, headers=system_headers)
     assert_status_code(response, 404)
     assert "Bill not found" in response.json()["detail"]
 
@@ -81,7 +81,7 @@ def test_update_bill_not_found():
 def test_update_bill_unauthorized():
     bill = create_test_bill()
     updated_data = {**bill, "title": "Updated Test Bill"}
-    response = client.post(
+    response = client.put(
         "/bills", json=updated_data, headers={"Authorization": "Bearer user_token"}
     )
     assert_status_code(response, 403)
@@ -105,7 +105,7 @@ def test_get_bill_not_found():
 def test_delete_bill_success():
     bill = create_test_bill()
     response = client.delete(f"/bills/{bill['id']}", headers=system_headers)
-    assert_status_code(response, 200)
+    assert_status_code(response, 204)
 
 
 def test_delete_bill_not_found():

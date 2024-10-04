@@ -22,10 +22,10 @@ app.add_middleware(
 )
 
 app.include_router(health.router, tags=["health"])
-app.include_router(authentication.router, tags=["authentication"])
-app.include_router(users.router, tags=["users"])
-app.include_router(bills.router, tags=["bills"])
-app.include_router(topics.router, tags=["topics"])
+app.include_router(authentication.router, tags=["authentication"], prefix="/auth")
+app.include_router(bills.router, tags=["bills"], prefix="/bills")
+app.include_router(users.router, tags=["users"], prefix="/users")
+app.include_router(topics.router, tags=["topics"], prefix="/topics")
 
 
 ########################################################################################################

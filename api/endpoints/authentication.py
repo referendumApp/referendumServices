@@ -26,15 +26,14 @@ router = APIRouter()
 @router.post(
     "/signup",
     response_model=schemas.User,
+    status_code=status.HTTP_201_CREATED,
+    summary="User Signup",
     responses={
         201: {"model": schemas.User, "description": "Successfully created user"},
         400: {"model": ErrorResponse, "description": "Bad request"},
         409: {"model": ErrorResponse, "description": "User already exists"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
-    summary="User Signup",
-    description="Create a new user account with the provided password.",
-    status_code=status.HTTP_201_CREATED,
 )
 async def signup(user: UserCreateInput, db: Session = Depends(get_db)) -> schemas.User:
     try:
@@ -54,13 +53,12 @@ async def signup(user: UserCreateInput, db: Session = Depends(get_db)) -> schema
 @router.post(
     "/token",
     response_model=TokenResponse,
+    summary="Login for Access Token",
     responses={
         200: {"model": TokenResponse, "description": "Successful authentication"},
         401: {"model": ErrorResponse, "description": "Unauthorized"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
-    summary="Login for Access Token",
-    description="Authenticate a user and return an access token.",
 )
 async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)

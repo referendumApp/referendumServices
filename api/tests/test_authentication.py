@@ -7,7 +7,7 @@ def test_signup_success():
         "name": "Test User",
         "password": "strongpassword",
     }
-    response = client.post("/signup", json=user_data)
+    response = client.post("/auth/signup", json=user_data)
     assert_status_code(response, 201)
 
     created_user = response.json()
@@ -23,10 +23,10 @@ def test_signup_existing_email():
     }
 
     # Create a user first
-    client.post("/signup", json=user_data)
+    client.post("/auth/signup", json=user_data)
 
     # Try to create another user with the same email
-    response = client.post("/signup", json=user_data)
+    response = client.post("/auth/signup", json=user_data)
     assert_status_code(response, 409)
     assert "Email already registered" in response.json()["detail"]
 
@@ -38,7 +38,7 @@ def test_signup_invalid_email():
         "password": "password123",
     }
 
-    response = client.post("/signup", json=user_data)
+    response = client.post("/auth/signup", json=user_data)
     assert_status_code(response, 422)
     assert "@" in str(response.json()["detail"])
 
@@ -50,7 +50,7 @@ def test_signup_invalid_password():
         "password": "short",
     }
 
-    response = client.post("/signup", json=user_data)
+    response = client.post("/auth/signup", json=user_data)
     assert_status_code(response, 422)
     assert "8 characters" in str(response.json()["detail"])
 
@@ -62,11 +62,11 @@ def test_login_success():
         "name": "Test User",
         "password": "correctpassword",
     }
-    client.post("/signup", json=user_data)
+    client.post("/auth/signup", json=user_data)
 
     # Now try to login
     login_data = {"username": user_data["email"], "password": user_data["password"]}
-    response = client.post("/token", data=login_data)
+    response = client.post("/auth/token", data=login_data)
     assert_status_code(response, 501)  # Not Implemented
 
     # When implemented, this should be:
@@ -83,11 +83,11 @@ def test_login_incorrect_password():
         "name": "Test User",
         "password": "correctpassword",
     }
-    client.post("/signup", json=user_data)
+    client.post("/auth/signup", json=user_data)
 
     # Now try to login with wrong password
     login_data = {"username": user_data["email"], "password": "wrongpassword"}
-    response = client.post("/token", data=login_data)
+    response = client.post("/auth/token", data=login_data)
     assert_status_code(response, 401)
     assert "Incorrect username or password" in response.json()["detail"]
 
@@ -98,11 +98,11 @@ def test_login_nonexistent_user():
         "name": "Test User",
         "password": "anypassword",
     }
-    response = client.post("/token", data=login_data)
+    response = client.post("/auth/token", data=login_data)
     assert_status_code(response, 401)
     assert "Incorrect username or password" in response.json()["detail"]
 
 
 def test_login_missing_fields():
-    response = client.post("/token", data={})
+    response = client.post("/auth/token", data={})
     assert_status_code(response, 422)  # Unprocessable Entity
