@@ -1,4 +1,25 @@
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
+from typing import List
+
+
+# Topics
+
+
+class TopicBase(BaseModel):
+    name: str
+
+
+class TopicCreate(TopicBase):
+    pass
+
+
+class Topic(TopicBase):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# Users
 
 
 class UserBase(BaseModel):
@@ -13,7 +34,12 @@ class UserCreate(UserBase):
 class User(UserBase):
     id: int
 
+    topics: List[Topic] = []
+
     model_config = ConfigDict(from_attributes=True)
+
+
+# Bills
 
 
 class BillBase(BaseModel):
@@ -27,7 +53,7 @@ class BillBase(BaseModel):
     briefing: str
     status: str
     latest_action: str
-    # topics:
+    # topics
 
 
 class BillCreate(BillBase):
@@ -40,7 +66,9 @@ class Bill(BillBase):
     model_config = ConfigDict(from_attributes=True)
 
 
-# ### LEGISLATORS ###
+# Legislators
+
+
 class LegislatorBase(BaseModel):
     chamber: str
     district: str

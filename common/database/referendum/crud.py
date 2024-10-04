@@ -8,26 +8,18 @@ T = TypeVar("T")
 
 
 class CRUDException(Exception):
-    """Base exception for CRUD operations"""
-
     pass
 
 
 class ObjectNotFoundException(CRUDException):
-    """Raised when an object is not found"""
-
     pass
 
 
 class ObjectAlreadyExistsException(CRUDException):
-    """Raised when trying to create an object that already exists"""
-
     pass
 
 
 class DatabaseException(CRUDException):
-    """Raised when a database error occurs"""
-
     pass
 
 
@@ -85,6 +77,16 @@ class CRUDBase(Generic[T]):
             raise DatabaseException(f"Database error: {str(e)}")
 
 
+### TOPICS ###
+
+
+class CRUDTopic(CRUDBase[models.Topic]):
+    pass
+
+
+### USERS ###
+
+
 class CRUDUser(CRUDBase[models.User]):
     def get_user_by_email(self, db: Session, email: str) -> models.User:
         try:
@@ -95,8 +97,38 @@ class CRUDUser(CRUDBase[models.User]):
         except SQLAlchemyError as e:
             raise DatabaseException(f"Database error: {str(e)}")
 
+    def follow_topic(self, db: Session, user_id: int, topic_id: int):
+        db_user = db.query(models.User).filter(models.User.id == user_id).first()
+        if not db_user:
+            raise ObjectNotFoundException(f"User not found for id: {user_id}")
+        db_topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
+        if not db_topic:
+            raise ObjectNotFoundException(f"Topic not found for id: {topic_id}")
+        db_user.topics.append(db_topic)
+        db.commit()
 
-user = CRUDUser(models.User)
+    def unfollow_topic(self, db: Session, user_id: int, topic_id: int):
+        db_user = db.query(models.User).filter(models.User.id == user_id).first()
+        if not db_user:
+            raise ObjectNotFoundException(f"User not found for id: {user_id}")
+        db_topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
+        if not db_topic:
+            raise ObjectNotFoundException(f"Topic not found for id: {topic_id}")
+        if db_topic not in db_user.topics:
+            raise ObjectNotFoundException(
+                f"Cannot unfollow, User {user_id} is not following topic {topic_id}"
+            )
+        db_user.topics.remove(db_topic)
+        db.commit()
+
+    def get_user_topics(self, db: Session, user_id: int) -> List[models.Topic]:
+        try:
+            db_user = db.query(models.User).filter(models.User.id == user_id).first()
+            if user is None:
+                raise ObjectNotFoundException(f"User not found for id: {user_id}")
+            return db_user.topics
+        except SQLAlchemyError as e:
+            raise DatabaseException(f"Database error: {str(e)}")
 
 
 ### BILLS ###
@@ -120,3 +152,5 @@ class CRUDBill(CRUDBase[models.Bill]):
 
 
 bill = CRUDBill(models.Bill)
+topic = CRUDTopic(models.Topic)
+user = CRUDUser(models.User)

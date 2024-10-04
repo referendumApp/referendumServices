@@ -5,7 +5,7 @@ import json
 import logging
 
 from .config import settings
-from .endpoints import health, authentication, users, bills
+from .endpoints import health, authentication, users, bills, topics
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -21,10 +21,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(health.router)
-app.include_router(authentication.router)
-app.include_router(users.router)
-app.include_router(bills.router)
+app.include_router(health.router, tags=["health"])
+app.include_router(authentication.router, tags=["authentication"])
+app.include_router(users.router, tags=["users"])
+app.include_router(bills.router, tags=["bills"])
+app.include_router(topics.router, tags=["topics"])
 
 
 ########################################################################################################

@@ -1,9 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 from common.database.referendum import crud, schemas, models
-from common.database.referendum.crud import ObjectNotFoundException, DatabaseException
+from common.database.referendum.crud import (
+    ObjectAlreadyExistsException,
+    ObjectNotFoundException,
+    DatabaseException,
+)
 
 from ..database import get_db
 from ..schemas import UserCreateInput
@@ -33,14 +37,14 @@ async def add_user(
     _: Dict[str, Any] = Depends(verify_system_token),
 ) -> models.User:
     try:
-        crud.user.get_user_by_email(db, email=user.email)
-        raise HTTPException(status_code=400, detail="Email already registered.")
-    except ObjectNotFoundException:
-        try:
-            user_create = get_user_create_with_hashed_password(user)
-            return crud.user.create(db=db, obj_in=user_create)
-        except DatabaseException as e:
-            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        user_create = get_user_create_with_hashed_password(user)
+        return crud.user.create(db=db, obj_in=user_create)
+    except ObjectAlreadyExistsException:
+        raise HTTPException(
+            status_code=409, detail=f"Email already registered: {user.email}"
+        )
+    except DatabaseException as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @router.put(
@@ -129,5 +133,73 @@ async def delete_user(
         raise HTTPException(
             status_code=404, detail=f"User not found for ID: {user_id}."
         )
+    except DatabaseException as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@router.get("/users/{user_id}/topics", response_model=List[schemas.Topic])
+def get_user_topics(
+    user_id: int,
+    db: Session = Depends(get_db),
+    auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+):
+    if not auth_info["is_system"]:
+        current_user = auth_info["user"]
+        if current_user.id != user_id:
+            raise HTTPException(
+                status_code=403,
+                detail="You can only get your own user information.",
+            )
+    try:
+        user = crud.user.read(db=db, obj_id=user_id)
+        return user.topics
+    except ObjectNotFoundException:
+        raise HTTPException(status_code=404, detail=f"User not found for id: {user_id}")
+    except DatabaseException as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@router.post("/users/{user_id}/follow/{topic_id}")
+def follow_topic(
+    user_id: int,
+    topic_id: int,
+    db: Session = Depends(get_db),
+    auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+) -> None:
+    if not auth_info["is_system"]:
+        current_user = auth_info["user"]
+        if current_user.id != user_id:
+            raise HTTPException(
+                status_code=403,
+                detail="You can only retrieve your own user information.",
+            )
+    try:
+        crud.user.follow_topic(db, user_id, topic_id)
+        return
+    except ObjectNotFoundException as e:
+        raise HTTPException(status_code=404, detail=f"Error following: {str(e)}")
+    except DatabaseException as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@router.post("/users/{user_id}/unfollow/{topic_id}")
+def unfollow_topic(
+    user_id: int,
+    topic_id: int,
+    db: Session = Depends(get_db),
+    auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+) -> None:
+    if not auth_info["is_system"]:
+        current_user = auth_info["user"]
+        if current_user.id != user_id:
+            raise HTTPException(
+                status_code=403,
+                detail="You can only update your own user information.",
+            )
+    try:
+        crud.user.unfollow_topic(db, user_id, topic_id)
+        return
+    except ObjectNotFoundException as e:
+        raise HTTPException(status_code=404, detail=f"Error unfollowing: {str(e)}")
     except DatabaseException as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
