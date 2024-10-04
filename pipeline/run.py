@@ -47,12 +47,13 @@ def extract():
 
         logger.info("Extracting data from tables:")
         dataframes = {}
-        for table_row in tables:
-            table_name = table_row[0]  
-            df = legiscan_db.execute(text(f"SELECT * FROM {table_name}"))
-            dataframes[table_name] = df.fetchall()
-            logger.info(f"Finished extracting rows from table: {table_name}")           
-            logger.info(f"First row from table {table_name}: {dataframes[table_name][:1]}")
+        with legiscan_db.connection() as conn:
+            for table_row in tables:
+                table_name = table_row[0]  
+                df = pd.read_sql(table_name, con = conn)
+                dataframes[table_name] = df
+                logger.info(f"Finished extracting rows from table: {table_name}")           
+                logger.info(f"First row from table {table_name}: {dataframes[table_name][:1]}")
         logger.info("Finished extracting all rows from tables")
         # return dataframes
     else:

@@ -23,7 +23,6 @@ create_database_if_not_exists() {
 create_database_if_not_exists $LEGISCAN_API_DB_NAME
 create_database_if_not_exists $REFERENDUM_DB_NAME
 
-pwd
 PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$LEGISCAN_API_DB_NAME" -f "/code/data/legiscan_api.sql"
 
 
