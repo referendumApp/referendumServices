@@ -38,38 +38,6 @@ class CRUDBase(Generic[T]):
         db.commit()
 
 
-### TOPICS ###
-
-
-class CRUDTopic(CRUDBase[models.Topic]):
-    def follow_topic(self, db: Session, user_id: int, topic_id: int) -> bool:
-        db_user = db.query(models.User).filter(models.User.id == user_id).first()
-        db_topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
-        if db_user and db_topic:
-            db_user.topics.append(db_topic)
-            db.commit()
-            return True
-        return False
-
-    def unfollow_topic(self, db: Session, user_id: int, topic_id: int) -> bool:
-        db_user = db.query(models.User).filter(models.User.id == user_id).first()
-        db_topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
-        if db_user and db_topic and topic in db_user.topics:
-            db_user.topics.remove(db_topic)
-            db.commit()
-            return True
-        return False
-
-    def get_user_topics(
-        self, db: Session, user_id: int
-    ) -> Optional[List[models.Topic]]:
-        db_user = db.query(models.User).filter(models.User.id == user_id).first()
-        return db_user.topics if db_user else None
-
-
-topic = CRUDTopic(models.Topic)
-
-
 ### USERS ###
 
 
