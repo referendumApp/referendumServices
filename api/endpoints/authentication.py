@@ -6,7 +6,7 @@ from typing import Dict
 from common.database.referendum import schemas, crud
 
 from ..database import get_db
-from ..schemas import ErrorResponse, TokenResponse
+from ..schemas import ErrorResponse, TokenResponse, UserCreateInput
 from ..security import get_password_hash, authenticate_user
 
 
@@ -24,14 +24,18 @@ router = APIRouter()
     description="Create a new user account with the provided password.",
     status_code=status.HTTP_201_CREATED,
 )
-async def signup(
-    user: schemas.UserCreate, db: Session = Depends(get_db)
-) -> schemas.User:
-    db_user = crud.get_user_by_email(db, email=user.email)
+async def signup(user: UserCreateInput, db: Session = Depends(get_db)) -> schemas.User:
+    db_user = crud.user.get_user_by_email(db, email=user.email)
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered.")
-    hashed_password = get_password_hash(user.password)
-    return crud.create_user(db=db, user=user, hashed_password=hashed_password)
+
+    user_data = user.model_dump()
+    password = user_data.pop("password")
+    hashed_password = get_password_hash(password)
+
+    return crud.user.create(
+        db=db, obj_in=schemas.UserCreate(**user_data, hashed_password=hashed_password)
+    )
 
 
 @router.post(

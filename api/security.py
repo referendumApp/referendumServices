@@ -24,7 +24,7 @@ def get_password_hash(password: str) -> str:
 
 
 def authenticate_user(db: Session, email: str, password: str) -> models.User:
-    user = crud.get_user_by_email(db, email)
+    user = crud.user.get_user_by_email(db, email)
     if not user or not verify_password(password, user.hashed_password):
         raise Exception(f"Unable to authorize user with email: {email}")
     return user
@@ -58,7 +58,7 @@ async def get_current_user(
         token_data = TokenData(email=email)
     except JWTError:
         raise credentials_exception
-    user = crud.get_user_by_email(db, token_data.email)
+    user = crud.user.get_user_by_email(db, token_data.email)
     if user is None:
         raise credentials_exception
     return user
