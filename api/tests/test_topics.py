@@ -20,7 +20,7 @@ def test_add_topic_success():
     response = client.post(
         "/topics", json=get_test_topic_payload(), headers=system_headers
     )
-    assert_status_code(response, 200)
+    assert_status_code(response, 201)
     created_topic = response.json()
     assert "id" in created_topic
 
@@ -87,7 +87,7 @@ def test_get_topic_not_found():
 def test_delete_topic_success():
     topic = create_test_topic()
     response = client.delete(f"/topics/{topic['id']}", headers=system_headers)
-    assert_status_code(response, 200)
+    assert_status_code(response, 204)
 
 
 def test_delete_topic_not_found():

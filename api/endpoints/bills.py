@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Dict, Any
 
@@ -11,24 +11,25 @@ from common.database.referendum.crud import (
 
 from ..database import get_db
 from ..security import get_current_user_or_verify_system_token, verify_system_token
+from ..schemas import ErrorResponse
 
 
 router = APIRouter()
 
 
-@router.put(
-    "/bills",
+@router.post(
+    "/",
     response_model=schemas.Bill,
-    summary="Add a new bill",
-    description="Add a new bill to the system.",
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new bill",
     responses={
-        200: {"description": "Bill successfully created"},
-        403: {"description": "Forbidden"},
-        409: {"description": "Bill already exists"},
-        500: {"description": "Internal server error"},
+        201: {"model": schemas.Bill, "description": "Bill successfully created"},
+        403: {"model": ErrorResponse, "description": "Forbidden"},
+        409: {"model": ErrorResponse, "description": "Bill already exists"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
-async def add_bill(
+async def create_bill(
     bill: schemas.BillCreate,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(verify_system_token),
@@ -44,16 +45,44 @@ async def add_bill(
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
-@router.post(
-    "/bills",
+@router.get(
+    "/{bill_id}",
+    response_model=schemas.Bill,
+    summary="Get bill information",
+    responses={
+        200: {"model": schemas.Bill, "description": "Bill retrieved"},
+        401: {"model": ErrorResponse, "description": "Not authorized"},
+        404: {"model": ErrorResponse, "description": "Bill not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def read_bill(
+    bill_id: int,
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+) -> models.Bill:
+    try:
+        return crud.bill.read(db=db, obj_id=bill_id)
+    except ObjectNotFoundException:
+        raise HTTPException(
+            status_code=404, detail=f"Bill not found for ID: {bill_id}."
+        )
+    except DatabaseException as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@router.put(
+    "/",
     response_model=schemas.Bill,
     summary="Update bill information",
-    description="Update an existing bill's information.",
     responses={
-        200: {"description": "Bill information successfully updated"},
-        403: {"description": "Forbidden"},
-        404: {"description": "Bill not found"},
-        500: {"description": "Internal server error"},
+        200: {
+            "model": schemas.Bill,
+            "description": "Bill information successfully updated",
+        },
+        403: {"model": ErrorResponse, "description": "Forbidden"},
+        404: {"model": ErrorResponse, "description": "Bill not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
 async def update_bill(
@@ -72,42 +101,15 @@ async def update_bill(
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
-@router.get(
-    "/bills/{bill_id}",
-    response_model=schemas.Bill,
-    summary="Get bill information",
-    description="Retrieve a bill's information by its ID.",
-    responses={
-        200: {"description": "Bill information successfully retrieved"},
-        401: {"description": "Not authorized"},
-        404: {"description": "Bill not found"},
-        500: {"description": "Internal server error"},
-    },
-)
-async def get_bill(
-    bill_id: int,
-    db: Session = Depends(get_db),
-    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
-) -> models.Bill:
-    try:
-        return crud.bill.read(db=db, obj_id=bill_id)
-    except ObjectNotFoundException:
-        raise HTTPException(
-            status_code=404, detail=f"Bill not found for ID: {bill_id}."
-        )
-    except DatabaseException as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-
-
 @router.delete(
-    "/bills/{bill_id}",
+    "/{bill_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a bill",
-    description="Delete a bill from the system.",
     responses={
-        200: {"description": "Bill successfully deleted"},
-        403: {"description": "Forbidden"},
-        404: {"description": "Bill not found"},
-        500: {"description": "Internal server error"},
+        204: {"description": "Bill successfully deleted"},
+        403: {"model": ErrorResponse, "description": "Forbidden"},
+        404: {"model": ErrorResponse, "description": "Bill not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
 async def delete_bill(
@@ -126,13 +128,17 @@ async def delete_bill(
 
 
 @router.get(
-    "/bills/{bill_id}/text",
-    response_model=dict,
+    "/{bill_id}/text",
+    response_model=Dict[str, str],
     summary="Get bill text",
-    description="Retrieve the text of a bill by its ID.",
     responses={
-        200: {"description": "Bill text successfully retrieved"},
-        401: {"description": "Not authorized"},
+        200: {
+            "model": Dict[str, str],
+            "description": "Bill text successfully retrieved",
+        },
+        401: {"model": ErrorResponse, "description": "Not authorized"},
+        404: {"model": ErrorResponse, "description": "Bill not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
 async def get_bill_text(

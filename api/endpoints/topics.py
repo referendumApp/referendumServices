@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any
 
@@ -11,13 +11,25 @@ from common.database.referendum.crud import (
 
 from ..database import get_db
 from ..security import get_current_user_or_verify_system_token, verify_system_token
+from ..schemas import ErrorResponse
 
 
 # Create new router for topic-related operations
 router = APIRouter()
 
 
-@router.post("/topics", response_model=schemas.Topic)
+@router.post(
+    "/",
+    response_model=schemas.Topic,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new topic",
+    responses={
+        201: {"model": schemas.Topic, "description": "Topic successfully created"},
+        403: {"model": ErrorResponse, "description": "Forbidden"},
+        409: {"model": ErrorResponse, "description": "Topic already exists"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
 def create_topic(
     topic: schemas.TopicCreate,
     db: Session = Depends(get_db),
@@ -31,7 +43,17 @@ def create_topic(
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
-@router.get("/topics/{topic_id}", response_model=schemas.Topic)
+@router.get(
+    "/{topic_id}",
+    response_model=schemas.Topic,
+    summary="Get topic information",
+    responses={
+        200: {"model": schemas.Topic, "description": "Topic retrieved"},
+        401: {"model": ErrorResponse, "description": "Not authorized"},
+        404: {"model": ErrorResponse, "description": "Topic not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
 def read_topic(
     topic_id: int,
     db: Session = Depends(get_db),
@@ -48,15 +70,17 @@ def read_topic(
 
 
 @router.put(
-    "/topics",
+    "/",
     response_model=schemas.Topic,
     summary="Update topic information",
-    description="Update an existing topic's information.",
     responses={
-        200: {"description": "Topic information successfully updated"},
-        403: {"description": "Forbidden"},
-        404: {"description": "Topic not found"},
-        500: {"description": "Internal server error"},
+        200: {
+            "model": schemas.Topic,
+            "description": "Topic information successfully updated",
+        },
+        403: {"model": ErrorResponse, "description": "Forbidden"},
+        404: {"model": ErrorResponse, "description": "Topic not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
 async def update_topic(
@@ -76,14 +100,14 @@ async def update_topic(
 
 
 @router.delete(
-    "/topics/{topic_id}",
+    "/{topic_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a topic",
-    description="Delete a topic from the system.",
     responses={
-        200: {"description": "Topic successfully deleted"},
-        403: {"description": "Forbidden"},
-        404: {"description": "Topic not found"},
-        500: {"description": "Internal server error"},
+        204: {"description": "Topic successfully deleted"},
+        403: {"model": ErrorResponse, "description": "Forbidden"},
+        404: {"model": ErrorResponse, "description": "Topic not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
 def delete_topic(
@@ -101,7 +125,19 @@ def delete_topic(
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
-@router.get("/topics", response_model=List[schemas.Topic])
+@router.get(
+    "/",
+    response_model=List[schemas.Topic],
+    summary="Get all topics",
+    responses={
+        200: {
+            "model": List[schemas.Topic],
+            "description": "Topics successfully retrieved",
+        },
+        401: {"model": ErrorResponse, "description": "Not authorized"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
 def read_topics(
     skip: int = 0,
     limit: int = 100,

@@ -13,7 +13,7 @@ def test_user_session():
     }
 
     response = client.post("/users", json=user_data, headers=system_headers)
-    assert_status_code(response, 200)
+    assert_status_code(response, 201)
     user = response.json()
     token = create_access_token(data={"sub": user["email"]})
     headers = {"Authorization": f"Bearer {token}"}
@@ -21,7 +21,7 @@ def test_user_session():
     yield user, headers
 
     response = client.delete(f"/users/{user['id']}", headers=system_headers)
-    assert_status_code(response, 200)
+    assert_status_code(response, 204)
 
 
 @pytest.fixture(scope="function")
@@ -31,13 +31,13 @@ def test_topic():
     }
 
     response = client.post("/topics", json=topic_data, headers=system_headers)
-    assert_status_code(response, 200)
+    assert_status_code(response, 201)
     topic = response.json()
 
     yield topic
 
     response = client.delete(f"/topics/{topic['id']}", headers=system_headers)
-    assert_status_code(response, 200)
+    assert_status_code(response, 204)
 
 
 def test_create_user(test_user_session):
@@ -95,7 +95,7 @@ def test_update_user_unauthorized(test_user_session):
         "name": "Unauthorized Update User",
     }
     create_response = client.post("/users", json=user_data, headers=system_headers)
-    assert_status_code(create_response, 200)
+    assert_status_code(create_response, 201)
     created_user = create_response.json()
 
     update_data = {
@@ -107,7 +107,7 @@ def test_update_user_unauthorized(test_user_session):
     assert_status_code(response, 403)
 
     response = client.delete(f"/users/{created_user['id']}", headers=system_headers)
-    assert_status_code(response, 200)
+    assert_status_code(response, 204)
 
 
 def test_delete_user():
@@ -117,11 +117,11 @@ def test_delete_user():
         "name": "Delete User",
     }
     create_response = client.post("/users", json=user_data, headers=system_headers)
-    assert_status_code(create_response, 200)
+    assert_status_code(create_response, 201)
     created_user = create_response.json()
 
     response = client.delete(f"/users/{created_user['id']}", headers=system_headers)
-    assert_status_code(response, 200)
+    assert_status_code(response, 204)
 
     response = client.get(f"/users/{created_user['id']}", headers=system_headers)
     assert_status_code(response, 404)
@@ -136,14 +136,14 @@ def test_delete_user_unauthorized(test_user_session):
         "name": "Unauthorized Delete User",
     }
     create_response = client.post("/users", json=user_data, headers=system_headers)
-    assert_status_code(create_response, 200)
+    assert_status_code(create_response, 201)
     created_user = create_response.json()
 
     response = client.delete(f"/users/{created_user['id']}", headers=user_headers)
     assert_status_code(response, 403)
 
     response = client.delete(f"/users/{created_user['id']}", headers=system_headers)
-    assert_status_code(response, 200)
+    assert_status_code(response, 204)
 
 
 def test_get_non_existent_user():
@@ -155,7 +155,7 @@ def test_user_login(test_user_session):
     user, _ = test_user_session
 
     login_data = {"username": user["email"], "password": "testpassword"}
-    response = client.post("/token", data=login_data)
+    response = client.post("/auth/token", data=login_data)
     assert_status_code(response, 501)
     # Uncomment the following line when the login endpoint is implemented
     # assert "access_token" in response.json()
@@ -163,7 +163,7 @@ def test_user_login(test_user_session):
 
 def test_user_login_invalid_credentials():
     login_data = {"username": "nonexistent@example.com", "password": "wrongpassword"}
-    response = client.post("/token", data=login_data)
+    response = client.post("/auth/token", data=login_data)
     assert_status_code(response, 401)
 
 
@@ -202,7 +202,7 @@ def test_follow_topic(test_user_session, test_topic):
     response = client.post(
         f"/users/{user['id']}/follow/{topic['id']}", headers=user_headers
     )
-    assert_status_code(response, 200)
+    assert_status_code(response, 204)
 
     # Verify that the topic is in the user's topics
     topics_response = client.get(f"/users/{user['id']}/topics", headers=user_headers)
@@ -214,7 +214,7 @@ def test_follow_topic(test_user_session, test_topic):
     unfollow_response = client.post(
         f"/users/{user['id']}/unfollow/{topic['id']}", headers=user_headers
     )
-    assert_status_code(unfollow_response, 200)
+    assert_status_code(unfollow_response, 204)
 
     # Verify that the topic is no longer in the user's topics
     topics_response = client.get(f"/users/{user['id']}/topics", headers=user_headers)
