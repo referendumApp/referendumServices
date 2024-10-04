@@ -8,26 +8,18 @@ T = TypeVar("T")
 
 
 class CRUDException(Exception):
-    """Base exception for CRUD operations"""
-
     pass
 
 
 class ObjectNotFoundException(CRUDException):
-    """Raised when an object is not found"""
-
     pass
 
 
 class ObjectAlreadyExistsException(CRUDException):
-    """Raised when trying to create an object that already exists"""
-
     pass
 
 
 class DatabaseException(CRUDException):
-    """Raised when a database error occurs"""
-
     pass
 
 
@@ -89,6 +81,22 @@ class CRUDBase(Generic[T]):
 
 
 class CRUDTopic(CRUDBase[models.Topic]):
+    pass
+
+
+### USERS ###
+
+
+class CRUDUser(CRUDBase[models.User]):
+    def get_user_by_email(self, db: Session, email: str) -> models.User:
+        try:
+            user = db.query(models.User).filter(models.User.email == email).first()
+            if user is None:
+                raise ObjectNotFoundException(f"User with email {email} not found")
+            return user
+        except SQLAlchemyError as e:
+            raise DatabaseException(f"Database error: {str(e)}")
+
     def follow_topic(self, db: Session, user_id: int, topic_id: int) -> bool:
         db_user = db.query(models.User).filter(models.User.id == user_id).first()
         db_topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
@@ -117,26 +125,6 @@ class CRUDTopic(CRUDBase[models.Topic]):
             raise DatabaseException(f"Database error: {str(e)}")
 
 
-topic = CRUDTopic(models.Topic)
-
-
-### USERS ###
-
-
-class CRUDUser(CRUDBase[models.User]):
-    def get_user_by_email(self, db: Session, email: str) -> models.User:
-        try:
-            user = db.query(models.User).filter(models.User.email == email).first()
-            if user is None:
-                raise ObjectNotFoundException(f"User with email {email} not found")
-            return user
-        except SQLAlchemyError as e:
-            raise DatabaseException(f"Database error: {str(e)}")
-
-
-user = CRUDUser(models.User)
-
-
 ### BILLS ###
 
 
@@ -158,3 +146,5 @@ class CRUDBill(CRUDBase[models.Bill]):
 
 
 bill = CRUDBill(models.Bill)
+topic = CRUDTopic(models.Topic)
+user = CRUDUser(models.User)

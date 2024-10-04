@@ -60,7 +60,7 @@ async def update_bill(
     _: Dict[str, Any] = Depends(verify_system_token),
 ) -> models.Bill:
     try:
-        db_bill = crud.bill.get_bill_by_legiscan_id(db, legiscan_id=bill.legiscan_id)
+        db_bill = crud.bill.read(db=db, obj_id=bill.id)
         return crud.bill.update(db=db, db_obj=db_bill, obj_in=bill)
     except ObjectNotFoundException:
         raise HTTPException(
