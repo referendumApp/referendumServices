@@ -18,10 +18,6 @@ class Topic(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
 
-    followers = relationship(
-        "User", secondary=user_topic_association, back_populates="topics"
-    )
-
 
 class User(Base):
     __tablename__ = "users"
@@ -31,9 +27,7 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
 
-    topics = relationship(
-        "Topic", secondary=user_topic_association, back_populates="followers"
-    )
+    topics = relationship("Topic", secondary=user_topic_association)
 
 
 class Bill(Base):
