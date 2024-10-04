@@ -6,7 +6,11 @@ from common.database.referendum import crud, schemas, models
 
 from ..database import get_db
 from ..schemas import UserCreateInput
-from ..security import get_password_hash, get_current_user_or_verify_system_token
+from ..security import (
+    get_password_hash,
+    get_current_user_or_verify_system_token,
+    get_user_create_with_hashed_password,
+)
 
 router = APIRouter()
 
@@ -34,14 +38,9 @@ async def add_user(
     db_user = crud.user.get_user_by_email(db, email=user.email)
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered.")
+    user_create = get_user_create_with_hashed_password(user)
 
-    user_data = user.model_dump()
-    password = user_data.pop("password")
-    hashed_password = get_password_hash(password)
-
-    return crud.user.create(
-        db=db, obj_in=schemas.UserCreate(**user_data, hashed_password=hashed_password)
-    )
+    return crud.user.create(db=db, obj_in=user_create)
 
 
 @router.put(
@@ -68,14 +67,8 @@ async def update_user(
             )
     db_user = crud.user.get_user_by_email(db, email=user.email)
     if db_user:
-        user_data = user.model_dump()
-        password = user_data.pop("password")
-        hashed_password = get_password_hash(password)
-        return crud.user.update(
-            db=db,
-            db_obj=db_user,
-            obj_in=schemas.UserCreate(**user_data, hashed_password=hashed_password),
-        )
+        user_create = get_user_create_with_hashed_password(user)
+        return crud.user.update(db=db, db_user=db_user, obj_in=user_create)
 
     raise HTTPException(
         status_code=404, detail=f"User not found for email: {user.email}."

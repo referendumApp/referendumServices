@@ -7,7 +7,11 @@ from common.database.referendum import schemas, crud
 
 from ..database import get_db
 from ..schemas import ErrorResponse, TokenResponse, UserCreateInput
-from ..security import get_password_hash, authenticate_user
+from ..security import (
+    get_password_hash,
+    authenticate_user,
+    get_user_create_with_hashed_password,
+)
 
 
 router = APIRouter()
@@ -29,13 +33,9 @@ async def signup(user: UserCreateInput, db: Session = Depends(get_db)) -> schema
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered.")
 
-    user_data = user.model_dump()
-    password = user_data.pop("password")
-    hashed_password = get_password_hash(password)
+    user_create = get_user_create_with_hashed_password(user)
 
-    return crud.user.create(
-        db=db, obj_in=schemas.UserCreate(**user_data, hashed_password=hashed_password)
-    )
+    return crud.user.create(db=db, obj_in=user_create)
 
 
 @router.post(
