@@ -177,9 +177,7 @@ def follow_topic(
         crud.user.follow_topic(db, user_id, topic_id)
         return
     except ObjectNotFoundException as e:
-        raise HTTPException(
-            status_code=404, detail=f"User or topic not found: {str(e)}"
-        )
+        raise HTTPException(status_code=404, detail=f"Error following: {str(e)}")
     except DatabaseException as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
@@ -202,8 +200,6 @@ def unfollow_topic(
         crud.user.unfollow_topic(db, user_id, topic_id)
         return
     except ObjectNotFoundException as e:
-        raise HTTPException(
-            status_code=404, detail=f"User or topic not found: {str(e)}"
-        )
+        raise HTTPException(status_code=404, detail=f"Error unfollowing: {str(e)}")
     except DatabaseException as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
