@@ -3,7 +3,11 @@ from sqlalchemy.orm import Session
 from typing import Dict, Any, List
 
 from common.database.referendum import crud, schemas, models
-from common.database.referendum.crud import ObjectNotFoundException, DatabaseException
+from common.database.referendum.crud import (
+    ObjectAlreadyExistsException,
+    ObjectNotFoundException,
+    DatabaseException,
+)
 
 from ..database import get_db
 from ..schemas import UserCreateInput
@@ -33,14 +37,14 @@ async def add_user(
     _: Dict[str, Any] = Depends(verify_system_token),
 ) -> models.User:
     try:
-        crud.user.get_user_by_email(db, email=user.email)
-        raise HTTPException(status_code=400, detail="Email already registered.")
-    except ObjectNotFoundException:
-        try:
-            user_create = get_user_create_with_hashed_password(user)
-            return crud.user.create(db=db, obj_in=user_create)
-        except DatabaseException as e:
-            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        user_create = get_user_create_with_hashed_password(user)
+        return crud.user.create(db=db, obj_in=user_create)
+    except ObjectAlreadyExistsException:
+        raise HTTPException(
+            status_code=409, detail=f"Email already registered: {user.email}"
+        )
+    except DatabaseException as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @router.put(

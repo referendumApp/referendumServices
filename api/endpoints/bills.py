@@ -4,6 +4,7 @@ from typing import Dict, Any
 
 from common.database.referendum import crud, schemas, models
 from common.database.referendum.crud import (
+    ObjectAlreadyExistsException,
     ObjectNotFoundException,
     DatabaseException,
 )
@@ -33,13 +34,14 @@ async def add_bill(
     _: Dict[str, Any] = Depends(verify_system_token),
 ) -> models.Bill:
     try:
-        crud.bill.get_bill_by_legiscan_id(db, legiscan_id=bill.legiscan_id)
-        raise HTTPException(status_code=409, detail="Bill already exists.")
-    except ObjectNotFoundException:
-        try:
-            return crud.bill.create(db=db, obj_in=bill)
-        except DatabaseException as e:
-            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        return crud.bill.create(db=db, obj_in=bill)
+    except ObjectAlreadyExistsException:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Bill already exists for legiscan_id: {bill.legiscan_id}",
+        )
+    except DatabaseException as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @router.post(

@@ -3,7 +3,11 @@ from sqlalchemy.orm import Session
 from typing import List, Dict, Any
 
 from common.database.referendum import crud, models, schemas
-from common.database.referendum.crud import DatabaseException, ObjectNotFoundException
+from common.database.referendum.crud import (
+    DatabaseException,
+    ObjectAlreadyExistsException,
+    ObjectNotFoundException,
+)
 
 from ..database import get_db
 from ..security import get_current_user_or_verify_system_token, verify_system_token
@@ -20,8 +24,9 @@ def create_topic(
     _: Dict[str, Any] = Depends(verify_system_token),
 ) -> models.Topic:
     try:
-        # TODO - constrain names to be unique
         return crud.topic.create(db=db, obj_in=topic)
+    except ObjectAlreadyExistsException:
+        raise HTTPException(status_code=409, detail="Topic already exists")
     except DatabaseException as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 

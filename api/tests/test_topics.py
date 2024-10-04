@@ -25,8 +25,11 @@ def test_add_topic_success():
     assert "id" in created_topic
 
 
-# TODO
-# def test_add_topic_already_exists():
+def test_add_topic_already_exists():
+    topic_data = create_test_topic()
+    response = client.post("/topics", json=topic_data, headers=system_headers)
+    assert_status_code(response, 409)
+    assert "Topic already exists" in response.json()["detail"]
 
 
 def test_add_topic_unauthorized():

@@ -40,7 +40,7 @@ def test_create_user_duplicate_email(test_user_session):
     }
 
     response = client.post("/users", json=user_data, headers=system_headers)
-    assert_status_code(response, 400)
+    assert_status_code(response, 409)
     assert "Email already registered" in response.json()["detail"]
 
 
