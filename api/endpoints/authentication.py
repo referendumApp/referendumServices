@@ -66,12 +66,7 @@ async def login_for_access_token(
     try:
         user = authenticate_user(db, form_data.username, form_data.password)
         access_token = create_access_token(data={"sub": user.email})
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="User tokens are not yet available",
-        )
-        # TODO - enable access tokens
-        # return {"access_token": access_token, "token_type": "bearer"}
+        return {"access_token": access_token, "token_type": "bearer"}
     except ObjectNotFoundException:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
