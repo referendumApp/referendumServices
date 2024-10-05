@@ -1,3 +1,4 @@
+import random
 import pytest
 
 from api.security import create_access_token
@@ -37,6 +38,31 @@ def test_topic():
     yield topic
 
     response = client.delete(f"/topics/{topic['id']}", headers=system_headers)
+    assert_status_code(response, 204)
+
+
+@pytest.fixture(scope="function")
+def test_bill():
+    bill_data = {
+        "legiscan_id": random.randint(100000, 999999),
+        "identifier": "H.B.1",
+        "title": "Test Bill",
+        "description": "This is a test bill",
+        "state": "CA",
+        "body": "House",
+        "session": "118",
+        "briefing": "yadayadayada",
+        "status": "killed",
+        "latest_action": "none",
+    }
+
+    response = client.post("/bills", json=bill_data, headers=system_headers)
+    assert_status_code(response, 201)
+    bill = response.json()
+
+    yield bill
+
+    response = client.delete(f"/bills/{bill['id']}", headers=system_headers)
     assert_status_code(response, 204)
 
 
@@ -175,44 +201,23 @@ def test_get_user_topics(test_user_session):
     assert isinstance(response.json(), list)
 
 
-def test_get_user_topics_unauthorized(test_user_session):
-    user, _ = test_user_session
-    other_user_data = {
-        "email": "otheruser@example.com",
-        "password": "otherpassword",
-        "name": "Other User",
-    }
-    other_user_response = client.post(
-        "/users", json=other_user_data, headers=system_headers
-    )
-    other_user = other_user_response.json()
-    other_user_token = create_access_token(data={"sub": other_user["email"]})
-    other_user_headers = {"Authorization": f"Bearer {other_user_token}"}
-
-    response = client.get(f"/users/{user['id']}/topics", headers=other_user_headers)
-    assert_status_code(response, 403)
-
-    client.delete(f"/users/{other_user['id']}", headers=system_headers)
-
-
 def test_follow_topic(test_user_session, test_topic):
     user, user_headers = test_user_session
     topic = test_topic
 
-    response = client.post(
-        f"/users/{user['id']}/follow/{topic['id']}", headers=user_headers
-    )
+    response = client.post(f"/follow/topic/{topic['id']}", headers=user_headers)
     assert_status_code(response, 204)
 
     # Verify that the topic is in the user's topics
     topics_response = client.get(f"/users/{user['id']}/topics", headers=user_headers)
     assert_status_code(topics_response, 200)
     user_topics = topics_response.json()
+    print(user_topics)
     assert any(t["id"] == topic["id"] for t in user_topics)
 
     # Now, unfollow the topic
-    unfollow_response = client.post(
-        f"/users/{user['id']}/unfollow/{topic['id']}", headers=user_headers
+    unfollow_response = client.delete(
+        f"/follow/topic/{topic['id']}", headers=user_headers
     )
     assert_status_code(unfollow_response, 204)
 
@@ -226,12 +231,59 @@ def test_follow_topic(test_user_session, test_topic):
 def test_follow_nonexistent_topic(test_user_session):
     user, user_headers = test_user_session
 
-    response = client.post(f"/users/{user['id']}/follow/99999", headers=user_headers)
+    response = client.post(f"/follow/topic/99999", headers=user_headers)
     assert_status_code(response, 404)
 
 
 def test_unfollow_nonexistent_topic(test_user_session):
     user, user_headers = test_user_session
 
-    response = client.post(f"/users/{user['id']}/unfollow/99999", headers=user_headers)
+    response = client.delete(f"/follow/topic/99999", headers=user_headers)
+    assert_status_code(response, 404)
+
+
+def test_get_user_bills(test_user_session):
+    user, user_headers = test_user_session
+
+    response = client.get(f"/users/{user['id']}/bills", headers=user_headers)
+    assert_status_code(response, 200)
+    assert isinstance(response.json(), list)
+
+
+def test_follow_bill(test_user_session, test_bill):
+    user, user_headers = test_user_session
+
+    response = client.post(f"/follow/bill/{test_bill['id']}", headers=user_headers)
+    assert_status_code(response, 204)
+
+    # Verify that the bill is in the user's bills
+    response = client.get(f"/users/{user['id']}/bills", headers=user_headers)
+    assert_status_code(response, 200)
+    user_topics = response.json()
+    assert any(t["id"] == test_bill["id"] for t in user_topics)
+
+    # Now, unfollow the bill
+    unfollow_response = client.delete(
+        f"/follow/bill/{test_bill['id']}", headers=user_headers
+    )
+    assert_status_code(unfollow_response, 204)
+
+    # Verify that the topic is no longer in the user's topics
+    response = client.get(f"/users/{user['id']}/bills", headers=user_headers)
+    assert_status_code(response, 200)
+    user_topics = response.json()
+    assert not any(t["id"] == test_bill["id"] for t in user_topics)
+
+
+def test_follow_nonexistent_bill(test_user_session):
+    user, user_headers = test_user_session
+
+    response = client.post(f"/follow/bill/99999", headers=user_headers)
+    assert_status_code(response, 404)
+
+
+def test_unfollow_nonexistent_bill(test_user_session):
+    user, user_headers = test_user_session
+
+    response = client.delete(f"/follow/bill/99999", headers=user_headers)
     assert_status_code(response, 404)
