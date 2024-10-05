@@ -34,6 +34,14 @@ def test_add_bill_success():
     assert "id" in created_bill
 
 
+def test_list_bills():
+    create_test_bill()
+    response = client.get("/bills", headers=system_headers)
+    assert_status_code(response, 200)
+    bills = response.json()
+    assert len(bills) > 0
+
+
 def test_add_bill_already_exists():
     bill_data = create_test_bill()
     response = client.post("/bills", json=bill_data, headers=system_headers)
