@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 from common.database.referendum import crud, schemas, models
 from common.database.referendum.crud import (
@@ -15,6 +15,23 @@ from ..schemas import ErrorResponse
 
 
 router = APIRouter()
+
+
+@router.get(
+    "/",
+    response_model=schemas.Bill,
+    status_code=status.HTTP_200_OK,
+    summary="Get all bills",
+    responses={},
+)
+async def list_all_bills(
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(verify_system_token),
+) -> List[models.Bill]:
+    try:
+        return crud.bill.read_all(db=db)
+    except DatabaseException as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @router.post(
