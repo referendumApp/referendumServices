@@ -67,13 +67,10 @@ def test_login_success():
     # Now try to login
     login_data = {"username": user_data["email"], "password": user_data["password"]}
     response = client.post("/auth/token", data=login_data)
-    assert_status_code(response, 501)  # Not Implemented
-
-    # When implemented, this should be:
-    # assert_status_code(response, 200)
-    # token_data = response.json()
-    # assert "access_token" in token_data
-    # assert token_data["token_type"] == "bearer"
+    assert_status_code(response, 200)
+    token_data = response.json()
+    assert "access_token" in token_data
+    assert token_data["token_type"] == "bearer"
 
 
 def test_login_incorrect_password():

@@ -19,12 +19,12 @@ router = APIRouter()
 
 @router.get(
     "/",
-    response_model=schemas.Bill,
+    response_model=List[schemas.Bill],
     status_code=status.HTTP_200_OK,
     summary="Get all bills",
     responses={},
 )
-async def list_all_bills(
+async def get_all_bills(
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(verify_system_token),
 ) -> List[models.Bill]:

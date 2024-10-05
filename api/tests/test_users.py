@@ -182,9 +182,8 @@ def test_user_login(test_user_session):
 
     login_data = {"username": user["email"], "password": "testpassword"}
     response = client.post("/auth/token", data=login_data)
-    assert_status_code(response, 501)
-    # Uncomment the following line when the login endpoint is implemented
-    # assert "access_token" in response.json()
+    assert_status_code(response, 200)
+    assert "access_token" in response.json()
 
 
 def test_user_login_invalid_credentials():
@@ -212,7 +211,6 @@ def test_follow_topic(test_user_session, test_topic):
     topics_response = client.get(f"/users/{user['id']}/topics", headers=user_headers)
     assert_status_code(topics_response, 200)
     user_topics = topics_response.json()
-    print(user_topics)
     assert any(t["id"] == topic["id"] for t in user_topics)
 
     # Now, unfollow the topic
@@ -231,14 +229,14 @@ def test_follow_topic(test_user_session, test_topic):
 def test_follow_nonexistent_topic(test_user_session):
     user, user_headers = test_user_session
 
-    response = client.post(f"/follow/topic/99999", headers=user_headers)
+    response = client.post("/follow/topic/99999", headers=user_headers)
     assert_status_code(response, 404)
 
 
 def test_unfollow_nonexistent_topic(test_user_session):
     user, user_headers = test_user_session
 
-    response = client.delete(f"/follow/topic/99999", headers=user_headers)
+    response = client.delete("/follow/topic/99999", headers=user_headers)
     assert_status_code(response, 404)
 
 
@@ -278,12 +276,12 @@ def test_follow_bill(test_user_session, test_bill):
 def test_follow_nonexistent_bill(test_user_session):
     user, user_headers = test_user_session
 
-    response = client.post(f"/follow/bill/99999", headers=user_headers)
+    response = client.post("/follow/bill/99999", headers=user_headers)
     assert_status_code(response, 404)
 
 
 def test_unfollow_nonexistent_bill(test_user_session):
     user, user_headers = test_user_session
 
-    response = client.delete(f"/follow/bill/99999", headers=user_headers)
+    response = client.delete("/follow/bill/99999", headers=user_headers)
     assert_status_code(response, 404)
