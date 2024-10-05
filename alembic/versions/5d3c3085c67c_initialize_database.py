@@ -20,15 +20,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade():
-    # Create topics table
-    op.create_table(
-        "topics",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("name", sa.String(), nullable=True),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_index(op.f("ix_topics_name"), "topics", ["name"], unique=True)
-
     # Create users table
     op.create_table(
         "users",
@@ -40,20 +31,14 @@ def upgrade():
     )
     op.create_index(op.f("ix_users_email"), "users", ["email"], unique=True)
 
-    # Create user_topic_association table
+    # Create topics table
     op.create_table(
-        "user_topic_association",
-        sa.Column("user_id", sa.Integer(), nullable=True),
-        sa.Column("topic_id", sa.Integer(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["topic_id"],
-            ["topics.id"],
-        ),
-        sa.ForeignKeyConstraint(
-            ["user_id"],
-            ["users.id"],
-        ),
+        "topics",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("name", sa.String(), nullable=True),
+        sa.PrimaryKeyConstraint("id"),
     )
+    op.create_index(op.f("ix_topics_name"), "topics", ["name"], unique=True)
 
     # Create bills table
     op.create_table(
@@ -95,16 +80,47 @@ def upgrade():
         sa.PrimaryKeyConstraint("id"),
     )
 
+    # Create user_topic_association table
+    op.create_table(
+        "user_topic_association",
+        sa.Column("user_id", sa.Integer()),
+        sa.Column("topic_id", sa.Integer()),
+        sa.ForeignKeyConstraint(
+            ["topic_id"],
+            ["topics.id"],
+        ),
+        sa.ForeignKeyConstraint(
+            ["user_id"],
+            ["users.id"],
+        ),
+    )
+
+    # Create user_bill_association table
+    op.create_table(
+        "user_bill_association",
+        sa.Column("user_id", sa.Integer()),
+        sa.Column("bill_id", sa.Integer()),
+        sa.ForeignKeyConstraint(
+            ["bill_id"],
+            ["bills.id"],
+        ),
+        sa.ForeignKeyConstraint(
+            ["user_id"],
+            ["users.id"],
+        ),
+    )
+
 
 def downgrade():
+    op.drop_table("user_bill_association")
+    op.drop_table("user_topic_association")
     op.drop_table("legislators")
     op.drop_index(op.f("ix_bills_session"), table_name="bills")
     op.drop_index(op.f("ix_bills_body"), table_name="bills")
     op.drop_index(op.f("ix_bills_state"), table_name="bills")
     op.drop_index(op.f("ix_bills_legiscan_id"), table_name="bills")
     op.drop_table("bills")
-    op.drop_table("user_topic_association")
-    op.drop_index(op.f("ix_users_email"), table_name="users")
-    op.drop_table("users")
     op.drop_index(op.f("ix_topics_name"), table_name="topics")
     op.drop_table("topics")
+    op.drop_index(op.f("ix_users_email"), table_name="users")
+    op.drop_table("users")

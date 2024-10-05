@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, noload
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from typing import List, TypeVar, Type, Generic
 
@@ -90,7 +90,12 @@ class CRUDTopic(CRUDBase[models.Topic]):
 class CRUDUser(CRUDBase[models.User]):
     def get_user_by_email(self, db: Session, email: str) -> models.User:
         try:
-            user = db.query(models.User).filter(models.User.email == email).first()
+            user = (
+                db.query(models.User)
+                # TODO - reenable this to avoid querying all relationships on authentication
+                # .options(noload(models.User.topics), noload(models.User.bills))
+                .filter(models.User.email == email).first()
+            )
             if user is None:
                 raise ObjectNotFoundException(f"User with email {email} not found")
             return user
@@ -127,6 +132,39 @@ class CRUDUser(CRUDBase[models.User]):
             if user is None:
                 raise ObjectNotFoundException(f"User not found for id: {user_id}")
             return db_user.topics
+        except SQLAlchemyError as e:
+            raise DatabaseException(f"Database error: {str(e)}")
+
+    def follow_bill(self, db: Session, user_id: int, bill_id: int):
+        db_user = db.query(models.User).filter(models.User.id == user_id).first()
+        if not db_user:
+            raise ObjectNotFoundException(f"User not found for id: {user_id}")
+        db_bill = db.query(models.Bill).filter(models.Bill.id == bill_id).first()
+        if not db_bill:
+            raise ObjectNotFoundException(f"Bill not found for id: {bill_id}")
+        db_user.bills.append(db_bill)
+        db.commit()
+
+    def unfollow_bill(self, db: Session, user_id: int, bill_id: int):
+        db_user = db.query(models.User).filter(models.User.id == user_id).first()
+        if not db_user:
+            raise ObjectNotFoundException(f"User not found for id: {user_id}")
+        db_bill = db.query(models.Bill).filter(models.Bill.id == bill_id).first()
+        if not db_bill:
+            raise ObjectNotFoundException(f"Bill not found for id: {bill_id}")
+        if db_bill not in db_user.bills:
+            raise ObjectNotFoundException(
+                f"Cannot unfollow, User {user_id} is not following bill {bill_id}"
+            )
+        db_user.bills.remove(db_bill)
+        db.commit()
+
+    def get_user_bills(self, db: Session, user_id: int) -> List[models.Bill]:
+        try:
+            db_user = db.query(models.User).filter(models.User.id == user_id).first()
+            if user is None:
+                raise ObjectNotFoundException(f"User not found for id: {user_id}")
+            return db_user.bills
         except SQLAlchemyError as e:
             raise DatabaseException(f"Database error: {str(e)}")
 

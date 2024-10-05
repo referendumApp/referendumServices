@@ -12,6 +12,7 @@ from common.database.referendum.crud import (
 from ..database import get_db
 from ..schemas import UserCreateInput, ErrorResponse
 from ..security import (
+    get_current_user,
     get_current_user_or_verify_system_token,
     get_user_create_with_hashed_password,
     verify_system_token,
@@ -176,93 +177,37 @@ async def delete_user(
     },
 )
 def get_user_topics(
-    user_id: int,
     db: Session = Depends(get_db),
-    auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
-):
-    if not auth_info["is_system"]:
-        current_user = auth_info["user"]
-        if current_user.id != user_id:
-            raise HTTPException(
-                status_code=403,
-                detail="You can only get your own user information.",
-            )
+    user: models.User = Depends(get_current_user),
+) -> List[models.Topic]:
     try:
-        user = crud.user.read(db=db, obj_id=user_id)
-        return user.topics
-    except ObjectNotFoundException:
-        raise HTTPException(status_code=404, detail=f"User not found for id: {user_id}")
+        return crud.user.get_user_topics(db=db, user_id=user.id)
     except DatabaseException as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
-@router.post(
-    "/{user_id}/follow/{topic_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Follow a topic",
+@router.get(
+    "/{user_id}/bills",
+    response_model=List[schemas.Bill],
+    summary="Get user's followed bills",
     responses={
-        204: {"description": "Topic successfully followed"},
+        200: {
+            "model": List[schemas.Bill],
+            "description": "User's bills successfully retrieved",
+        },
         403: {
             "model": ErrorResponse,
-            "description": "Unauthorized to follow topics for this user",
+            "description": "Unauthorized to retrieve this user's bills",
         },
-        404: {"model": ErrorResponse, "description": "User or topic not found"},
+        404: {"model": ErrorResponse, "description": "User not found"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
-def follow_topic(
-    user_id: int,
-    topic_id: int,
+def get_user_bills(
     db: Session = Depends(get_db),
-    auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
-) -> None:
-    if not auth_info["is_system"]:
-        current_user = auth_info["user"]
-        if current_user.id != user_id:
-            raise HTTPException(
-                status_code=403,
-                detail="You can only retrieve your own user information.",
-            )
+    user: models.User = Depends(get_current_user),
+) -> List[models.Bill]:
     try:
-        crud.user.follow_topic(db, user_id, topic_id)
-        return
-    except ObjectNotFoundException as e:
-        raise HTTPException(status_code=404, detail=f"Error following: {str(e)}")
-    except DatabaseException as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-
-
-@router.post(
-    "/{user_id}/unfollow/{topic_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Unfollow a topic",
-    responses={
-        204: {"description": "Topic successfully unfollowed"},
-        403: {
-            "model": ErrorResponse,
-            "description": "Unauthorized to unfollow topics for this user",
-        },
-        404: {"model": ErrorResponse, "description": "User or topic not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
-    },
-)
-def unfollow_topic(
-    user_id: int,
-    topic_id: int,
-    db: Session = Depends(get_db),
-    auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
-) -> None:
-    if not auth_info["is_system"]:
-        current_user = auth_info["user"]
-        if current_user.id != user_id:
-            raise HTTPException(
-                status_code=403,
-                detail="You can only update your own user information.",
-            )
-    try:
-        crud.user.unfollow_topic(db, user_id, topic_id)
-        return
-    except ObjectNotFoundException as e:
-        raise HTTPException(status_code=404, detail=f"Error unfollowing: {str(e)}")
+        return crud.user.get_user_bills(db=db, user_id=user.id)
     except DatabaseException as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")

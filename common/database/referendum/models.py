@@ -12,6 +12,14 @@ user_topic_association = Table(
 )
 
 
+user_bill_association = Table(
+    "user_bill_association",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("users.id")),
+    Column("bill_id", Integer, ForeignKey("bills.id")),
+)
+
+
 class Topic(Base):
     __tablename__ = "topics"
 
@@ -28,6 +36,7 @@ class User(Base):
     hashed_password = Column(String)
 
     topics = relationship("Topic", secondary=user_topic_association)
+    bills = relationship("Bill", secondary=user_bill_association)
 
 
 class Bill(Base):
