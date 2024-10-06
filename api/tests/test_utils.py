@@ -4,7 +4,7 @@ from api.main import app
 from api.config import settings
 
 client = TestClient(app)
-system_headers = {"Authorization": f"Bearer {settings.API_ACCESS_TOKEN}"}
+system_headers = {"X-API_Key": settings.API_ACCESS_TOKEN}
 
 
 def assert_status_code(response, expected_status_code: int):

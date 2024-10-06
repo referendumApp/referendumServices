@@ -1,4 +1,25 @@
-from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from typing import List
+
+
+# Topics
+
+
+class TopicBase(BaseModel):
+    name: str
+
+
+class TopicCreate(TopicBase):
+    pass
+
+
+class Topic(TopicBase):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# Users
 
 
 class UserBase(BaseModel):
@@ -7,22 +28,18 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    password: str
-
-    @field_validator("password")
-    @classmethod
-    def validate_password(cls, v):
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters long")
-        if len(v) > 100:
-            raise ValueError("Password must not exceed 100 characters")
-        return v
+    hashed_password: str
 
 
 class User(UserBase):
     id: int
 
+    topics: List[Topic] = []
+
     model_config = ConfigDict(from_attributes=True)
+
+
+# Bills
 
 
 class BillBase(BaseModel):
@@ -36,7 +53,7 @@ class BillBase(BaseModel):
     briefing: str
     status: str
     latest_action: str
-    # topics:
+    # topics
 
 
 class BillCreate(BillBase):
@@ -49,7 +66,9 @@ class Bill(BillBase):
     model_config = ConfigDict(from_attributes=True)
 
 
-# ### LEGISLATORS ###
+# Legislators
+
+
 class LegislatorBase(BaseModel):
     chamber: str
     district: str

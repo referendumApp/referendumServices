@@ -13,12 +13,11 @@ router = APIRouter()
 @router.get(
     "/health",
     response_model=HealthResponse,
+    summary="Healthcheck Endpoint",
     responses={
         200: {"model": HealthResponse, "description": "Success"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
-    summary="Healthcheck Endpoint",
-    description="This endpoint checks the health of the application by verifying the database connection.",
 )
 async def healthcheck(db: Session = Depends(get_db)) -> Dict[str, str]:
     try:

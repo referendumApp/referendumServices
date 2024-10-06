@@ -1,6 +1,30 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, ForeignKey, Table
+from sqlalchemy.orm import relationship
 
 from common.database.postgres_core.utils import Base
+
+
+user_topic_association = Table(
+    "user_topic_association",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("users.id")),
+    Column("topic_id", Integer, ForeignKey("topics.id")),
+)
+
+
+user_bill_association = Table(
+    "user_bill_association",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("users.id")),
+    Column("bill_id", Integer, ForeignKey("bills.id")),
+)
+
+
+class Topic(Base):
+    __tablename__ = "topics"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True)
 
 
 class User(Base):
@@ -10,6 +34,9 @@ class User(Base):
     name = Column(String)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
+
+    topics = relationship("Topic", secondary=user_topic_association)
+    bills = relationship("Bill", secondary=user_bill_association)
 
 
 class Bill(Base):
