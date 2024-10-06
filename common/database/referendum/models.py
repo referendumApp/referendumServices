@@ -19,6 +19,13 @@ user_bill_association = Table(
     Column("bill_id", Integer, ForeignKey("bills.id")),
 )
 
+legislative_body_membership = Table(
+    "legislative_body_membership",
+    Base.metadata,
+    Column("legislative_body_id", Integer, ForeignKey("legislative_body.id")),
+    Column("legislator_id", Integer, ForeignKey("legislators.id")),
+)
+
 
 class Topic(Base):
     __tablename__ = "topics"
@@ -59,7 +66,6 @@ class Legislator(Base):
     __tablename__ = "legislators"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    chamber = Column(String)
     district = Column(String)
     email = Column(String)
     facebook = Column(String)
@@ -67,7 +73,22 @@ class Legislator(Base):
     instagram = Column(String)
     name = Column(String)
     office = Column(String)
-    party = Column(String)
     phone = Column(String)
-    state = Column(String)
     twitter = Column(String)
+
+
+class Role(Base):
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String)
+
+
+class State(Base):
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String)
+
+
+class LegislativeBody(Base):
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String)
+    role_id = Column(Integer)
+    state_id = Column(Integer)
