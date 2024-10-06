@@ -109,15 +109,15 @@ class Legislator(Base):
     __tablename__ = "legislators"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    district = Column(String)
-    email = Column(String)
-    facebook = Column(String)
-    image_url = Column(String)
-    instagram = Column(String)
     name = Column(String)
-    office = Column(String)
-    phone = Column(String)
-    twitter = Column(String)
+    image_url = Column(String, nullable=True)
+    district = Column(String)
+
+    address = Column(String)
+    facebook = Column(String, nullable=True)
+    instagram = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    twitter = Column(String, nullable=True)
 
     parties = relationship("Party", secondary=party_membership)
     legislative_bodies = relationship(
