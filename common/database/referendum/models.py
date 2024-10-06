@@ -19,6 +19,7 @@ user_bill_follows = Table(
     Column("bill_id", Integer, ForeignKey("bills.id")),
 )
 
+
 legislative_body_membership = Table(
     "legislative_body_membership",
     Base.metadata,
@@ -27,11 +28,43 @@ legislative_body_membership = Table(
 )
 
 
+party_membership = Table(
+    "party_membership",
+    Base.metadata,
+    Column("party_id", Integer, ForeignKey("party.id")),
+    Column("legislator_id", Integer, ForeignKey("legislators.id")),
+)
+
+
+class Party(Base):
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String)
+
+
+class Role(Base):
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String)
+
+
+class State(Base):
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String)
+
+
 class Topic(Base):
     __tablename__ = "topics"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
+
+
+class LegislativeBody(Base):
+    __tablename__ = "legislative_body"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String)
+    role_id = Column(Integer)
+    state_id = Column(Integer)
 
 
 class User(Base):
@@ -75,20 +108,3 @@ class Legislator(Base):
     office = Column(String)
     phone = Column(String)
     twitter = Column(String)
-
-
-class Role(Base):
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String)
-
-
-class State(Base):
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String)
-
-
-class LegislativeBody(Base):
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String)
-    role_id = Column(Integer)
-    state_id = Column(Integer)
