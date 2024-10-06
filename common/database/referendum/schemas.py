@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
-from typing import List
+from typing import Optional, List
 
 
 # Topics
@@ -70,18 +70,15 @@ class Bill(BillBase):
 
 
 class LegislatorBase(BaseModel):
-    chamber: str
-    district: str
-    email: str
-    facebook: str
-    image_url: str
-    instagram: str
     name: str
-    office: str
-    party: str
-    phone: str
-    state: str
-    twitter: str
+    image_url: Optional[str]
+    district: str
+
+    address: Optional[str] = None
+    facebook: Optional[str] = None
+    instagram: Optional[str] = None
+    phone: Optional[str] = None
+    twitter: Optional[str] = None
 
 
 class LegislatorCreate(LegislatorBase):

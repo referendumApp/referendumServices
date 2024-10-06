@@ -65,19 +65,22 @@ def upgrade():
     op.create_table(
         "legislators",
         sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
-        sa.Column("chamber", sa.String(), nullable=True),
-        sa.Column("district", sa.String(), nullable=True),
-        sa.Column("email", sa.String(), nullable=True),
-        sa.Column("facebook", sa.String(), nullable=True),
-        sa.Column("image_url", sa.String(), nullable=True),
-        sa.Column("instagram", sa.String(), nullable=True),
         sa.Column("name", sa.String(), nullable=True),
-        sa.Column("office", sa.String(), nullable=True),
-        sa.Column("party", sa.String(), nullable=True),
+        sa.Column("image_url", sa.String(), nullable=True),
+        sa.Column("district", sa.String(), nullable=True),
+        sa.Column("address", sa.String(), nullable=True),
+        sa.Column("facebook", sa.String(), nullable=True),
+        sa.Column("instagram", sa.String(), nullable=True),
         sa.Column("phone", sa.String(), nullable=True),
-        sa.Column("state", sa.String(), nullable=True),
         sa.Column("twitter", sa.String(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(op.f("ix_legislators_name"), "legislators", ["name"], unique=False)
+    op.create_index(
+        op.f("ix_legislator_name_district"),
+        "legislators",
+        ["name", "district"],
+        unique=True,
     )
 
     # Create user_topic_follows table
