@@ -65,24 +65,27 @@ def upgrade():
     op.create_table(
         "legislators",
         sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
-        sa.Column("chamber", sa.String(), nullable=True),
-        sa.Column("district", sa.String(), nullable=True),
-        sa.Column("email", sa.String(), nullable=True),
-        sa.Column("facebook", sa.String(), nullable=True),
-        sa.Column("image_url", sa.String(), nullable=True),
-        sa.Column("instagram", sa.String(), nullable=True),
         sa.Column("name", sa.String(), nullable=True),
-        sa.Column("office", sa.String(), nullable=True),
-        sa.Column("party", sa.String(), nullable=True),
+        sa.Column("image_url", sa.String(), nullable=True),
+        sa.Column("district", sa.String(), nullable=True),
+        sa.Column("address", sa.String(), nullable=True),
+        sa.Column("facebook", sa.String(), nullable=True),
+        sa.Column("instagram", sa.String(), nullable=True),
         sa.Column("phone", sa.String(), nullable=True),
-        sa.Column("state", sa.String(), nullable=True),
         sa.Column("twitter", sa.String(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
+    op.create_index(op.f("ix_legislators_name"), "legislators", ["name"], unique=False)
+    op.create_index(
+        op.f("ix_legislator_name_district"),
+        "legislators",
+        ["name", "district"],
+        unique=True,
+    )
 
-    # Create user_topic_association table
+    # Create user_topic_follows table
     op.create_table(
-        "user_topic_association",
+        "user_topic_follows",
         sa.Column("user_id", sa.Integer()),
         sa.Column("topic_id", sa.Integer()),
         sa.ForeignKeyConstraint(
@@ -95,9 +98,9 @@ def upgrade():
         ),
     )
 
-    # Create user_bill_association table
+    # Create user_bill_follows table
     op.create_table(
-        "user_bill_association",
+        "user_bill_follows",
         sa.Column("user_id", sa.Integer()),
         sa.Column("bill_id", sa.Integer()),
         sa.ForeignKeyConstraint(
@@ -112,8 +115,8 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_table("user_bill_association")
-    op.drop_table("user_topic_association")
+    op.drop_table("user_bill_follows")
+    op.drop_table("user_topic_follows")
     op.drop_table("legislators")
     op.drop_index(op.f("ix_bills_session"), table_name="bills")
     op.drop_index(op.f("ix_bills_body"), table_name="bills")

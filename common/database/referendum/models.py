@@ -4,16 +4,16 @@ from sqlalchemy.orm import relationship
 from common.database.postgres_core.utils import Base
 
 
-user_topic_association = Table(
-    "user_topic_association",
+user_topic_follows = Table(
+    "user_topic_follows",
     Base.metadata,
     Column("user_id", Integer, ForeignKey("users.id")),
     Column("topic_id", Integer, ForeignKey("topics.id")),
 )
 
 
-user_bill_association = Table(
-    "user_bill_association",
+user_bill_follows = Table(
+    "user_bill_follows",
     Base.metadata,
     Column("user_id", Integer, ForeignKey("users.id")),
     Column("bill_id", Integer, ForeignKey("bills.id")),
@@ -35,8 +35,8 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
 
-    topics = relationship("Topic", secondary=user_topic_association)
-    bills = relationship("Bill", secondary=user_bill_association)
+    topics = relationship("Topic", secondary=user_topic_follows)
+    bills = relationship("Bill", secondary=user_bill_follows)
 
 
 class Bill(Base):
@@ -59,15 +59,12 @@ class Legislator(Base):
     __tablename__ = "legislators"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    chamber = Column(String)
-    district = Column(String)
-    email = Column(String)
-    facebook = Column(String)
-    image_url = Column(String)
-    instagram = Column(String)
     name = Column(String)
-    office = Column(String)
-    party = Column(String)
-    phone = Column(String)
-    state = Column(String)
-    twitter = Column(String)
+    image_url = Column(String, nullable=True)
+    district = Column(String)
+
+    address = Column(String)
+    facebook = Column(String, nullable=True)
+    instagram = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    twitter = Column(String, nullable=True)
