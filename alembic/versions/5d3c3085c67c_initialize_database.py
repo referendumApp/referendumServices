@@ -80,6 +80,43 @@ def upgrade():
         sa.PrimaryKeyConstraint("id"),
     )
 
+    op.create_table(
+        "parties",
+        sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("name", sa.String(), nullable=True),
+        sa.PrimaryKeyConstraint("id"),
+    )
+
+    op.create_table(
+        "states",
+        sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("name", sa.String(), nullable=True),
+        sa.PrimaryKeyConstraint("id"),
+    )
+
+    op.create_table(
+        "roles",
+        sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("name", sa.String(), nullable=True),
+        sa.PrimaryKeyConstraint("id"),
+    )
+
+    op.create_table(
+        "legislative_bodies",
+        sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("state_id", sa.Integer(), nullable=False),
+        sa.Column("role_id", sa.Integer(), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(
+            ["state_id"],
+            ["states.id"],
+        ),
+        sa.ForeignKeyConstraint(
+            ["role_id"],
+            ["roles.id"],
+        ),
+    )
+
     # Create user_topic_follows table
     op.create_table(
         "user_topic_follows",
@@ -110,8 +147,26 @@ def upgrade():
         ),
     )
 
+    # Create legislative_body_membership table
+    op.create_table(
+        "legislative_body_membership",
+        sa.Column("legislative_body_id", sa.Integer()),
+        sa.Column("legislator_id", sa.Integer()),
+        sa.Column("start_date", sa.Date()),
+        sa.Column("end_date", sa.Date()),
+        sa.ForeignKeyConstraint(
+            ["legislative_body_id"],
+            ["legislative_bodies.id"],
+        ),
+        sa.ForeignKeyConstraint(
+            ["legislator_id"],
+            ["legislators.id"],
+        ),
+    )
+
 
 def downgrade():
+    op.drop_table("legislative_body_membership")
     op.drop_table("user_bill_follows")
     op.drop_table("user_topic_follows")
     op.drop_table("legislators")

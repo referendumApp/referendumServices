@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Table
+from sqlalchemy import Column, Integer, String, ForeignKey, Table, Date
 from sqlalchemy.orm import relationship
 
 from common.database.postgres_core.utils import Base
@@ -23,30 +23,40 @@ user_bill_follows = Table(
 legislative_body_membership = Table(
     "legislative_body_membership",
     Base.metadata,
-    Column("legislative_body_id", Integer, ForeignKey("legislative_body.id")),
+    Column("legislative_body_id", Integer, ForeignKey("legislative_bodies.id")),
     Column("legislator_id", Integer, ForeignKey("legislators.id")),
+    Column("start_date", Date),
+    Column("end_date", Date),
 )
 
 
 party_membership = Table(
     "party_membership",
     Base.metadata,
-    Column("party_id", Integer, ForeignKey("party.id")),
+    Column("party_id", Integer, ForeignKey("parties.id")),
     Column("legislator_id", Integer, ForeignKey("legislators.id")),
+    Column("start_date", Date),
+    Column("end_date", Date),
 )
 
 
 class Party(Base):
+    __tablename__ = "parties"
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String)
 
 
 class Role(Base):
+    __tablename__ = "roles"
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String)
 
 
 class State(Base):
+    __tablename__ = "states"
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String)
 
@@ -59,7 +69,7 @@ class Topic(Base):
 
 
 class LegislativeBody(Base):
-    __tablename__ = "legislative_body"
+    __tablename__ = "legislative_bodies"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String)
@@ -108,3 +118,8 @@ class Legislator(Base):
     office = Column(String)
     phone = Column(String)
     twitter = Column(String)
+
+    parties = relationship("Party", secondary=party_membership)
+    legislative_bodies = relationship(
+        "LegislativeBody", secondary=legislative_body_membership
+    )
