@@ -167,6 +167,23 @@ def upgrade():
         ),
     )
 
+    # Create party_membership table
+    op.create_table(
+        "party_membership",
+        sa.Column("party_id", sa.Integer()),
+        sa.Column("legislator_id", sa.Integer()),
+        sa.Column("start_date", sa.Date()),
+        sa.Column("end_date", sa.Date()),
+        sa.ForeignKeyConstraint(
+            ["party_id"],
+            ["parties.id"],
+        ),
+        sa.ForeignKeyConstraint(
+            ["legislator_id"],
+            ["legislators.id"],
+        ),
+    )
+
 
 def downgrade():
     op.drop_table("legislative_body_membership")

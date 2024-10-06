@@ -33,3 +33,7 @@ class UserCreateInput(schemas.UserBase):
         if len(v) > 100:
             raise ValueError("Password must not exceed 100 characters")
         return v
+
+
+class LegislatorUpdateInput(schemas.LegislatorCreate):
+    id: int

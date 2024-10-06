@@ -11,8 +11,7 @@ from common.database.referendum.crud import (
 
 from ..database import get_db
 from ..security import get_current_user_or_verify_system_token, verify_system_token
-from ..schemas import ErrorResponse
-
+from ..schemas import ErrorResponse, LegislatorUpdateInput
 
 router = APIRouter()
 
@@ -106,7 +105,7 @@ async def read_legislator(
     },
 )
 async def update_legislator(
-    legislator: schemas.Legislator,
+    legislator: LegislatorUpdateInput,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(verify_system_token),
 ) -> models.Legislator:

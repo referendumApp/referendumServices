@@ -68,7 +68,7 @@ class UserCreate(UserBase):
 class User(UserBase):
     id: int
 
-    topics: List[Topic] = []
+    followed_topics: List[Topic] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -121,7 +121,7 @@ class LegislatorCreate(LegislatorBase):
 class Legislator(LegislatorBase):
     id: int
 
-    legislative_body: LegislativeBody
-    party: Party
+    legislative_body_membership: List[LegislativeBody]
+    party_membership: List[Party]
 
     model_config = ConfigDict(from_attributes=True)

@@ -118,27 +118,23 @@ class UserCRUD(BaseCRUD[models.User]):
             raise DatabaseException(f"Database error: {str(e)}")
 
     def follow_topic(self, db: Session, user_id: int, topic_id: int):
-        db_user = db.query(models.User).filter(models.User.id == user_id).first()
-        if not db_user:
-            raise ObjectNotFoundException(f"User not found for id: {user_id}")
+        db_user = self.read(db=db, obj_id=user_id)
         db_topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
         if not db_topic:
             raise ObjectNotFoundException(f"Topic not found for id: {topic_id}")
-        db_user.topics.append(db_topic)
+        db_user.followed_topics.append(db_topic)
         db.commit()
 
     def unfollow_topic(self, db: Session, user_id: int, topic_id: int):
-        db_user = db.query(models.User).filter(models.User.id == user_id).first()
-        if not db_user:
-            raise ObjectNotFoundException(f"User not found for id: {user_id}")
+        db_user = self.read(db=db, obj_id=user_id)
         db_topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
         if not db_topic:
             raise ObjectNotFoundException(f"Topic not found for id: {topic_id}")
-        if db_topic not in db_user.topics:
+        if db_topic not in db_user.followed_topics:
             raise ObjectNotFoundException(
                 f"Cannot unfollow, User {user_id} is not following topic {topic_id}"
             )
-        db_user.topics.remove(db_topic)
+        db_user.followed_topics.remove(db_topic)
         db.commit()
 
     def get_user_topics(self, db: Session, user_id: int) -> List[models.Topic]:
@@ -146,40 +142,34 @@ class UserCRUD(BaseCRUD[models.User]):
             db_user = db.query(models.User).filter(models.User.id == user_id).first()
             if user is None:
                 raise ObjectNotFoundException(f"User not found for id: {user_id}")
-            return db_user.topics
+            return db_user.followed_topics
         except SQLAlchemyError as e:
             raise DatabaseException(f"Database error: {str(e)}")
 
     def follow_bill(self, db: Session, user_id: int, bill_id: int):
-        db_user = db.query(models.User).filter(models.User.id == user_id).first()
-        if not db_user:
-            raise ObjectNotFoundException(f"User not found for id: {user_id}")
+        db_user = self.read(db=db, obj_id=user_id)
         db_bill = db.query(models.Bill).filter(models.Bill.id == bill_id).first()
         if not db_bill:
             raise ObjectNotFoundException(f"Bill not found for id: {bill_id}")
-        db_user.bills.append(db_bill)
+        db_user.followed_bills.append(db_bill)
         db.commit()
 
     def unfollow_bill(self, db: Session, user_id: int, bill_id: int):
-        db_user = db.query(models.User).filter(models.User.id == user_id).first()
-        if not db_user:
-            raise ObjectNotFoundException(f"User not found for id: {user_id}")
+        db_user = self.read(db=db, obj_id=user_id)
         db_bill = db.query(models.Bill).filter(models.Bill.id == bill_id).first()
         if not db_bill:
             raise ObjectNotFoundException(f"Bill not found for id: {bill_id}")
-        if db_bill not in db_user.bills:
+        if db_bill not in db_user.followed_bills:
             raise ObjectNotFoundException(
                 f"Cannot unfollow, User {user_id} is not following bill {bill_id}"
             )
-        db_user.bills.remove(db_bill)
+        db_user.followed_bills.remove(db_bill)
         db.commit()
 
     def get_user_bills(self, db: Session, user_id: int) -> List[models.Bill]:
         try:
-            db_user = db.query(models.User).filter(models.User.id == user_id).first()
-            if user is None:
-                raise ObjectNotFoundException(f"User not found for id: {user_id}")
-            return db_user.bills
+            db_user = self.read(db=db, obj_id=user_id)
+            return db_user.followed_bills
         except SQLAlchemyError as e:
             raise DatabaseException(f"Database error: {str(e)}")
 

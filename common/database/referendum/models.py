@@ -72,7 +72,6 @@ class LegislativeBody(Base):
     __tablename__ = "legislative_bodies"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String)
     role_id = Column(Integer)
     state_id = Column(Integer)
 
@@ -85,8 +84,8 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
 
-    topics = relationship("Topic", secondary=user_topic_follows)
-    bills = relationship("Bill", secondary=user_bill_follows)
+    followed_topics = relationship("Topic", secondary=user_topic_follows)
+    followed_bills = relationship("Bill", secondary=user_bill_follows)
 
 
 class Bill(Base):
@@ -119,7 +118,7 @@ class Legislator(Base):
     phone = Column(String, nullable=True)
     twitter = Column(String, nullable=True)
 
-    parties = relationship("Party", secondary=party_membership)
-    legislative_bodies = relationship(
+    party_membership = relationship("Party", secondary=party_membership)
+    legislative_body_membership = relationship(
         "LegislativeBody", secondary=legislative_body_membership
     )
