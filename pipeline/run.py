@@ -57,9 +57,6 @@ def extract(empty_legiscan_dataframes):
                     df = pd.read_sql(table_name, con=conn)
                     empty_legiscan_dataframes[table_name] = df
                     logger.info(f"EXTRACT: Data extracted from table: {table_name}")
-                    logger.info(
-                        f"EXTRACT: First row from table {table_name}: {df.head(1).T}"
-                    )
 
                 if table_name == "ls_people":
                     df = pd.read_sql(table_name, con=conn)
@@ -67,6 +64,9 @@ def extract(empty_legiscan_dataframes):
                     logger.info(f"EXTRACT: Data extracted from table: {table_name}")
 
         logger.info("EXTRACT: Extract completed")
+
+        logger.info(f"EXTRACT: First row from table {table_name}: {df.head(1).T}")
+
         legiscan_dataframes = empty_legiscan_dataframes
         return legiscan_dataframes
     else:
@@ -81,23 +81,13 @@ def transform(legiscan_dataframes):
 
     ### bills ###
     if "ls_bill" in legiscan_dataframes:
-        ls_bill = legiscan_dataframes["ls_bill"][
-            ["bill_id", "title", "created", "status_id"]
-        ]
+        ls_bill = legiscan_dataframes["ls_bill"][["bill_id", "title", "status_id"]]
         transformed_bill = ls_bill.rename(
-            columns={
-                "bill_id": "id",
-                "title": "title",
-                "created": "introduced_date",
-                "status": "status_id",
-            }
+            columns={"bill_id": "legiscan_id", "title": "title", "status_id": "status"}
         )
-        transformed_data["bill"] = transformed_bill
+        transformed_data["bills"] = transformed_bill
         logger.info(
-            f"TRANSFORM: Transformed 'ls_bill' into 'bill' table with {len(transformed_bill)} rows"
-        )
-        logger.info(
-            f"TRANSFORM: First row of transformed legislator data:\n{transformed_bill.iloc[0].to_dict()}"
+            f"TRANSFORM: Transformed 'ls_bill' into 'bills' table with {len(transformed_bill)} rows"
         )
 
     else:
@@ -114,22 +104,26 @@ def transform(legiscan_dataframes):
                 "name": "name",
                 "state_id": "state_id",  ### WHAT IS 'state_id' ???????
                 "district": "district",
-                "party_id": "party_id",
+                "party_id": "party_id",  ### CHECK ALL OF THESE MATCH REFERENDUM
                 "role_id": "role_id",
             }
         )
         transformed_legislator["state"] = (
             transformed_legislator["district"].str.split("-").str[1]
         )
-        transformed_data["legislator"] = transformed_legislator
+        transformed_data["legislators"] = transformed_legislator
         logger.info(
-            f"TRANSFORM: Transformed 'ls_bill' into 'bill' table with {len(transformed_legislator)} rows"
+            f"TRANSFORM: Transformed 'ls_people' into 'legislators' table with {len(transformed_legislator)} rows"
         )
-        # logger.info(f"TRANSFORM: First row of transformed legislator data:\n{transformed_legislator.iloc[0].to_dict()}")
+
     else:
         logger.warning("'ls_people' table not found in legiscan dataframes")
 
     logger.info("TRANSFORM: Transform completed")
+    logger.info(
+        f"TRANSFORM: First row of transformed bills data:\n{transformed_bill.iloc[0].to_dict()}"
+    )
+    # logger.info(f"TRANSFORM: First row of transformed legislators data:\n{transformed_legislator.iloc[0].to_dict()}")
 
     return transformed_data
 
@@ -141,43 +135,68 @@ def load(transformed_data):
         logger.info("LOAD: Successfully connected to Referendum database")
 
         # Insert only the first bill into the Referendum database
-        if "bill" in transformed_data:
-            bills_df = transformed_data["bill"]
+        if "bills" in transformed_data:
+            bills_df = transformed_data["bills"]
 
             # Extract the first row
             first_row = bills_df.iloc[0]
 
             # Convert types for compatibility with PostgreSQL
             bill_data = {
-                "id": int(first_row["id"]),  # Convert numpy.int64 to native Python int
+                "legiscan_id": int(
+                    first_row["legiscan_id"]
+                ),  # Convert numpy.int64 to native Python int
                 "title": str(first_row["title"]),
-                "introduced_date": first_row[
-                    "introduced_date"
-                ].to_pydatetime(),  # Convert pandas.Timestamp to Python datetime
                 "status": str(first_row["status"]),
             }
 
             # Insert the first row into the BILL table in the Referendum database
             referendum_db.execute(
                 text(
-                    """
-                    INSERT INTO BILL (id, title, introduced_date, status)
-                    VALUES (:id, :title, :introduced_date, 'status')
-                    ON CONFLICT (id) DO NOTHING;
-                    """
+                    "INSERT INTO bills (legiscan_id, title, status) VALUES (:legiscan_id, :title, :status) ON CONFLICT (id) DO NOTHING;"
                 ),
                 bill_data,
             )
 
             # Log all details of the first row
-            logger.info(
-                f"LOAD: First bill inserted - ID: {bill_data['id']}, "
-                f"Title: {bill_data['title']}, "
-                f"Introduced Date: {bill_data['introduced_date']}, "
-                f"Status: {bill_data['status']}"
-            )
+            logger.info(f"LOAD: First bill inserted - ID: {bill_data['legiscan_id']}, ")
 
         logger.info("LOAD: Load completed")
+
+        result = referendum_db.execute(
+            text(
+                "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
+            )
+        )
+        tables = result.fetchall()
+        # Log the columns of the 'bills' table if it exists
+        if "bills" in [table[0] for table in tables]:
+            logger.info("LOAD: Fetching column names for the 'bills' table")
+            result = referendum_db.execute(
+                text(
+                    "SELECT column_name FROM information_schema.columns WHERE table_name = 'bills'"
+                )
+            )
+            columns = result.fetchall()
+            logger.info(
+                f"LOAD: Columns in the 'bills' table: {[col[0] for col in columns]}"
+            )
+        else:
+            logger.warning("LOAD: 'bills' table not found in the Referendum database")
+
+        # Log the names of all tables in the database
+        logger.info(f"LOAD: Tables in referendum_db: {[table[0] for table in tables]}")
+
+        # Fetch and log the first row from the 'bills' table to confirm the insertion
+        first_row_query = referendum_db.execute(text("SELECT * FROM bills LIMIT 1"))
+        first_row_result = first_row_query.fetchone()
+        if first_row_result:
+            logger.info(
+                f"LOAD: First row of the 'bills' table in referendum_db to verify insertion: {first_row_result}"
+            )
+        else:
+            logger.warning("LOAD: No rows found in 'bills' table after insertion")
+
     else:
         logger.error("Failed to connect to Referendum database. Load aborted.")
         raise ConnectionError("Referendum database connection failed")
@@ -189,9 +208,9 @@ def orchestrate_etl():
         legiscan_dataframes = extract(empty_legiscan_dataframes)
         transformed_data = transform(legiscan_dataframes)
         load(transformed_data)
-        logger.info("ETL process completed successfully")
+        logger.info("ETL: process completed successfully")
     except ConnectionError as e:
-        logger.error(f"ETL process failed: {str(e)}")
+        logger.error(f"ETL: process failed: {str(e)}")
     except Exception as e:
         logger.error(f"An unexpected error occurred during ETL process: {str(e)}")
 
