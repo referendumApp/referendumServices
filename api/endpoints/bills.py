@@ -5,13 +5,13 @@ from common.database.referendum import crud, schemas
 
 from ..schemas import ErrorResponse
 from ..security import get_current_user_or_verify_system_token
-from .base_router import BaseRouter
+from .endpoint_generator import EndpointGenerator
 
 
 router = APIRouter()
 
 
-BaseRouter.add_crud_routes(
+EndpointGenerator.add_crud_routes(
     router=router,
     crud_model=crud.bill,
     create_schema=schemas.BillCreate,

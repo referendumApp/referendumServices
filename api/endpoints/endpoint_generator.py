@@ -20,7 +20,7 @@ UpdateSchema = TypeVar("UpdateSchema", bound=BaseModel)
 ResponseSchema = TypeVar("ResponseSchema", bound=BaseModel)
 
 
-class BaseRouter(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
+class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
     @classmethod
     def add_crud_routes(
         cls,

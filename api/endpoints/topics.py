@@ -1,13 +1,13 @@
 from fastapi import APIRouter
 
 from common.database.referendum import crud, schemas
-from .base_router import BaseRouter
+from .endpoint_generator import EndpointGenerator
 
 
 router = APIRouter()
 
 
-BaseRouter.add_crud_routes(
+EndpointGenerator.add_crud_routes(
     router=router,
     crud_model=crud.topic,
     create_schema=schemas.TopicCreate,
