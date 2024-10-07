@@ -188,9 +188,9 @@ def orchestrate_etl():
         legiscan_dataframes = extract()
         transformed_data = transform(legiscan_dataframes)
         load(transformed_data)
-        logger.info("ETL: process completed successfully")
+        logger.info("ETL process completed successfully")
     except ConnectionError as e:
-        logger.error(f"ETL: process failed: {str(e)}")
+        logger.error(f"ETL process failed: {str(e)}")
     except Exception as e:
         logger.error(f"An unexpected error occurred during ETL process: {str(e)}")
 
