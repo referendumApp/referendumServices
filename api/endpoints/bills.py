@@ -18,15 +18,13 @@ BaseRouter.add_crud_routes(
     update_schema=schemas.Bill,
     response_schema=schemas.Bill,
     resource="bill",
-    tags=["bills"],
 )
 
 
 @router.get(
-    "/bills/{bill_id}/text",
+    "/{bill_id}/text",
     response_model=Dict[str, str],
     summary="Get bill text",
-    tags=["bills"],
     responses={
         200: {
             "model": Dict[str, str],

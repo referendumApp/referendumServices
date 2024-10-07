@@ -30,16 +30,12 @@ class BaseRouter(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
         update_schema: Type[UpdateSchema],
         response_schema: Type[ResponseSchema],
         resource: str,
-        tags: List[str],
     ):
-        prefix = f"/{resource}s"
-
         @router.post(
-            f"{prefix}/",
+            f"/",
             response_model=response_schema,
             status_code=status.HTTP_201_CREATED,
             summary=f"Create a new {resource}",
-            tags=tags,
             responses={
                 201: {
                     "model": response_schema,
@@ -68,10 +64,9 @@ class BaseRouter(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
                 raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
         @router.get(
-            f"{prefix}/{{item_id}}",
+            f"/{{item_id}}",
             response_model=response_schema,
             summary=f"Get {resource} information",
-            tags=tags,
             responses={
                 200: {"model": response_schema, "description": f"{resource} retrieved"},
                 401: {"model": ErrorResponse, "description": "Not authorized"},
@@ -94,10 +89,9 @@ class BaseRouter(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
                 raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
         @router.put(
-            f"{prefix}/",
+            f"/",
             response_model=response_schema,
             summary=f"Update {resource} information",
-            tags=tags,
             responses={
                 200: {
                     "model": response_schema,
@@ -124,10 +118,9 @@ class BaseRouter(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
                 raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
         @router.delete(
-            f"{prefix}/{{item_id}}",
+            f"/{{item_id}}",
             status_code=status.HTTP_204_NO_CONTENT,
             summary=f"Delete a {resource}",
-            tags=tags,
             responses={
                 204: {"description": f"{resource} successfully deleted"},
                 403: {"model": ErrorResponse, "description": "Forbidden"},
@@ -150,10 +143,9 @@ class BaseRouter(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
                 raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
         @router.get(
-            f"{prefix}/",
+            f"/",
             response_model=List[response_schema],
             summary=f"Get all {resource}s",
-            tags=tags,
             responses={
                 200: {
                     "model": List[response_schema],

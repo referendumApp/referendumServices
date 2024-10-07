@@ -15,5 +15,4 @@ BaseRouter.add_crud_routes(
     update_schema=schemas.Legislator,
     response_schema=schemas.Legislator,
     resource="legislator",
-    tags=["legislators"],
 )
