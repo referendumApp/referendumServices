@@ -41,7 +41,7 @@ def upgrade():
     op.create_index(op.f("ix_topics_name"), "topics", ["name"], unique=True)
 
     op.create_table(
-        "parties",
+        "partys",
         sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
         sa.Column("name", sa.String(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
@@ -114,7 +114,7 @@ def upgrade():
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(
             ["party_id"],
-            ["parties.id"],
+            ["partys.id"],
         ),
     )
     op.create_index(op.f("ix_legislators_name"), "legislators", ["name"], unique=False)
@@ -184,7 +184,7 @@ def upgrade():
         sa.Column("end_date", sa.Date()),
         sa.ForeignKeyConstraint(
             ["party_id"],
-            ["parties.id"],
+            ["partys.id"],
         ),
         sa.ForeignKeyConstraint(
             ["legislator_id"],
@@ -207,7 +207,7 @@ def downgrade():
     op.drop_table("legislative_bodies")
     op.drop_table("roles")
     op.drop_table("states")
-    op.drop_table("parties")
+    op.drop_table("partys")
     op.drop_index(op.f("ix_topics_name"), table_name="topics")
     op.drop_table("topics")
     op.drop_index(op.f("ix_users_email"), table_name="users")

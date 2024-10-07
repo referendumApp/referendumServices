@@ -33,7 +33,7 @@ legislative_body_membership = Table(
 party_membership = Table(
     "party_membership",
     Base.metadata,
-    Column("party_id", Integer, ForeignKey("parties.id")),
+    Column("party_id", Integer, ForeignKey("partys.id")),
     Column("legislator_id", Integer, ForeignKey("legislators.id")),
     Column("start_date", Date),
     Column("end_date", Date),
@@ -41,7 +41,7 @@ party_membership = Table(
 
 
 class Party(Base):
-    __tablename__ = "parties"
+    __tablename__ = "partys"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String)

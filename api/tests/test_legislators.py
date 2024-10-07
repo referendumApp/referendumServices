@@ -7,13 +7,13 @@ from api.tests.test_utils import client, assert_status_code, system_headers
 @pytest.fixture(scope="function")
 def test_party():
     party_data = {"name": "Independent"}
-    response = client.post("/parties", json=party_data, headers=system_headers)
+    response = client.post("/partys", json=party_data, headers=system_headers)
     assert_status_code(response, 201)
     party = response.json()
 
     yield party
 
-    response = client.delete(f"/parties/{party['id']}", headers=system_headers)
+    response = client.delete(f"/partys/{party['id']}", headers=system_headers)
     assert_status_code(response, 204)
 
 
