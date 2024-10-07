@@ -29,7 +29,7 @@ def test_add_topic_already_exists():
     topic_data = create_test_topic()
     response = client.post("/topics", json=topic_data, headers=system_headers)
     assert_status_code(response, 409)
-    assert "Topic already exists" in response.json()["detail"]
+    assert "topic already exists" in response.json()["detail"]
 
 
 def test_add_topic_unauthorized():
@@ -43,11 +43,11 @@ def test_add_topic_unauthorized():
 
 def test_update_topic_success():
     topic = create_test_topic()
-    updated_data = {**topic, "name": "Updated Topic Name"}
+    updated_data = {**topic, "name": "Updated topic Name"}
     response = client.put("/topics", json=updated_data, headers=system_headers)
     assert_status_code(response, 200)
     updated_topic = response.json()
-    assert updated_topic["name"] == "Updated Topic Name"
+    assert updated_topic["name"] == "Updated topic Name"
 
 
 def test_update_topic_not_found():
@@ -57,12 +57,12 @@ def test_update_topic_not_found():
     }
     response = client.put("/topics", json=non_existent_topic, headers=system_headers)
     assert_status_code(response, 404)
-    assert "Topic not found" in response.json()["detail"]
+    assert "topic not found" in response.json()["detail"]
 
 
 def test_update_topic_unauthorized():
     topic = create_test_topic()
-    updated_data = {**topic, "name": "Updated Topic Name"}
+    updated_data = {**topic, "name": "Updated topic Name"}
     response = client.put(
         "/topics", json=updated_data, headers={"Authorization": "Bearer user_token"}
     )
@@ -81,7 +81,7 @@ def test_get_topic_success():
 def test_get_topic_not_found():
     response = client.get("/topics/9999", headers=system_headers)
     assert_status_code(response, 404)
-    assert "Topic not found" in response.json()["detail"]
+    assert "topic not found" in response.json()["detail"]
 
 
 def test_delete_topic_success():
@@ -93,7 +93,7 @@ def test_delete_topic_success():
 def test_delete_topic_not_found():
     response = client.delete("/topics/9999", headers=system_headers)
     assert_status_code(response, 404)
-    assert "Topic not found" in response.json()["detail"]
+    assert "topic not found" in response.json()["detail"]
 
 
 def test_delete_bill_unauthorized():
