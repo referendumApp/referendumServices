@@ -2,6 +2,7 @@ import logging
 import pandas as pd
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
+from typing import Dict
 
 from common.database.referendum import connection as referendum_connection
 from common.database.legiscan_api import connection as legiscan_api_connection
@@ -36,38 +37,24 @@ def check_db_connection(db_session):
         return False
 
 
-def extract(empty_legiscan_dataframes):
+def extract() -> Dict[str, pd.DataFrame]:
+    legiscan_dataframes = {}
     logger.info("EXTRACT: Extracting data")
     legiscan_db = next(get_legiscan_api_db())
+
     if check_db_connection(legiscan_db):
         logger.info("EXTRACT: Successfully connected to Legiscan API database")
-        result = legiscan_db.execute(
-            text(
-                "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
-            )
-        )
-        tables = result.fetchall()
-        # logger.info(f"EXTRACT: Finished extracting all tables: {tables}")
+        tables = ["ls_bill", "ls_people"]
 
         with legiscan_db.connection() as conn:
-            for table_row in tables:
-                table_name = table_row[0]
+            for table_name in tables:
 
-                if table_name == "ls_bill":
-                    df = pd.read_sql(table_name, con=conn)
-                    empty_legiscan_dataframes[table_name] = df
-                    logger.info(f"EXTRACT: Data extracted from table: {table_name}")
-
-                if table_name == "ls_people":
-                    df = pd.read_sql(table_name, con=conn)
-                    empty_legiscan_dataframes[table_name] = df
-                    logger.info(f"EXTRACT: Data extracted from table: {table_name}")
+                df = pd.read_sql(table_name, con=conn)
+                legiscan_dataframes[table_name] = df
+                logger.info(f"EXTRACT: Data extracted from table: {table_name}")
 
         logger.info("EXTRACT: Extract completed")
 
-        logger.info(f"EXTRACT: First row from table {table_name}: {df.head(1).T}")
-
-        legiscan_dataframes = empty_legiscan_dataframes
         return legiscan_dataframes
     else:
         logger.error("Failed to connect to Legiscan API database. Extraction aborted.")
@@ -115,16 +102,10 @@ def transform(legiscan_dataframes):
         logger.info(
             f"TRANSFORM: Transformed 'ls_people' into 'legislators' table with {len(transformed_legislator)} rows"
         )
-
     else:
         logger.warning("'ls_people' table not found in legiscan dataframes")
 
     logger.info("TRANSFORM: Transform completed")
-    logger.info(
-        f"TRANSFORM: First row of transformed bills data:\n{transformed_bill.iloc[0].to_dict()}"
-    )
-    # logger.info(f"TRANSFORM: First row of transformed legislators data:\n{transformed_legislator.iloc[0].to_dict()}")
-
     return transformed_data
 
 
@@ -203,9 +184,8 @@ def load(transformed_data):
 
 
 def orchestrate_etl():
-    empty_legiscan_dataframes = {}
     try:
-        legiscan_dataframes = extract(empty_legiscan_dataframes)
+        legiscan_dataframes = extract()
         transformed_data = transform(legiscan_dataframes)
         load(transformed_data)
         logger.info("ETL: process completed successfully")

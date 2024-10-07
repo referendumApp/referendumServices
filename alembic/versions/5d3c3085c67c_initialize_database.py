@@ -113,36 +113,6 @@ def upgrade():
         ),
     )
 
-    # Create user_topic_association table
-    op.create_table(
-        "user_topic_association",
-        sa.Column("user_id", sa.Integer()),
-        sa.Column("topic_id", sa.Integer()),
-        sa.ForeignKeyConstraint(
-            ["topic_id"],
-            ["topics.id"],
-        ),
-        sa.ForeignKeyConstraint(
-            ["user_id"],
-            ["users.id"],
-        ),
-    )
-
-    # Create user_bill_association table
-    op.create_table(
-        "user_bill_association",
-        sa.Column("user_id", sa.Integer()),
-        sa.Column("bill_id", sa.Integer()),
-        sa.ForeignKeyConstraint(
-            ["bill_id"],
-            ["bills.id"],
-        ),
-        sa.ForeignKeyConstraint(
-            ["user_id"],
-            ["users.id"],
-        ),
-    )
-
 
 def downgrade():
     op.drop_table("user_bill_follows")
