@@ -98,6 +98,10 @@ class LegislatorCRUD(BaseCRUD[models.Legislator]):
     pass
 
 
+class PartyCRUD(BaseCRUD[models.Party]):
+    pass
+
+
 class TopicCRUD(BaseCRUD[models.Topic]):
     pass
 
@@ -176,5 +180,6 @@ class UserCRUD(BaseCRUD[models.User]):
 
 bill = BillCRUD(models.Bill)
 legislator = LegislatorCRUD(models.Legislator)
+party = UserCRUD(models.Party)
 topic = TopicCRUD(models.Topic)
 user = UserCRUD(models.User)

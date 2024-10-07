@@ -4,6 +4,19 @@ import random
 from api.tests.test_utils import client, assert_status_code, system_headers
 
 
+@pytest.fixture(scope="function")
+def test_party():
+    party_data = {"name": "Independent"}
+    response = client.post("/parties", json=party_data, headers=system_headers)
+    assert_status_code(response, 201)
+    party = response.json()
+
+    yield party
+
+    response = client.delete(f"/parties/{party['id']}", headers=system_headers)
+    assert_status_code(response, 204)
+
+
 def get_test_legislator_payload():
     return {
         "name": "John Doe",
@@ -17,8 +30,9 @@ def get_test_legislator_payload():
 
 
 @pytest.fixture(scope="function")
-def test_legislator():
+def test_legislator(test_party):
     legislator_data = get_test_legislator_payload()
+    legislator_data["party_id"] = test_party["id"]
 
     response = client.post("/legislators", json=legislator_data, headers=system_headers)
     assert_status_code(response, 201)
