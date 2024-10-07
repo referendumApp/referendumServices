@@ -105,6 +105,7 @@ class Bill(BillBase):
 class LegislatorBase(BaseModel):
     name: str
     image_url: Optional[str]
+    party_id: int
     district: str
 
     address: Optional[str] = None

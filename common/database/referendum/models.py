@@ -110,6 +110,7 @@ class Legislator(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String)
     image_url = Column(String, nullable=True)
+    party_id = Column(Integer, nullable=False)
     district = Column(String)
 
     address = Column(String)

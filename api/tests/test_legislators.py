@@ -8,6 +8,7 @@ def get_test_legislator_payload():
     return {
         "name": "John Doe",
         "image_url": "example.com/image.png",
+        "party_id": 1,
         "district": f"DC-{random.randint(100,999)}",
         "address": "100 Senate Office Building Washington, DC 20510",
         "instagram": "@senjohndoe",
@@ -57,6 +58,7 @@ def test_update_legislator_not_found():
     non_existent_legislator = {
         "id": 9999,
         "name": "Anti-John Doe",
+        "party_id": 1,
         "image_url": "example.com/image.png",
         "district": "ED-1",
         "address": "999 Senate Office Building Washington, DC 20510",

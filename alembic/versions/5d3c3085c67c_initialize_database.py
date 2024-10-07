@@ -67,6 +67,7 @@ def upgrade():
         sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
         sa.Column("name", sa.String(), nullable=True),
         sa.Column("image_url", sa.String(), nullable=True),
+        sa.Column("party_id", sa.Integer(), nullable=False),
         sa.Column("district", sa.String(), nullable=True),
         sa.Column("address", sa.String(), nullable=True),
         sa.Column("facebook", sa.String(), nullable=True),
