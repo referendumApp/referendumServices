@@ -57,9 +57,9 @@ def extract(empty_legiscan_dataframes):
                     df = pd.read_sql(table_name, con=conn)
                     empty_legiscan_dataframes[table_name] = df
                     logger.info(f"EXTRACT: Data extracted from table: {table_name}")
-                    # logger.info(
-                    #     f"EXTRACT: First row from table {table_name}: {df.head(1).T}"
-                    # )
+                    logger.info(
+                        f"EXTRACT: First row from table {table_name}: {df.head(1).T}"
+                    )
 
                 if table_name == "ls_people":
                     df = pd.read_sql(table_name, con=conn)
@@ -81,9 +81,16 @@ def transform(legiscan_dataframes):
 
     ### bills ###
     if "ls_bill" in legiscan_dataframes:
-        ls_bill = legiscan_dataframes["ls_bill"][["bill_id", "title", "created"]]
+        ls_bill = legiscan_dataframes["ls_bill"][
+            ["bill_id", "title", "created", "status_id"]
+        ]
         transformed_bill = ls_bill.rename(
-            columns={"bill_id": "id", "title": "title", "created": "introduced_date"}
+            columns={
+                "bill_id": "id",
+                "title": "title",
+                "created": "introduced_date",
+                "status": "status_id",
+            }
         )
         transformed_data["bill"] = transformed_bill
         logger.info(
@@ -133,9 +140,43 @@ def load(transformed_data):
     if check_db_connection(referendum_db):
         logger.info("LOAD: Successfully connected to Referendum database")
 
-        for table in transformed_data:
+        # Insert only the first bill into the Referendum database
+        if "bill" in transformed_data:
+            bills_df = transformed_data["bill"]
 
-            logger.info(f"LOAD: table loaded: {table}")
+            # Extract the first row
+            first_row = bills_df.iloc[0]
+
+            # Convert types for compatibility with PostgreSQL
+            bill_data = {
+                "id": int(first_row["id"]),  # Convert numpy.int64 to native Python int
+                "title": str(first_row["title"]),
+                "introduced_date": first_row[
+                    "introduced_date"
+                ].to_pydatetime(),  # Convert pandas.Timestamp to Python datetime
+                "status": str(first_row["status"]),
+            }
+
+            # Insert the first row into the BILL table in the Referendum database
+            referendum_db.execute(
+                text(
+                    """
+                    INSERT INTO BILL (id, title, introduced_date, status)
+                    VALUES (:id, :title, :introduced_date, 'status')
+                    ON CONFLICT (id) DO NOTHING;
+                    """
+                ),
+                bill_data,
+            )
+
+            # Log all details of the first row
+            logger.info(
+                f"LOAD: First bill inserted - ID: {bill_data['id']}, "
+                f"Title: {bill_data['title']}, "
+                f"Introduced Date: {bill_data['introduced_date']}, "
+                f"Status: {bill_data['status']}"
+            )
+
         logger.info("LOAD: Load completed")
     else:
         logger.error("Failed to connect to Referendum database. Load aborted.")
