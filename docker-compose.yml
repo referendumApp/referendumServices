@@ -16,8 +16,8 @@ services:
   api:
     extends:
       service: api-base
+    command: [ "python", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "80" ]
     profiles: ["api"]
-
 
   api-dev:
     extends:
@@ -25,6 +25,12 @@ services:
     environment:
       - API_ACCESS_TOKEN=12345
       - SECRET_KEY=12345
+    ports:
+      - "5678:5678"  # debugger port
+    volumes:
+      - ./api:/code/api  #mount the api and common directory
+      - ./common:/code/common
+    command: ["python", "-m", "debugpy", "--listen", "0.0.0.0:5678", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
     profiles: ["dev"]
 
   db:

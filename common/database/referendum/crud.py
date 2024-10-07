@@ -23,7 +23,7 @@ class DatabaseException(CRUDException):
     pass
 
 
-class CRUDBase(Generic[T]):
+class BaseCRUD(Generic[T]):
     def __init__(self, model: Type[T]):
         self.model = model
 
@@ -77,17 +77,32 @@ class CRUDBase(Generic[T]):
             raise DatabaseException(f"Database error: {str(e)}")
 
 
-### TOPICS ###
+class BillCRUD(BaseCRUD[models.Bill]):
+    def get_bill_by_legiscan_id(self, db: Session, legiscan_id: int) -> models.Bill:
+        try:
+            bill = (
+                db.query(models.Bill)
+                .filter(models.Bill.legiscan_id == legiscan_id)
+                .first()
+            )
+            if bill is None:
+                raise ObjectNotFoundException(
+                    f"Bill with legiscan_id {legiscan_id} not found"
+                )
+            return bill
+        except SQLAlchemyError as e:
+            raise DatabaseException(f"Database error: {str(e)}")
 
 
-class CRUDTopic(CRUDBase[models.Topic]):
+class LegislatorCRUD(BaseCRUD[models.Legislator]):
     pass
 
 
-### USERS ###
+class TopicCRUD(BaseCRUD[models.Topic]):
+    pass
 
 
-class CRUDUser(CRUDBase[models.User]):
+class UserCRUD(BaseCRUD[models.User]):
     def get_user_by_email(self, db: Session, email: str) -> models.User:
         try:
             user = (
@@ -169,26 +184,7 @@ class CRUDUser(CRUDBase[models.User]):
             raise DatabaseException(f"Database error: {str(e)}")
 
 
-### BILLS ###
-
-
-class CRUDBill(CRUDBase[models.Bill]):
-    def get_bill_by_legiscan_id(self, db: Session, legiscan_id: int) -> models.Bill:
-        try:
-            bill = (
-                db.query(models.Bill)
-                .filter(models.Bill.legiscan_id == legiscan_id)
-                .first()
-            )
-            if bill is None:
-                raise ObjectNotFoundException(
-                    f"Bill with legiscan_id {legiscan_id} not found"
-                )
-            return bill
-        except SQLAlchemyError as e:
-            raise DatabaseException(f"Database error: {str(e)}")
-
-
-bill = CRUDBill(models.Bill)
-topic = CRUDTopic(models.Topic)
-user = CRUDUser(models.User)
+bill = BillCRUD(models.Bill)
+legislator = LegislatorCRUD(models.Legislator)
+topic = TopicCRUD(models.Topic)
+user = UserCRUD(models.User)
