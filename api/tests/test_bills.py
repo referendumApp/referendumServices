@@ -46,7 +46,7 @@ def test_add_bill_already_exists():
     bill_data = create_test_bill()
     response = client.post("/bills", json=bill_data, headers=system_headers)
     assert_status_code(response, 409)
-    assert "Bill already exists" in response.json()["detail"]
+    assert "bill already exists" in response.json()["detail"]
 
 
 def test_add_bill_unauthorized():
@@ -83,7 +83,7 @@ def test_update_bill_not_found():
     }
     response = client.put("/bills", json=non_existent_bill, headers=system_headers)
     assert_status_code(response, 404)
-    assert "Bill not found" in response.json()["detail"]
+    assert "bill not found" in response.json()["detail"]
 
 
 def test_update_bill_unauthorized():
@@ -107,7 +107,7 @@ def test_get_bill_success():
 def test_get_bill_not_found():
     response = client.get("/bills/9999", headers=system_headers)
     assert_status_code(response, 404)
-    assert "Bill not found" in response.json()["detail"]
+    assert "bill not found" in response.json()["detail"]
 
 
 def test_delete_bill_success():
@@ -119,7 +119,7 @@ def test_delete_bill_success():
 def test_delete_bill_not_found():
     response = client.delete("/bills/9999", headers=system_headers)
     assert_status_code(response, 404)
-    assert "Bill not found" in response.json()["detail"]
+    assert "bill not found" in response.json()["detail"]
 
 
 def test_delete_bill_unauthorized():

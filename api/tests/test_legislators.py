@@ -51,6 +51,13 @@ def test_list_legislators(test_legislator):
     assert len(legislators) > 0
 
 
+def test_add_legislator_already_exists(test_legislator):
+    test_legislator.pop("id")
+    response = client.post("/legislators", json=test_legislator, headers=system_headers)
+    assert_status_code(response, 409)
+    assert "legislator already exists" in response.json()["detail"]
+
+
 def test_add_legislator_unauthorized():
     response = client.post(
         "/legislators",
@@ -83,7 +90,7 @@ def test_update_legislator_not_found():
         "/legislators", json=non_existent_legislator, headers=system_headers
     )
     assert_status_code(response, 404)
-    assert "Legislator not found" in response.json()["detail"]
+    assert "legislator not found" in response.json()["detail"]
 
 
 def test_update_legislator_unauthorized(test_legislator):
@@ -109,13 +116,13 @@ def test_get_legislator_success(test_legislator):
 def test_get_legislator_not_found():
     response = client.get("/legislators/9999", headers=system_headers)
     assert_status_code(response, 404)
-    assert "Legislator not found" in response.json()["detail"]
+    assert "legislator not found" in response.json()["detail"]
 
 
 def test_delete_legislator_not_found():
     response = client.delete("/legislators/9999", headers=system_headers)
     assert_status_code(response, 404)
-    assert "Legislator not found" in response.json()["detail"]
+    assert "legislator not found" in response.json()["detail"]
 
 
 def test_delete_legislator_unauthorized(test_legislator):
