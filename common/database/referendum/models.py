@@ -42,17 +42,17 @@ class User(Base):
 class Bill(Base):
     __tablename__ = "bills"
 
-    legiscan_id = Column(Integer, index=True)
+    legiscan_id = Column(Integer, index=True)  # bill_id
     id = Column(Integer, primary_key=True, autoincrement=True)
-    identifier = Column(String)
-    title = Column(String)
-    description = Column(String)
-    state = Column(String, index=True)
-    body = Column(String, index=True)
-    session = Column(String, index=True)
-    briefing = Column(String)
-    status = Column(String)
-    latest_action = Column(String)
+    identifier = Column(String)  # bill_number
+    title = Column(String)  # title
+    description = Column(String)  # description
+    state_id = Column(String, index=True)  # state_id
+    legislative_body_id = Column(String, index=True)  # body_id
+    session_id = Column(String, index=True)  # session_id
+    briefing = Column(String)  # empty
+    status_id = Column(String)  # status_id and status date, get rid of latest action
+    status_date = Column(String)
 
 
 class Legislator(Base):

@@ -38,6 +38,10 @@ def check_db_connection(db_session):
 
 
 def extract() -> Dict[str, pd.DataFrame]:
+    etl_configs = [
+        {"source": "ls_bill", "destination": "bills"},
+        {"source": "ls_people", "destination": "legislators"},
+    ]
     legiscan_dataframes = {}
     logger.info("EXTRACT: Extracting data")
     legiscan_db = next(get_legiscan_api_db())
@@ -46,14 +50,7 @@ def extract() -> Dict[str, pd.DataFrame]:
         logger.info("EXTRACT: Successfully connected to Legiscan API database")
 
         # Get all table names from the public schema
-        tables_query = text(
-            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
-        )
-        result = legiscan_db.execute(tables_query)
-        tables = result.fetchall()
-        table_names = [
-            table[0] for table in tables
-        ]  # Extract table names from the result
+        table_names = [config["source"] for config in etl_configs]
 
         with legiscan_db.connection() as conn:
             for table_name in table_names:
@@ -199,14 +196,28 @@ def load(transformed_data):
 
 
 def orchestrate_etl():
-    desired_tables = [
-        {"source": "ls_bill", "destination": "bills"},
+    etl_configs = [
+        {
+            "source": "ls_bill",
+            "destination": "bills",
+            "transformations": [
+                {
+                    "function": "rename",
+                    "parameters": {"columns": {"bill_id": "legiscan_id"}},
+                },
+                {
+                    "function": "keep_columns",
+                    "parameters": {"columns": ["legiscan_id"]},
+                },
+            ],
+            "dataframe": None,
+        },
         {"source": "ls_people", "destination": "legislators"},
     ]
     try:
-        legiscan_dataframes = extract()
-        transformed_data = transform(legiscan_dataframes, desired_tables)
-        load(transformed_data)
+        etl_configs = extract(etl_configs)
+        etl_configs = transform(etl_configs)
+        load(etl_configs)
         logger.info("ETL process completed successfully")
     except ConnectionError as e:
         logger.error(f"ETL process failed: {str(e)}")
