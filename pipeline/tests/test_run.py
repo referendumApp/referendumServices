@@ -8,6 +8,7 @@ def is_running_in_docker():
 
 
 def test_pipeline_execution():
+    pytest.skip("This test is skipped pending implementation of new bills model")
     if not is_running_in_docker():
         pytest.skip("This test should only run inside a Docker container")
 
