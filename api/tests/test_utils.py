@@ -82,7 +82,16 @@ def test_legislator():
         "address": "100 Senate Office Building Washington, DC 20510",
         "instagram": f"@sen{generate_random_string()}",
         "phone": f"(202) {random.randint(100,999)}-{random.randint(1000,9999)}",
+        "party_id": 1,
     }
     legislator = create_test_entity("/legislators", lambda: legislator_data)
     yield legislator
     client.delete(f"/legislators/{legislator['id']}", headers=system_headers)
+
+
+@pytest.fixture(scope="function")
+def test_party():
+    party_data = {"name": "Independent"}
+    party = create_test_entity("/partys", lambda: party_data)
+    yield party
+    client.delete(f"/partys/{party['id']}", headers=system_headers)

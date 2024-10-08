@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Table
+from sqlalchemy import Column, Integer, String, ForeignKey, Table, Date
 from sqlalchemy.orm import relationship
 
 from common.database.postgres_core.utils import Base
@@ -20,6 +20,35 @@ user_bill_follows = Table(
 )
 
 
+class Party(Base):
+    __tablename__ = "partys"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String)
+
+
+class Role(Base):
+    __tablename__ = "roles"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String)
+
+
+class State(Base):
+    __tablename__ = "states"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String)
+
+
+class LegislativeBody(Base):
+    __tablename__ = "legislative_bodys"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    role_id = Column(Integer)
+    state_id = Column(Integer)
+
+
 class Topic(Base):
     __tablename__ = "topics"
 
@@ -35,8 +64,8 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
 
-    topics = relationship("Topic", secondary=user_topic_follows)
-    bills = relationship("Bill", secondary=user_bill_follows)
+    followed_topics = relationship("Topic", secondary=user_topic_follows)
+    followed_bills = relationship("Bill", secondary=user_bill_follows)
 
 
 class Bill(Base):
@@ -61,6 +90,7 @@ class Legislator(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String)
     image_url = Column(String, nullable=True)
+    party_id = Column(Integer, nullable=False)
     district = Column(String)
 
     address = Column(String)
