@@ -120,6 +120,7 @@ class LegislatorBase(BaseModel):
     name: str
     image_url: Optional[str]
     district: str
+    party_id: int
 
     address: Optional[str] = None
     facebook: Optional[str] = None

@@ -23,20 +23,39 @@ class DatabaseException(CRUDException):
     pass
 
 
+class NullValueException(Exception):
+    pass
+
+
 class BaseCRUD(Generic[T]):
     def __init__(self, model: Type[T]):
         self.model = model
 
     def create(self, db: Session, obj_in: schemas.BaseModel) -> T:
         try:
-            db_obj = self.model(**obj_in.model_dump())
+            obj_data = obj_in.model_dump()
+            for field, value in obj_data.items():
+                if (
+                    value is None
+                    and self.model.__table__.columns[field].nullable is False
+                ):
+                    raise NullValueException(
+                        f"Null value provided for non-nullable field: {field}"
+                    )
+
+            db_obj = self.model(**obj_data)
             db.add(db_obj)
             db.commit()
             db.refresh(db_obj)
             return db_obj
-        except IntegrityError:
+        except IntegrityError as e:
             db.rollback()
-            raise ObjectAlreadyExistsException("Object already exists")
+            if "unique constraint" in str(e).lower():
+                raise ObjectAlreadyExistsException("Object already exists")
+            raise DatabaseException(f"Integrity error: {str(e)}")
+        except NullValueException as e:
+            db.rollback()
+            raise e
         except SQLAlchemyError as e:
             db.rollback()
             raise DatabaseException(f"Database error: {str(e)}")

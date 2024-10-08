@@ -112,10 +112,6 @@ def upgrade():
         sa.Column("phone", sa.String(), nullable=True),
         sa.Column("twitter", sa.String(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
-        sa.ForeignKeyConstraint(
-            ["party_id"],
-            ["partys.id"],
-        ),
     )
     op.create_index(op.f("ix_legislators_name"), "legislators", ["name"], unique=False)
     op.create_index(
@@ -123,9 +119,6 @@ def upgrade():
         "legislators",
         ["name", "district"],
         unique=True,
-    )
-    op.create_index(
-        op.f("ix_legislators_party_id"), "legislators", ["party_id"], unique=False
     )
 
     # Create user_topic_follows table

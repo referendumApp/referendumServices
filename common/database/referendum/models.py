@@ -98,8 +98,3 @@ class Legislator(Base):
     instagram = Column(String, nullable=True)
     phone = Column(String, nullable=True)
     twitter = Column(String, nullable=True)
-
-    party_membership = relationship("Party", secondary=party_membership)
-    legislative_body_membership = relationship(
-        "LegislativeBody", secondary=legislative_body_membership
-    )

@@ -53,6 +53,7 @@ def test_update_legislator_not_found():
         "address": "999 Senate Office Building Washington, DC 20510",
         "instagram": "@senantijohndoe",
         "phone": "(202) 111-1112",
+        "party_id": 1,
     }
     response = client.put(
         "/legislators", json=non_existent_legislator, headers=system_headers
