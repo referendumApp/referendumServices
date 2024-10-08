@@ -42,7 +42,7 @@ class State(Base):
 
 
 class LegislativeBody(Base):
-    __tablename__ = "legislative_bodies"
+    __tablename__ = "legislative_bodys"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     role_id = Column(Integer)

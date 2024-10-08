@@ -98,7 +98,19 @@ class LegislatorCRUD(BaseCRUD[models.Legislator]):
     pass
 
 
+class LegislativeBodyCRUD(BaseCRUD[models.LegislativeBody]):
+    pass
+
+
 class PartyCRUD(BaseCRUD[models.Party]):
+    pass
+
+
+class RoleCRUD(BaseCRUD[models.Role]):
+    pass
+
+
+class StateCRUD(BaseCRUD[models.State]):
     pass
 
 
@@ -180,6 +192,9 @@ class UserCRUD(BaseCRUD[models.User]):
 
 bill = BillCRUD(models.Bill)
 legislator = LegislatorCRUD(models.Legislator)
+legislative_body = LegislativeBodyCRUD(models.LegislativeBody)
 party = UserCRUD(models.Party)
+role = UserCRUD(models.Role)
+state = UserCRUD(models.State)
 topic = TopicCRUD(models.Topic)
 user = UserCRUD(models.User)

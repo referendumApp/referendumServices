@@ -62,7 +62,7 @@ def upgrade():
     )
 
     op.create_table(
-        "legislative_bodies",
+        "legislative_bodys",
         sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
         sa.Column("state_id", sa.Integer(), nullable=False),
         sa.Column("role_id", sa.Integer(), nullable=False),
@@ -168,7 +168,7 @@ def downgrade():
     op.drop_index(op.f("ix_bills_state"), table_name="bills")
     op.drop_index(op.f("ix_bills_legiscan_id"), table_name="bills")
     op.drop_table("bills")
-    op.drop_table("legislative_bodies")
+    op.drop_table("legislative_bodys")
     op.drop_table("roles")
     op.drop_table("states")
     op.drop_table("partys")

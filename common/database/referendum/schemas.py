@@ -19,6 +19,40 @@ class Party(PartyBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+# Role
+
+
+class RoleBase(BaseModel):
+    name: str
+
+
+class RoleCreate(RoleBase):
+    pass
+
+
+class Role(RoleBase):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# State
+
+
+class StateBase(BaseModel):
+    name: str
+
+
+class StateCreate(StateBase):
+    pass
+
+
+class State(StateBase):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # LegislativeBody
 
 
