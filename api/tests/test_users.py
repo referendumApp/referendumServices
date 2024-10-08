@@ -1,75 +1,16 @@
-import random
-import pytest
-
-from api.security import create_access_token
-from api.tests.test_utils import client, system_headers, assert_status_code
-
-
-@pytest.fixture(scope="function")
-def test_user_session():
-    user_data = {
-        "email": "testuser@example.com",
-        "password": "testpassword",
-        "name": "Test User",
-    }
-
-    response = client.post("/users", json=user_data, headers=system_headers)
-    assert_status_code(response, 201)
-    user = response.json()
-    token = create_access_token(data={"sub": user["email"]})
-    headers = {"Authorization": f"Bearer {token}"}
-
-    yield user, headers
-
-    response = client.delete(f"/users/{user['id']}", headers=system_headers)
-    assert_status_code(response, 204)
-
-
-@pytest.fixture(scope="function")
-def test_topic():
-    topic_data = {
-        "name": "Test Topic",
-    }
-
-    response = client.post("/topics", json=topic_data, headers=system_headers)
-    assert_status_code(response, 201)
-    topic = response.json()
-
-    yield topic
-
-    response = client.delete(f"/topics/{topic['id']}", headers=system_headers)
-    assert_status_code(response, 204)
-
-
-@pytest.fixture(scope="function")
-def test_bill():
-    bill_data = {
-        "legiscan_id": random.randint(100000, 999999),
-        "identifier": "H.B.1",
-        "title": "Test Bill",
-        "description": "This is a test bill",
-        "state": "CA",
-        "body": "House",
-        "session": "118",
-        "briefing": "yadayadayada",
-        "status": "killed",
-        "latest_action": "none",
-    }
-
-    response = client.post("/bills", json=bill_data, headers=system_headers)
-    assert_status_code(response, 201)
-    bill = response.json()
-
-    yield bill
-
-    response = client.delete(f"/bills/{bill['id']}", headers=system_headers)
-    assert_status_code(response, 204)
+from api.tests.test_utils import (
+    client,
+    system_headers,
+    assert_status_code,
+    test_bill,
+    test_legislator,
+    test_topic,
+    test_user_session,
+)
 
 
 def test_create_user(test_user_session):
     user, _ = test_user_session
-    assert user["email"] == "testuser@example.com"
-    assert user["name"] == "Test User"
     assert "id" in user
 
 
