@@ -86,3 +86,11 @@ def test_legislator():
     legislator = create_test_entity("/legislators", lambda: legislator_data)
     yield legislator
     client.delete(f"/legislators/{legislator['id']}", headers=system_headers)
+
+
+@pytest.fixture(scope="function")
+def test_party():
+    party_data = {"name": "Independent"}
+    party = create_test_entity("/partys", lambda: party_data)
+    yield party
+    client.delete(f"/partys/{party['id']}", headers=system_headers)

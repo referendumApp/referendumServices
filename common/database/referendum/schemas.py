@@ -2,6 +2,40 @@ from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import Optional, List
 
 
+# Party
+
+
+class PartyBase(BaseModel):
+    name: str
+
+
+class PartyCreate(PartyBase):
+    pass
+
+
+class Party(PartyBase):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# LegislativeBody
+
+
+class LegislativeBodyBase(BaseModel):
+    name: str
+
+
+class LegislativeBodyCreate(LegislativeBodyBase):
+    pass
+
+
+class LegislativeBody(LegislativeBodyBase):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # Topics
 
 
@@ -34,7 +68,8 @@ class UserCreate(UserBase):
 class User(UserBase):
     id: int
 
-    topics: List[Topic] = []
+    followed_bills: List[Bill] = []
+    followed_topics: List[Topic] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -53,7 +88,6 @@ class BillBase(BaseModel):
     briefing: str
     status: str
     latest_action: str
-    # topics
 
 
 class BillCreate(BillBase):

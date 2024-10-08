@@ -5,7 +5,16 @@ import json
 import logging
 
 from .config import settings
-from .endpoints import health, authentication, users, bills, topics, follow, legislators
+from .endpoints import (
+    health,
+    authentication,
+    users,
+    bills,
+    topics,
+    follow,
+    legislators,
+    partys,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -26,6 +35,7 @@ app.include_router(authentication.router, tags=["authentication"], prefix="/auth
 app.include_router(bills.router, tags=["bills"], prefix="/bills")
 app.include_router(follow.router, tags=["follow"], prefix="/follow")
 app.include_router(legislators.router, tags=["legislators"], prefix="/legislators")
+app.include_router(partys.router, tags=["partys"], prefix="/partys")
 app.include_router(topics.router, tags=["topics"], prefix="/topics")
 app.include_router(users.router, tags=["users"], prefix="/users")
 

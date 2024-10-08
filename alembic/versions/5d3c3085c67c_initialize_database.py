@@ -40,6 +40,43 @@ def upgrade():
     )
     op.create_index(op.f("ix_topics_name"), "topics", ["name"], unique=True)
 
+    op.create_table(
+        "partys",
+        sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("name", sa.String(), nullable=True),
+        sa.PrimaryKeyConstraint("id"),
+    )
+
+    op.create_table(
+        "states",
+        sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("name", sa.String(), nullable=True),
+        sa.PrimaryKeyConstraint("id"),
+    )
+
+    op.create_table(
+        "roles",
+        sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("name", sa.String(), nullable=True),
+        sa.PrimaryKeyConstraint("id"),
+    )
+
+    op.create_table(
+        "legislative_bodies",
+        sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("state_id", sa.Integer(), nullable=False),
+        sa.Column("role_id", sa.Integer(), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(
+            ["state_id"],
+            ["states.id"],
+        ),
+        sa.ForeignKeyConstraint(
+            ["role_id"],
+            ["roles.id"],
+        ),
+    )
+
     # Create bills table
     op.create_table(
         "bills",
@@ -68,12 +105,17 @@ def upgrade():
         sa.Column("name", sa.String(), nullable=True),
         sa.Column("image_url", sa.String(), nullable=True),
         sa.Column("district", sa.String(), nullable=True),
+        sa.Column("party_id", sa.Integer(), nullable=False),
         sa.Column("address", sa.String(), nullable=True),
         sa.Column("facebook", sa.String(), nullable=True),
         sa.Column("instagram", sa.String(), nullable=True),
         sa.Column("phone", sa.String(), nullable=True),
         sa.Column("twitter", sa.String(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(
+            ["party_id"],
+            ["partys.id"],
+        ),
     )
     op.create_index(op.f("ix_legislators_name"), "legislators", ["name"], unique=False)
     op.create_index(
@@ -81,6 +123,9 @@ def upgrade():
         "legislators",
         ["name", "district"],
         unique=True,
+    )
+    op.create_index(
+        op.f("ix_legislators_party_id"), "legislators", ["party_id"], unique=False
     )
 
     # Create user_topic_follows table
@@ -123,6 +168,10 @@ def downgrade():
     op.drop_index(op.f("ix_bills_state"), table_name="bills")
     op.drop_index(op.f("ix_bills_legiscan_id"), table_name="bills")
     op.drop_table("bills")
+    op.drop_table("legislative_bodies")
+    op.drop_table("roles")
+    op.drop_table("states")
+    op.drop_table("partys")
     op.drop_index(op.f("ix_topics_name"), table_name="topics")
     op.drop_table("topics")
     op.drop_index(op.f("ix_users_email"), table_name="users")
