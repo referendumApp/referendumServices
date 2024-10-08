@@ -1,3 +1,4 @@
+from datetime import date
 from starlette.testclient import TestClient
 import pytest
 import random
@@ -61,12 +62,12 @@ def test_bill():
         "identifier": f"H.B.{random.randint(1, 999)}",
         "title": f"Test Bill {generate_random_string()}",
         "description": "This is a test bill",
-        "state": "CA",
-        "body": "House",
-        "session": "118",
+        "state_id": 1,
+        "legislative_body_id": 1,
+        "session_id": 118,
         "briefing": "yadayadayada",
-        "status": "introduced",
-        "latest_action": "none",
+        "status_id": 1,
+        "status_date": "2024-01-01",
     }
     bill = create_test_entity("/bills", lambda: bill_data)
     yield bill

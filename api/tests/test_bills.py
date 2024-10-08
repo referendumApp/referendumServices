@@ -1,3 +1,5 @@
+from datetime import date
+
 from api.tests.test_utils import client, assert_status_code, system_headers, test_bill
 
 
@@ -46,12 +48,12 @@ def test_update_bill_not_found():
         "identifier": "DNE.1",
         "title": "Non-existent Bill",
         "description": "This bill does not exist",
-        "state": "CA",
-        "body": "House",
-        "session": "118",
+        "state_id": 1,
+        "legislative_body_id": 1,
+        "session_id": 118,
         "briefing": "yadayadayada",
-        "status": "killed",
-        "latest_action": "none",
+        "status_id": 1,
+        "status_date": "2024-01-01",
     }
     response = client.put("/bills", json=non_existent_bill, headers=system_headers)
     assert_status_code(response, 404)

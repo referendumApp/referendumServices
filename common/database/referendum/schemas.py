@@ -1,3 +1,4 @@
+from datetime import date
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import Optional, List
 
@@ -95,12 +96,12 @@ class BillBase(BaseModel):
     identifier: str
     title: str
     description: str
-    state: str
-    body: str
-    session: str
+    state_id: int
+    legislative_body_id: int
+    session_id: int
     briefing: str
-    status: str
-    latest_action: str
+    status_id: int
+    status_date: date
 
 
 class BillCreate(BillBase):
