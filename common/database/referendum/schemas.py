@@ -87,27 +87,6 @@ class Topic(TopicBase):
     model_config = ConfigDict(from_attributes=True)
 
 
-# Users
-
-
-class UserBase(BaseModel):
-    email: EmailStr = Field(..., max_length=100)
-    name: str = Field(..., min_length=1, max_length=100)
-
-
-class UserCreate(UserBase):
-    hashed_password: str
-
-
-class User(UserBase):
-    id: int
-
-    followed_bills: List[Bill] = []
-    followed_topics: List[Topic] = []
-
-    model_config = ConfigDict(from_attributes=True)
-
-
 # Bills
 
 
@@ -155,5 +134,26 @@ class LegislatorCreate(LegislatorBase):
 
 class Legislator(LegislatorBase):
     id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# Users
+
+
+class UserBase(BaseModel):
+    email: EmailStr = Field(..., max_length=100)
+    name: str = Field(..., min_length=1, max_length=100)
+
+
+class UserCreate(UserBase):
+    hashed_password: str
+
+
+class User(UserBase):
+    id: int
+
+    followed_bills: List[Bill] = []
+    followed_topics: List[Topic] = []
 
     model_config = ConfigDict(from_attributes=True)
