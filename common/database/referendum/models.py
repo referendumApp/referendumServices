@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Table
+from sqlalchemy import Column, Integer, String, ForeignKey, Table, Date
 from sqlalchemy.orm import relationship
 
 from common.database.postgres_core.utils import Base
@@ -20,6 +20,35 @@ user_bill_follows = Table(
 )
 
 
+class Party(Base):
+    __tablename__ = "partys"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String)
+
+
+class Role(Base):
+    __tablename__ = "roles"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String)
+
+
+class State(Base):
+    __tablename__ = "states"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String)
+
+
+class LegislativeBody(Base):
+    __tablename__ = "legislative_bodys"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    role_id = Column(Integer)
+    state_id = Column(Integer)
+
+
 class Topic(Base):
     __tablename__ = "topics"
 
@@ -35,24 +64,24 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
 
-    topics = relationship("Topic", secondary=user_topic_follows)
-    bills = relationship("Bill", secondary=user_bill_follows)
+    followed_topics = relationship("Topic", secondary=user_topic_follows)
+    followed_bills = relationship("Bill", secondary=user_bill_follows)
 
 
 class Bill(Base):
     __tablename__ = "bills"
 
-    legiscan_id = Column(Integer, index=True)  # bill_id
     id = Column(Integer, primary_key=True, autoincrement=True)
-    identifier = Column(String)  # bill_number
-    title = Column(String)  # title
-    description = Column(String)  # description
-    state_id = Column(String, index=True)  # state_id
-    legislative_body_id = Column(String, index=True)  # body_id
-    session_id = Column(String, index=True)  # session_id
-    briefing = Column(String)  # empty
-    status_id = Column(String)  # status_id and status date, get rid of latest action
-    status_date = Column(String)
+    legiscan_id = Column(Integer, index=True)
+    identifier = Column(String)
+    title = Column(String)
+    description = Column(String)
+    state_id = Column(Integer, index=True)
+    legislative_body_id = Column(Integer, index=True)
+    session_id = Column(Integer, index=True)
+    briefing = Column(String)
+    status_id = Column(Integer)
+    status_date = Column(Date)
 
 
 class Legislator(Base):
@@ -61,6 +90,7 @@ class Legislator(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String)
     image_url = Column(String, nullable=True)
+    party_id = Column(Integer, nullable=False)
     district = Column(String)
 
     address = Column(String)

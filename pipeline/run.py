@@ -207,12 +207,30 @@ def orchestrate_etl():
                 },
                 {
                     "function": "keep_columns",
-                    "parameters": {"columns": ["legiscan_id"]},
+                    "parameters": {
+                        "columns": [
+                            "legiscan_id",
+                            "identifier",
+                        ]
+                    },
                 },
             ],
             "dataframe": None,
         },
-        {"source": "ls_people", "destination": "legislators"},
+        {
+            "source": "ls_people",
+            "destination": "legislators",
+            "transformations": [
+                {
+                    "function": "rename",
+                    "parameters": {"columns": {"people_id": "legiscan_id"}},
+                },
+                {
+                    "function": "keep_columns",
+                    "parameters": {"columns": ["legiscan_id"]},
+                },
+            ],
+        },
     ]
     try:
         etl_configs = extract(etl_configs)
