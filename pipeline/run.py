@@ -44,14 +44,22 @@ def extract() -> Dict[str, pd.DataFrame]:
 
     if check_db_connection(legiscan_db):
         logger.info("EXTRACT: Successfully connected to Legiscan API database")
-        tables = ["ls_bill", "ls_people"]
+
+        # Get all table names from the public schema
+        tables_query = text(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
+        )
+        result = legiscan_db.execute(tables_query)
+        tables = result.fetchall()
+        table_names = [
+            table[0] for table in tables
+        ]  # Extract table names from the result
 
         with legiscan_db.connection() as conn:
-            for table_name in tables:
-
+            for table_name in table_names:
+                # Extract data for each table and store it in the legiscan_dataframes dictionary
                 df = pd.read_sql(table_name, con=conn)
                 legiscan_dataframes[table_name] = df
-                logger.info(f"EXTRACT: Data extracted from table: {table_name}")
 
         logger.info("EXTRACT: Extract completed")
 
@@ -62,48 +70,55 @@ def extract() -> Dict[str, pd.DataFrame]:
 
 
 # def transform(dataframes):
-def transform(legiscan_dataframes):
+def transform(legiscan_dataframes, desired_tables=None) -> Dict[str, pd.DataFrame]:
     logger.info("TRANSFORM: Transforming data")
     transformed_data = {}
 
-    ### bills ###
-    if "ls_bill" in legiscan_dataframes:
-        ls_bill = legiscan_dataframes["ls_bill"][["bill_id", "title", "status_id"]]
-        transformed_bill = ls_bill.rename(
-            columns={"bill_id": "legiscan_id", "title": "title", "status_id": "status"}
-        )
-        transformed_data["bills"] = transformed_bill
-        logger.info(
-            f"TRANSFORM: Transformed 'ls_bill' into 'bills' table with {len(transformed_bill)} rows"
-        )
+    def rename_columns(df):
+        if "bill_id" in df.columns:
+            df = df.rename(columns={"bill_id": "legiscan_id"})
+            logger.info("TRANSFORM: Renamed 'bill_id' to 'legiscan_id'")
+        elif "people_id" in df.columns:
+            df = df.rename(columns={"people_id": "legiscan_id"})
+            logger.info("TRANSFORM: Renamed 'people_id' to 'legiscan_id'")
+        return df
 
-    else:
-        logger.warning("'ls_bill' table not found in legiscan dataframes")
-
-    ### legislators ###
-    if "ls_people" in legiscan_dataframes:
-        ls_people = legiscan_dataframes["ls_people"][
-            ["people_id", "name", "state_id", "district", "party_id"]
-        ]
-        transformed_legislator = ls_people.rename(
-            columns={
-                "people_id": "legiscan_id",
-                "name": "name",
-                "state_id": "state_id",  ### WHAT IS 'state_id' ???????
-                "district": "district",
-                "party_id": "party_id",  ### CHECK ALL OF THESE MATCH REFERENDUM
-                "role_id": "role_id",
-            }
-        )
-        transformed_legislator["state"] = (
-            transformed_legislator["district"].str.split("-").str[1]
-        )
-        transformed_data["legislators"] = transformed_legislator
+    # Check if a subset of tables is specified; otherwise, process all tables
+    if desired_tables is None or len(desired_tables) == 0:
         logger.info(
-            f"TRANSFORM: Transformed 'ls_people' into 'legislators' table with {len(transformed_legislator)} rows"
+            "TRANSFORM: No specific tables provided, processing all available tables."
         )
+        tables_to_transform = legiscan_dataframes.keys()
+        for table_name in tables_to_transform:
+            df = legiscan_dataframes[table_name]
+
+            transformed_df = rename_columns(df)
+
+            # Add the transformed table to the final result with the same table name
+            transformed_data[table_name] = transformed_df
+            logger.info(
+                f"TRANSFORM: Table '{table_name}' added to transformed data with {len(transformed_df)} rows"
+            )
     else:
-        logger.warning("'ls_people' table not found in legiscan dataframes")
+        logger.info(f"TRANSFORM: Specific tables provided: {desired_tables}")
+        for table_mapping in desired_tables:
+            source_table = table_mapping.get("source")
+            destination_table = table_mapping.get("destination")
+
+            if source_table in legiscan_dataframes:
+                df = legiscan_dataframes[source_table]
+
+                transformed_df = rename_columns(df)
+
+                # Add the transformed table to the final result with the destination table name
+                transformed_data[destination_table] = transformed_df
+                logger.info(
+                    f"TRANSFORM: Table '{source_table}' transformed and renamed to '{destination_table}' with {len(transformed_df)} rows"
+                )
+            else:
+                logger.warning(
+                    f"TRANSFORM: Source table '{source_table}' not found in legiscan dataframes"
+                )
 
     logger.info("TRANSFORM: Transform completed")
     return transformed_data
@@ -184,9 +199,13 @@ def load(transformed_data):
 
 
 def orchestrate_etl():
+    desired_tables = [
+        {"source": "ls_bill", "destination": "bills"},
+        {"source": "ls_people", "destination": "legislators"},
+    ]
     try:
         legiscan_dataframes = extract()
-        transformed_data = transform(legiscan_dataframes)
+        transformed_data = transform(legiscan_dataframes, desired_tables)
         load(transformed_data)
         logger.info("ETL process completed successfully")
     except ConnectionError as e:
