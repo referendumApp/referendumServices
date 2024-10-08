@@ -71,17 +71,17 @@ class User(Base):
 class Bill(Base):
     __tablename__ = "bills"
 
-    legiscan_id = Column(Integer, index=True)
     id = Column(Integer, primary_key=True, autoincrement=True)
+    legiscan_id = Column(Integer, index=True)
     identifier = Column(String)
     title = Column(String)
     description = Column(String)
-    state = Column(String, index=True)
-    body = Column(String, index=True)
-    session = Column(String, index=True)
+    state_id = Column(Integer, index=True)
+    legislative_body_id = Column(Integer, index=True)
+    session_id = Column(Integer, index=True)
     briefing = Column(String)
-    status = Column(String)
-    latest_action = Column(String)
+    status_id = Column(Integer)
+    status_date = Column(Date)
 
 
 class Legislator(Base):

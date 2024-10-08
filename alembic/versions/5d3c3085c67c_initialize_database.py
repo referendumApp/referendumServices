@@ -80,23 +80,28 @@ def upgrade():
     # Create bills table
     op.create_table(
         "bills",
-        sa.Column("legiscan_id", sa.Integer(), nullable=True),
         sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("legiscan_id", sa.Integer(), nullable=True),
         sa.Column("identifier", sa.String(), nullable=True),
         sa.Column("title", sa.String(), nullable=True),
         sa.Column("description", sa.String(), nullable=True),
-        sa.Column("state", sa.String(), nullable=True),
-        sa.Column("body", sa.String(), nullable=True),
-        sa.Column("session", sa.String(), nullable=True),
+        sa.Column("state_id", sa.String(), nullable=True),
+        sa.Column("legislative_body_id", sa.String(), nullable=True),
+        sa.Column("session_id", sa.String(), nullable=True),
         sa.Column("briefing", sa.String(), nullable=True),
-        sa.Column("status", sa.String(), nullable=True),
-        sa.Column("latest_action", sa.String(), nullable=True),
+        sa.Column("status_id", sa.String(), nullable=True),
+        sa.Column("status_date", sa.Date(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_bills_legiscan_id"), "bills", ["legiscan_id"], unique=True)
-    op.create_index(op.f("ix_bills_state"), "bills", ["state"], unique=False)
-    op.create_index(op.f("ix_bills_body"), "bills", ["body"], unique=False)
-    op.create_index(op.f("ix_bills_session"), "bills", ["session"], unique=False)
+    op.create_index(op.f("ix_bills_state_id"), "bills", ["state_id"], unique=False)
+    op.create_index(
+        op.f("ix_bills_legislative_body_id"),
+        "bills",
+        ["legislative_body_id"],
+        unique=False,
+    )
+    op.create_index(op.f("ix_bills_session_id"), "bills", ["session_id"], unique=False)
 
     # Create legislators table
     op.create_table(
