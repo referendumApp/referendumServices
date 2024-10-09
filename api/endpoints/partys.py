@@ -14,5 +14,5 @@ EndpointGenerator.add_crud_routes(
     create_schema=schemas.PartyCreate,
     update_schema=schemas.Party,
     response_schema=schemas.Party,
-    resource_identifier="party",
+    resource_name="party",
 )

@@ -14,5 +14,5 @@ EndpointGenerator.add_crud_routes(
     create_schema=schemas.RoleCreate,
     update_schema=schemas.Role,
     response_schema=schemas.Role,
-    resource_identifier="role",
+    resource_name="role",
 )

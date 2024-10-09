@@ -13,5 +13,5 @@ EndpointGenerator.add_crud_routes(
     create_schema=schemas.TopicCreate,
     update_schema=schemas.Topic,
     response_schema=schemas.Topic,
-    resource_identifier="topic",
+    resource_name="topic",
 )
