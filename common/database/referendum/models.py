@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Table, Date
+from sqlalchemy import Column, Enum, Integer, String, ForeignKey, Table, Date
 from sqlalchemy.orm import relationship
+import enum
 
 from common.database.postgres_core.utils import Base
 
@@ -100,3 +101,16 @@ class Legislator(Base):
     instagram = Column(String, nullable=True)
     phone = Column(String, nullable=True)
     twitter = Column(String, nullable=True)
+
+
+class VoteChoice(enum.Enum):
+    YES = 1
+    NO = 2
+
+
+class Vote(Base):
+    __tablename__ = "votes"
+
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    bill_id = Column(Integer, ForeignKey("bills.id"), primary_key=True)
+    vote_type = Column(Enum(VoteChoice), nullable=False)

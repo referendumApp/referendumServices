@@ -209,6 +209,10 @@ class UserCRUD(BaseCRUD[models.User]):
             raise DatabaseException(f"Database error: {str(e)}")
 
 
+class VoteCRUD(BaseCRUD[models.Vote]):
+    pass
+
+
 bill = BillCRUD(models.Bill)
 legislator = LegislatorCRUD(models.Legislator)
 legislative_body = LegislativeBodyCRUD(models.LegislativeBody)

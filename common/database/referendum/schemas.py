@@ -2,6 +2,8 @@ from datetime import date
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import Optional, List
 
+from .models import VoteChoice
+
 
 # Party
 
@@ -166,5 +168,20 @@ class User(UserBase):
 
     followed_bills: List[Bill] = []
     followed_topics: List[Topic] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class VoteBase(BaseModel):
+    bill_id: int
+    user_id: int
+    vote_type: VoteChoice
+
+
+class VoteCreate(VoteBase):
+    pass
+
+
+class Vote(VoteBase):
 
     model_config = ConfigDict(from_attributes=True)

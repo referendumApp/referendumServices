@@ -10,6 +10,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
@@ -164,8 +165,22 @@ def upgrade():
         ),
     )
 
+    op.create_table(
+        "votes",
+        sa.Column("user_id", sa.Integer(), nullable=False),
+        sa.Column("bill_id", sa.Integer(), nullable=False),
+        sa.Column(
+            "vote_choice", sa.Enum("YES", "NO", name="votechoice"), nullable=False
+        ),
+        sa.ForeignKeyConstraint(["bill_id"], ["bills.id"]),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"]),
+        sa.PrimaryKeyConstraint("user_id", "bill_id"),
+    )
+
 
 def downgrade():
+    op.drop_table("votes")
+    op.execute("DROP TYPE votechoice")
     op.drop_table("user_bill_follows")
     op.drop_table("user_topic_follows")
     op.drop_table("legislators")
