@@ -120,6 +120,6 @@ def test_legislator():
 @pytest.fixture(scope="function")
 def test_party():
     party_data = {"name": "Independent"}
-    party = create_test_entity("/parties", lambda: party_data)
+    party = create_test_entity("/partys", lambda: party_data)
     yield party
-    client.delete(f"/parties/{party['id']}", headers=system_headers)
+    client.delete(f"/partys/{party['id']}", headers=system_headers)
