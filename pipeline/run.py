@@ -80,7 +80,7 @@ def extract(etl_configs) -> Dict[str, pd.DataFrame]:
 
 # def transform(dataframes):
 def transform(etl_configs) -> Dict[str, pd.DataFrame]:
-    logger.info("TRANSFORM: Performing column renaming")
+    logger.info("TRANSFORM: Performing transformations")
 
     for config in etl_configs:
         table_name = config["source"]
@@ -101,19 +101,29 @@ def transform(etl_configs) -> Dict[str, pd.DataFrame]:
                     columns_to_rename = transformation["parameters"]["columns"]
                     df = df.rename(columns=columns_to_rename)
 
-            # Save the renamed dataframe back into the config
+                # Check if sponsor_type_id is 1 and set is_primary_sponsor to True
+                elif transformation["function"] == "set_primary_sponsor":
+                    sponsor_type_col = transformation["parameters"][
+                        "sponsor_type_column"
+                    ]
+                    is_primary_col = transformation["parameters"]["is_primary_column"]
+
+                    # Set the new boolean column based on the condition
+                    df[is_primary_col] = df[sponsor_type_col] == 1
+
+            # Save the transformed dataframe back into the config
             config["dataframe"] = df
 
             logger.info(
-                f"TRANSFORM: Successfully renamed columns for table {table_name}"
+                f"TRANSFORM: Successfully transformed data for table {table_name}"
             )
 
         except Exception as e:
-            logger.error(f"Error renaming columns for table {table_name}: {e}")
+            logger.error(f"Error transforming data for table {table_name}: {e}")
             raise
 
-    logger.info("TRANSFORM: Column renaming completed")
-    # Return the modified etl_configs with renamed columns
+    logger.info("TRANSFORM: Transformations completed")
+    # Return the modified etl_configs with transformed data
     return etl_configs
 
 
@@ -141,74 +151,79 @@ def load(etl_configs):
                 f"LOAD: Preparing to insert {len(df)} rows into '{destination_table}' table"
             )
 
-            for index, row in df.iterrows():
-                # Convert row to a dictionary
-                row_data = row.to_dict()
+            # Build the insertion query for bulk inserts
+            try:
+                # Use Pandas to insert the dataframe into the destination table
+                df.to_sql(
+                    destination_table,
+                    referendum_db.connection(),
+                    if_exists="append",
+                    index=False,
+                )
+            except Exception as e:
+                logger.error(f"Error inserting data into '{destination_table}': {e}")
+                raise
 
-                # Build the column placeholders for SQL insertion
-                columns = ", ".join(row_data.keys())
-                placeholders = ", ".join([f":{key}" for key in row_data.keys()])
-
-                # SQL query for inserting rows with ON CONFLICT handling
-                sql_query = f"""
-                    INSERT INTO {destination_table} ({columns}) 
-                    VALUES ({placeholders}) 
-                    ON CONFLICT (id) DO NOTHING;
-                """
-
-                # Convert the row data for insertion
-                row_data = {
-                    k: (
-                        v.item()
-                        if isinstance(v, (pd.Int64Dtype, pd.Float64Dtype))
-                        else v
-                    )
-                    for k, v in row_data.items()
-                }
-
-                try:
-                    # Execute the insertion query
-                    referendum_db.execute(text(sql_query), row_data)
-                except Exception as e:
-                    logger.error(
-                        f"Error inserting row {index + 1} into '{destination_table}': {e}"
-                    )
-                    break
-
-        # Fetch the list of tables in the database
-        result = referendum_db.execute(
-            text(
-                "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
+            # Log that the insert was successful
+            logger.info(
+                f"LOAD: Successfully inserted data into '{destination_table}' table"
             )
-        )
-        tables = result.fetchall()
-        # Log the names of all tables in the database
-        logger.info(f"LOAD: Tables in referendum_db: {[table[0] for table in tables]}")
 
-        # Log the columns of the 'bills' table if it exists
-        if "bills" in [table[0] for table in tables]:
-            logger.info("LOAD: Fetching column names for the 'bills' table")
+            # After insertion, fetch and print the first row from the corresponding table to ensure it worked
+            try:
+                first_row_query = referendum_db.execute(
+                    text(f"SELECT * FROM {destination_table} LIMIT 1")
+                )
+                first_row_result = first_row_query.fetchone()
+
+                if first_row_result:
+                    logger.info(
+                        f"LOAD: First row of the '{destination_table}' table in referendum_db: {first_row_result}"
+                    )
+                else:
+                    logger.warning(
+                        f"LOAD: No rows found in '{destination_table}' table after insertion"
+                    )
+            except Exception as e:
+                logger.error(
+                    f"Error fetching first row from '{destination_table}': {e}"
+                )
+
+        # At the end, fetch and print all table names in the referendum_db
+        try:
             result = referendum_db.execute(
                 text(
-                    "SELECT column_name FROM information_schema.columns WHERE table_name = 'bills'"
+                    "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
                 )
             )
-            columns = result.fetchall()
-            logger.info(
-                f"LOAD: Columns in the 'bills' table: {[col[0] for col in columns]}"
-            )
-        else:
-            logger.warning("LOAD: 'bills' table not found in the Referendum database")
+            tables = result.fetchall()
 
-        # Fetch and log the first row from the 'bills' table to confirm the insertion
-        first_row_query = referendum_db.execute(text("SELECT * FROM bills LIMIT 1"))
-        first_row_result = first_row_query.fetchone()
-        if first_row_result:
-            logger.info(
-                f"LOAD: First row of the 'bills' table in referendum_db to verify insertion: {first_row_result}"
-            )
-        else:
-            logger.warning("LOAD: No rows found in 'bills' table after insertion")
+            if tables:
+                table_names = [table[0] for table in tables]
+                logger.info(f"LOAD: All tables in referendum_db: {table_names}")
+
+                # For each table, fetch and log the column names
+                for table_name in table_names:
+                    try:
+                        column_result = referendum_db.execute(
+                            text(
+                                f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}'"
+                            )
+                        )
+                        columns = column_result.fetchall()
+                        column_names = [col[0] for col in columns]
+                        logger.info(
+                            f"LOAD: Columns in '{table_name}' table: {column_names}"
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Error fetching columns for table '{table_name}': {e}"
+                        )
+            else:
+                logger.warning("LOAD: No tables found in the referendum_db")
+
+        except Exception as e:
+            logger.error(f"Error fetching table names from referendum_db: {e}")
 
     else:
         logger.error("Failed to connect to Referendum database. Load aborted.")
@@ -217,6 +232,36 @@ def load(etl_configs):
 
 def orchestrate_etl():
     etl_configs = [
+        {
+            "source": "ls_state",
+            "destination": "states",
+            "transformations": [
+                {
+                    "function": "keep_columns",
+                    "parameters": {"columns": ["state_id", "state_name"]},
+                },
+                {
+                    "function": "rename",
+                    "parameters": {"columns": {"state_id": "id", "state_name": "name"}},
+                },
+            ],
+            "dataframe": None,
+        },
+        {
+            "source": "ls_party",
+            "destination": "partys",
+            "transformations": [
+                {
+                    "function": "keep_columns",
+                    "parameters": {"columns": ["party_id", "party_name"]},
+                },
+                {
+                    "function": "rename",
+                    "parameters": {"columns": {"party_id": "id", "party_name": "name"}},
+                },
+            ],
+            "dataframe": None,
+        },
         {
             "source": "ls_bill",
             "destination": "bills",
@@ -250,28 +295,32 @@ def orchestrate_etl():
             ],
             "dataframe": None,
         },
-        # {
-        #     "source": "ls_people",
-        #     "destination": "legislators",
-        #     "transformations": [
-        #         {
-        #             "function": "keep_columns",
-        #             "parameters": {
-        #                 "columns": [
-        #                     "legiscan_id"
-        #                     ]
-        #                 },
-        #         },
-        #         {
-        #             "function": "rename",
-        #             "parameters": {
-        #                 "columns": {
-        #                     "people_id": "legiscan_id"
-        #                     }
-        #                 },
-        #         }
-        #     ],
-        # },
+        {
+            "source": "ls_people",
+            "destination": "legislators",
+            "transformations": [
+                {
+                    "function": "keep_columns",
+                    "parameters": {
+                        "columns": [
+                            # "people_id"
+                            "name",
+                            "party_id",
+                            "district",
+                        ]
+                    },
+                }  # ,
+                # {
+                #     "function": "rename",
+                #     "parameters": {
+                #         "columns": {
+                #             "people_id": "legiscan_id"
+                #             }
+                #         }
+                # }
+            ],
+            "dataframe": None,
+        },
     ]
     try:
         etl_configs = extract(etl_configs)

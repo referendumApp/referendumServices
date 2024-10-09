@@ -88,11 +88,11 @@ class Legislator(Base):
     __tablename__ = "legislators"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    # legiscan_id = Column(Integer, index=True)
     name = Column(String)
     image_url = Column(String, nullable=True)
     party_id = Column(Integer, nullable=False)
     district = Column(String)
-
     address = Column(String)
     facebook = Column(String, nullable=True)
     instagram = Column(String, nullable=True)
