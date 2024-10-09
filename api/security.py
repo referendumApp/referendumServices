@@ -68,6 +68,8 @@ async def get_current_user(
         if email is None:
             raise CREDENTIALS_EXCEPTION
         token_data = TokenData(email=email)
+    except AttributeError:
+        raise CREDENTIALS_EXCEPTION
     except JWTError:
         raise CREDENTIALS_EXCEPTION
     user = crud.user.get_user_by_email(db, token_data.email)
@@ -96,6 +98,7 @@ async def get_current_user_or_verify_system_token(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Database error: {str(e)}",
             )
+    raise CREDENTIALS_EXCEPTION
 
 
 async def verify_system_token(api_key: str = Security(api_key_header)):

@@ -6,6 +6,7 @@ import string
 from api.config import settings
 from api.main import app
 from api.security import create_access_token
+from common.database.referendum.models import VoteChoice
 
 # Shared utility functions
 
@@ -123,3 +124,12 @@ def test_legislator(test_party):
     legislator = create_test_entity("/legislators", lambda: legislator_data)
     yield legislator
     client.delete(f"/legislators/{legislator['id']}", headers=system_headers)
+
+
+@pytest.fixture(scope="function")
+def test_vote(test_user_session, test_bill):
+    user, headers = test_user_session
+    vote_data = {"bill_id": test_bill["id"], "vote_choice": VoteChoice.YES.value}
+    response = client.put("/votes/", json=vote_data, headers=headers)
+    assert_status_code(response, 200)
+    return response.json()

@@ -32,7 +32,7 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
         resource_name: str,
     ):
         @router.post(
-            f"/",
+            "/",
             response_model=response_schema,
             status_code=status.HTTP_201_CREATED,
             summary=f"Create a new {resource_name}",
@@ -64,7 +64,7 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
                 raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
         @router.get(
-            f"/{{item_id}}",
+            "/{item_id}",
             response_model=response_schema,
             summary=f"Get {resource_name} information",
             responses={
@@ -96,7 +96,7 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
                 raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
         @router.put(
-            f"/",
+            "/",
             response_model=response_schema,
             summary=f"Update {resource_name} information",
             responses={
@@ -129,7 +129,7 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
                 raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
         @router.delete(
-            f"/{{item_id}}",
+            "/{item_id}",
             status_code=status.HTTP_204_NO_CONTENT,
             summary=f"Delete a {resource_name}",
             responses={
@@ -158,7 +158,7 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
                 raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
         @router.get(
-            f"/",
+            "/",
             response_model=List[response_schema],
             summary=f"Get all {resource_name}s",
             responses={
