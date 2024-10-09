@@ -101,12 +101,12 @@ class Legislator(Base):
     image_url = Column(String)
     party_id = Column(Integer, ForeignKey("partys.id"), nullable=True)
     district = Column(String, nullable=False)
-    address = Column(String)
+    address = Column(String, nullable=True)
     facebook = Column(String, nullable=True)
     instagram = Column(String, nullable=True)
     phone = Column(String, nullable=True)
     twitter = Column(String, nullable=True)
- 
+
     party = relationship("Party")
 
 
