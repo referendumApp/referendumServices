@@ -1,4 +1,3 @@
-from datetime import date
 from starlette.testclient import TestClient
 import pytest
 import random
@@ -68,7 +67,7 @@ def test_role():
     role_data = {"name": "House"}
     role = create_test_entity("/roles", lambda: role_data)
     yield role
-    client.delete(f"/states/{role['id']}", headers=system_headers)
+    client.delete(f"/roles/{role['id']}", headers=system_headers)
 
 
 @pytest.fixture(scope="function")
@@ -76,7 +75,9 @@ def test_legislative_body(test_state, test_role):
     legislative_body_data = {"state_id": test_state["id"], "role_id": test_role["id"]}
     legislative_body = create_test_entity("/roles", lambda: legislative_body_data)
     yield legislative_body
-    client.delete(f"/states/{legislative_body['id']}", headers=system_headers)
+    client.delete(
+        f"/legislative_bodys/{legislative_body['id']}", headers=system_headers
+    )
 
 
 @pytest.fixture(scope="function")
@@ -87,7 +88,7 @@ def test_bill(test_state, test_legislative_body):
         "title": f"Test Bill {generate_random_string()}",
         "description": "This is a test bill",
         "state_id": test_state["id"],
-        "legislative_body_id": 1,
+        "legislative_body_id": test_legislative_body["id"],
         "session_id": 118,
         "briefing": "yadayadayada",
         "status_id": 1,
