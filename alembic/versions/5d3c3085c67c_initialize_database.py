@@ -118,13 +118,17 @@ def upgrade():
         sa.Column("name", sa.String(), nullable=True),
         sa.Column("image_url", sa.String(), nullable=True),
         sa.Column("district", sa.String(), nullable=True),
-        sa.Column("party_id", sa.Integer(), nullable=False),
+        sa.Column("party_id", sa.Integer(), nullable=True),
         sa.Column("address", sa.String(), nullable=True),
         sa.Column("facebook", sa.String(), nullable=True),
         sa.Column("instagram", sa.String(), nullable=True),
         sa.Column("phone", sa.String(), nullable=True),
         sa.Column("twitter", sa.String(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(
+            ["party_id"],
+            ["partys.id"],
+        ),
     )
     op.create_index(op.f("ix_legislators_name"), "legislators", ["name"], unique=False)
     op.create_index(
