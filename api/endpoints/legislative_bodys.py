@@ -14,5 +14,5 @@ EndpointGenerator.add_crud_routes(
     create_schema=schemas.LegislativeBodyCreate,
     update_schema=schemas.LegislativeBody,
     response_schema=schemas.LegislativeBody,
-    resource="legislative_body",
+    resource_name="legislative_body",
 )
