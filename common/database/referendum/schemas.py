@@ -173,7 +173,6 @@ class User(UserBase):
 
 class VoteBase(BaseModel):
     bill_id: int
-    user_id: int
     vote_choice: VoteChoice
 
 
@@ -182,4 +181,6 @@ class VoteCreate(VoteBase):
 
 
 class Vote(VoteBase):
+    user_id: int
+
     model_config = ConfigDict(from_attributes=True)
