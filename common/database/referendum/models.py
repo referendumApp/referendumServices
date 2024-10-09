@@ -2,8 +2,6 @@ from sqlalchemy import Column, Enum, Integer, String, ForeignKey, Table, Date
 from sqlalchemy.orm import relationship, declarative_base
 import enum
 
-from common.database.postgres_core.utils import Base
-
 Base = declarative_base()
 
 user_topic_follows = Table(
@@ -106,7 +104,7 @@ class Legislator(Base):
     instagram = Column(String, nullable=True)
     phone = Column(String, nullable=True)
     twitter = Column(String, nullable=True)
- 
+
     party = relationship("Party")
 
 
@@ -120,4 +118,4 @@ class Vote(Base):
 
     user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
     bill_id = Column(Integer, ForeignKey("bills.id"), primary_key=True)
-    vote_type = Column(Enum(VoteChoice), nullable=False)
+    vote_choice = Column(Enum(VoteChoice), nullable=False)

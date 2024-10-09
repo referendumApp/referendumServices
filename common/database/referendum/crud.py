@@ -255,10 +255,10 @@ class VoteCRUD(BaseCRUD[models.Vote, schemas.VoteCreate, schemas.Vote]):
             )
 
             if existing_vote:
-                for key, value in user_vote.dict().items():
+                for key, value in user_vote.model_dump().items():
                     setattr(existing_vote, key, value)
             else:
-                existing_vote = self.model(**user_vote.dict())
+                existing_vote = self.model(**user_vote.model_dump())
                 db.add(existing_vote)
 
             db.commit()

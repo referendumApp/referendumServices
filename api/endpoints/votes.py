@@ -30,11 +30,10 @@ router = APIRouter()
 async def cast_vote(
     vote: schemas.VoteCreate,
     db: Session = Depends(get_db),
-    auth_info: Dict[str, Any] = Depends(get_current_user),
-) -> models.User:
-    current_user = auth_info["user"]
+    user: models.User = Depends(get_current_user),
+) -> models.Vote:
     try:
-        user_vote = schemas.Vote(**vote.model_dump(), user_id=current_user.id)
+        user_vote = schemas.Vote(**vote.model_dump(), user_id=user.id)
         return crud.vote.create_or_update_vote(db=db, user_vote=user_vote)
     except DatabaseException as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
@@ -68,11 +67,12 @@ async def get_votes(
 
     try:
         if user_id:
-            if user_id != auth_info["user"].id:
-                raise HTTPException(
-                    status_code=403,
-                    detail=f"User {auth_info['user'].id} not allowed to fetch all votes for user {user_id}",
-                )
+            if not auth_info.get("is_system"):
+                if user_id != auth_info["user"].id:
+                    raise HTTPException(
+                        status_code=403,
+                        detail=f"User {auth_info['user'].id} not allowed to fetch all votes for user {user_id}",
+                    )
             votes = crud.vote.get_votes_for_user(db=db, user_id=user_id)
         else:
             votes = crud.vote.get_votes_for_bill(db=db, bill_id=bill_id)
