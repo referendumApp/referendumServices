@@ -76,8 +76,10 @@ class Bill(Base):
     identifier = Column(String)
     title = Column(String)
     description = Column(String)
-    state_id = Column(Integer, index=True)
-    legislative_body_id = Column(Integer, index=True)
+    state_id = Column(Integer, ForeignKey("states.id"), index=True)
+    legislative_body_id = Column(
+        Integer, ForeignKey("legislative_bodys.id"), index=True
+    )
     session_id = Column(Integer, index=True)
     briefing = Column(String)
     status_id = Column(Integer)

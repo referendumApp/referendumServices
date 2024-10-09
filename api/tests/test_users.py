@@ -1,12 +1,4 @@
-from api.tests.test_utils import (
-    client,
-    system_headers,
-    assert_status_code,
-    test_bill,
-    test_legislator,
-    test_topic,
-    test_user_session,
-)
+from api.tests.test_utils import *  # Import everything to initialize all fixtures
 
 
 def test_create_user(test_user_session):

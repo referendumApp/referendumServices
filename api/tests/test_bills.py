@@ -1,6 +1,4 @@
-from datetime import date
-
-from api.tests.test_utils import client, assert_status_code, system_headers, test_bill
+from api.tests.test_utils import *  # Import everything to initialize all fixtures
 
 
 def test_add_bill_success(test_bill):

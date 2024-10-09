@@ -1,4 +1,3 @@
-from datetime import date
 from starlette.testclient import TestClient
 import pytest
 import random
@@ -7,7 +6,6 @@ import string
 from api.config import settings
 from api.main import app
 from api.security import create_access_token
-
 
 # Shared utility functions
 
@@ -32,6 +30,7 @@ def create_test_entity(endpoint, payload_func):
 
 
 # Fixtures
+# NOTE - to add a new fixture as a dependency, be sure to add it explicitly as a dependency
 
 
 @pytest.fixture(scope="function")
@@ -56,14 +55,42 @@ def test_topic():
 
 
 @pytest.fixture(scope="function")
-def test_bill():
+def test_state():
+    state_data = {"name": "Washington"}
+    state = create_test_entity("/states", lambda: state_data)
+    yield state
+    client.delete(f"/states/{state['id']}", headers=system_headers)
+
+
+@pytest.fixture(scope="function")
+def test_role():
+    role_data = {"name": "House"}
+    role = create_test_entity("/roles", lambda: role_data)
+    yield role
+    client.delete(f"/roles/{role['id']}", headers=system_headers)
+
+
+@pytest.fixture(scope="function")
+def test_legislative_body(test_state, test_role):
+    legislative_body_data = {"state_id": test_state["id"], "role_id": test_role["id"]}
+    legislative_body = create_test_entity(
+        "/legislative_bodys", lambda: legislative_body_data
+    )
+    yield legislative_body
+    client.delete(
+        f"/legislative_bodys/{legislative_body['id']}", headers=system_headers
+    )
+
+
+@pytest.fixture(scope="function")
+def test_bill(test_state, test_legislative_body):
     bill_data = {
         "legiscan_id": random.randint(100000, 999999),
         "identifier": f"H.B.{random.randint(1, 999)}",
         "title": f"Test Bill {generate_random_string()}",
         "description": "This is a test bill",
-        "state_id": 1,
-        "legislative_body_id": 1,
+        "state_id": test_state["id"],
+        "legislative_body_id": test_legislative_body["id"],
         "session_id": 118,
         "briefing": "yadayadayada",
         "status_id": 1,
