@@ -1,22 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List
 
 from common.database.referendum import crud, schemas, models
-from common.database.referendum.crud import (
-    ObjectAlreadyExistsException,
-    ObjectNotFoundException,
-    DatabaseException,
-)
+from common.database.referendum.crud import DatabaseException
 
 from ..database import get_db
-from ..schemas import UserCreateInput, ErrorResponse
-from ..security import (
-    get_current_user,
-    get_current_user_or_verify_system_token,
-    get_user_create_with_hashed_password,
-    verify_system_token,
-)
+from ..schemas import ErrorResponse
+from ..security import get_current_user, get_current_user_or_verify_system_token
+
 
 router = APIRouter()
 
