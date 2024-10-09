@@ -108,8 +108,16 @@ class BillCreate(BillBase):
     pass
 
 
-class Bill(BillBase):
+class BillRecord(BillBase):
     id: int
+
+    class Config:
+        from_attributes = True
+
+
+class Bill(BillRecord):
+    state: Optional[State] = None
+    legislative_body: Optional[LegislativeBody] = None
 
     model_config = ConfigDict(from_attributes=True)
 

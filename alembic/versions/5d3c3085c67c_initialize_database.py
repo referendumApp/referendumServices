@@ -85,13 +85,21 @@ def upgrade():
         sa.Column("identifier", sa.String(), nullable=True),
         sa.Column("title", sa.String(), nullable=True),
         sa.Column("description", sa.String(), nullable=True),
-        sa.Column("state_id", sa.String(), nullable=True),
-        sa.Column("legislative_body_id", sa.String(), nullable=True),
-        sa.Column("session_id", sa.String(), nullable=True),
+        sa.Column("state_id", sa.Integer(), nullable=True),
+        sa.Column("legislative_body_id", sa.Integer(), nullable=True),
+        sa.Column("session_id", sa.Integer(), nullable=True),
         sa.Column("briefing", sa.String(), nullable=True),
-        sa.Column("status_id", sa.String(), nullable=True),
+        sa.Column("status_id", sa.Integer(), nullable=True),
         sa.Column("status_date", sa.Date(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(
+            ["state_id"],
+            ["states.id"],
+        ),
+        sa.ForeignKeyConstraint(
+            ["legislative_body_id"],
+            ["legislative_bodys.id"],
+        ),
     )
     op.create_index(op.f("ix_bills_legiscan_id"), "bills", ["legiscan_id"], unique=True)
     op.create_index(op.f("ix_bills_state_id"), "bills", ["state_id"], unique=False)
