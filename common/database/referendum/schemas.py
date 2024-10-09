@@ -58,7 +58,8 @@ class State(StateBase):
 
 
 class LegislativeBodyBase(BaseModel):
-    name: str
+    role_id: int
+    state_id: int
 
 
 class LegislativeBodyCreate(LegislativeBodyBase):
