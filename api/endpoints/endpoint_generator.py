@@ -29,22 +29,22 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
         create_schema: Type[CreateSchema],
         update_schema: Type[UpdateSchema],
         response_schema: Type[ResponseSchema],
-        resource: str,
+        resource_name: str,
     ):
         @router.post(
-            f"/",
+            "/",
             response_model=response_schema,
             status_code=status.HTTP_201_CREATED,
-            summary=f"Create a new {resource}",
+            summary=f"Create a new {resource_name}",
             responses={
                 201: {
                     "model": response_schema,
-                    "description": f"{resource} successfully created",
+                    "description": f"{resource_name} successfully created",
                 },
                 403: {"model": ErrorResponse, "description": "Forbidden"},
                 409: {
                     "model": ErrorResponse,
-                    "description": f"{resource} already exists",
+                    "description": f"{resource_name} already exists",
                 },
                 500: {"model": ErrorResponse, "description": "Internal server error"},
             },
@@ -58,19 +58,25 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
                 return crud_model.create(db=db, obj_in=item)
             except ObjectAlreadyExistsException:
                 raise HTTPException(
-                    status_code=409, detail=f"{resource} already exists"
+                    status_code=409, detail=f"{resource_name} already exists"
                 )
             except DatabaseException as e:
                 raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
         @router.get(
-            f"/{{item_id}}",
+            "/{item_id}",
             response_model=response_schema,
-            summary=f"Get {resource} information",
+            summary=f"Get {resource_name} information",
             responses={
-                200: {"model": response_schema, "description": f"{resource} retrieved"},
+                200: {
+                    "model": response_schema,
+                    "description": f"{resource_name} retrieved",
+                },
                 401: {"model": ErrorResponse, "description": "Not authorized"},
-                404: {"model": ErrorResponse, "description": f"{resource} not found"},
+                404: {
+                    "model": ErrorResponse,
+                    "description": f"{resource_name} not found",
+                },
                 500: {"model": ErrorResponse, "description": "Internal server error"},
             },
         )
@@ -83,22 +89,26 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
                 return crud_model.read(db=db, obj_id=item_id)
             except ObjectNotFoundException:
                 raise HTTPException(
-                    status_code=404, detail=f"{resource} not found for ID: {item_id}"
+                    status_code=404,
+                    detail=f"{resource_name} not found for ID: {item_id}",
                 )
             except DatabaseException as e:
                 raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
         @router.put(
-            f"/",
+            "/",
             response_model=response_schema,
-            summary=f"Update {resource} information",
+            summary=f"Update {resource_name} information",
             responses={
                 200: {
                     "model": response_schema,
-                    "description": f"{resource} information successfully updated",
+                    "description": f"{resource_name} information successfully updated",
                 },
                 403: {"model": ErrorResponse, "description": "Forbidden"},
-                404: {"model": ErrorResponse, "description": f"{resource} not found"},
+                404: {
+                    "model": ErrorResponse,
+                    "description": f"{resource_name} not found",
+                },
                 500: {"model": ErrorResponse, "description": "Internal server error"},
             },
         )
@@ -112,19 +122,23 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
                 return crud_model.update(db=db, db_obj=db_item, obj_in=item)
             except ObjectNotFoundException:
                 raise HTTPException(
-                    status_code=404, detail=f"{resource} not found for ID: {item.id}"
+                    status_code=404,
+                    detail=f"{resource_name} not found for ID: {item.id}",
                 )
             except DatabaseException as e:
                 raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
         @router.delete(
-            f"/{{item_id}}",
+            "/{item_id}",
             status_code=status.HTTP_204_NO_CONTENT,
-            summary=f"Delete a {resource}",
+            summary=f"Delete a {resource_name}",
             responses={
-                204: {"description": f"{resource} successfully deleted"},
+                204: {"description": f"{resource_name} successfully deleted"},
                 403: {"model": ErrorResponse, "description": "Forbidden"},
-                404: {"model": ErrorResponse, "description": f"{resource} not found"},
+                404: {
+                    "model": ErrorResponse,
+                    "description": f"{resource_name} not found",
+                },
                 500: {"model": ErrorResponse, "description": "Internal server error"},
             },
         )
@@ -137,19 +151,20 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
                 return crud_model.delete(db=db, obj_id=item_id)
             except ObjectNotFoundException:
                 raise HTTPException(
-                    status_code=404, detail=f"{resource} not found for ID: {item_id}"
+                    status_code=404,
+                    detail=f"{resource_name} not found for ID: {item_id}",
                 )
             except DatabaseException as e:
                 raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
         @router.get(
-            f"/",
+            "/",
             response_model=List[response_schema],
-            summary=f"Get all {resource}s",
+            summary=f"Get all {resource_name}s",
             responses={
                 200: {
                     "model": List[response_schema],
-                    "description": f"{resource}s successfully retrieved",
+                    "description": f"{resource_name}s successfully retrieved",
                 },
                 401: {"model": ErrorResponse, "description": "Not authorized"},
                 500: {"model": ErrorResponse, "description": "Internal server error"},

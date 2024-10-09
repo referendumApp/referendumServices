@@ -85,13 +85,21 @@ def upgrade():
         sa.Column("identifier", sa.String(), nullable=True),
         sa.Column("title", sa.String(), nullable=True),
         sa.Column("description", sa.String(), nullable=True),
-        sa.Column("state_id", sa.String(), nullable=True),
-        sa.Column("legislative_body_id", sa.String(), nullable=True),
-        sa.Column("session_id", sa.String(), nullable=True),
+        sa.Column("state_id", sa.Integer(), nullable=True),
+        sa.Column("legislative_body_id", sa.Integer(), nullable=True),
+        sa.Column("session_id", sa.Integer(), nullable=True),
         sa.Column("briefing", sa.String(), nullable=True),
-        sa.Column("status_id", sa.String(), nullable=True),
+        sa.Column("status_id", sa.Integer(), nullable=True),
         sa.Column("status_date", sa.Date(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(
+            ["state_id"],
+            ["states.id"],
+        ),
+        sa.ForeignKeyConstraint(
+            ["legislative_body_id"],
+            ["legislative_bodys.id"],
+        ),
     )
     op.create_index(op.f("ix_bills_legiscan_id"), "bills", ["legiscan_id"], unique=True)
     op.create_index(op.f("ix_bills_state_id"), "bills", ["state_id"], unique=False)
@@ -110,13 +118,17 @@ def upgrade():
         sa.Column("name", sa.String(), nullable=True),
         sa.Column("image_url", sa.String(), nullable=True),
         sa.Column("district", sa.String(), nullable=True),
-        sa.Column("party_id", sa.Integer(), nullable=False),
+        sa.Column("party_id", sa.Integer(), nullable=True),
         sa.Column("address", sa.String(), nullable=True),
         sa.Column("facebook", sa.String(), nullable=True),
         sa.Column("instagram", sa.String(), nullable=True),
         sa.Column("phone", sa.String(), nullable=True),
         sa.Column("twitter", sa.String(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(
+            ["party_id"],
+            ["partys.id"],
+        ),
     )
     op.create_index(op.f("ix_legislators_name"), "legislators", ["name"], unique=False)
     op.create_index(
@@ -156,8 +168,22 @@ def upgrade():
         ),
     )
 
+    op.create_table(
+        "votes",
+        sa.Column("user_id", sa.Integer(), nullable=False),
+        sa.Column("bill_id", sa.Integer(), nullable=False),
+        sa.Column(
+            "vote_choice", sa.Enum("YES", "NO", name="votechoice"), nullable=False
+        ),
+        sa.ForeignKeyConstraint(["bill_id"], ["bills.id"]),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"]),
+        sa.PrimaryKeyConstraint("user_id", "bill_id"),
+    )
+
 
 def downgrade():
+    op.drop_table("votes")
+    op.execute("DROP TYPE votechoice")
     op.drop_table("user_bill_follows")
     op.drop_table("user_topic_follows")
     op.drop_table("legislators")
