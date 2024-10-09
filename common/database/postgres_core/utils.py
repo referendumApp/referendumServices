@@ -1,6 +1,6 @@
 import os
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
 
 def get_connection_string(db_name: str):
@@ -14,6 +14,3 @@ def create_session(db_name: str):
     connection_string = get_connection_string(db_name)
     engine = create_engine(connection_string)
     return sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-Base = declarative_base()
