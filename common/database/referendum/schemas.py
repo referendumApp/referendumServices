@@ -114,8 +114,7 @@ class BillCreate(BillBase):
 class BillRecord(BillBase):
     id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class Bill(BillRecord):
@@ -175,7 +174,7 @@ class User(UserBase):
 class VoteBase(BaseModel):
     bill_id: int
     user_id: int
-    vote_type: VoteChoice
+    vote_choice: VoteChoice
 
 
 class VoteCreate(VoteBase):
@@ -183,5 +182,4 @@ class VoteCreate(VoteBase):
 
 
 class Vote(VoteBase):
-
     model_config = ConfigDict(from_attributes=True)

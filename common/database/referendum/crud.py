@@ -1,8 +1,16 @@
 from sqlalchemy.orm import Session, noload
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+from sqlalchemy import and_, or_, not_, func
+from typing import List, Type, Generic, TypeVar, Dict, Any, Union
+from pydantic import BaseModel
 from typing import List, TypeVar, Type, Generic
 
 from common.database.referendum import models, schemas
+
+
+ModelType = TypeVar("ModelType", bound=models.Base)
+CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
+UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 
 T = TypeVar("T")
 
@@ -27,11 +35,11 @@ class NullValueException(Exception):
     pass
 
 
-class BaseCRUD(Generic[T]):
-    def __init__(self, model: Type[T]):
+class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
+    def __init__(self, model: Type[ModelType]):
         self.model = model
 
-    def create(self, db: Session, obj_in: schemas.BaseModel) -> T:
+    def create(self, db: Session, obj_in: CreateSchemaType) -> ModelType:
         try:
             obj_data = obj_in.model_dump()
             for field, value in obj_data.items():
@@ -66,16 +74,37 @@ class BaseCRUD(Generic[T]):
             raise ObjectNotFoundException("Object not found")
         return db_obj
 
-    def read_all(self, db: Session, skip: int = 0, limit: int = 100) -> List[T]:
+    def read_all(
+        self, db: Session, *, skip: int = 0, limit: int = 100
+    ) -> List[ModelType]:
         return db.query(self.model).offset(skip).limit(limit).all()
 
-    def update(self, db: Session, db_obj: T, obj_in: schemas.BaseModel) -> T:
+    def read_filtered(
+        self, db: Session, *, filters: Dict[str, Any], skip: int = 0, limit: int = 100
+    ) -> List[ModelType]:
+        query = db.query(self.model)
+        for prop, value in filters.items():
+            query = query.filter(getattr(self.model, prop) == value)
+        return query.offset(skip).limit(limit).all()
+
+    def update(
+        self,
+        db: Session,
+        *,
+        db_obj: ModelType,
+        obj_in: Union[UpdateSchemaType, Dict[str, Any]],
+    ) -> ModelType:
         if db_obj is None:
             raise ObjectNotFoundException("Object not found")
         try:
             obj_data = obj_in.model_dump(exclude_unset=True)
-            for key, value in obj_data.items():
-                setattr(db_obj, key, value)
+            if isinstance(obj_in, dict):
+                update_data = obj_in
+            else:
+                update_data = obj_in.model_dump(exclude_unset=True)
+            for field in obj_data:
+                if field in update_data:
+                    setattr(db_obj, field, update_data[field])
             db.add(db_obj)
             db.commit()
             db.refresh(db_obj)
@@ -96,7 +125,7 @@ class BaseCRUD(Generic[T]):
             raise DatabaseException(f"Database error: {str(e)}")
 
 
-class BillCRUD(BaseCRUD[models.Bill]):
+class BillCRUD(BaseCRUD[models.Bill, schemas.BillCreate, schemas.BillRecord]):
     def get_bill_by_legiscan_id(self, db: Session, legiscan_id: int) -> models.Bill:
         try:
             bill = (
@@ -113,31 +142,37 @@ class BillCRUD(BaseCRUD[models.Bill]):
             raise DatabaseException(f"Database error: {str(e)}")
 
 
-class LegislatorCRUD(BaseCRUD[models.Legislator]):
+class LegislatorCRUD(
+    BaseCRUD[models.Legislator, schemas.LegislatorCreate, schemas.Legislator]
+):
     pass
 
 
-class LegislativeBodyCRUD(BaseCRUD[models.LegislativeBody]):
+class LegislativeBodyCRUD(
+    BaseCRUD[
+        models.LegislativeBody, schemas.LegislativeBodyCreate, schemas.LegislativeBody
+    ]
+):
     pass
 
 
-class PartyCRUD(BaseCRUD[models.Party]):
+class PartyCRUD(BaseCRUD[models.Party, schemas.PartyCreate, schemas.Party]):
     pass
 
 
-class RoleCRUD(BaseCRUD[models.Role]):
+class RoleCRUD(BaseCRUD[models.Role, schemas.RoleCreate, schemas.Role]):
     pass
 
 
-class StateCRUD(BaseCRUD[models.State]):
+class StateCRUD(BaseCRUD[models.State, schemas.StateCreate, schemas.State]):
     pass
 
 
-class TopicCRUD(BaseCRUD[models.Topic]):
+class TopicCRUD(BaseCRUD[models.Topic, schemas.TopicCreate, schemas.Topic]):
     pass
 
 
-class UserCRUD(BaseCRUD[models.User]):
+class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
     def get_user_by_email(self, db: Session, email: str) -> models.User:
         try:
             user = (
@@ -209,7 +244,7 @@ class UserCRUD(BaseCRUD[models.User]):
             raise DatabaseException(f"Database error: {str(e)}")
 
 
-class VoteCRUD(BaseCRUD[models.Vote]):
+class VoteCRUD(BaseCRUD[models.Vote, schemas.VoteCreate, schemas.Vote]):
     pass
 
 
