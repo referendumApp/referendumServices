@@ -169,9 +169,6 @@ def load(etl_configs):
                 try:
                     # Execute the insertion query
                     referendum_db.execute(text(sql_query), row_data)
-                    logger.info(
-                        f"LOAD: Inserted row {index + 1} into '{destination_table}'"
-                    )
                 except Exception as e:
                     logger.error(
                         f"Error inserting row {index + 1} into '{destination_table}': {e}"
@@ -245,7 +242,7 @@ def orchestrate_etl():
                     "parameters": {
                         "columns": {
                             "bill_id": "legiscan_id",
-                            "identifier": "bill_number",
+                            "bill_number": "identifier",
                             "body_id": "legislative_body_id",
                         }
                     },
