@@ -14,5 +14,5 @@ EndpointGenerator.add_crud_routes(
     create_schema=schemas.StateCreate,
     update_schema=schemas.State,
     response_schema=schemas.State,
-    resource="state",
+    resource_identifier="state",
 )

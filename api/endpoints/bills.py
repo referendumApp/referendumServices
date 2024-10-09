@@ -17,7 +17,7 @@ EndpointGenerator.add_crud_routes(
     create_schema=schemas.BillCreate,
     update_schema=schemas.BillRecord,
     response_schema=schemas.Bill,
-    resource="bill",
+    resource_identifier="bill",
 )
 
 

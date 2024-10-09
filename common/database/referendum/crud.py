@@ -1,9 +1,7 @@
 from sqlalchemy.orm import Session, noload
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
-from sqlalchemy import and_, or_, not_, func
-from typing import List, Type, Generic, TypeVar, Dict, Any, Union
 from pydantic import BaseModel
-from typing import List, TypeVar, Type, Generic
+from typing import Any, Dict, Generic, List, TypeVar, Type, Union
 
 from common.database.referendum import models, schemas
 
@@ -256,3 +254,4 @@ role = UserCRUD(models.Role)
 state = UserCRUD(models.State)
 topic = TopicCRUD(models.Topic)
 user = UserCRUD(models.User)
+vote = VoteCRUD(models.Vote)
