@@ -128,11 +128,11 @@ def transform(etl_configs) -> Dict[str, pd.DataFrame]:
 
 
 def load(etl_configs):
-    logger.info("LOAD: Loading data")
     referendum_db = next(get_referendum_db())
 
     if check_db_connection(referendum_db):
         logger.info("LOAD: Successfully connected to Referendum database")
+        logger.info("LOAD: Loading data")
 
         for config in etl_configs:
             destination_table = config["destination"]
@@ -161,7 +161,8 @@ def load(etl_configs):
                     index=False,
                 )
             except Exception as e:
-                logger.error(f"Error inserting data into '{destination_table}': {e}")
+                logger.error("Error inserting data")
+                # logger.error(f"Error inserting data into '{destination_table}': {e}")
                 raise
 
             # Log that the insert was successful
@@ -215,6 +216,7 @@ def load(etl_configs):
                         logger.info(
                             f"LOAD: Columns in '{table_name}' table: {column_names}"
                         )
+
                     except Exception as e:
                         logger.error(
                             f"Error fetching columns for table '{table_name}': {e}"
@@ -243,6 +245,36 @@ def orchestrate_etl():
                 {
                     "function": "rename",
                     "parameters": {"columns": {"state_id": "id", "state_name": "name"}},
+                },
+            ],
+            "dataframe": None,
+        },
+        {
+            "source": "ls_role",
+            "destination": "roles",
+            "transformations": [
+                {
+                    "function": "keep_columns",
+                    "parameters": {"columns": ["role_id", "role_name"]},
+                },
+                {
+                    "function": "rename",
+                    "parameters": {"columns": {"role_id": "id", "role_name": "name"}},
+                },
+            ],
+            "dataframe": None,
+        },
+        {
+            "source": "ls_body",
+            "destination": "legislative_bodys",
+            "transformations": [
+                {
+                    "function": "keep_columns",
+                    "parameters": {"columns": ["body_id", "state_id", "role_id"]},
+                },
+                {
+                    "function": "rename",
+                    "parameters": {"columns": {"body_id": "id"}},
                 },
             ],
             "dataframe": None,
