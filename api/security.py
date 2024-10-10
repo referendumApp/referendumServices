@@ -100,7 +100,7 @@ async def get_current_user_or_verify_system_token(
             logger.info(f"User authenticated: {user.email}")
             return {"is_system": False, "user": user}
         except crud.ObjectNotFoundException:
-            logger.warning(f"User not found for provided token")
+            logger.warning("User not found for provided token")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Could not find user for credentials",

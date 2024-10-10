@@ -70,10 +70,12 @@ class Committee(Base):
     __tablename__ = "committees"
 
     id = Column(Integer, primary_key=True)
-    legislative_body_id = Column(
-        Integer, ForeignKey("legislative_bodys.id"), primary_key=True
-    )
+    legislative_body_id = Column(Integer, ForeignKey("legislative_bodys.id"))
     name = Column(String, unique=True, nullable=False)
+
+    legislators = relationship(
+        "Legislator", secondary=committee_membership, back_populates="committees"
+    )
 
 
 class User(Base):
@@ -124,7 +126,9 @@ class Legislator(Base):
     twitter = Column(String, nullable=True)
 
     party = relationship("Party")
-    committees = relationship("Committee", secondary=committee_membership)
+    committees = relationship(
+        "Committee", secondary=committee_membership, back_populates="legislators"
+    )
 
 
 class VoteChoice(enum.Enum):
