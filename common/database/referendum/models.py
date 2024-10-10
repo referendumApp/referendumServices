@@ -35,6 +35,13 @@ bill_sponsors = Table(
     Column("is_primary_sponsor", Boolean, nullable=False),
 )
 
+bill_topics = Table(
+    "bill_topics",
+    Base.metadata,
+    Column("bill_id", Integer, ForeignKey("bills.id"), primary_key=True),
+    Column("topic_id", Integer, ForeignKey("topics.id"), primary_key=True),
+)
+
 
 class Party(Base):
     __tablename__ = "partys"
@@ -117,6 +124,7 @@ class Bill(Base):
     status_date = Column(Date, nullable=True)
 
     state = relationship("State")
+    topics = relationship("Topic", secondary=bill_topics)
     legislative_body = relationship("LegislativeBody")
     sponsors = relationship(
         "Legislator", secondary=bill_sponsors, back_populates="sponsored_bills"
