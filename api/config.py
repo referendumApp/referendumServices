@@ -28,7 +28,7 @@ def setup_logging():
     try:
         # Create the CloudWatch handler
         logs_client = boto3.client("logs", region_name=settings.AWS_REGION)
-        log_group_name = f"{settings.PROJECT_NAME}-logs"
+        log_group_name = f"referendum-apilogs"
         try:
             logs_client.create_log_group(logGroupName=log_group_name)
             print(f"Created log group: {log_group_name}")
