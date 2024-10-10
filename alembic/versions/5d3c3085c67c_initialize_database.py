@@ -123,6 +123,7 @@ def upgrade():
     op.create_table(
         "legislators",
         sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("legiscan_id", sa.Integer(), nullable=False),
         sa.Column("name", sa.String(), nullable=True),
         sa.Column("image_url", sa.String(), nullable=True),
         sa.Column("district", sa.String(), nullable=True),
@@ -139,6 +140,8 @@ def upgrade():
         ),
     )
     op.create_index(op.f("ix_legislators_name"), "legislators", ["name"], unique=False)
+    op.create_index(op.f("ix_legiscan_id"), "legislators", ["legiscan_id"], unique=True)
+
     op.create_index(
         op.f("ix_legislator_name_district"),
         "legislators",
