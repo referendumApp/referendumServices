@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 import boto3
 import logging
 import watchtower
+from typing import Optional
 
 
 class Settings(BaseSettings):
@@ -17,28 +18,22 @@ class Settings(BaseSettings):
     SECRET_KEY: str
 
     # AWS
-    AWS_REGION: str | None = "us-east-2"
+    AWS_REGION: Optional[str] = "us-east-2"
     ALPHA_BUCKET_NAME: str = "referendum-app-alpha"
     FEEDBACK_FILE_NAME: str = "feedback.json"
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 
 
-def setup_logging():
+def setup_logging(settings: Settings) -> None:
     try:
-        # Create the CloudWatch handler
         logs_client = boto3.client("logs", region_name=settings.AWS_REGION)
-        log_group_name = f"referendum-apilogs"
-        try:
-            logs_client.create_log_group(logGroupName=log_group_name)
-            print(f"Created log group: {log_group_name}")
-        except logs_client.exceptions.ResourceAlreadyExistsException:
-            print(f"Log group already exists: {log_group_name}")
+        log_group_name = "referendum-api-logs"
+
         cloudwatch_handler = watchtower.CloudWatchLogHandler(
-            log_group=f"referendum-api-logs",
+            log_group=log_group_name,
             stream_name=f"{settings.ENVIRONMENT}-logs",
-            use_queues=False,
-            create_log_group=False,
+            create_log_group=True,
             boto3_client=logs_client,
         )
 
@@ -56,17 +51,14 @@ def setup_logging():
 
     except Exception as e:
         logging.error(f"Failed to set up CloudWatch logging: {e}")
-        # Fallback to basic logging
+        logging.warning("Falling back to basic logging")
         logging.basicConfig(level=settings.LOG_LEVEL)
-        logging.warning(
-            "Falling back to basic logging due to CloudWatch setup failure."
-        )
 
 
 @lru_cache()
-def get_settings():
+def get_settings() -> Settings:
     return Settings()
 
 
 settings = get_settings()
-setup_logging()
+setup_logging(settings)
