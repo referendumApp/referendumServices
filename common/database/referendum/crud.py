@@ -163,7 +163,7 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.BillCreate, schemas.BillRecord]):
         db.commit()
 
     def add_sponsor(
-        self, db: Session, bill_id: int, legislator_id: int, is_primary: bool
+        self, db: Session, bill_id: int, legislator_id: int, is_primary: bool = False
     ):
         db_bill = self.read(db=db, obj_id=bill_id)
         db_legislator = (
@@ -175,10 +175,32 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.BillCreate, schemas.BillRecord]):
             raise ObjectNotFoundException(
                 f"Legislator not found for id: {legislator_id}"
             )
-        db_bill.sponsors.append(db_legislator)
+
+        # Check if the sponsor already exists
+        existing_sponsor = [
+            sponsor
+            for sponsor in db_bill.sponsors
+            if sponsor.legislator_id == legislator_id
+        ]
+        if existing_sponsor:
+            existing_sponsor = existing_sponsor[0]
+            if existing_sponsor.is_primary != is_primary:
+                existing_sponsor.is_primary = is_primary
+                db.commit()
+        else:
+            db.execute(
+                models.bill_sponsors.insert().values(
+                    bill_id=bill_id, legislator_id=legislator_id, is_primary=is_primary
+                )
+            )
         db.commit()
 
-    def remove_sponsor(self, db: Session, bill_id: int, legislator_id: int):
+    def remove_sponsor(
+        self,
+        db: Session,
+        bill_id: int,
+        legislator_id: int,
+    ):
         db_bill = self.read(db=db, obj_id=bill_id)
         db_legislator = (
             db.query(models.Legislator)
@@ -189,11 +211,11 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.BillCreate, schemas.BillRecord]):
             raise ObjectNotFoundException(
                 f"Legislator not found for id: {legislator_id}"
             )
-        if db_legislator not in db_bill.legislators:
+        if db_legislator not in db_bill.sponsors:
             raise ObjectNotFoundException(
-                f"Cannot unfollow, bill {bill_id} does not have sponsor {legislator_id}"
+                f"Cannot remove, bill {bill_id} does not have sponsor {legislator_id}"
             )
-        db_bill.topics.remove(db_legislator)
+        db_bill.sponsors.remove(db_legislator)
         db.commit()
 
 

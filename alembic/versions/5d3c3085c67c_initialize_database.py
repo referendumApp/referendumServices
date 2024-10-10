@@ -195,6 +195,7 @@ def upgrade():
         "bill_sponsors",
         sa.Column("bill_id", sa.Integer(), nullable=False),
         sa.Column("legislator_id", sa.Integer(), nullable=False),
+        sa.Column("is_primary", sa.Boolean(), nullable=False, default=False),
         sa.ForeignKeyConstraint(
             ["bill_id"],
             ["bills.id"],

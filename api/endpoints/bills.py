@@ -109,7 +109,7 @@ def remove_topic(
 
 
 @router.post(
-    "/{bill_id}/sponsors/{topic_id}",
+    "/{bill_id}/sponsors/{legislator_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Add sponsor to a bill",
     responses={
@@ -141,7 +141,7 @@ def add_sponsor(
 
 
 @router.delete(
-    "/{bill_id}/sponsors/{topic_id}",
+    "/{bill_id}/sponsors/{legislator_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Remove sponsor from a bill",
     responses={
