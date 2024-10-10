@@ -20,7 +20,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade():
-    # Create users table
     op.create_table(
         "users",
         sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
@@ -31,7 +30,6 @@ def upgrade():
     )
     op.create_index(op.f("ix_users_email"), "users", ["email"], unique=True)
 
-    # Create topics table
     op.create_table(
         "topics",
         sa.Column("id", sa.Integer(), nullable=False),
@@ -77,7 +75,18 @@ def upgrade():
         ),
     )
 
-    # Create bills table
+    op.create_table(
+        "committees",
+        sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("name", sa.String(), nullable=False),
+        sa.Column("legislative_body_id", sa.Integer(), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(
+            ["legislative_body_id"],
+            ["legislative_bodys.id"],
+        ),
+    )
+
     op.create_table(
         "bills",
         sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
@@ -111,10 +120,10 @@ def upgrade():
     )
     op.create_index(op.f("ix_bills_session_id"), "bills", ["session_id"], unique=False)
 
-    # Create legislators table
     op.create_table(
         "legislators",
         sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("legiscan_id", sa.Integer(), nullable=False),
         sa.Column("name", sa.String(), nullable=True),
         sa.Column("image_url", sa.String(), nullable=True),
         sa.Column("district", sa.String(), nullable=True),
@@ -131,6 +140,8 @@ def upgrade():
         ),
     )
     op.create_index(op.f("ix_legislators_name"), "legislators", ["name"], unique=False)
+    op.create_index(op.f("ix_legiscan_id"), "legislators", ["legiscan_id"], unique=True)
+
     op.create_index(
         op.f("ix_legislator_name_district"),
         "legislators",
@@ -138,11 +149,10 @@ def upgrade():
         unique=True,
     )
 
-    # Create user_topic_follows table
     op.create_table(
         "user_topic_follows",
-        sa.Column("user_id", sa.Integer()),
-        sa.Column("topic_id", sa.Integer()),
+        sa.Column("user_id", sa.Integer(), nullable=False),
+        sa.Column("topic_id", sa.Integer(), nullable=False),
         sa.ForeignKeyConstraint(
             ["topic_id"],
             ["topics.id"],
@@ -151,13 +161,13 @@ def upgrade():
             ["user_id"],
             ["users.id"],
         ),
+        sa.PrimaryKeyConstraint("user_id", "topic_id"),
     )
 
-    # Create user_bill_follows table
     op.create_table(
         "user_bill_follows",
-        sa.Column("user_id", sa.Integer()),
-        sa.Column("bill_id", sa.Integer()),
+        sa.Column("user_id", sa.Integer(), nullable=False),
+        sa.Column("bill_id", sa.Integer(), nullable=False),
         sa.ForeignKeyConstraint(
             ["bill_id"],
             ["bills.id"],
@@ -166,6 +176,37 @@ def upgrade():
             ["user_id"],
             ["users.id"],
         ),
+        sa.PrimaryKeyConstraint("user_id", "bill_id"),
+    )
+
+    op.create_table(
+        "committee_membership",
+        sa.Column("committee_id", sa.Integer(), nullable=False),
+        sa.Column("legislator_id", sa.Integer(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["committee_id"],
+            ["committees.id"],
+        ),
+        sa.ForeignKeyConstraint(
+            ["legislator_id"],
+            ["legislators.id"],
+        ),
+        sa.PrimaryKeyConstraint("committee_id", "legislator_id"),
+    )
+
+    op.create_table(
+        "bill_topics",
+        sa.Column("bill_id", sa.Integer(), nullable=False),
+        sa.Column("topic_id", sa.Integer(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["bill_id"],
+            ["bills.id"],
+        ),
+        sa.ForeignKeyConstraint(
+            ["topic_id"],
+            ["topics.id"],
+        ),
+        sa.PrimaryKeyConstraint("bill_id", "topic_id"),
     )
 
     op.create_table(

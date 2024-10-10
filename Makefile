@@ -6,13 +6,13 @@ build:
 
 # Run the application in local development mode
 api:
-	docker compose --profile dev build
-	docker compose --profile dev up
+	docker compose --profile local build
+	docker compose --profile local up
 
 # Run the pipeline in local development mode
 pipeline:
-	docker compose --profile pipeline --profile dev build
-	docker compose --profile pipeline --profile dev up
+	docker compose --profile pipeline --profile local build
+	docker compose --profile pipeline --profile local up
 
 # Run the tests
 test:
@@ -27,7 +27,7 @@ clean:
 
 # Start a shell in the app container
 shell:
-	docker compose --profile dev run --rm app sh
+	docker compose --profile local run --rm app sh
 
 # View logs
 logs:

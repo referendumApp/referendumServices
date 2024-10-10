@@ -74,6 +74,24 @@ class LegislativeBody(LegislativeBodyBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+# Committee
+
+
+class CommitteeBase(BaseModel):
+    name: str
+    legislative_body_id: int
+
+
+class CommitteeCreate(CommitteeBase):
+    pass
+
+
+class Committee(CommitteeBase):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # Topics
 
 
@@ -120,6 +138,7 @@ class BillRecord(BillBase):
 class Bill(BillRecord):
     state: Optional[State] = None
     legislative_body: Optional[LegislativeBody] = None
+    topics: List[Topic] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -128,6 +147,7 @@ class Bill(BillRecord):
 
 
 class LegislatorBase(BaseModel):
+    legiscan_id: int
     name: str
     image_url: Optional[str]
     district: str
@@ -144,8 +164,14 @@ class LegislatorCreate(LegislatorBase):
     pass
 
 
-class Legislator(LegislatorBase):
+class LegislatorRecord(LegislatorBase):
     id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class Legislator(LegislatorRecord):
+    committees: List[Committee]
 
     model_config = ConfigDict(from_attributes=True)
 

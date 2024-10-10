@@ -84,6 +84,17 @@ def test_legislative_body(test_state, test_role):
 
 
 @pytest.fixture(scope="function")
+def test_committee(test_legislative_body):
+    committee_data = {
+        "name": f"Test Committee {generate_random_string()}",
+        "legislative_body_id": test_legislative_body["id"],
+    }
+    committee = create_test_entity("/committees", lambda: committee_data)
+    yield committee
+    client.delete(f"/committees/{committee['id']}", headers=system_headers)
+
+
+@pytest.fixture(scope="function")
 def test_bill(test_state, test_legislative_body):
     bill_data = {
         "legiscan_id": random.randint(100000, 999999),
@@ -113,6 +124,7 @@ def test_party():
 @pytest.fixture(scope="function")
 def test_legislator(test_party):
     legislator_data = {
+        "legiscan_id": f"{random.randint(100,999)}",
         "name": f"John Doe {generate_random_string()}",
         "image_url": "example.com/image.png",
         "district": f"DC-{random.randint(100,999)}",

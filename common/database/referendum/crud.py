@@ -5,6 +5,9 @@ from typing import Any, Dict, Generic, List, TypeVar, Type, Union
 
 from common.database.referendum import models, schemas
 
+import logging
+
+logger = logging.getLogger(__name__)
 
 ModelType = TypeVar("ModelType", bound=models.Base)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
@@ -139,9 +142,80 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.BillCreate, schemas.BillRecord]):
         except SQLAlchemyError as e:
             raise DatabaseException(f"Database error: {str(e)}")
 
+    def add_topic(self, db: Session, bill_id: int, topic_id: int):
+        db_bill = self.read(db=db, obj_id=bill_id)
+        db_topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
+        if not db_topic:
+            raise ObjectNotFoundException(f"Topic not found for id: {topic_id}")
+        db_bill.topics.append(db_topic)
+        db.commit()
+
+    def remove_topic(self, db: Session, bill_id: int, topic_id: int):
+        db_bill = self.read(db=db, obj_id=bill_id)
+        db_topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
+        if not db_topic:
+            raise ObjectNotFoundException(f"Topic not found for id: {topic_id}")
+        if db_topic not in db_bill.topics:
+            raise ObjectNotFoundException(
+                f"Cannot unfollow, bill {bill_id} does not have topic {topic_id}"
+            )
+        db_bill.topics.remove(db_topic)
+        db.commit()
+
+
+class CommitteeCRUD(
+    BaseCRUD[models.Committee, schemas.CommitteeCreate, schemas.Committee]
+):
+    def add_legislator_membership(
+        self, db: Session, committee_id: int, legislator_id: int
+    ):
+        db_committee = self.read(db=db, obj_id=committee_id)
+        db_legislator = (
+            db.query(models.Legislator)
+            .filter(models.Legislator.id == legislator_id)
+            .first()
+        )
+        if not db_legislator:
+            raise ObjectNotFoundException(
+                f"Legislator not found for id: {legislator_id}"
+            )
+        db_committee.legislators.append(db_legislator)
+        db.commit()
+
+    def remove_legislator_membership(
+        self, db: Session, committee_id: int, legislator_id: int
+    ):
+        db_committee = self.read(db=db, obj_id=committee_id)
+        db_legislator = (
+            db.query(models.Legislator)
+            .filter(models.Legislator.id == legislator_id)
+            .first()
+        )
+        if not db_legislator:
+            raise ObjectNotFoundException(
+                f"Legislator not found for id: {legislator_id}"
+            )
+        if db_legislator not in db_committee.legislators:
+            raise ObjectNotFoundException(
+                f"Cannot remove legislator membership, legislator {legislator_id} is not in committee {committee_id}"
+            )
+        db_committee.legislators.remove(db_legislator)
+        db.commit()
+
+    def get_legislators(
+        self, db: Session, committee_id: int
+    ) -> List[models.Legislator]:
+        try:
+            db_committee = self.read(db=db, obj_id=committee_id)
+            if db_committee is None:
+                raise ObjectNotFoundException(f"User not found for id: {committee_id}")
+            return db_committee.legislators
+        except SQLAlchemyError as e:
+            raise DatabaseException(f"Database error: {str(e)}")
+
 
 class LegislatorCRUD(
-    BaseCRUD[models.Legislator, schemas.LegislatorCreate, schemas.Legislator]
+    BaseCRUD[models.Legislator, schemas.LegislatorCreate, schemas.LegislatorRecord]
 ):
     pass
 
@@ -173,15 +247,15 @@ class TopicCRUD(BaseCRUD[models.Topic, schemas.TopicCreate, schemas.Topic]):
 class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
     def get_user_by_email(self, db: Session, email: str) -> models.User:
         try:
-            user = (
+            db_user = (
                 db.query(models.User)
                 # TODO - reenable this to avoid querying all relationships on authentication
                 # .options(noload(models.User.topics), noload(models.User.bills))
                 .filter(models.User.email == email).first()
             )
-            if user is None:
+            if db_user is None:
                 raise ObjectNotFoundException(f"User with email {email} not found")
-            return user
+            return db_user
         except SQLAlchemyError as e:
             raise DatabaseException(f"Database error: {str(e)}")
 
@@ -208,7 +282,7 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
     def get_user_topics(self, db: Session, user_id: int) -> List[models.Topic]:
         try:
             db_user = db.query(models.User).filter(models.User.id == user_id).first()
-            if user is None:
+            if db_user is None:
                 raise ObjectNotFoundException(f"User not found for id: {user_id}")
             return db_user.followed_topics
         except SQLAlchemyError as e:
@@ -276,6 +350,7 @@ class VoteCRUD(BaseCRUD[models.Vote, schemas.VoteCreate, schemas.Vote]):
 
 
 bill = BillCRUD(models.Bill)
+committee = CommitteeCRUD(models.Committee)
 legislator = LegislatorCRUD(models.Legislator)
 legislative_body = LegislativeBodyCRUD(models.LegislativeBody)
 party = UserCRUD(models.Party)

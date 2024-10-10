@@ -19,6 +19,22 @@ user_bill_follows = Table(
 )
 
 
+committee_membership = Table(
+    "committee_membership",
+    Base.metadata,
+    Column("committee_id", Integer, ForeignKey("committees.id"), primary_key=True),
+    Column("legislator_id", Integer, ForeignKey("legislators.id"), primary_key=True),
+)
+
+
+bill_topics = Table(
+    "bill_topics",
+    Base.metadata,
+    Column("bill_id", Integer, ForeignKey("bills.id"), primary_key=True),
+    Column("topic_id", Integer, ForeignKey("topics.id"), primary_key=True),
+)
+
+
 class Party(Base):
     __tablename__ = "partys"
 
@@ -58,6 +74,18 @@ class Topic(Base):
     name = Column(String, unique=True, nullable=False)
 
 
+class Committee(Base):
+    __tablename__ = "committees"
+
+    id = Column(Integer, primary_key=True)
+    legislative_body_id = Column(Integer, ForeignKey("legislative_bodys.id"))
+    name = Column(String, unique=True, nullable=False)
+
+    legislators = relationship(
+        "Legislator", secondary=committee_membership, back_populates="committees"
+    )
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -88,6 +116,7 @@ class Bill(Base):
     status_date = Column(Date, nullable=True)
 
     state = relationship("State")
+    topics = relationship("Topic", secondary=bill_topics)
     legislative_body = relationship("LegislativeBody")
 
 
@@ -95,6 +124,7 @@ class Legislator(Base):
     __tablename__ = "legislators"
 
     id = Column(Integer, primary_key=True)
+    legiscan_id = Column(Integer, unique=True, index=True)
     name = Column(String, nullable=False)
     image_url = Column(String)
     party_id = Column(Integer, ForeignKey("partys.id"), nullable=True)
@@ -106,6 +136,9 @@ class Legislator(Base):
     twitter = Column(String, nullable=True)
 
     party = relationship("Party")
+    committees = relationship(
+        "Committee", secondary=committee_membership, back_populates="legislators"
+    )
 
 
 class VoteChoice(enum.Enum):
