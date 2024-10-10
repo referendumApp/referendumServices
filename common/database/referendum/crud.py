@@ -162,6 +162,40 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.BillCreate, schemas.BillRecord]):
         db_bill.topics.remove(db_topic)
         db.commit()
 
+    def add_sponsor(
+        self, db: Session, bill_id: int, legislator_id: int, is_primary: bool
+    ):
+        db_bill = self.read(db=db, obj_id=bill_id)
+        db_legislator = (
+            db.query(models.Legislator)
+            .filter(models.Legislator.id == legislator_id)
+            .first()
+        )
+        if not db_legislator:
+            raise ObjectNotFoundException(
+                f"Legislator not found for id: {legislator_id}"
+            )
+        db_bill.sponsors.append(db_legislator)
+        db.commit()
+
+    def remove_sponsor(self, db: Session, bill_id: int, legislator_id: int):
+        db_bill = self.read(db=db, obj_id=bill_id)
+        db_legislator = (
+            db.query(models.Legislator)
+            .filter(models.Legislator.id == legislator_id)
+            .first()
+        )
+        if not db_legislator:
+            raise ObjectNotFoundException(
+                f"Legislator not found for id: {legislator_id}"
+            )
+        if db_legislator not in db_bill.legislators:
+            raise ObjectNotFoundException(
+                f"Cannot unfollow, bill {bill_id} does not have sponsor {legislator_id}"
+            )
+        db_bill.topics.remove(db_legislator)
+        db.commit()
+
 
 class CommitteeCRUD(
     BaseCRUD[models.Committee, schemas.CommitteeCreate, schemas.Committee]
