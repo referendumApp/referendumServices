@@ -19,10 +19,11 @@ services:
     command: [ "python", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "80" ]
     profiles: ["api"]
 
-  api-dev:
+  api-local:
     extends:
       service: api-base
     environment:
+      - ENVIRONMENT=local
       - API_ACCESS_TOKEN=12345
       - SECRET_KEY=12345
     ports:
@@ -31,7 +32,7 @@ services:
       - ./api:/code/api  #mount the api and common directory
       - ./common:/code/common
     command: ["python", "-m", "debugpy", "--listen", "0.0.0.0:5678", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
-    profiles: ["dev"]
+    profiles: ["local"]
 
   db:
     image: postgres:13
@@ -45,7 +46,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-    profiles: ["dev", "test"]
+    profiles: ["local", "test"]
 
   local-init:
     build:
@@ -62,7 +63,7 @@ services:
       db:
         condition: service_healthy
     command: ["/code/local_init.sh"]
-    profiles: ["dev", "test"]
+    profiles: ["local", "test"]
 
   pipeline:
     build:
@@ -92,6 +93,7 @@ services:
       local-init:
         condition: service_completed_successfully
     environment:
+      - ENVIRONMENT=test
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=password
       - POSTGRES_HOST=db

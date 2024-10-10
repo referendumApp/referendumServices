@@ -77,12 +77,15 @@ async def add_feedback(feedback: dict):
             Body=json.dumps(file_content),
             ContentType="application/json",
         )
+        logger.info(f"Feedback added successfully: {feedback}")
         return
     except Exception as e:
+        logger.error(f"Error adding feedback: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}.")
 
 
 if __name__ == "__main__":
     import uvicorn
 
+    logger.info("Starting application")
     uvicorn.run(app, host="0.0.0.0", port=80, reload=True)

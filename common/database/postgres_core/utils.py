@@ -12,5 +12,5 @@ def get_connection_string(db_name: str):
 
 def create_session(db_name: str):
     connection_string = get_connection_string(db_name)
-    engine = create_engine(connection_string)
+    engine = create_engine(connection_string, pool_size=10, max_overflow=20)
     return sessionmaker(autocommit=False, autoflush=False, bind=engine)
