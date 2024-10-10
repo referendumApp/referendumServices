@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Enum, Integer, String, ForeignKey, Table, Date
+from sqlalchemy import Column, Enum, Integer, String, ForeignKey, Table, Date, Boolean
 from sqlalchemy.orm import relationship, declarative_base
 import enum
 
@@ -24,6 +24,15 @@ committee_membership = Table(
     Base.metadata,
     Column("committee_id", Integer, ForeignKey("committees.id"), primary_key=True),
     Column("legislator_id", Integer, ForeignKey("legislators.id"), primary_key=True),
+)
+
+
+bill_sponsors = Table(
+    "bill_sponsors",
+    Base.metadata,
+    Column("bill_id", Integer, ForeignKey("bills.id"), primary_key=True),
+    Column("legislator_id", Integer, ForeignKey("legislators.id"), primary_key=True),
+    Column("is_primary_sponsor", Boolean, nullable=False),
 )
 
 
@@ -109,6 +118,9 @@ class Bill(Base):
 
     state = relationship("State")
     legislative_body = relationship("LegislativeBody")
+    sponsors = relationship(
+        "Legislator", secondary=bill_sponsors, back_populates="sponsored_bills"
+    )
 
 
 class Legislator(Base):
@@ -128,6 +140,9 @@ class Legislator(Base):
     party = relationship("Party")
     committees = relationship(
         "Committee", secondary=committee_membership, back_populates="legislators"
+    )
+    sponsored_bills = relationship(
+        "Bill", secondary=bill_sponsors, back_populates="sponsors"
     )
 
 
