@@ -105,3 +105,30 @@ def test_get_bill_text_success(test_bill):
     assert "bill_id" in bill_text
     assert "text" in bill_text
     assert bill_text["text"] == "Lorem ipsum dolor sit amet"
+
+
+def test_add_remove_bill_topic(test_bill, test_topic):
+    # Add topic to bill
+    response = client.post(
+        f"/bills/{test_bill['id']}/topics/{test_topic['id']}", headers=system_headers
+    )
+    assert_status_code(response, 204)
+
+    # Check that it exists
+    response = client.get(f"/bills/{test_bill['id']}", headers=system_headers)
+    assert_status_code(response, 200)
+    topics = response.json()["topics"]
+    assert len(topics) == 1
+    assert topics[0]["id"] == test_topic["id"]
+
+    # Remove topic from bill
+    response = client.delete(
+        f"/bills/{test_bill['id']}/topics/{test_topic['id']}", headers=system_headers
+    )
+    assert_status_code(response, 204)
+
+    # Check that it's gone
+    response = client.get(f"/bills/{test_bill['id']}", headers=system_headers)
+    assert_status_code(response, 200)
+    topics = response.json()["topics"]
+    assert len(topics) == 0

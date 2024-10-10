@@ -138,6 +138,7 @@ class BillRecord(BillBase):
 class Bill(BillRecord):
     state: Optional[State] = None
     legislative_body: Optional[LegislativeBody] = None
+    topics: List[Topic] = []
 
     model_config = ConfigDict(from_attributes=True)
 

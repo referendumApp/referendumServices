@@ -142,6 +142,26 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.BillCreate, schemas.BillRecord]):
         except SQLAlchemyError as e:
             raise DatabaseException(f"Database error: {str(e)}")
 
+    def add_topic(self, db: Session, bill_id: int, topic_id: int):
+        db_bill = self.read(db=db, obj_id=bill_id)
+        db_topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
+        if not db_topic:
+            raise ObjectNotFoundException(f"Topic not found for id: {topic_id}")
+        db_bill.topics.append(db_topic)
+        db.commit()
+
+    def remove_topic(self, db: Session, bill_id: int, topic_id: int):
+        db_bill = self.read(db=db, obj_id=bill_id)
+        db_topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
+        if not db_topic:
+            raise ObjectNotFoundException(f"Topic not found for id: {topic_id}")
+        if db_topic not in db_bill.topics:
+            raise ObjectNotFoundException(
+                f"Cannot unfollow, bill {bill_id} does not have topic {topic_id}"
+            )
+        db_bill.topics.remove(db_topic)
+        db.commit()
+
 
 class CommitteeCRUD(
     BaseCRUD[models.Committee, schemas.CommitteeCreate, schemas.Committee]
