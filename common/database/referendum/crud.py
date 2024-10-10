@@ -282,6 +282,7 @@ class VoteCRUD(BaseCRUD[models.Vote, schemas.VoteCreate, schemas.Vote]):
 
 
 bill = BillCRUD(models.Bill)
+committee = CommitteeCRUD(models.Committee)
 legislator = LegislatorCRUD(models.Legislator)
 legislative_body = LegislativeBodyCRUD(models.LegislativeBody)
 party = UserCRUD(models.Party)
