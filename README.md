@@ -25,7 +25,7 @@ make build
 ### Running the API Locally
 
 ```bash
-make dev
+make local
 ```
 
 The API will be available at `http://localhost:80` (API documentation at `http://localhost:80/docs`)

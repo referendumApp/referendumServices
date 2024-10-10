@@ -22,6 +22,7 @@ dependencies = [
     "pydantic",
     "pydantic-settings",
     "python-jose",
+    "watchtower"
 ]
 
 [project.optional-dependencies]
