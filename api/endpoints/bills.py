@@ -1,11 +1,14 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 from typing import Dict, Any
 import logging
 
 from common.database.referendum import crud, schemas
+from common.database.referendum.crud import ObjectNotFoundException, DatabaseException
 
+from ..database import get_db
 from ..schemas import ErrorResponse
-from ..security import get_current_user_or_verify_system_token
+from ..security import get_current_user_or_verify_system_token, verify_system_token
 from .endpoint_generator import EndpointGenerator
 
 logger = logging.getLogger(__name__)
@@ -43,3 +46,63 @@ async def get_bill_text(
     lorem_ipsum = "Lorem ipsum dolor sit amet"
     logger.info(f"Fetched bill text for bill {bill_id}")
     return {"bill_id": bill_id, "text": lorem_ipsum}
+
+
+@router.post(
+    "/{bill_id}/topics/{topic_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Add topic to a bill",
+    responses={
+        204: {"description": "Topic successfully added"},
+        401: {"model": ErrorResponse, "description": "Not authorized"},
+        404: {"model": ErrorResponse, "description": "Bill or topic not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+def follow_topic(
+    bill_id: int,
+    topic_id: int,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_system_token),
+) -> None:
+    logger.info(f"Attempting to add topic {topic_id} to bill {bill_id}")
+    try:
+        crud.bill.add_topic(db=db, bill_id=bill_id, topic_id=topic_id)
+        logger.info(f"Topic {topic_id} successfully added to bill {bill_id}")
+        return
+    except ObjectNotFoundException as e:
+        logger.warning(f"Error adding topic: {str(e)}")
+        raise HTTPException(status_code=404, detail=f"Error adding topic: {str(e)}")
+    except DatabaseException as e:
+        logger.error(f"Database error while adding topic: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@router.delete(
+    "/{bill_id}/topics/{topic_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove topic from a bill",
+    responses={
+        204: {"description": "Topic successfully removed"},
+        401: {"model": ErrorResponse, "description": "Not authorized"},
+        404: {"model": ErrorResponse, "description": "Bill or topic not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+def unfollow_topic(
+    bill_id: int,
+    topic_id: int,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_system_token),
+) -> None:
+    logger.info(f"Attempting to remove topic {topic_id} from bill {bill_id}")
+    try:
+        crud.bill.remove_topic(db=db, bill_id=bill_id, topic_id=topic_id)
+        logger.info(f"Topic {topic_id} successfully removed from bill {bill_id}")
+        return
+    except ObjectNotFoundException as e:
+        logger.warning(f"Error removing topic: {str(e)}")
+        raise HTTPException(status_code=404, detail=f"Error unfollowing: {str(e)}")
+    except DatabaseException as e:
+        logger.error(f"Database error while removing topic: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
