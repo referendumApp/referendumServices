@@ -124,6 +124,7 @@ def test_party():
 @pytest.fixture(scope="function")
 def test_legislator(test_party):
     legislator_data = {
+        "legiscan_id": f"{random.randint(100,999)}",
         "name": f"John Doe {generate_random_string()}",
         "image_url": "example.com/image.png",
         "district": f"DC-{random.randint(100,999)}",
