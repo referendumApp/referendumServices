@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Generic, TypeVar, Type
@@ -13,6 +14,8 @@ from common.database.referendum.crud import (
 from ..database import get_db
 from ..security import get_current_user_or_verify_system_token, verify_system_token
 from ..schemas import ErrorResponse
+
+logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 CreateSchema = TypeVar("CreateSchema", bound=BaseModel)
@@ -31,6 +34,8 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
         response_schema: Type[ResponseSchema],
         resource_name: str,
     ):
+        logger.info(f"Generating CRUD routes for resource: {resource_name}")
+
         @router.post(
             f"/",
             response_model=response_schema,
@@ -54,13 +59,20 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
             db: Session = Depends(get_db),
             _: Dict[str, Any] = Depends(verify_system_token),
         ):
+            logger.info(f"Attempting to create new {resource_name}")
             try:
-                return crud_model.create(db=db, obj_in=item)
+                created_item = crud_model.create(db=db, obj_in=item)
+                logger.info(
+                    f"Successfully created {resource_name} with ID: {created_item.id}"
+                )
+                return created_item
             except ObjectAlreadyExistsException:
+                logger.warning(f"Attempt to create duplicate {resource_name}")
                 raise HTTPException(
                     status_code=409, detail=f"{resource_name} already exists"
                 )
             except DatabaseException as e:
+                logger.error(f"Database error while creating {resource_name}: {str(e)}")
                 raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
         @router.get(
@@ -85,14 +97,21 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
             db: Session = Depends(get_db),
             _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
         ):
+            logger.info(f"Attempting to read {resource_name} with ID: {item_id}")
             try:
-                return crud_model.read(db=db, obj_id=item_id)
+                item = crud_model.read(db=db, obj_id=item_id)
+                logger.info(
+                    f"Successfully retrieved {resource_name} with ID: {item_id}"
+                )
+                return item
             except ObjectNotFoundException:
+                logger.warning(f"{resource_name} not found for ID: {item_id}")
                 raise HTTPException(
                     status_code=404,
                     detail=f"{resource_name} not found for ID: {item_id}",
                 )
             except DatabaseException as e:
+                logger.error(f"Database error while reading {resource_name}: {str(e)}")
                 raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
         @router.put(
@@ -117,15 +136,20 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
             db: Session = Depends(get_db),
             _: Dict[str, Any] = Depends(verify_system_token),
         ):
+            logger.info(f"Attempting to update {resource_name} with ID: {item.id}")
             try:
                 db_item = crud_model.read(db=db, obj_id=item.id)
-                return crud_model.update(db=db, db_obj=db_item, obj_in=item)
+                updated_item = crud_model.update(db=db, db_obj=db_item, obj_in=item)
+                logger.info(f"Successfully updated {resource_name} with ID: {item.id}")
+                return updated_item
             except ObjectNotFoundException:
+                logger.warning(f"{resource_name} not found for ID: {item.id}")
                 raise HTTPException(
                     status_code=404,
                     detail=f"{resource_name} not found for ID: {item.id}",
                 )
             except DatabaseException as e:
+                logger.error(f"Database error while updating {resource_name}: {str(e)}")
                 raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
         @router.delete(
@@ -147,14 +171,19 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
             db: Session = Depends(get_db),
             _: Dict[str, Any] = Depends(verify_system_token),
         ):
+            logger.info(f"Attempting to delete {resource_name} with ID: {item_id}")
             try:
-                return crud_model.delete(db=db, obj_id=item_id)
+                crud_model.delete(db=db, obj_id=item_id)
+                logger.info(f"Successfully deleted {resource_name} with ID: {item_id}")
+                return
             except ObjectNotFoundException:
+                logger.warning(f"{resource_name} not found for ID: {item_id}")
                 raise HTTPException(
                     status_code=404,
                     detail=f"{resource_name} not found for ID: {item_id}",
                 )
             except DatabaseException as e:
+                logger.error(f"Database error while deleting {resource_name}: {str(e)}")
                 raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
         @router.get(
@@ -176,7 +205,15 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
             db: Session = Depends(get_db),
             _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
         ):
+            logger.info(
+                f"Attempting to read all {resource_name}s (skip: {skip}, limit: {limit})"
+            )
             try:
-                return crud_model.read_all(db=db, skip=skip, limit=limit)
+                items = crud_model.read_all(db=db, skip=skip, limit=limit)
+                logger.info(f"Successfully retrieved {len(items)} {resource_name}s")
+                return items
             except DatabaseException as e:
+                logger.error(
+                    f"Database error while reading all {resource_name}s: {str(e)}"
+                )
                 raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")

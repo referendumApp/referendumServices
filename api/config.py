@@ -1,6 +1,5 @@
 from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from botocore.exceptions import ClientError
 import boto3
 import logging
 import watchtower

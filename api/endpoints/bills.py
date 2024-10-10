@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from typing import Dict, Any
+import logging
 
 from common.database.referendum import crud, schemas
 
@@ -7,6 +8,7 @@ from ..schemas import ErrorResponse
 from ..security import get_current_user_or_verify_system_token
 from .endpoint_generator import EndpointGenerator
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -39,4 +41,5 @@ async def get_bill_text(
     bill_id: str, _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token)
 ) -> dict:
     lorem_ipsum = "Lorem ipsum dolor sit amet"
+    logger.info(f"Fetched bill text for bill {bill_id}")
     return {"bill_id": bill_id, "text": lorem_ipsum}

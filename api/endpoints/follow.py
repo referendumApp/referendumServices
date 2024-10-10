@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from starlette import status
@@ -8,6 +9,9 @@ from common.database.referendum.crud import ObjectNotFoundException, DatabaseExc
 from ..database import get_db
 from ..schemas import ErrorResponse
 from ..security import get_current_user
+
+# Set up logger for this module
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -28,12 +32,16 @@ def follow_bill(
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ) -> None:
+    logger.info(f"User {user.id} attempting to follow bill {bill_id}")
     try:
         crud.user.follow_bill(db=db, user_id=user.id, bill_id=bill_id)
+        logger.info(f"User {user.id} successfully followed bill {bill_id}")
         return
     except ObjectNotFoundException as e:
+        logger.warning(f"Error following bill: {str(e)}")
         raise HTTPException(status_code=404, detail=f"Error following: {str(e)}")
     except DatabaseException as e:
+        logger.error(f"Database error while following bill: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
@@ -53,12 +61,16 @@ def unfollow_bill(
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ) -> None:
+    logger.info(f"User {user.id} attempting to unfollow bill {bill_id}")
     try:
         crud.user.unfollow_bill(db=db, user_id=user.id, bill_id=bill_id)
+        logger.info(f"User {user.id} successfully unfollowed bill {bill_id}")
         return
     except ObjectNotFoundException as e:
+        logger.warning(f"Error unfollowing bill: {str(e)}")
         raise HTTPException(status_code=404, detail=f"Error unfollowing: {str(e)}")
     except DatabaseException as e:
+        logger.error(f"Database error while unfollowing bill: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
@@ -78,12 +90,16 @@ def follow_topic(
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ) -> None:
+    logger.info(f"User {user.id} attempting to follow topic {topic_id}")
     try:
         crud.user.follow_topic(db=db, user_id=user.id, topic_id=topic_id)
+        logger.info(f"User {user.id} successfully followed topic {topic_id}")
         return
     except ObjectNotFoundException as e:
+        logger.warning(f"Error following topic: {str(e)}")
         raise HTTPException(status_code=404, detail=f"Error following: {str(e)}")
     except DatabaseException as e:
+        logger.error(f"Database error while following topic: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
@@ -103,10 +119,14 @@ def unfollow_topic(
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ) -> None:
+    logger.info(f"User {user.id} attempting to unfollow topic {topic_id}")
     try:
         crud.user.unfollow_topic(db=db, user_id=user.id, topic_id=topic_id)
+        logger.info(f"User {user.id} successfully unfollowed topic {topic_id}")
         return
     except ObjectNotFoundException as e:
+        logger.warning(f"Error unfollowing topic: {str(e)}")
         raise HTTPException(status_code=404, detail=f"Error unfollowing: {str(e)}")
     except DatabaseException as e:
+        logger.error(f"Database error while unfollowing topic: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
