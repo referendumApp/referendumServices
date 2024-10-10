@@ -29,7 +29,7 @@ def setup_logging():
         # Create the CloudWatch handler
         logs_client = boto3.client("logs", region_name=settings.AWS_REGION)
         cloudwatch_handler = watchtower.CloudWatchLogHandler(
-            log_group=f"{settings.PROJECT_NAME}-logs",
+            log_group=f"referendum-api-logs",
             stream_name=f"{settings.ENVIRONMENT}-logs",
             use_queues=False,
             create_log_group=False,
