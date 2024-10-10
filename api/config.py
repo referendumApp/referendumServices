@@ -31,8 +31,8 @@ def setup_logging(settings: Settings) -> None:
         log_group_name = "referendum-api-logs"
 
         cloudwatch_handler = watchtower.CloudWatchLogHandler(
-            log_group=log_group_name,
-            stream_name=f"{settings.ENVIRONMENT}-logs",
+            log_group_name=log_group_name,
+            log_stream_name=f"{settings.ENVIRONMENT}-logs",
             create_log_group=True,
             boto3_client=logs_client,
         )

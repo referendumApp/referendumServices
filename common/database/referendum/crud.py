@@ -140,8 +140,14 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.BillCreate, schemas.BillRecord]):
             raise DatabaseException(f"Database error: {str(e)}")
 
 
+class CommitteeCRUD(
+    BaseCRUD[models.Committee, schemas.CommitteeCreate, schemas.Committee]
+):
+    pass
+
+
 class LegislatorCRUD(
-    BaseCRUD[models.Legislator, schemas.LegislatorCreate, schemas.Legislator]
+    BaseCRUD[models.Legislator, schemas.LegislatorCreate, schemas.LegislatorRecord]
 ):
     pass
 

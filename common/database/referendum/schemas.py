@@ -74,6 +74,24 @@ class LegislativeBody(LegislativeBodyBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+# Committee
+
+
+class CommitteeBase(BaseModel):
+    name: str
+    legislative_body_id: int
+
+
+class CommitteeCreate(CommitteeBase):
+    pass
+
+
+class Committee(CommitteeBase):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # Topics
 
 
@@ -144,8 +162,14 @@ class LegislatorCreate(LegislatorBase):
     pass
 
 
-class Legislator(LegislatorBase):
+class LegislatorRecord(LegislatorBase):
     id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class Legislator(LegislatorRecord):
+    committees: List[Committee]
 
     model_config = ConfigDict(from_attributes=True)
 
