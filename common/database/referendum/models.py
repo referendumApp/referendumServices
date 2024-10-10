@@ -124,6 +124,7 @@ class Legislator(Base):
     __tablename__ = "legislators"
 
     id = Column(Integer, primary_key=True)
+    legiscan_id = Column(Integer, unique=True, index=True)
     name = Column(String, nullable=False)
     image_url = Column(String)
     party_id = Column(Integer, ForeignKey("partys.id"), nullable=True)
