@@ -18,6 +18,7 @@ from .endpoints import (
     roles,
     states,
     votes,
+    committees,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -37,6 +38,7 @@ app.add_middleware(
 app.include_router(health.router, tags=["health"])
 app.include_router(authentication.router, tags=["authentication"], prefix="/auth")
 app.include_router(bills.router, tags=["bills"], prefix="/bills")
+app.include_router(committees.router, tags=["committees"], prefix="/committees")
 app.include_router(follow.router, tags=["follow"], prefix="/follow")
 app.include_router(legislators.router, tags=["legislators"], prefix="/legislators")
 app.include_router(
