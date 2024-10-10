@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Table, Date
+from sqlalchemy import Column, Enum, Integer, String, ForeignKey, Table, Date
 from sqlalchemy.orm import relationship, declarative_base
+import enum
 
 Base = declarative_base()
 
@@ -105,3 +106,16 @@ class Legislator(Base):
     twitter = Column(String, nullable=True)
 
     party = relationship("Party")
+
+
+class VoteChoice(enum.Enum):
+    YES = 1
+    NO = 2
+
+
+class Vote(Base):
+    __tablename__ = "votes"
+
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    bill_id = Column(Integer, ForeignKey("bills.id"), primary_key=True)
+    vote_choice = Column(Enum(VoteChoice), nullable=False)

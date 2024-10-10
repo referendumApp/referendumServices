@@ -76,6 +76,8 @@ async def get_current_user(
             logger.warning("Token decode failed: missing 'sub' claim")
             raise CREDENTIALS_EXCEPTION
         token_data = TokenData(email=email)
+    except AttributeError:
+        raise CREDENTIALS_EXCEPTION
     except JWTError:
         logger.warning("Invalid token")
         raise CREDENTIALS_EXCEPTION
@@ -111,11 +113,7 @@ async def get_current_user_or_verify_system_token(
                 detail=f"Database error: {str(e)}",
             )
     logger.warning("No valid authentication provided")
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Authentication required",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+    raise CREDENTIALS_EXCEPTION
 
 
 async def verify_system_token(api_key: str = Security(api_key_header)):

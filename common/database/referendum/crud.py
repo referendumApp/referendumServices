@@ -242,6 +242,39 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
             raise DatabaseException(f"Database error: {str(e)}")
 
 
+class VoteCRUD(BaseCRUD[models.Vote, schemas.VoteCreate, schemas.Vote]):
+    def create_or_update_vote(self, db: Session, user_vote: schemas.Vote):
+        try:
+            existing_vote = (
+                db.query(self.model)
+                .filter(
+                    models.Vote.user_id == user_vote.user_id,
+                    models.Vote.bill_id == user_vote.bill_id,
+                )
+                .first()
+            )
+
+            if existing_vote:
+                for key, value in user_vote.model_dump().items():
+                    setattr(existing_vote, key, value)
+            else:
+                existing_vote = self.model(**user_vote.model_dump())
+                db.add(existing_vote)
+
+            db.commit()
+            db.refresh(existing_vote)
+            return existing_vote
+        except SQLAlchemyError as e:
+            db.rollback()
+            raise DatabaseException(f"Database error: {str(e)}")
+
+    def get_votes_for_bill(self, db: Session, bill_id: int) -> List[models.Vote]:
+        return self.read_filtered(db=db, filters={"bill_id": bill_id})
+
+    def get_votes_for_user(self, db: Session, user_id: int) -> List[models.Vote]:
+        return self.read_filtered(db=db, filters={"user_id": user_id})
+
+
 bill = BillCRUD(models.Bill)
 legislator = LegislatorCRUD(models.Legislator)
 legislative_body = LegislativeBodyCRUD(models.LegislativeBody)
@@ -250,3 +283,4 @@ role = UserCRUD(models.Role)
 state = UserCRUD(models.State)
 topic = TopicCRUD(models.Topic)
 user = UserCRUD(models.User)
+vote = VoteCRUD(models.Vote)
