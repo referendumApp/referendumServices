@@ -1,0 +1,238 @@
+diff --git a/alembic/versions/5d3c3085c67c_initialize_database.py b/alembic/versions/5d3c3085c67c_initialize_database.py
+index a6a75e0..f383b9b 100644
+--- a/alembic/versions/5d3c3085c67c_initialize_database.py
++++ b/alembic/versions/5d3c3085c67c_initialize_database.py
+@@ -191,6 +191,21 @@ def upgrade():
+         sa.PrimaryKeyConstraint("committee_id", "legislator_id"),
+     )
+ 
++    op.create_table(
++        "bill_sponsors",
++        sa.Column("bill_id", sa.Integer(), nullable=False),
++        sa.Column("legislator_id", sa.Integer(), nullable=False),
++        sa.ForeignKeyConstraint(
++            ["bill_id"],
++            ["bills.id"],
++        ),
++        sa.ForeignKeyConstraint(
++            ["legislator_id"],
++            ["legislators.id"],
++        ),
++        sa.PrimaryKeyConstraint("bill_id", "legislator_id"),
++    )
++
+     op.create_table(
+         "bill_topics",
+         sa.Column("bill_id", sa.Integer(), nullable=False),
+diff --git a/api/endpoints/bills.py b/api/endpoints/bills.py
+index 476a2c7..aa86754 100644
+--- a/api/endpoints/bills.py
++++ b/api/endpoints/bills.py
+@@ -59,7 +59,7 @@ async def get_bill_text(
+         500: {"model": ErrorResponse, "description": "Internal server error"},
+     },
+ )
+-def follow_topic(
++def add_topic(
+     bill_id: int,
+     topic_id: int,
+     db: Session = Depends(get_db),
+@@ -89,7 +89,7 @@ def follow_topic(
+         500: {"model": ErrorResponse, "description": "Internal server error"},
+     },
+ )
+-def unfollow_topic(
++def remove_topic(
+     bill_id: int,
+     topic_id: int,
+     db: Session = Depends(get_db),
+@@ -106,3 +106,63 @@ def unfollow_topic(
+     except DatabaseException as e:
+         logger.error(f"Database error while removing topic: {str(e)}")
+         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
++
++
++@router.post(
++    "/{bill_id}/sponsors/{topic_id}",
++    status_code=status.HTTP_204_NO_CONTENT,
++    summary="Add sponsor to a bill",
++    responses={
++        204: {"description": "Sponsor successfully added"},
++        401: {"model": ErrorResponse, "description": "Not authorized"},
++        404: {"model": ErrorResponse, "description": "Bill or legislator not found"},
++        500: {"model": ErrorResponse, "description": "Internal server error"},
++    },
++)
++def add_sponsor(
++    bill_id: int,
++    legislator_id: int,
++    db: Session = Depends(get_db),
++    _: None = Depends(verify_system_token),
++) -> None:
++    logger.info(f"Attempting to add sponsor legislator {legislator_id} to bill {bill_id}")
++    try:
++        crud.bill.add_sponsor(db=db, bill_id=bill_id, legislator_id=legislator_id)
++        logger.info(f"Sponsor {legislator_id} successfully added to bill {bill_id}")
++        return
++    except ObjectNotFoundException as e:
++        logger.warning(f"Error adding sponsor: {str(e)}")
++        raise HTTPException(status_code=404, detail=f"Error adding sponsor: {str(e)}")
++    except DatabaseException as e:
++        logger.error(f"Database error while adding sponsor: {str(e)}")
++        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
++
++
++@router.delete(
++    "/{bill_id}/sponsors/{topic_id}",
++    status_code=status.HTTP_204_NO_CONTENT,
++    summary="Remove sponsor from a bill",
++    responses={
++        204: {"description": "Sponsor successfully removed"},
++        401: {"model": ErrorResponse, "description": "Not authorized"},
++        404: {"model": ErrorResponse, "description": "Bill or legislator not found"},
++        500: {"model": ErrorResponse, "description": "Internal server error"},
++    },
++)
++def remove_sponsor(
++    bill_id: int,
++    legislator_id: int,
++    db: Session = Depends(get_db),
++    _: None = Depends(verify_system_token),
++) -> None:
++    logger.info(f"Attempting to remove sponsor legislator {legislator_id} from bill {bill_id}")
++    try:
++        crud.bill.remove_sponsor(db=db, bill_id=bill_id, legislator_id=legislator_id)
++        logger.info(f"Sponsor {legislator_id} successfully removed from bill {bill_id}")
++        return
++    except ObjectNotFoundException as e:
++        logger.warning(f"Error removing sponsor: {str(e)}")
++        raise HTTPException(status_code=404, detail=f"Error removing sponsor: {str(e)}")
++    except DatabaseException as e:
++        logger.error(f"Database error while removing sponsor: {str(e)}")
++        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+\ No newline at end of file
+diff --git a/api/tests/test_bills.py b/api/tests/test_bills.py
+index e12df22..1ad9ad3 100644
+--- a/api/tests/test_bills.py
++++ b/api/tests/test_bills.py
+@@ -132,3 +132,30 @@ def test_add_remove_bill_topic(test_bill, test_topic):
+     assert_status_code(response, 200)
+     topics = response.json()["topics"]
+     assert len(topics) == 0
++
++
++def test_add_remove_bill_sponsor(test_bill, test_legislator):
++    # Add legislator to bill
++    response = client.post(
++        f"/bills/{test_bill['id']}/sponsors/{test_legislator['id']}", headers=system_headers
++    )
++    assert_status_code(response, 204)
++
++    # Check that it exists
++    response = client.get(f"/bills/{test_bill['id']}", headers=system_headers)
++    assert_status_code(response, 200)
++    sponsors = response.json()["sponsors"]
++    assert len(sponsors) == 1
++    assert sponsors[0]["id"] == test_legislator["id"]
++
++    # Remove topic from bill
++    response = client.delete(
++        f"/bills/{test_bill['id']}/sponsors/{test_legislator['id']}", headers=system_headers
++    )
++    assert_status_code(response, 204)
++
++    # Check that it's gone
++    response = client.get(f"/bills/{test_bill['id']}", headers=system_headers)
++    assert_status_code(response, 200)
++    sponsors = response.json()["sponsors"]
++    assert len(sponsors) == 0
+diff --git a/common/database/referendum/crud.py b/common/database/referendum/crud.py
+index 89e2a16..1abed22 100644
+--- a/common/database/referendum/crud.py
++++ b/common/database/referendum/crud.py
+@@ -162,6 +162,40 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.BillCreate, schemas.BillRecord]):
+         db_bill.topics.remove(db_topic)
+         db.commit()
+ 
++    def add_sponsor(
++        self, db: Session, bill_id: int, legislator_id: int, is_primary: bool
++    ):
++        db_bill = self.read(db=db, obj_id=bill_id)
++        db_legislator = (
++            db.query(models.Legislator)
++            .filter(models.Legislator.id == legislator_id)
++            .first()
++        )
++        if not db_legislator:
++            raise ObjectNotFoundException(
++                f"Legislator not found for id: {legislator_id}"
++            )
++        db_bill.sponsors.append(db_legislator)
++        db.commit()
++
++    def remove_sponsor(self, db: Session, bill_id: int, legislator_id: int):
++        db_bill = self.read(db=db, obj_id=bill_id)
++        db_legislator = (
++            db.query(models.Legislator)
++            .filter(models.Legislator.id == legislator_id)
++            .first()
++        )
++        if not db_legislator:
++            raise ObjectNotFoundException(
++                f"Legislator not found for id: {legislator_id}"
++            )
++        if db_legislator not in db_bill.legislators:
++            raise ObjectNotFoundException(
++                f"Cannot unfollow, bill {bill_id} does not have sponsor {legislator_id}"
++            )
++        db_bill.topics.remove(db_legislator)
++        db.commit()
++
+ 
+ class CommitteeCRUD(
+     BaseCRUD[models.Committee, schemas.CommitteeCreate, schemas.Committee]
+diff --git a/common/database/referendum/models.py b/common/database/referendum/models.py
+index 759ac39..7503ed0 100644
+--- a/common/database/referendum/models.py
++++ b/common/database/referendum/models.py
+@@ -1,4 +1,4 @@
+-from sqlalchemy import Column, Enum, Integer, String, ForeignKey, Table, Date
++from sqlalchemy import Column, Enum, Integer, String, ForeignKey, Table, Date, Boolean
+ from sqlalchemy.orm import relationship, declarative_base
+ import enum
+ 
+@@ -27,6 +27,14 @@ committee_membership = Table(
+ )
+ 
+ 
++bill_sponsors = Table(
++    "bill_sponsors",
++    Base.metadata,
++    Column("bill_id", Integer, ForeignKey("bills.id"), primary_key=True),
++    Column("legislator_id", Integer, ForeignKey("legislators.id"), primary_key=True),
++    Column("is_primary_sponsor", Boolean, nullable=False),
++)
++
+ bill_topics = Table(
+     "bill_topics",
+     Base.metadata,
+@@ -118,6 +126,9 @@ class Bill(Base):
+     state = relationship("State")
+     topics = relationship("Topic", secondary=bill_topics)
+     legislative_body = relationship("LegislativeBody")
++    sponsors = relationship(
++        "Legislator", secondary=bill_sponsors, back_populates="sponsored_bills"
++    )
+ 
+ 
+ class Legislator(Base):
+@@ -138,6 +149,9 @@ class Legislator(Base):
+     committees = relationship(
+         "Committee", secondary=committee_membership, back_populates="legislators"
+     )
++    sponsored_bills = relationship(
++        "Bill", secondary=bill_sponsors, back_populates="sponsors"
++    )
+ 
+ 
+ class VoteChoice(enum.Enum):
