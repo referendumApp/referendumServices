@@ -128,6 +128,7 @@ class Bill(BillRecord):
 
 
 class LegislatorBase(BaseModel):
+    legiscan_id: int
     name: str
     image_url: Optional[str]
     district: str

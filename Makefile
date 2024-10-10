@@ -18,6 +18,7 @@ pipeline:
 test:
 	docker compose --profile test build
 	docker compose --profile test run --rm test
+	docker compose --profile test down -v --remove-orphans
 
 # Clean up Docker resources
 clean:

@@ -48,6 +48,7 @@ def test_update_legislator_success(test_legislator):
 def test_update_legislator_not_found():
     non_existent_legislator = {
         "id": 9999,
+        "legiscan_id": 99999999,
         "name": "Anti-John Doe",
         "image_url": "example.com/image.png",
         "district": "ED-1",

@@ -334,22 +334,13 @@ def orchestrate_etl():
                 {
                     "function": "keep_columns",
                     "parameters": {
-                        "columns": [
-                            # "people_id"
-                            "name",
-                            "party_id",
-                            "district",
-                        ]
+                        "columns": ["people_id", "name", "party_id", "district"]
                     },
-                }  # ,
-                # {
-                #     "function": "rename",
-                #     "parameters": {
-                #         "columns": {
-                #             "people_id": "legiscan_id"
-                #             }
-                #         }
-                # }
+                },
+                {
+                    "function": "rename",
+                    "parameters": {"columns": {"people_id": "legiscan_id"}},
+                },
             ],
             "dataframe": None,
         },
