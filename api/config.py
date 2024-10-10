@@ -28,6 +28,12 @@ def setup_logging():
     try:
         # Create the CloudWatch handler
         logs_client = boto3.client("logs", region_name=settings.AWS_REGION)
+        log_group_name = f"{settings.PROJECT_NAME}-logs"
+        try:
+            logs_client.create_log_group(logGroupName=log_group_name)
+            print(f"Created log group: {log_group_name}")
+        except logs_client.exceptions.ResourceAlreadyExistsException:
+            print(f"Log group already exists: {log_group_name}")
         cloudwatch_handler = watchtower.CloudWatchLogHandler(
             log_group=f"referendum-api-logs",
             stream_name=f"{settings.ENVIRONMENT}-logs",
