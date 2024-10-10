@@ -121,6 +121,17 @@ def upgrade():
     op.create_index(op.f("ix_bills_session_id"), "bills", ["session_id"], unique=False)
 
     op.create_table(
+        "bill_versions",
+        sa.Column("bill_id", sa.Integer(), nullable=False),
+        sa.Column("version", sa.Integer(), nullable=False),
+        sa.PrimaryKeyConstraint("bill_id", "version"),
+        sa.ForeignKeyConstraint(
+            ["bill_id"],
+            ["bills.id"],
+        ),
+    )
+
+    op.create_table(
         "legislators",
         sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
         sa.Column("legiscan_id", sa.Integer(), nullable=False),

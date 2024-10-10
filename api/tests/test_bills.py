@@ -99,10 +99,13 @@ def test_delete_bill_unauthorized(test_bill):
 
 
 def test_get_bill_text_success(test_bill):
-    response = client.get(f"/bills/{test_bill['id']}/text", headers=system_headers)
+    response = client.get(
+        f"/bills/{test_bill['id']}/version/1/text", headers=system_headers
+    )
     assert_status_code(response, 200)
     bill_text = response.json()
     assert "bill_id" in bill_text
+    assert "version" in bill_text
     assert "text" in bill_text
     assert bill_text["text"] == "Lorem ipsum dolor sit amet"
 

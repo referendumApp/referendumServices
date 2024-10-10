@@ -109,6 +109,13 @@ class User(Base):
     followed_bills = relationship("Bill", secondary=user_bill_follows)
 
 
+class BillVersion(Base):
+    __tablename__ = "bill_versions"
+
+    bill_id = Column(Integer, primary_key=True)
+    version = Column(Integer, primary_key=True)
+
+
 class Bill(Base):
     __tablename__ = "bills"
 

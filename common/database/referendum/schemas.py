@@ -142,6 +142,14 @@ class Legislator(LegislatorRecord):
     model_config = ConfigDict(from_attributes=True)
 
 
+# Bill Versions
+
+
+class BillVersion(BaseModel):
+    bill_id: int
+    version: int
+
+
 # Bills
 
 
@@ -173,6 +181,7 @@ class Bill(BillRecord):
     legislative_body: Optional[LegislativeBody] = None
     topics: List[Topic] = []
     sponsors: List[LegislatorRecord] = []
+    versions: List[BillVersion] = []
 
     model_config = ConfigDict(from_attributes=True)
 
