@@ -49,7 +49,7 @@ def setup_logging():
         logging.info("CloudWatch logging has been set up successfully.")
 
     except Exception as e:
-        print(f"Failed to set up CloudWatch logging: {e}")
+        logging.error(f"Failed to set up CloudWatch logging: {e}")
         # Fallback to basic logging
         logging.basicConfig(level=settings.LOG_LEVEL)
         logging.warning(
