@@ -32,6 +32,7 @@ test = ["pytest", "flake8"]
 line-length = 88
 target-version = ['py311']
 include = '\.pyi?$'
+force_multiline_dict = true
 extend-exclude = '''
     /(
       # directories

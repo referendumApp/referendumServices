@@ -70,7 +70,11 @@ def transform(legiscan_dataframes):
     if "ls_bill" in legiscan_dataframes:
         ls_bill = legiscan_dataframes["ls_bill"][["bill_id", "title", "status_id"]]
         transformed_bill = ls_bill.rename(
-            columns={"bill_id": "legiscan_id", "title": "title", "status_id": "status"}
+            columns={
+                "bill_id": "legiscan_id",
+                "title": "title",
+                "status_id": "status"
+            }
         )
         transformed_data["bills"] = transformed_bill
         logger.info(
@@ -82,9 +86,9 @@ def transform(legiscan_dataframes):
 
     ### legislators ###
     if "ls_people" in legiscan_dataframes:
-        ls_people = legiscan_dataframes["ls_people"][
-            ["people_id", "name", "state_id", "district", "party_id"]
-        ]
+        ls_people = legiscan_dataframes["ls_people"][[
+            "people_id", "name", "state_id", "district", "party_id"
+        ]]
         transformed_legislator = ls_people.rename(
             columns={
                 "people_id": "legiscan_id",
@@ -124,9 +128,8 @@ def load(transformed_data):
 
             # Convert types for compatibility with PostgreSQL
             bill_data = {
-                "legiscan_id": int(
-                    first_row["legiscan_id"]
-                ),  # Convert numpy.int64 to native Python int
+                "legiscan_id": int(first_row["legiscan_id"]
+                                   ),  # Convert numpy.int64 to native Python int
                 "title": str(first_row["title"]),
                 "status": str(first_row["status"]),
             }

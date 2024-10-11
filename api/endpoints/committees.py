@@ -11,11 +11,9 @@ from ..schemas import ErrorResponse
 from ..security import get_current_user_or_verify_system_token, verify_system_token
 from .endpoint_generator import EndpointGenerator
 
-
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
 
 EndpointGenerator.add_crud_routes(
     router=router,
@@ -32,13 +30,23 @@ EndpointGenerator.add_crud_routes(
     response_model=List[schemas.LegislatorRecord],
     summary="Get committee legislators",
     responses={
-        200: {
-            "model": List[schemas.LegislatorRecord],
-            "description": "Committee legislators successfully retrieved",
+        200:
+            {
+                "model": List[schemas.LegislatorRecord],
+                "description": "Committee legislators successfully retrieved",
+            },
+        401: {
+            "model": ErrorResponse,
+            "description": "Not authorized"
         },
-        401: {"model": ErrorResponse, "description": "Not authorized"},
-        404: {"model": ErrorResponse, "description": "Committee not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        404: {
+            "model": ErrorResponse,
+            "description": "Committee not found"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 async def get_committee_legislators(
@@ -65,10 +73,21 @@ async def get_committee_legislators(
     summary="Add legislator to committee",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
-        204: {"description": "Legislator successfully added"},
-        401: {"model": ErrorResponse, "description": "Not authorized"},
-        404: {"model": ErrorResponse, "description": "Committee not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        204: {
+            "description": "Legislator successfully added"
+        },
+        401: {
+            "model": ErrorResponse,
+            "description": "Not authorized"
+        },
+        404: {
+            "model": ErrorResponse,
+            "description": "Committee not found"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 async def add_legislator_membership(
@@ -98,10 +117,21 @@ async def add_legislator_membership(
     summary="Remove legislator from committee",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
-        204: {"description": "Legislator successfully removed"},
-        401: {"model": ErrorResponse, "description": "Not authorized"},
-        404: {"model": ErrorResponse, "description": "Committee not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        204: {
+            "description": "Legislator successfully removed"
+        },
+        401: {
+            "model": ErrorResponse,
+            "description": "Not authorized"
+        },
+        404: {
+            "model": ErrorResponse,
+            "description": "Committee not found"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 async def remove_legislator_membership(

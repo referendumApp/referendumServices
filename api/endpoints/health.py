@@ -6,7 +6,6 @@ from typing import Dict
 from ..database import get_db
 from ..schemas import ErrorResponse, HealthResponse
 
-
 router = APIRouter()
 
 
@@ -15,8 +14,14 @@ router = APIRouter()
     response_model=HealthResponse,
     summary="Healthcheck Endpoint",
     responses={
-        200: {"model": HealthResponse, "description": "Success"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        200: {
+            "model": HealthResponse,
+            "description": "Success"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 async def healthcheck(db: Session = Depends(get_db)) -> Dict[str, str]:

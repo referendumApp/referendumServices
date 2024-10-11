@@ -41,6 +41,7 @@ class NullValueException(CRUDException):
 
 
 class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
+
     def __init__(self, model: Type[ModelType]):
         self.model = model
 
@@ -48,10 +49,8 @@ class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         try:
             obj_data = obj_in.model_dump()
             for field, value in obj_data.items():
-                if (
-                    value is None
-                    and self.model.__table__.columns[field].nullable is False
-                ):
+                if (value is None
+                        and self.model.__table__.columns[field].nullable is False):
                     raise NullValueException(
                         f"Null value provided for non-nullable field: {field}"
                     )
@@ -79,13 +78,20 @@ class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             raise ObjectNotFoundException("Object not found")
         return db_obj
 
-    def read_all(
-        self, db: Session, *, skip: int = 0, limit: int = 100
-    ) -> List[ModelType]:
+    def read_all(self,
+                 db: Session,
+                 *,
+                 skip: int = 0,
+                 limit: int = 100) -> List[ModelType]:
         return db.query(self.model).offset(skip).limit(limit).all()
 
     def read_filtered(
-        self, db: Session, *, filters: Dict[str, Any], skip: int = 0, limit: int = 100
+        self,
+        db: Session,
+        *,
+        filters: Dict[str, Any],
+        skip: int = 0,
+        limit: int = 100
     ) -> List[ModelType]:
         query = db.query(self.model)
         for prop, value in filters.items():
@@ -131,12 +137,12 @@ class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
 
 class BillCRUD(BaseCRUD[models.Bill, schemas.BillCreate, schemas.BillRecord]):
+
     def get_bill_by_legiscan_id(self, db: Session, legiscan_id: int) -> models.Bill:
         try:
             bill = (
-                db.query(models.Bill)
-                .filter(models.Bill.legiscan_id == legiscan_id)
-                .first()
+                db.query(models.Bill).filter(models.Bill.legiscan_id == legiscan_id
+                                             ).first()
             )
             if bill is None:
                 raise ObjectNotFoundException(
@@ -171,9 +177,8 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.BillCreate, schemas.BillRecord]):
     ):
         db_bill = self.read(db=db, obj_id=bill_id)
         db_legislator = (
-            db.query(models.Legislator)
-            .filter(models.Legislator.id == legislator_id)
-            .first()
+            db.query(models.Legislator).filter(models.Legislator.id == legislator_id
+                                               ).first()
         )
         if not db_legislator:
             raise ObjectNotFoundException(
@@ -182,8 +187,7 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.BillCreate, schemas.BillRecord]):
 
         # Check if the sponsor already exists
         existing_sponsor = [
-            sponsor
-            for sponsor in db_bill.sponsors
+            sponsor for sponsor in db_bill.sponsors
             if sponsor.legislator_id == legislator_id
         ]
         if existing_sponsor:
@@ -207,9 +211,8 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.BillCreate, schemas.BillRecord]):
     ):
         db_bill = self.read(db=db, obj_id=bill_id)
         db_legislator = (
-            db.query(models.Legislator)
-            .filter(models.Legislator.id == legislator_id)
-            .first()
+            db.query(models.Legislator).filter(models.Legislator.id == legislator_id
+                                               ).first()
         )
         if not db_legislator:
             raise ObjectNotFoundException(
@@ -223,23 +226,21 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.BillCreate, schemas.BillRecord]):
         db.commit()
 
 
-class BillActionCRUD(
-    BaseCRUD[models.BillAction, schemas.BillActionCreate, schemas.BillAction]
-):
+class BillActionCRUD(BaseCRUD[models.BillAction, schemas.BillActionCreate,
+                              schemas.BillAction]):
     pass
 
 
-class CommitteeCRUD(
-    BaseCRUD[models.Committee, schemas.CommitteeCreate, schemas.Committee]
-):
+class CommitteeCRUD(BaseCRUD[models.Committee, schemas.CommitteeCreate,
+                             schemas.Committee]):
+
     def add_legislator_membership(
         self, db: Session, committee_id: int, legislator_id: int
     ):
         db_committee = self.read(db=db, obj_id=committee_id)
         db_legislator = (
-            db.query(models.Legislator)
-            .filter(models.Legislator.id == legislator_id)
-            .first()
+            db.query(models.Legislator).filter(models.Legislator.id == legislator_id
+                                               ).first()
         )
         if not db_legislator:
             raise ObjectNotFoundException(
@@ -253,9 +254,8 @@ class CommitteeCRUD(
     ):
         db_committee = self.read(db=db, obj_id=committee_id)
         db_legislator = (
-            db.query(models.Legislator)
-            .filter(models.Legislator.id == legislator_id)
-            .first()
+            db.query(models.Legislator).filter(models.Legislator.id == legislator_id
+                                               ).first()
         )
         if not db_legislator:
             raise ObjectNotFoundException(
@@ -268,9 +268,8 @@ class CommitteeCRUD(
         db_committee.legislators.remove(db_legislator)
         db.commit()
 
-    def get_legislators(
-        self, db: Session, committee_id: int
-    ) -> List[models.Legislator]:
+    def get_legislators(self, db: Session,
+                        committee_id: int) -> List[models.Legislator]:
         try:
             db_committee = self.read(db=db, obj_id=committee_id)
             if db_committee is None:
@@ -281,6 +280,7 @@ class CommitteeCRUD(
 
 
 class CommentCRUD(BaseCRUD[models.Comment, schemas.CommentCreate, schemas.Comment]):
+
     def delete(self, db: Session, obj_id: int) -> None:
         db_comment = db.get(self.model, obj_id)
         if db_comment is None:
@@ -300,17 +300,14 @@ class CommentCRUD(BaseCRUD[models.Comment, schemas.CommentCreate, schemas.Commen
             raise DatabaseException(f"Database error: {str(e)}")
 
 
-class LegislatorCRUD(
-    BaseCRUD[models.Legislator, schemas.LegislatorCreate, schemas.LegislatorRecord]
-):
+class LegislatorCRUD(BaseCRUD[models.Legislator, schemas.LegislatorCreate,
+                              schemas.LegislatorRecord]):
     pass
 
 
-class LegislativeBodyCRUD(
-    BaseCRUD[
-        models.LegislativeBody, schemas.LegislativeBodyCreate, schemas.LegislativeBody
-    ]
-):
+class LegislativeBodyCRUD(BaseCRUD[models.LegislativeBody,
+                                   schemas.LegislativeBodyCreate,
+                                   schemas.LegislativeBody]):
     pass
 
 
@@ -331,6 +328,7 @@ class TopicCRUD(BaseCRUD[models.Topic, schemas.TopicCreate, schemas.Topic]):
 
 
 class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
+
     def get_user_by_email(self, db: Session, email: str) -> models.User:
         try:
             db_user = (
@@ -404,9 +402,8 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
     def follow_legislator(self, db: Session, user_id: int, legislator_id: int):
         db_user = self.read(db=db, obj_id=user_id)
         db_legislator = (
-            db.query(models.Legislator)
-            .filter(models.Legislator.id == legislator_id)
-            .first()
+            db.query(models.Legislator).filter(models.Legislator.id == legislator_id
+                                               ).first()
         )
         if not db_legislator:
             raise ObjectNotFoundException(
@@ -418,9 +415,8 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
     def unfollow_legislator(self, db: Session, user_id: int, legislator_id: int):
         db_user = self.read(db=db, obj_id=user_id)
         db_legislator = (
-            db.query(models.Legislator)
-            .filter(models.Legislator.id == legislator_id)
-            .first()
+            db.query(models.Legislator).filter(models.Legislator.id == legislator_id
+                                               ).first()
         )
         if not db_legislator:
             raise ObjectNotFoundException(
@@ -433,9 +429,8 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
         db_user.followed_legislators.remove(db_legislator)
         db.commit()
 
-    def get_user_legislators(
-        self, db: Session, user_id: int
-    ) -> List[models.Legislator]:
+    def get_user_legislators(self, db: Session,
+                             user_id: int) -> List[models.Legislator]:
         try:
             db_user = self.read(db=db, obj_id=user_id)
             return db_user.followed_legislators
@@ -467,23 +462,19 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
         db.commit()
 
 
-class LegislatorVoteCRUD(
-    BaseCRUD[
-        models.LegislatorVote, schemas.LegislatorVoteCreate, schemas.LegislatorVote
-    ]
-):
+class LegislatorVoteCRUD(BaseCRUD[models.LegislatorVote, schemas.LegislatorVoteCreate,
+                                  schemas.LegislatorVote]):
+
     def create_or_update_vote(
         self, db: Session, legislator_vote_object: schemas.LegislatorVote
     ):
         try:
             existing_vote = (
-                db.query(self.model)
-                .filter(
-                    models.LegislatorVote.legislator_id
-                    == legislator_vote_object.legislator_id,
+                db.query(self.model).filter(
+                    models.LegislatorVote.legislator_id ==
+                    legislator_vote_object.legislator_id,
                     models.LegislatorVote.bill_id == legislator_vote_object.bill_id,
-                )
-                .first()
+                ).first()
             )
 
             if existing_vote:
@@ -500,27 +491,24 @@ class LegislatorVoteCRUD(
             db.rollback()
             raise DatabaseException(f"Database error: {str(e)}")
 
-    def get_votes_for_bill(
-        self, db: Session, bill_id: int
-    ) -> List[models.LegislatorVote]:
+    def get_votes_for_bill(self, db: Session,
+                           bill_id: int) -> List[models.LegislatorVote]:
         return self.read_filtered(db=db, filters={"bill_id": bill_id})
 
-    def get_votes_for_legislator(
-        self, db: Session, legislator_id: int
-    ) -> List[models.LegislatorVote]:
+    def get_votes_for_legislator(self, db: Session,
+                                 legislator_id: int) -> List[models.LegislatorVote]:
         return self.read_filtered(db=db, filters={"legislator_id": legislator_id})
 
 
 class UserVoteCRUD(BaseCRUD[models.UserVote, schemas.UserVoteCreate, schemas.UserVote]):
+
     def create_or_update_vote(self, db: Session, user_vote_object: schemas.UserVote):
         try:
             existing_vote = (
-                db.query(self.model)
-                .filter(
+                db.query(self.model).filter(
                     models.UserVote.user_id == user_vote_object.user_id,
                     models.UserVote.bill_id == user_vote_object.bill_id,
-                )
-                .first()
+                ).first()
             )
 
             if existing_vote:

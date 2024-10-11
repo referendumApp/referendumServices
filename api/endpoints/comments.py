@@ -29,8 +29,14 @@ router = APIRouter()
     status_code=status.HTTP_201_CREATED,
     summary="Add a new comment",
     responses={
-        201: {"model": schemas.Comment, "description": "Comment successfully created"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        201: {
+            "model": schemas.Comment,
+            "description": "Comment successfully created"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 async def create_comment(
@@ -54,12 +60,19 @@ async def create_comment(
     response_model=schemas.Comment,
     summary="Get a comment",
     responses={
-        200: {
-            "model": schemas.Comment,
-            "description": "Comment successfully retrieved",
+        200:
+            {
+                "model": schemas.Comment,
+                "description": "Comment successfully retrieved",
+            },
+        404: {
+            "model": ErrorResponse,
+            "description": "Comment not found"
         },
-        404: {"model": ErrorResponse, "description": "Comment not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 async def read_comment(
@@ -84,13 +97,23 @@ async def read_comment(
     response_model=schemas.Comment,
     summary="Get a comment",
     responses={
-        200: {"model": schemas.Comment, "description": "Comment successfully updated"},
-        403: {
-            "model": ErrorResponse,
-            "description": "Unauthorized to update this comment",
+        200: {
+            "model": schemas.Comment,
+            "description": "Comment successfully updated"
         },
-        404: {"model": ErrorResponse, "description": "Comment not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        403:
+            {
+                "model": ErrorResponse,
+                "description": "Unauthorized to update this comment",
+            },
+        404: {
+            "model": ErrorResponse,
+            "description": "Comment not found"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 async def update_comment(
@@ -125,13 +148,22 @@ async def update_comment(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a comment",
     responses={
-        204: {"description": "Comment successfully deleted"},
-        403: {
-            "model": ErrorResponse,
-            "description": "Only system token can delete comments",
+        204: {
+            "description": "Comment successfully deleted"
         },
-        404: {"model": ErrorResponse, "description": "Comment not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        403:
+            {
+                "model": ErrorResponse,
+                "description": "Only system token can delete comments",
+            },
+        404: {
+            "model": ErrorResponse,
+            "description": "Comment not found"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 async def delete_comment(
@@ -176,10 +208,21 @@ async def delete_comment(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Like a comment",
     responses={
-        204: {"description": "Comment successfully liked"},
-        404: {"model": ErrorResponse, "description": "Comment not found"},
-        409: {"model": ErrorResponse, "description": "Comment already liked"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        204: {
+            "description": "Comment successfully liked"
+        },
+        404: {
+            "model": ErrorResponse,
+            "description": "Comment not found"
+        },
+        409: {
+            "model": ErrorResponse,
+            "description": "Comment already liked"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 async def like_comment(
@@ -204,9 +247,17 @@ async def like_comment(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Unlike a comment",
     responses={
-        204: {"description": "Comment successfully unliked"},
-        404: {"model": ErrorResponse, "description": "Comment like not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        204: {
+            "description": "Comment successfully unliked"
+        },
+        404: {
+            "model": ErrorResponse,
+            "description": "Comment like not found"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 async def unlike_comment(

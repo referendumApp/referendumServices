@@ -30,14 +30,27 @@ router = APIRouter()
     status_code=status.HTTP_201_CREATED,
     summary="Add a new user",
     responses={
-        201: {"model": schemas.User, "description": "User successfully created"},
-        400: {"model": ErrorResponse, "description": "Bad request"},
-        403: {
-            "model": ErrorResponse,
-            "description": "Only system token can create users",
+        201: {
+            "model": schemas.User,
+            "description": "User successfully created"
         },
-        409: {"model": ErrorResponse, "description": "Email already registered"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        400: {
+            "model": ErrorResponse,
+            "description": "Bad request"
+        },
+        403:
+            {
+                "model": ErrorResponse,
+                "description": "Only system token can create users",
+            },
+        409: {
+            "model": ErrorResponse,
+            "description": "Email already registered"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 async def create_user(
@@ -66,16 +79,24 @@ async def create_user(
     response_model=schemas.User,
     summary="Get user information",
     responses={
-        200: {
-            "model": schemas.User,
-            "description": "User information successfully retrieved",
-        },
-        403: {
+        200:
+            {
+                "model": schemas.User,
+                "description": "User information successfully retrieved",
+            },
+        403:
+            {
+                "model": ErrorResponse,
+                "description": "Unauthorized to retrieve this user's information",
+            },
+        404: {
             "model": ErrorResponse,
-            "description": "Unauthorized to retrieve this user's information",
+            "description": "User not found"
         },
-        404: {"model": ErrorResponse, "description": "User not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 async def read_user(
@@ -111,16 +132,24 @@ async def read_user(
     response_model=schemas.User,
     summary="Update user information",
     responses={
-        200: {
-            "model": schemas.User,
-            "description": "User information successfully updated",
-        },
-        403: {
+        200:
+            {
+                "model": schemas.User,
+                "description": "User information successfully updated",
+            },
+        403:
+            {
+                "model": ErrorResponse,
+                "description": "Unauthorized to update this user's information",
+            },
+        404: {
             "model": ErrorResponse,
-            "description": "Unauthorized to update this user's information",
+            "description": "User not found"
         },
-        404: {"model": ErrorResponse, "description": "User not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 async def update_user(
@@ -136,7 +165,8 @@ async def update_user(
                 f"Unauthorized attempt to update user info: User {current_user.email} tried to update User {user.email}"
             )
             raise HTTPException(
-                status_code=403, detail="You can only update your own user information."
+                status_code=403,
+                detail="You can only update your own user information."
             )
     try:
         db_user = crud.user.get_user_by_email(db, email=user.email)
@@ -159,13 +189,22 @@ async def update_user(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a user",
     responses={
-        204: {"description": "User successfully deleted"},
-        403: {
-            "model": ErrorResponse,
-            "description": "Only system token can delete users",
+        204: {
+            "description": "User successfully deleted"
         },
-        404: {"model": ErrorResponse, "description": "User not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        403:
+            {
+                "model": ErrorResponse,
+                "description": "Only system token can delete users",
+            },
+        404: {
+            "model": ErrorResponse,
+            "description": "User not found"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 async def delete_user(
@@ -193,16 +232,24 @@ async def delete_user(
     response_model=List[schemas.Topic],
     summary="Get user's followed topics",
     responses={
-        200: {
-            "model": List[schemas.Topic],
-            "description": "User's topics successfully retrieved",
-        },
-        403: {
+        200:
+            {
+                "model": List[schemas.Topic],
+                "description": "User's topics successfully retrieved",
+            },
+        403:
+            {
+                "model": ErrorResponse,
+                "description": "Unauthorized to retrieve this user's topics",
+            },
+        404: {
             "model": ErrorResponse,
-            "description": "Unauthorized to retrieve this user's topics",
+            "description": "User not found"
         },
-        404: {"model": ErrorResponse, "description": "User not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 def get_user_topics(
@@ -226,16 +273,24 @@ def get_user_topics(
     response_model=List[schemas.Bill],
     summary="Get user's followed bills",
     responses={
-        200: {
-            "model": List[schemas.Bill],
-            "description": "User's bills successfully retrieved",
-        },
-        403: {
+        200:
+            {
+                "model": List[schemas.Bill],
+                "description": "User's bills successfully retrieved",
+            },
+        403:
+            {
+                "model": ErrorResponse,
+                "description": "Unauthorized to retrieve this user's bills",
+            },
+        404: {
             "model": ErrorResponse,
-            "description": "Unauthorized to retrieve this user's bills",
+            "description": "User not found"
         },
-        404: {"model": ErrorResponse, "description": "User not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 def get_user_bills(
@@ -257,16 +312,24 @@ def get_user_bills(
     response_model=List[schemas.Legislator],
     summary="Get user's followed legislators",
     responses={
-        200: {
-            "model": List[schemas.Legislator],
-            "description": "User's legislators successfully retrieved",
-        },
-        403: {
+        200:
+            {
+                "model": List[schemas.Legislator],
+                "description": "User's legislators successfully retrieved",
+            },
+        403:
+            {
+                "model": ErrorResponse,
+                "description": "Unauthorized to retrieve this user's legislators",
+            },
+        404: {
             "model": ErrorResponse,
-            "description": "Unauthorized to retrieve this user's legislators",
+            "description": "User not found"
         },
-        404: {"model": ErrorResponse, "description": "User not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 def get_user_legislators(

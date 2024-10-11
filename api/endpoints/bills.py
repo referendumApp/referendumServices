@@ -15,7 +15,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-
 EndpointGenerator.add_crud_routes(
     router=router,
     crud_model=crud.bill,
@@ -31,13 +30,23 @@ EndpointGenerator.add_crud_routes(
     response_model=Dict[str, str | int],
     summary="Get bill text",
     responses={
-        200: {
-            "model": Dict[str, str | int],
-            "description": "Bill text successfully retrieved",
+        200:
+            {
+                "model": Dict[str, str | int],
+                "description": "Bill text successfully retrieved",
+            },
+        401: {
+            "model": ErrorResponse,
+            "description": "Not authorized"
         },
-        401: {"model": ErrorResponse, "description": "Not authorized"},
-        404: {"model": ErrorResponse, "description": "Bill not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        404: {
+            "model": ErrorResponse,
+            "description": "Bill not found"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 async def get_bill_text(
@@ -55,10 +64,21 @@ async def get_bill_text(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Add topic to a bill",
     responses={
-        204: {"description": "Topic successfully added"},
-        401: {"model": ErrorResponse, "description": "Not authorized"},
-        404: {"model": ErrorResponse, "description": "Bill or topic not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        204: {
+            "description": "Topic successfully added"
+        },
+        401: {
+            "model": ErrorResponse,
+            "description": "Not authorized"
+        },
+        404: {
+            "model": ErrorResponse,
+            "description": "Bill or topic not found"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 def add_topic(
@@ -85,10 +105,21 @@ def add_topic(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Remove topic from a bill",
     responses={
-        204: {"description": "Topic successfully removed"},
-        401: {"model": ErrorResponse, "description": "Not authorized"},
-        404: {"model": ErrorResponse, "description": "Bill or topic not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        204: {
+            "description": "Topic successfully removed"
+        },
+        401: {
+            "model": ErrorResponse,
+            "description": "Not authorized"
+        },
+        404: {
+            "model": ErrorResponse,
+            "description": "Bill or topic not found"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 def remove_topic(
@@ -115,10 +146,21 @@ def remove_topic(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Add sponsor to a bill",
     responses={
-        204: {"description": "Sponsor successfully added"},
-        401: {"model": ErrorResponse, "description": "Not authorized"},
-        404: {"model": ErrorResponse, "description": "Bill or legislator not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        204: {
+            "description": "Sponsor successfully added"
+        },
+        401: {
+            "model": ErrorResponse,
+            "description": "Not authorized"
+        },
+        404: {
+            "model": ErrorResponse,
+            "description": "Bill or legislator not found"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 def add_sponsor(
@@ -147,10 +189,21 @@ def add_sponsor(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Remove sponsor from a bill",
     responses={
-        204: {"description": "Sponsor successfully removed"},
-        401: {"model": ErrorResponse, "description": "Not authorized"},
-        404: {"model": ErrorResponse, "description": "Bill or legislator not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        204: {
+            "description": "Sponsor successfully removed"
+        },
+        401: {
+            "model": ErrorResponse,
+            "description": "Not authorized"
+        },
+        404: {
+            "model": ErrorResponse,
+            "description": "Bill or legislator not found"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 def remove_sponsor(

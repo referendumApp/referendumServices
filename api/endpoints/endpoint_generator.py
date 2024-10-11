@@ -34,6 +34,7 @@ class CRUDPermissions(BaseModel):
 
 
 class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
+
     @classmethod
     def add_crud_routes(
         cls,
@@ -61,16 +62,24 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
             status_code=status.HTTP_201_CREATED,
             summary=f"Create a new {resource_name}",
             responses={
-                201: {
-                    "model": response_schema,
-                    "description": f"{resource_name} successfully created",
-                },
-                403: {"model": ErrorResponse, "description": "Forbidden"},
-                409: {
+                201:
+                    {
+                        "model": response_schema,
+                        "description": f"{resource_name} successfully created",
+                    },
+                403: {
                     "model": ErrorResponse,
-                    "description": f"{resource_name} already exists",
+                    "description": "Forbidden"
                 },
-                500: {"model": ErrorResponse, "description": "Internal server error"},
+                409:
+                    {
+                        "model": ErrorResponse,
+                        "description": f"{resource_name} already exists",
+                    },
+                500: {
+                    "model": ErrorResponse,
+                    "description": "Internal server error"
+                },
             },
         )
         async def create_item(
@@ -99,16 +108,24 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
             response_model=response_schema,
             summary=f"Get {resource_name} information",
             responses={
-                200: {
-                    "model": response_schema,
-                    "description": f"{resource_name} retrieved",
-                },
-                401: {"model": ErrorResponse, "description": "Not authorized"},
-                404: {
+                200:
+                    {
+                        "model": response_schema,
+                        "description": f"{resource_name} retrieved",
+                    },
+                401: {
                     "model": ErrorResponse,
-                    "description": f"{resource_name} not found",
+                    "description": "Not authorized"
                 },
-                500: {"model": ErrorResponse, "description": "Internal server error"},
+                404:
+                    {
+                        "model": ErrorResponse,
+                        "description": f"{resource_name} not found",
+                    },
+                500: {
+                    "model": ErrorResponse,
+                    "description": "Internal server error"
+                },
             },
         )
         async def read_item(
@@ -138,16 +155,26 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
             response_model=response_schema,
             summary=f"Update {resource_name} information",
             responses={
-                200: {
-                    "model": response_schema,
-                    "description": f"{resource_name} information successfully updated",
-                },
-                403: {"model": ErrorResponse, "description": "Forbidden"},
-                404: {
+                200:
+                    {
+                        "model":
+                            response_schema,
+                        "description":
+                            f"{resource_name} information successfully updated",
+                    },
+                403: {
                     "model": ErrorResponse,
-                    "description": f"{resource_name} not found",
+                    "description": "Forbidden"
                 },
-                500: {"model": ErrorResponse, "description": "Internal server error"},
+                404:
+                    {
+                        "model": ErrorResponse,
+                        "description": f"{resource_name} not found",
+                    },
+                500: {
+                    "model": ErrorResponse,
+                    "description": "Internal server error"
+                },
             },
         )
         async def update_item(
@@ -176,13 +203,22 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
             status_code=status.HTTP_204_NO_CONTENT,
             summary=f"Delete a {resource_name}",
             responses={
-                204: {"description": f"{resource_name} successfully deleted"},
-                403: {"model": ErrorResponse, "description": "Forbidden"},
-                404: {
-                    "model": ErrorResponse,
-                    "description": f"{resource_name} not found",
+                204: {
+                    "description": f"{resource_name} successfully deleted"
                 },
-                500: {"model": ErrorResponse, "description": "Internal server error"},
+                403: {
+                    "model": ErrorResponse,
+                    "description": "Forbidden"
+                },
+                404:
+                    {
+                        "model": ErrorResponse,
+                        "description": f"{resource_name} not found",
+                    },
+                500: {
+                    "model": ErrorResponse,
+                    "description": "Internal server error"
+                },
             },
         )
         async def delete_item(
@@ -210,12 +246,19 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
             response_model=List[response_schema],
             summary=f"Get all {resource_name}s",
             responses={
-                200: {
-                    "model": List[response_schema],
-                    "description": f"{resource_name}s successfully retrieved",
+                200:
+                    {
+                        "model": List[response_schema],
+                        "description": f"{resource_name}s successfully retrieved",
+                    },
+                401: {
+                    "model": ErrorResponse,
+                    "description": "Not authorized"
                 },
-                401: {"model": ErrorResponse, "description": "Not authorized"},
-                500: {"model": ErrorResponse, "description": "Internal server error"},
+                500: {
+                    "model": ErrorResponse,
+                    "description": "Internal server error"
+                },
             },
         )
         async def read_items(

@@ -4,7 +4,6 @@ from typing import Optional, List
 
 from .models import VoteChoice, BillActionType
 
-
 # Party
 
 

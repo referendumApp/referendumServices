@@ -4,7 +4,6 @@ import enum
 
 Base = declarative_base()
 
-
 user_topic_follows = Table(
     "user_topic_follows",
     Base.metadata,
@@ -12,14 +11,12 @@ user_topic_follows = Table(
     Column("topic_id", Integer, ForeignKey("topics.id"), primary_key=True),
 )
 
-
 user_bill_follows = Table(
     "user_bill_follows",
     Base.metadata,
     Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
     Column("bill_id", Integer, ForeignKey("bills.id"), primary_key=True),
 )
-
 
 user_legislator_follows = Table(
     "user_legislator_follows",
@@ -35,14 +32,12 @@ user_comment_likes = Table(
     Column("comment_id", Integer, ForeignKey("comments.id"), primary_key=True),
 )
 
-
 committee_membership = Table(
     "committee_membership",
     Base.metadata,
     Column("committee_id", Integer, ForeignKey("committees.id"), primary_key=True),
     Column("legislator_id", Integer, ForeignKey("legislators.id"), primary_key=True),
 )
-
 
 bill_sponsors = Table(
     "bill_sponsors",
@@ -51,7 +46,6 @@ bill_sponsors = Table(
     Column("legislator_id", Integer, ForeignKey("legislators.id"), primary_key=True),
     Column("is_primary", Boolean, nullable=False, default=False),
 )
-
 
 bill_topics = Table(
     "bill_topics",

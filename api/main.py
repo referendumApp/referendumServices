@@ -59,7 +59,6 @@ app.include_router(topics.router, tags=["topics"], prefix="/topics")
 app.include_router(users.router, tags=["users"], prefix="/users")
 app.include_router(user_votes.router, tags=["user_votes"], prefix="/user_votes")
 
-
 ########################################################################################################
 # User Feedback
 ########################################################################################################

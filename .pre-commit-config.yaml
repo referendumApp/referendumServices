@@ -1,6 +1,9 @@
 repos:
--   repo: https://github.com/psf/black
-    rev: 22.6.0
+-   repo: local
     hooks:
-    - id: black
-      language_version: python3.11
+    -   id: yapf
+        name: yapf
+        entry: yapf
+        language: system
+        types: [python]
+        args: [--style, .style.yapf, --recursive, --in-place, .]

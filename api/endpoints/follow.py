@@ -21,10 +21,21 @@ router = APIRouter()
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Follow a bill",
     responses={
-        204: {"description": "Bill successfully followed"},
-        401: {"model": ErrorResponse, "description": "Not authorized"},
-        404: {"model": ErrorResponse, "description": "User or bill not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        204: {
+            "description": "Bill successfully followed"
+        },
+        401: {
+            "model": ErrorResponse,
+            "description": "Not authorized"
+        },
+        404: {
+            "model": ErrorResponse,
+            "description": "User or bill not found"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 def follow_bill(
@@ -50,10 +61,21 @@ def follow_bill(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Unfollow a bill",
     responses={
-        204: {"description": "Bill successfully unfollowed"},
-        401: {"model": ErrorResponse, "description": "Not authorized"},
-        404: {"model": ErrorResponse, "description": "User or bill not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        204: {
+            "description": "Bill successfully unfollowed"
+        },
+        401: {
+            "model": ErrorResponse,
+            "description": "Not authorized"
+        },
+        404: {
+            "model": ErrorResponse,
+            "description": "User or bill not found"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 def unfollow_bill(
@@ -79,10 +101,21 @@ def unfollow_bill(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Follow a legislator",
     responses={
-        204: {"description": "Legislator successfully followed"},
-        401: {"model": ErrorResponse, "description": "Not authorized"},
-        404: {"model": ErrorResponse, "description": "User or legislator not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        204: {
+            "description": "Legislator successfully followed"
+        },
+        401: {
+            "model": ErrorResponse,
+            "description": "Not authorized"
+        },
+        404: {
+            "model": ErrorResponse,
+            "description": "User or legislator not found"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 def follow_legislator(
@@ -108,10 +141,21 @@ def follow_legislator(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Unfollow a legislator",
     responses={
-        204: {"description": "Legislator successfully unfollowed"},
-        401: {"model": ErrorResponse, "description": "Not authorized"},
-        404: {"model": ErrorResponse, "description": "User or legislator not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        204: {
+            "description": "Legislator successfully unfollowed"
+        },
+        401: {
+            "model": ErrorResponse,
+            "description": "Not authorized"
+        },
+        404: {
+            "model": ErrorResponse,
+            "description": "User or legislator not found"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 def unfollow_legislator(
@@ -141,10 +185,21 @@ def unfollow_legislator(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Follow a topic",
     responses={
-        204: {"description": "Topic successfully followed"},
-        401: {"model": ErrorResponse, "description": "Not authorized"},
-        404: {"model": ErrorResponse, "description": "User or topic not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        204: {
+            "description": "Topic successfully followed"
+        },
+        401: {
+            "model": ErrorResponse,
+            "description": "Not authorized"
+        },
+        404: {
+            "model": ErrorResponse,
+            "description": "User or topic not found"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 def follow_topic(
@@ -170,10 +225,21 @@ def follow_topic(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Unfollow a topic",
     responses={
-        204: {"description": "Topic successfully unfollowed"},
-        401: {"model": ErrorResponse, "description": "Not authorized"},
-        404: {"model": ErrorResponse, "description": "User or topic not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        204: {
+            "description": "Topic successfully unfollowed"
+        },
+        401: {
+            "model": ErrorResponse,
+            "description": "Not authorized"
+        },
+        404: {
+            "model": ErrorResponse,
+            "description": "User or topic not found"
+        },
+        500: {
+            "model": ErrorResponse,
+            "description": "Internal server error"
+        },
     },
 )
 def unfollow_topic(
