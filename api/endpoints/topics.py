@@ -10,8 +10,8 @@ router = APIRouter()
 EndpointGenerator.add_crud_routes(
     router=router,
     crud_model=crud.topic,
-    create_schema=schemas.TopicCreate,
-    update_schema=schemas.Topic,
-    response_schema=schemas.Topic,
+    create_schema=schemas.Topic.Base,
+    update_schema=schemas.Topic.Record,
+    response_schema=schemas.Topic.Full,
     resource_name="topic",
 )

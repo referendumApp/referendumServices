@@ -190,11 +190,11 @@ async def delete_user(
 
 @router.get(
     "/{user_id}/topics",
-    response_model=List[schemas.Topic],
+    response_model=List[schemas.Topic.Record],
     summary="Get user's followed topics",
     responses={
         200: {
-            "model": List[schemas.Topic],
+            "model": List[schemas.Topic.Record],
             "description": "User's topics successfully retrieved",
         },
         403: {
@@ -223,11 +223,11 @@ def get_user_topics(
 
 @router.get(
     "/{user_id}/bills",
-    response_model=List[schemas.Bill],
+    response_model=List[schemas.Bill.Record],
     summary="Get user's followed bills",
     responses={
         200: {
-            "model": List[schemas.Bill],
+            "model": List[schemas.Bill.Record],
             "description": "User's bills successfully retrieved",
         },
         403: {
@@ -254,11 +254,11 @@ def get_user_bills(
 
 @router.get(
     "/{user_id}/legislators",
-    response_model=List[schemas.Legislator],
+    response_model=List[schemas.Legislator.Record],
     summary="Get user's followed legislators",
     responses={
         200: {
-            "model": List[schemas.Legislator],
+            "model": List[schemas.Legislator.Record],
             "description": "User's legislators successfully retrieved",
         },
         403: {

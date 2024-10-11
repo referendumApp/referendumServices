@@ -68,135 +68,90 @@ Role = create_schema_container(
 )
 
 
-# State
-class StateBase(BaseSchema):
-    name: str
+State = create_schema_container(
+    name="State",
+    base_fields={"name": (str, ...)},
+)
 
 
-class StateCreate(StateBase):
-    pass
+LegislativeBody = create_schema_container(
+    name="State",
+    base_fields={"role_id": (int, ...), "state_id": (int, ...)},
+)
 
 
-class State(StateBase):
-    id: int
+Committee = create_schema_container(
+    name="Committee",
+    base_fields={"name": (str, ...), "legislative_body_id": (int, ...)},
+)
 
 
-# LegislativeBody
-class LegislativeBodyBase(BaseSchema):
-    role_id: int
-    state_id: int
+Topic = create_schema_container(
+    name="Topic",
+    base_fields={
+        "name": (str, ...),
+    },
+)
 
 
-class LegislativeBodyCreate(LegislativeBodyBase):
-    pass
+Legislator = create_schema_container(
+    name="Legislator",
+    base_fields={
+        "legiscan_id": (int, ...),
+        "name": (str, ...),
+        "image_url": (Optional[str], None),
+        "district": (str, ...),
+        "party_id": (int, ...),
+        "address": (Optional[str], None),
+        "facebook": (Optional[str], None),
+        "instagram": (Optional[str], None),
+        "phone": (Optional[str], None),
+        "twitter": (Optional[str], None),
+    },
+    relationship_fields={"committees": (List[Committee.Record], [])},
+)
 
 
-class LegislativeBody(LegislativeBodyBase):
-    id: int
+BillVersion = create_schema_container(
+    name="BillVersion",
+    base_fields={
+        "bill_id": (int, ...),
+        "version": (int, ...),
+    },
+)
 
 
-# Committee
-class CommitteeBase(BaseSchema):
-    name: str
-    legislative_body_id: int
+Bill = create_schema_container(
+    name="Bill",
+    base_fields={
+        "legiscan_id": (int, ...),
+        "identifier": (str, ...),
+        "title": (str, ...),
+        "description": (str, ...),
+        "session_id": (int, ...),
+        "state_id": (int, ...),
+        "status_id": (int, ...),
+        "status_date": (date, ...),
+        "briefing": (str, ...),
+    },
+    relationship_fields={
+        "state": (Optional[State.Record], None),
+        "legislative_body": (Optional[LegislativeBody.Record], None),
+        "topics": (List[Topic.Record], []),
+        "sponsors": (List[Legislator.Record], []),
+        "versions": (List[BillVersion.Record], []),
+    },
+)
 
 
-class CommitteeCreate(CommitteeBase):
-    pass
-
-
-class Committee(CommitteeBase):
-    id: int
-
-
-# Topic
-class TopicBase(BaseSchema):
-    name: str
-
-
-class TopicCreate(TopicBase):
-    pass
-
-
-class Topic(TopicBase):
-    id: int
-
-
-# Legislator
-class LegislatorBase(BaseSchema):
-    legiscan_id: int
-    name: str
-    image_url: Optional[str] = None
-    district: str
-    party_id: int
-    address: Optional[str] = None
-    facebook: Optional[str] = None
-    instagram: Optional[str] = None
-    phone: Optional[str] = None
-    twitter: Optional[str] = None
-
-
-class LegislatorCreate(LegislatorBase):
-    pass
-
-
-class LegislatorRecord(LegislatorBase):
-    id: int
-
-
-class Legislator(LegislatorRecord):
-    committees: List[Committee] = []
-
-
-# BillVersion
-class BillVersion(BaseSchema):
-    bill_id: int
-    version: int
-
-
-# Bill
-class BillBase(BaseSchema):
-    legiscan_id: int
-    identifier: str
-    title: str
-    description: str
-    state_id: int
-    legislative_body_id: int
-    session_id: int
-    briefing: str
-    status_id: int
-    status_date: date
-
-
-class BillCreate(BillBase):
-    pass
-
-
-class BillRecord(BillBase):
-    id: int
-
-
-class Bill(BillRecord):
-    state: Optional[State] = None
-    legislative_body: Optional[LegislativeBody] = None
-    topics: List[Topic] = []
-    sponsors: List[LegislatorRecord] = []
-    versions: List[BillVersion] = []
-
-
-# BillAction
-class BillActionBase(BaseSchema):
-    bill_id: int
-    date: date
-    type: BillActionType
-
-
-class BillActionCreate(BillActionBase):
-    pass
-
-
-class BillAction(BillActionBase):
-    id: int
+BillAction = create_schema_container(
+    name="BillAction",
+    base_fields={
+        "bill_id": (int, ...),
+        "date": (date, ...),
+        "type": (BillActionType, ...),
+    },
+)
 
 
 # User
@@ -215,9 +170,9 @@ class UserReference(UserBase):
 
 class User(UserBase):
     id: int
-    followed_bills: List[Bill] = []
-    followed_topics: List[Topic] = []
-    followed_legislators: List[Legislator] = []
+    followed_bills: List[Bill.Record] = []
+    followed_topics: List[Topic.Record] = []
+    followed_legislators: List[Legislator.Record] = []
 
 
 # Vote
@@ -242,17 +197,13 @@ class LegislatorVote(VoteBase):
     legislator_id: int
 
 
-# Comment
-class CommentBase(BaseSchema):
-    bill_id: int
-    parent_id: Optional[int] = None
-    comment: str
-
-
-class CommentCreate(CommentBase):
-    user_id: int
-
-
-class Comment(CommentCreate):
-    id: int
-    likes: List[UserReference] = []
+Comment = create_schema_container(
+    name="Comment",
+    base_fields={
+        "user_id": (int, ...),
+        "bill_id": (int, ...),
+        "parent_id": (Optional[int], None),
+        "comment": (str, ...),
+    },
+    relationship_fields={"likes": (List[UserReference], [])},
+)
