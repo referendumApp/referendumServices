@@ -68,7 +68,7 @@ def extract(etl_configs) -> Dict[str, pd.DataFrame]:
 
 
 def transform(etl_configs) -> Dict[str, pd.DataFrame]:
-
+    logger.info("EXTRACT: Transforming data")
     for config in etl_configs:
         table_name = config["source"]
 
@@ -99,6 +99,7 @@ def transform(etl_configs) -> Dict[str, pd.DataFrame]:
 
 
 def load(etl_configs):
+    logger.info("EXTRACT: Loading data")
     referendum_db = next(get_referendum_db())
 
     if check_db_connection(referendum_db):
@@ -186,6 +187,24 @@ def orchestrate_etl():
             ],
             "dataframe": None,
         },
+        # {
+        #     "source": "ls_bill_sponsor",
+        #     "destination": "bill_sponsors",
+        #     "transformations": [
+        #         {
+        #             "function": "keep_columns",
+        #             "parameters": {
+        #                 "columns": [
+        #                     "bill_id",
+        #                     "people_id",
+        #                     "sponsor_order",
+        #                     "sponsor_type_id",
+        #                 ]
+        #             },
+        #         },
+        #     ],
+        #     "dataframe": None,
+        # },
         {
             "source": "ls_bill",
             "destination": "bills",
@@ -227,7 +246,7 @@ def orchestrate_etl():
                     "function": "keep_columns",
                     "parameters": {
                         "columns": [
-                            # "people_id"
+                            "people_id",
                             "name",
                             "party_id",
                             "district",
