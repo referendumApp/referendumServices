@@ -141,6 +141,20 @@ class Bill(Base):
     )
 
 
+class BillActionType(enum.Enum):
+    FLOOR_VOTE = 1
+    COMMITTEE_VOTE = 2
+
+
+class BillAction(Base):
+    __tablename__ = "bill_actions"
+
+    id = Column(Integer, primary_key=True)
+    bill_id = Column(Integer)
+    date = Column(Date, nullable=True)
+    type = Column(Enum(BillActionType), nullable=False)
+
+
 class Legislator(Base):
     __tablename__ = "legislators"
 
@@ -170,9 +184,17 @@ class VoteChoice(enum.Enum):
     NO = 2
 
 
-class Vote(Base):
-    __tablename__ = "votes"
+class UserVote(Base):
+    __tablename__ = "user_votes"
 
     user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    bill_id = Column(Integer, ForeignKey("bills.id"), primary_key=True)
+    vote_choice = Column(Enum(VoteChoice), nullable=False)
+
+
+class LegislatorVote(Base):
+    __tablename__ = "legislator_votes"
+
+    legislator_id = Column(Integer, ForeignKey("legislators.id"), primary_key=True)
     bill_id = Column(Integer, ForeignKey("bills.id"), primary_key=True)
     vote_choice = Column(Enum(VoteChoice), nullable=False)

@@ -2,7 +2,7 @@ from datetime import date
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from typing import Optional, List
 
-from .models import VoteChoice
+from .models import VoteChoice, BillActionType
 
 
 # Party
@@ -186,6 +186,25 @@ class Bill(BillRecord):
     model_config = ConfigDict(from_attributes=True)
 
 
+# Bill Actions
+
+
+class BillActionBase(BaseModel):
+    bill_id: int
+    date: date
+    type: BillActionType
+
+
+class BillActionCreate(BillActionBase):
+    pass
+
+
+class BillAction(BillActionBase):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # Users
 
 
@@ -212,11 +231,21 @@ class VoteBase(BaseModel):
     vote_choice: VoteChoice
 
 
-class VoteCreate(VoteBase):
+class UserVoteCreate(VoteBase):
     pass
 
 
-class Vote(VoteBase):
+class UserVote(VoteBase):
     user_id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class LegislatorVoteCreate(VoteBase):
+    pass
+
+
+class LegislatorVote(VoteBase):
+    legislator_id: int
 
     model_config = ConfigDict(from_attributes=True)
