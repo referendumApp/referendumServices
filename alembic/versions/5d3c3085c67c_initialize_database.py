@@ -279,6 +279,7 @@ def upgrade():
         sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
         sa.Column("bill_id", sa.Integer(), nullable=False),
         sa.Column("user_id", sa.Integer(), nullable=False),
+        sa.Column("parent_id", sa.Integer(), nullable=True),
         sa.Column("comment", sa.String, nullable=False),
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["bill_id"], ["bills.id"]),

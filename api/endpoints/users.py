@@ -52,7 +52,7 @@ async def create_user(
         logger.info(f"Successfully created user with ID: {created_user.id}")
         return created_user
     except ObjectAlreadyExistsException:
-        logger.warning(f"Attempt to create user with existing email: {user.email}")
+        logger.warning(f"Attempted to create user with existing email: {user.email}")
         raise HTTPException(
             status_code=409, detail=f"Email already registered: {user.email}"
         )
@@ -99,7 +99,7 @@ async def read_user(
         logger.info(f"Successfully retrieved information for user ID: {user_id}")
         return user
     except ObjectNotFoundException:
-        logger.warning(f"Attempt to read non-existent user with ID: {user_id}")
+        logger.warning(f"Attempted to read non-existent user with ID: {user_id}")
         raise HTTPException(status_code=404, detail=f"User not found for id: {user_id}")
     except DatabaseException as e:
         logger.error(f"Database error while reading user: {str(e)}")

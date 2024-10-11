@@ -252,17 +252,16 @@ class LegislatorVote(VoteBase):
 
 
 class CommentBase(BaseModel):
-    user_id: int
     bill_id: int
-    parent_id: int
+    parent_id: Optional[int]
     comment: str
 
 
 class CommentCreate(CommentBase):
-    pass
+    user_id: int
 
 
-class Comment(VoteBase):
+class Comment(CommentCreate):
     id: int
 
     model_config = ConfigDict(from_attributes=True)

@@ -32,7 +32,11 @@ class DatabaseException(CRUDException):
     pass
 
 
-class NullValueException(Exception):
+class DependencyException(CRUDException):
+    pass
+
+
+class NullValueException(CRUDException):
     pass
 
 
@@ -277,7 +281,23 @@ class CommitteeCRUD(
 
 
 class CommentCRUD(BaseCRUD[models.Comment, schemas.CommentCreate, schemas.Comment]):
-    pass
+    def delete(self, db: Session, obj_id: int) -> None:
+        db_comment = db.get(self.model, obj_id)
+        if db_comment is None:
+            raise ObjectNotFoundException("Comment not found")
+
+        # Check if the comment has any children
+        replies = (
+            db.query(models.Comment).filter(models.Comment.parent_id == obj_id).all()
+        )
+        if len(replies) > 0:
+            raise DependencyException("Cannot delete a comment with replies")
+        try:
+            db.delete(db_comment)
+            db.commit()
+        except SQLAlchemyError as e:
+            db.rollback()
+            raise DatabaseException(f"Database error: {str(e)}")
 
 
 class LegislatorCRUD(
