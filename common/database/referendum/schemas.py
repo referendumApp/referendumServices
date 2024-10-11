@@ -62,17 +62,10 @@ Party = create_schema_container(
 )
 
 
-# Role
-class RoleBase(BaseSchema):
-    name: str
-
-
-class RoleCreate(RoleBase):
-    pass
-
-
-class Role(RoleBase):
-    id: int
+Role = create_schema_container(
+    name="Role",
+    base_fields={"name": (str, ...)},
+)
 
 
 # State

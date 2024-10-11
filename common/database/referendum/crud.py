@@ -318,7 +318,7 @@ class PartyCRUD(BaseCRUD[models.Party, schemas.Party.Base, schemas.Party.Record]
     pass
 
 
-class RoleCRUD(BaseCRUD[models.Role, schemas.RoleCreate, schemas.Role]):
+class RoleCRUD(BaseCRUD[models.Role, schemas.Role.Base, schemas.Role.Record]):
     pass
 
 
