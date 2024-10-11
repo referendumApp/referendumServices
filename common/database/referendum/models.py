@@ -109,6 +109,13 @@ class User(Base):
     followed_bills = relationship("Bill", secondary=user_bill_follows)
 
 
+class BillVersion(Base):
+    __tablename__ = "bill_versions"
+
+    bill_id = Column(Integer, primary_key=True)
+    version = Column(Integer, primary_key=True)
+
+
 class Bill(Base):
     __tablename__ = "bills"
 
@@ -132,6 +139,20 @@ class Bill(Base):
     sponsors = relationship(
         "Legislator", secondary=bill_sponsors, back_populates="sponsored_bills"
     )
+
+
+class BillActionType(enum.Enum):
+    FLOOR_VOTE = 1
+    COMMITTEE_VOTE = 2
+
+
+class BillAction(Base):
+    __tablename__ = "bill_actions"
+
+    id = Column(Integer, primary_key=True)
+    bill_id = Column(Integer)
+    date = Column(Date, nullable=True)
+    type = Column(Enum(BillActionType), nullable=False)
 
 
 class Legislator(Base):
@@ -163,9 +184,17 @@ class VoteChoice(enum.Enum):
     NO = 2
 
 
-class Vote(Base):
-    __tablename__ = "votes"
+class UserVote(Base):
+    __tablename__ = "user_votes"
 
     user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    bill_id = Column(Integer, ForeignKey("bills.id"), primary_key=True)
+    vote_choice = Column(Enum(VoteChoice), nullable=False)
+
+
+class LegislatorVote(Base):
+    __tablename__ = "legislator_votes"
+
+    legislator_id = Column(Integer, ForeignKey("legislators.id"), primary_key=True)
     bill_id = Column(Integer, ForeignKey("bills.id"), primary_key=True)
     vote_choice = Column(Enum(VoteChoice), nullable=False)

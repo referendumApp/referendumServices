@@ -27,12 +27,12 @@ EndpointGenerator.add_crud_routes(
 
 
 @router.get(
-    "/{bill_id}/text",
-    response_model=Dict[str, str],
+    "/{bill_id}/version/{version}/text",
+    response_model=Dict[str, str | int],
     summary="Get bill text",
     responses={
         200: {
-            "model": Dict[str, str],
+            "model": Dict[str, str | int],
             "description": "Bill text successfully retrieved",
         },
         401: {"model": ErrorResponse, "description": "Not authorized"},
@@ -41,11 +41,13 @@ EndpointGenerator.add_crud_routes(
     },
 )
 async def get_bill_text(
-    bill_id: str, _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token)
+    bill_id: int,
+    version: int,
+    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> dict:
     lorem_ipsum = "Lorem ipsum dolor sit amet"
-    logger.info(f"Fetched bill text for bill {bill_id}")
-    return {"bill_id": bill_id, "text": lorem_ipsum}
+    logger.info(f"Fetched bill text for bill {bill_id}, version {version}")
+    return {"bill_id": bill_id, "version": version, "text": lorem_ipsum}
 
 
 @router.post(

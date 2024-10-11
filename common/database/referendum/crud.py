@@ -219,6 +219,12 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.BillCreate, schemas.BillRecord]):
         db.commit()
 
 
+class BillActionCRUD(
+    BaseCRUD[models.BillAction, schemas.BillActionCreate, schemas.BillAction]
+):
+    pass
+
+
 class CommitteeCRUD(
     BaseCRUD[models.Committee, schemas.CommitteeCreate, schemas.Committee]
 ):
@@ -372,23 +378,30 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
             raise DatabaseException(f"Database error: {str(e)}")
 
 
-class VoteCRUD(BaseCRUD[models.Vote, schemas.VoteCreate, schemas.Vote]):
-    def create_or_update_vote(self, db: Session, user_vote: schemas.Vote):
+class LegislatorVoteCRUD(
+    BaseCRUD[
+        models.LegislatorVote, schemas.LegislatorVoteCreate, schemas.LegislatorVote
+    ]
+):
+    def create_or_update_vote(
+        self, db: Session, legislator_vote_object: schemas.LegislatorVote
+    ):
         try:
             existing_vote = (
                 db.query(self.model)
                 .filter(
-                    models.Vote.user_id == user_vote.user_id,
-                    models.Vote.bill_id == user_vote.bill_id,
+                    models.LegislatorVote.legislator_id
+                    == legislator_vote_object.legislator_id,
+                    models.LegislatorVote.bill_id == legislator_vote_object.bill_id,
                 )
                 .first()
             )
 
             if existing_vote:
-                for key, value in user_vote.model_dump().items():
+                for key, value in legislator_vote_object.model_dump().items():
                     setattr(existing_vote, key, value)
             else:
-                existing_vote = self.model(**user_vote.model_dump())
+                existing_vote = self.model(**legislator_vote_object.model_dump())
                 db.add(existing_vote)
 
             db.commit()
@@ -398,20 +411,59 @@ class VoteCRUD(BaseCRUD[models.Vote, schemas.VoteCreate, schemas.Vote]):
             db.rollback()
             raise DatabaseException(f"Database error: {str(e)}")
 
-    def get_votes_for_bill(self, db: Session, bill_id: int) -> List[models.Vote]:
+    def get_votes_for_bill(
+        self, db: Session, bill_id: int
+    ) -> List[models.LegislatorVote]:
         return self.read_filtered(db=db, filters={"bill_id": bill_id})
 
-    def get_votes_for_user(self, db: Session, user_id: int) -> List[models.Vote]:
+    def get_votes_for_legislator(
+        self, db: Session, legislator_id: int
+    ) -> List[models.LegislatorVote]:
+        return self.read_filtered(db=db, filters={"legislator_id": legislator_id})
+
+
+class UserVoteCRUD(BaseCRUD[models.UserVote, schemas.UserVoteCreate, schemas.UserVote]):
+    def create_or_update_vote(self, db: Session, user_vote_object: schemas.UserVote):
+        try:
+            existing_vote = (
+                db.query(self.model)
+                .filter(
+                    models.UserVote.user_id == user_vote_object.user_id,
+                    models.UserVote.bill_id == user_vote_object.bill_id,
+                )
+                .first()
+            )
+
+            if existing_vote:
+                for key, value in user_vote_object.model_dump().items():
+                    setattr(existing_vote, key, value)
+            else:
+                existing_vote = self.model(**user_vote_object.model_dump())
+                db.add(existing_vote)
+
+            db.commit()
+            db.refresh(existing_vote)
+            return existing_vote
+        except SQLAlchemyError as e:
+            db.rollback()
+            raise DatabaseException(f"Database error: {str(e)}")
+
+    def get_votes_for_bill(self, db: Session, bill_id: int) -> List[models.UserVote]:
+        return self.read_filtered(db=db, filters={"bill_id": bill_id})
+
+    def get_votes_for_user(self, db: Session, user_id: int) -> List[models.UserVote]:
         return self.read_filtered(db=db, filters={"user_id": user_id})
 
 
 bill = BillCRUD(models.Bill)
+bill_action = BillActionCRUD(models.BillAction)
 committee = CommitteeCRUD(models.Committee)
 legislator = LegislatorCRUD(models.Legislator)
 legislative_body = LegislativeBodyCRUD(models.LegislativeBody)
+legislator_vote = LegislatorVoteCRUD(models.LegislatorVote)
 party = UserCRUD(models.Party)
 role = UserCRUD(models.Role)
 state = UserCRUD(models.State)
 topic = TopicCRUD(models.Topic)
 user = UserCRUD(models.User)
-vote = VoteCRUD(models.Vote)
+user_vote = UserVoteCRUD(models.UserVote)

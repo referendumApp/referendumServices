@@ -17,8 +17,10 @@ from .endpoints import (
     partys,
     roles,
     states,
-    votes,
+    user_votes,
     committees,
+    bill_actions,
+    legislator_votes,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -38,9 +40,13 @@ app.add_middleware(
 app.include_router(health.router, tags=["health"])
 app.include_router(authentication.router, tags=["authentication"], prefix="/auth")
 app.include_router(bills.router, tags=["bills"], prefix="/bills")
+app.include_router(bill_actions.router, tags=["bill_actions"], prefix="/bill_actions")
 app.include_router(committees.router, tags=["committees"], prefix="/committees")
 app.include_router(follow.router, tags=["follow"], prefix="/follow")
 app.include_router(legislators.router, tags=["legislators"], prefix="/legislators")
+app.include_router(
+    legislator_votes.router, tags=["legislator_votes"], prefix="/legislator_votes"
+)
 app.include_router(
     legislative_bodys.router, tags=["legislative_bodys"], prefix="/legislative_bodys"
 )
@@ -49,7 +55,7 @@ app.include_router(roles.router, tags=["roles"], prefix="/roles")
 app.include_router(states.router, tags=["states"], prefix="/states")
 app.include_router(topics.router, tags=["topics"], prefix="/topics")
 app.include_router(users.router, tags=["users"], prefix="/users")
-app.include_router(votes.router, tags=["votes"], prefix="/votes")
+app.include_router(user_votes.router, tags=["user_votes"], prefix="/user_votes")
 
 
 ########################################################################################################

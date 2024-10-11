@@ -121,6 +121,17 @@ def upgrade():
     op.create_index(op.f("ix_bills_session_id"), "bills", ["session_id"], unique=False)
 
     op.create_table(
+        "bill_versions",
+        sa.Column("bill_id", sa.Integer(), nullable=False),
+        sa.Column("version", sa.Integer(), nullable=False),
+        sa.PrimaryKeyConstraint("bill_id", "version"),
+        sa.ForeignKeyConstraint(
+            ["bill_id"],
+            ["bills.id"],
+        ),
+    )
+
+    op.create_table(
         "legislators",
         sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
         sa.Column("legiscan_id", sa.Integer(), nullable=False),
@@ -195,6 +206,20 @@ def upgrade():
     )
 
     op.create_table(
+        "bill_actions",
+        sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("bill_id", sa.Integer(), nullable=False),
+        sa.Column("date", sa.Date(), nullable=False),
+        sa.Column(
+            "type",
+            sa.Enum("FLOOR_VOTE", "COMMITTEE_VOTE", name="billactiontype"),
+            nullable=False,
+        ),
+        sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(["bill_id"], ["bills.id"]),
+    )
+
+    op.create_table(
         "bill_sponsors",
         sa.Column("bill_id", sa.Integer(), nullable=False),
         sa.Column("legislator_id", sa.Integer(), nullable=False),
@@ -226,7 +251,7 @@ def upgrade():
     )
 
     op.create_table(
-        "votes",
+        "user_votes",
         sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column("bill_id", sa.Integer(), nullable=False),
         sa.Column(
@@ -235,6 +260,18 @@ def upgrade():
         sa.ForeignKeyConstraint(["bill_id"], ["bills.id"]),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"]),
         sa.PrimaryKeyConstraint("user_id", "bill_id"),
+    )
+
+    op.create_table(
+        "legislator_votes",
+        sa.Column("legislator_id", sa.Integer(), nullable=False),
+        sa.Column("bill_id", sa.Integer(), nullable=False),
+        sa.Column(
+            "vote_choice", sa.Enum("YES", "NO", name="votechoice"), nullable=False
+        ),
+        sa.ForeignKeyConstraint(["bill_id"], ["bills.id"]),
+        sa.ForeignKeyConstraint(["legislator_id"], ["legislators.id"]),
+        sa.PrimaryKeyConstraint("legislator_id", "bill_id"),
     )
 
 

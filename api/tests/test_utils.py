@@ -114,6 +114,14 @@ def test_bill(test_state, test_legislative_body):
 
 
 @pytest.fixture(scope="function")
+def test_bill_action(test_bill):
+    bill_action_data = {"bill_id": test_bill["id"], "date": "2024-01-01", "type": 1}
+    bill_action = create_test_entity("/bill_actions", lambda: bill_action_data)
+    yield bill_action
+    client.delete(f"/bill_actions/{bill_action['id']}", headers=system_headers)
+
+
+@pytest.fixture(scope="function")
 def test_party():
     party_data = {"name": "Independent"}
     party = create_test_entity("/partys", lambda: party_data)
@@ -142,6 +150,6 @@ def test_legislator(test_party):
 def test_vote(test_user_session, test_bill):
     user, headers = test_user_session
     vote_data = {"bill_id": test_bill["id"], "vote_choice": VoteChoice.YES.value}
-    response = client.put("/votes/", json=vote_data, headers=headers)
+    response = client.put("/user_votes/", json=vote_data, headers=headers)
     assert_status_code(response, 200)
     return response.json()
