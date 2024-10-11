@@ -195,6 +195,22 @@ def upgrade():
     )
 
     op.create_table(
+        "bill_sponsors",
+        sa.Column("bill_id", sa.Integer(), nullable=False),
+        sa.Column("legislator_id", sa.Integer(), nullable=False),
+        sa.Column("is_primary", sa.Boolean(), nullable=False, default=False),
+        sa.ForeignKeyConstraint(
+            ["bill_id"],
+            ["bills.id"],
+        ),
+        sa.ForeignKeyConstraint(
+            ["legislator_id"],
+            ["legislators.id"],
+        ),
+        sa.PrimaryKeyConstraint("bill_id", "legislator_id"),
+    )
+
+    op.create_table(
         "bill_topics",
         sa.Column("bill_id", sa.Integer(), nullable=False),
         sa.Column("topic_id", sa.Integer(), nullable=False),

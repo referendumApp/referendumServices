@@ -59,7 +59,7 @@ async def get_bill_text(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
-def follow_topic(
+def add_topic(
     bill_id: int,
     topic_id: int,
     db: Session = Depends(get_db),
@@ -89,7 +89,7 @@ def follow_topic(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
-def unfollow_topic(
+def remove_topic(
     bill_id: int,
     topic_id: int,
     db: Session = Depends(get_db),
@@ -105,4 +105,68 @@ def unfollow_topic(
         raise HTTPException(status_code=404, detail=f"Error unfollowing: {str(e)}")
     except DatabaseException as e:
         logger.error(f"Database error while removing topic: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@router.post(
+    "/{bill_id}/sponsors/{legislator_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Add sponsor to a bill",
+    responses={
+        204: {"description": "Sponsor successfully added"},
+        401: {"model": ErrorResponse, "description": "Not authorized"},
+        404: {"model": ErrorResponse, "description": "Bill or legislator not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+def add_sponsor(
+    bill_id: int,
+    legislator_id: int,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_system_token),
+) -> None:
+    logger.info(
+        f"Attempting to add sponsor legislator {legislator_id} to bill {bill_id}"
+    )
+    try:
+        crud.bill.add_sponsor(db=db, bill_id=bill_id, legislator_id=legislator_id)
+        logger.info(f"Sponsor {legislator_id} successfully added to bill {bill_id}")
+        return
+    except ObjectNotFoundException as e:
+        logger.warning(f"Error adding sponsor: {str(e)}")
+        raise HTTPException(status_code=404, detail=f"Error adding sponsor: {str(e)}")
+    except DatabaseException as e:
+        logger.error(f"Database error while adding sponsor: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@router.delete(
+    "/{bill_id}/sponsors/{legislator_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove sponsor from a bill",
+    responses={
+        204: {"description": "Sponsor successfully removed"},
+        401: {"model": ErrorResponse, "description": "Not authorized"},
+        404: {"model": ErrorResponse, "description": "Bill or legislator not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+def remove_sponsor(
+    bill_id: int,
+    legislator_id: int,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_system_token),
+) -> None:
+    logger.info(
+        f"Attempting to remove sponsor legislator {legislator_id} from bill {bill_id}"
+    )
+    try:
+        crud.bill.remove_sponsor(db=db, bill_id=bill_id, legislator_id=legislator_id)
+        logger.info(f"Sponsor {legislator_id} successfully removed from bill {bill_id}")
+        return
+    except ObjectNotFoundException as e:
+        logger.warning(f"Error removing sponsor: {str(e)}")
+        raise HTTPException(status_code=404, detail=f"Error removing sponsor: {str(e)}")
+    except DatabaseException as e:
+        logger.error(f"Database error while removing sponsor: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")

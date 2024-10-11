@@ -109,6 +109,39 @@ class Topic(TopicBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+# Legislators
+
+
+class LegislatorBase(BaseModel):
+    legiscan_id: int
+    name: str
+    image_url: Optional[str]
+    district: str
+    party_id: int
+
+    address: Optional[str] = None
+    facebook: Optional[str] = None
+    instagram: Optional[str] = None
+    phone: Optional[str] = None
+    twitter: Optional[str] = None
+
+
+class LegislatorCreate(LegislatorBase):
+    pass
+
+
+class LegislatorRecord(LegislatorBase):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class Legislator(LegislatorRecord):
+    committees: List[Committee]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # Bills
 
 
@@ -139,39 +172,7 @@ class Bill(BillRecord):
     state: Optional[State] = None
     legislative_body: Optional[LegislativeBody] = None
     topics: List[Topic] = []
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-# Legislators
-
-
-class LegislatorBase(BaseModel):
-    legiscan_id: int
-    name: str
-    image_url: Optional[str]
-    district: str
-    party_id: int
-
-    address: Optional[str] = None
-    facebook: Optional[str] = None
-    instagram: Optional[str] = None
-    phone: Optional[str] = None
-    twitter: Optional[str] = None
-
-
-class LegislatorCreate(LegislatorBase):
-    pass
-
-
-class LegislatorRecord(LegislatorBase):
-    id: int
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class Legislator(LegislatorRecord):
-    committees: List[Committee]
+    sponsors: List[LegislatorRecord] = []
 
     model_config = ConfigDict(from_attributes=True)
 
