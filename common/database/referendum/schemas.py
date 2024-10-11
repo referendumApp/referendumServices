@@ -5,10 +5,12 @@ from typing import Optional, List
 from .models import VoteChoice, BillActionType
 
 
+class BaseSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+
 # Party
-
-
-class PartyBase(BaseModel):
+class PartyBase(BaseSchema):
     name: str
 
 
@@ -19,13 +21,9 @@ class PartyCreate(PartyBase):
 class Party(PartyBase):
     id: int
 
-    model_config = ConfigDict(from_attributes=True)
-
 
 # Role
-
-
-class RoleBase(BaseModel):
+class RoleBase(BaseSchema):
     name: str
 
 
@@ -36,13 +34,9 @@ class RoleCreate(RoleBase):
 class Role(RoleBase):
     id: int
 
-    model_config = ConfigDict(from_attributes=True)
-
 
 # State
-
-
-class StateBase(BaseModel):
+class StateBase(BaseSchema):
     name: str
 
 
@@ -53,13 +47,9 @@ class StateCreate(StateBase):
 class State(StateBase):
     id: int
 
-    model_config = ConfigDict(from_attributes=True)
-
 
 # LegislativeBody
-
-
-class LegislativeBodyBase(BaseModel):
+class LegislativeBodyBase(BaseSchema):
     role_id: int
     state_id: int
 
@@ -71,13 +61,9 @@ class LegislativeBodyCreate(LegislativeBodyBase):
 class LegislativeBody(LegislativeBodyBase):
     id: int
 
-    model_config = ConfigDict(from_attributes=True)
-
 
 # Committee
-
-
-class CommitteeBase(BaseModel):
+class CommitteeBase(BaseSchema):
     name: str
     legislative_body_id: int
 
@@ -89,13 +75,9 @@ class CommitteeCreate(CommitteeBase):
 class Committee(CommitteeBase):
     id: int
 
-    model_config = ConfigDict(from_attributes=True)
 
-
-# Topics
-
-
-class TopicBase(BaseModel):
+# Topic
+class TopicBase(BaseSchema):
     name: str
 
 
@@ -106,19 +88,14 @@ class TopicCreate(TopicBase):
 class Topic(TopicBase):
     id: int
 
-    model_config = ConfigDict(from_attributes=True)
 
-
-# Legislators
-
-
-class LegislatorBase(BaseModel):
+# Legislator
+class LegislatorBase(BaseSchema):
     legiscan_id: int
     name: str
-    image_url: Optional[str]
+    image_url: Optional[str] = None
     district: str
     party_id: int
-
     address: Optional[str] = None
     facebook: Optional[str] = None
     instagram: Optional[str] = None
@@ -133,27 +110,19 @@ class LegislatorCreate(LegislatorBase):
 class LegislatorRecord(LegislatorBase):
     id: int
 
-    model_config = ConfigDict(from_attributes=True)
-
 
 class Legislator(LegislatorRecord):
-    committees: List[Committee]
-
-    model_config = ConfigDict(from_attributes=True)
+    committees: List[Committee] = []
 
 
-# Bill Versions
-
-
-class BillVersion(BaseModel):
+# BillVersion
+class BillVersion(BaseSchema):
     bill_id: int
     version: int
 
 
-# Bills
-
-
-class BillBase(BaseModel):
+# Bill
+class BillBase(BaseSchema):
     legiscan_id: int
     identifier: str
     title: str
@@ -173,8 +142,6 @@ class BillCreate(BillBase):
 class BillRecord(BillBase):
     id: int
 
-    model_config = ConfigDict(from_attributes=True)
-
 
 class Bill(BillRecord):
     state: Optional[State] = None
@@ -183,13 +150,9 @@ class Bill(BillRecord):
     sponsors: List[LegislatorRecord] = []
     versions: List[BillVersion] = []
 
-    model_config = ConfigDict(from_attributes=True)
 
-
-# Bill Actions
-
-
-class BillActionBase(BaseModel):
+# BillAction
+class BillActionBase(BaseSchema):
     bill_id: int
     date: date
     type: BillActionType
@@ -202,13 +165,9 @@ class BillActionCreate(BillActionBase):
 class BillAction(BillActionBase):
     id: int
 
-    model_config = ConfigDict(from_attributes=True)
 
-
-# Users
-
-
-class UserBase(BaseModel):
+# User
+class UserBase(BaseSchema):
     email: EmailStr = Field(..., max_length=100)
     name: str = Field(..., min_length=1, max_length=100)
 
@@ -220,20 +179,16 @@ class UserCreate(UserBase):
 class UserReference(UserBase):
     id: int
 
-    model_config = ConfigDict(from_attributes=True)
-
 
 class User(UserBase):
     id: int
-
     followed_bills: List[Bill] = []
     followed_topics: List[Topic] = []
     followed_legislators: List[Legislator] = []
 
-    model_config = ConfigDict(from_attributes=True)
 
-
-class VoteBase(BaseModel):
+# Vote
+class VoteBase(BaseSchema):
     bill_id: int
     vote_choice: VoteChoice
 
@@ -245,8 +200,6 @@ class UserVoteCreate(VoteBase):
 class UserVote(VoteBase):
     user_id: int
 
-    model_config = ConfigDict(from_attributes=True)
-
 
 class LegislatorVoteCreate(VoteBase):
     pass
@@ -255,12 +208,11 @@ class LegislatorVoteCreate(VoteBase):
 class LegislatorVote(VoteBase):
     legislator_id: int
 
-    model_config = ConfigDict(from_attributes=True)
 
-
-class CommentBase(BaseModel):
+# Comment
+class CommentBase(BaseSchema):
     bill_id: int
-    parent_id: Optional[int]
+    parent_id: Optional[int] = None
     comment: str
 
 
@@ -270,7 +222,4 @@ class CommentCreate(CommentBase):
 
 class Comment(CommentCreate):
     id: int
-
-    likes: List[UserReference]
-
-    model_config = ConfigDict(from_attributes=True)
+    likes: List[UserReference] = []
