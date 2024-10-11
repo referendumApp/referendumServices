@@ -1,25 +1,65 @@
 from datetime import date
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
-from typing import Optional, List
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, create_model
+from typing import TypeVar, Generic, List, Type, Dict, Any, Optional
 
 from .models import VoteChoice, BillActionType
+
+
+T = TypeVar("T")
 
 
 class BaseSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-# Party
-class PartyBase(BaseSchema):
-    name: str
+class RecordSchema(BaseSchema, Generic[T]):
+    id: int
 
 
-class PartyCreate(PartyBase):
+class RelationshipSchema(RecordSchema[T], Generic[T]):
     pass
 
 
-class Party(PartyBase):
-    id: int
+class SchemaContainer(BaseModel):
+    Base: Type[BaseSchema]
+    Record: Type[RecordSchema]
+    Full: Type[RelationshipSchema]
+
+
+def create_schema_container(
+    name: str,
+    base_fields: Dict[str, Any],
+    record_fields: Dict[str, Any] = None,
+    relationship_fields: Dict[str, Any] = None,
+) -> SchemaContainer:
+    base_class = create_model(f"{name}Base", __base__=BaseSchema, **base_fields)
+
+    record_class = create_model(
+        f"{name}Record",
+        __base__=(RecordSchema,),
+        **{**base_fields, **(record_fields or {}), "id": (int, ...)},
+    )
+
+    relationship_class = create_model(
+        name,
+        __base__=(RelationshipSchema,),
+        **{
+            **base_fields,
+            **(record_fields or {}),
+            **(relationship_fields or {}),
+            "id": (int, ...),
+        },
+    )
+
+    return SchemaContainer(
+        Base=base_class, Record=record_class, Full=relationship_class
+    )
+
+
+Party = create_schema_container(
+    name="Party",
+    base_fields={"name": (str, ...)},
+)
 
 
 # Role

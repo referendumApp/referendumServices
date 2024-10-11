@@ -314,7 +314,7 @@ class LegislativeBodyCRUD(
     pass
 
 
-class PartyCRUD(BaseCRUD[models.Party, schemas.PartyCreate, schemas.Party]):
+class PartyCRUD(BaseCRUD[models.Party, schemas.Party.Base, schemas.Party.Record]):
     pass
 
 
