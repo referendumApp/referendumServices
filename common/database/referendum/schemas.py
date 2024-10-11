@@ -228,6 +228,7 @@ class User(UserBase):
 
     followed_bills: List[Bill] = []
     followed_topics: List[Topic] = []
+    followed_legislators: List[Legislator] = []
 
     model_config = ConfigDict(from_attributes=True)
 

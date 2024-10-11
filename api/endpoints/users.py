@@ -250,3 +250,36 @@ def get_user_bills(
     except DatabaseException as e:
         logger.error(f"Database error while retrieving user bills: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@router.get(
+    "/{user_id}/legislators",
+    response_model=List[schemas.Legislator],
+    summary="Get user's followed legislators",
+    responses={
+        200: {
+            "model": List[schemas.Legislator],
+            "description": "User's legislators successfully retrieved",
+        },
+        403: {
+            "model": ErrorResponse,
+            "description": "Unauthorized to retrieve this user's legislators",
+        },
+        404: {"model": ErrorResponse, "description": "User not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+def get_user_legislators(
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+) -> List[models.Legislator]:
+    logger.info(f"Attempting to retrieve legislators for user ID: {user.id}")
+    try:
+        legislators = crud.user.get_user_legislators(db=db, user_id=user.id)
+        logger.info(
+            f"Successfully retrieved {len(legislators)} legislators for user ID: {user.id}"
+        )
+        return legislators
+    except DatabaseException as e:
+        logger.error(f"Database error while retrieving user legislators: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
