@@ -34,7 +34,7 @@ async def cast_vote(
 ) -> models.UserVote:
     try:
         user_vote = schemas.UserVote(**vote.model_dump(), user_id=user.id)
-        return crud.user_vote.create_or_update_vote(db=db, user_vote_object=user_vote)
+        return crud.user_vote.create_or_update_vote(db=db, vote=user_vote)
     except DatabaseException as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
