@@ -295,6 +295,21 @@ def upgrade():
         sa.ForeignKeyConstraint(["comment_id"], ["comments.id"]),
     )
 
+    op.create_table(
+        "user_legislator_follows",
+        sa.Column("user_id", sa.Integer(), nullable=False),
+        sa.Column("legislator_id", sa.Integer(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["legislator_id"],
+            ["legislators.id"],
+        ),
+        sa.ForeignKeyConstraint(
+            ["user_id"],
+            ["users.id"],
+        ),
+        sa.PrimaryKeyConstraint("user_id", "legislator_id"),
+    )
+
 
 def downgrade():
     op.drop_table("votes")

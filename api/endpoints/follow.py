@@ -75,6 +75,68 @@ def unfollow_bill(
 
 
 @router.post(
+    "/legislator/{legislator_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Follow a legislator",
+    responses={
+        204: {"description": "Legislator successfully followed"},
+        401: {"model": ErrorResponse, "description": "Not authorized"},
+        404: {"model": ErrorResponse, "description": "User or legislator not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+def follow_legislator(
+    legislator_id: str,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+) -> None:
+    logger.info(f"User {user.id} attempting to follow legislator {legislator_id}")
+    try:
+        crud.user.follow_legislator(db=db, user_id=user.id, legislator_id=legislator_id)
+        logger.info(f"User {user.id} successfully followed legislator {legislator_id}")
+        return
+    except ObjectNotFoundException as e:
+        logger.warning(f"Error following legislator: {str(e)}")
+        raise HTTPException(status_code=404, detail=f"Error following: {str(e)}")
+    except DatabaseException as e:
+        logger.error(f"Database error while following legislator: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@router.delete(
+    "/legislator/{legislator_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Unfollow a legislator",
+    responses={
+        204: {"description": "Legislator successfully unfollowed"},
+        401: {"model": ErrorResponse, "description": "Not authorized"},
+        404: {"model": ErrorResponse, "description": "User or legislator not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+def unfollow_legislator(
+    legislator_id: str,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+) -> None:
+    logger.info(f"User {user.id} attempting to unfollow legislator {legislator_id}")
+    try:
+        crud.user.unfollow_legislator(
+            db=db, user_id=user.id, legislator_id=legislator_id
+        )
+        logger.info(
+            f"User {user.id} successfully unfollowed legislator {legislator_id}"
+        )
+        return
+    except ObjectNotFoundException as e:
+        logger.warning(f"Error unfollowing legislator: {str(e)}")
+        raise HTTPException(status_code=404, detail=f"Error unfollowing: {str(e)}")
+    except DatabaseException as e:
+        logger.error(f"Database error while unfollowing legislator: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@router.post(
     "/topic/{topic_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Follow a topic",

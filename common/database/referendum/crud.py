@@ -401,6 +401,47 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
         except SQLAlchemyError as e:
             raise DatabaseException(f"Database error: {str(e)}")
 
+    def follow_legislator(self, db: Session, user_id: int, legislator_id: int):
+        db_user = self.read(db=db, obj_id=user_id)
+        db_legislator = (
+            db.query(models.Legislator)
+            .filter(models.Legislator.id == legislator_id)
+            .first()
+        )
+        if not db_legislator:
+            raise ObjectNotFoundException(
+                f"Legislator not found for id: {legislator_id}"
+            )
+        db_user.followed_legislators.append(db_legislator)
+        db.commit()
+
+    def unfollow_legislator(self, db: Session, user_id: int, legislator_id: int):
+        db_user = self.read(db=db, obj_id=user_id)
+        db_legislator = (
+            db.query(models.Legislator)
+            .filter(models.Legislator.id == legislator_id)
+            .first()
+        )
+        if not db_legislator:
+            raise ObjectNotFoundException(
+                f"Legislator not found for id: {legislator_id}"
+            )
+        if db_legislator not in db_user.followed_legislators:
+            raise ObjectNotFoundException(
+                f"Cannot unfollow, User {user_id} is not following legislator {legislator_id}"
+            )
+        db_user.followed_legislators.remove(db_legislator)
+        db.commit()
+
+    def get_user_legislators(
+        self, db: Session, user_id: int
+    ) -> List[models.Legislator]:
+        try:
+            db_user = self.read(db=db, obj_id=user_id)
+            return db_user.followed_legislators
+        except SQLAlchemyError as e:
+            raise DatabaseException(f"Database error: {str(e)}")
+
     def like_comment(self, db: Session, user_id: int, comment_id: int):
         db_user = self.read(db=db, obj_id=user_id)
         db_comment = (

@@ -206,6 +206,33 @@ def test_follow_bill(test_user_session, test_bill):
     assert not any(t["id"] == test_bill["id"] for t in user_topics)
 
 
+def test_follow_legislator(test_user_session, test_legislator):
+    user, user_headers = test_user_session
+
+    response = client.post(
+        f"/follow/legislator/{test_legislator['id']}", headers=user_headers
+    )
+    assert_status_code(response, 204)
+
+    # Verify that the legislator is in the user's followed legislators
+    response = client.get(f"/users/{user['id']}/legislators", headers=user_headers)
+    assert_status_code(response, 200)
+    user_legislators = response.json()
+    assert any(l["id"] == test_legislator["id"] for l in user_legislators)
+
+    # Now, unfollow the legislator
+    unfollow_response = client.delete(
+        f"/follow/legislator/{test_legislator['id']}", headers=user_headers
+    )
+    assert_status_code(unfollow_response, 204)
+
+    # Verify that the legislator is no longer in the user's followed legislators
+    response = client.get(f"/users/{user['id']}/legislators", headers=user_headers)
+    assert_status_code(response, 200)
+    user_legislators = response.json()
+    assert not any(l["id"] == test_legislator["id"] for l in user_legislators)
+
+
 def test_follow_nonexistent_bill(test_user_session):
     user, user_headers = test_user_session
 
