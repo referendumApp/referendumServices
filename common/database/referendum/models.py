@@ -198,3 +198,13 @@ class LegislatorVote(Base):
     legislator_id = Column(Integer, ForeignKey("legislators.id"), primary_key=True)
     bill_id = Column(Integer, ForeignKey("bills.id"), primary_key=True)
     vote_choice = Column(Enum(VoteChoice), nullable=False)
+
+
+class Comment(Base):
+    __tablename__ = "comments"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    bill_id = Column(Integer, ForeignKey("bills.id"))
+    parent_id = Column(Integer)
+    comment = Column(String, nullable=False)

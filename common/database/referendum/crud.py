@@ -276,6 +276,10 @@ class CommitteeCRUD(
             raise DatabaseException(f"Database error: {str(e)}")
 
 
+class CommentCRUD(BaseCRUD[models.Comment, schemas.CommentCreate, schemas.Comment]):
+    pass
+
+
 class LegislatorCRUD(
     BaseCRUD[models.Legislator, schemas.LegislatorCreate, schemas.LegislatorRecord]
 ):
@@ -457,6 +461,7 @@ class UserVoteCRUD(BaseCRUD[models.UserVote, schemas.UserVoteCreate, schemas.Use
 
 bill = BillCRUD(models.Bill)
 bill_action = BillActionCRUD(models.BillAction)
+comment = CommentCRUD(models.Comment)
 committee = CommitteeCRUD(models.Committee)
 legislator = LegislatorCRUD(models.Legislator)
 legislative_body = LegislativeBodyCRUD(models.LegislativeBody)

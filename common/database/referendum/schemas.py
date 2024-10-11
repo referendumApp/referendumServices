@@ -249,3 +249,20 @@ class LegislatorVote(VoteBase):
     legislator_id: int
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CommentBase(BaseModel):
+    user_id: int
+    bill_id: int
+    parent_id: int
+    comment: str
+
+
+class CommentCreate(CommentBase):
+    pass
+
+
+class Comment(VoteBase):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
