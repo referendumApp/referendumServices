@@ -20,6 +20,13 @@ user_bill_follows = Table(
     Column("bill_id", Integer, ForeignKey("bills.id"), primary_key=True),
 )
 
+user_comment_likes = Table(
+    "user_comment_likes",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
+    Column("comment_id", Integer, ForeignKey("comments.id"), primary_key=True),
+)
+
 
 committee_membership = Table(
     "committee_membership",
@@ -107,6 +114,9 @@ class User(Base):
 
     followed_topics = relationship("Topic", secondary=user_topic_follows)
     followed_bills = relationship("Bill", secondary=user_bill_follows)
+    liked_comments = relationship(
+        "Comment", secondary=user_comment_likes, back_populates="likes"
+    )
 
 
 class BillVersion(Base):
@@ -208,3 +218,7 @@ class Comment(Base):
     bill_id = Column(Integer, ForeignKey("bills.id"))
     parent_id = Column(Integer)
     comment = Column(String, nullable=False)
+
+    likes = relationship(
+        "User", secondary=user_comment_likes, back_populates="liked_comments"
+    )

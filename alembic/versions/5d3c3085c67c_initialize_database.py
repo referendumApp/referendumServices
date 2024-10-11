@@ -286,6 +286,15 @@ def upgrade():
         sa.ForeignKeyConstraint(["user_id"], ["users.id"]),
     )
 
+    op.create_table(
+        "user_comment_likes",
+        sa.Column("user_id", sa.Integer(), nullable=False),
+        sa.Column("comment_id", sa.Integer(), nullable=False),
+        sa.PrimaryKeyConstraint("user_id", "comment_id"),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"]),
+        sa.ForeignKeyConstraint(["comment_id"], ["comments.id"]),
+    )
+
 
 def downgrade():
     op.drop_table("votes")

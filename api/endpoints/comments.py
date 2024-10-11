@@ -5,6 +5,7 @@ from typing import Dict, Any
 
 from common.database.referendum import crud, schemas, models
 from common.database.referendum.crud import (
+    ObjectAlreadyExistsException,
     ObjectNotFoundException,
     DatabaseException,
     DependencyException,
@@ -160,11 +161,62 @@ async def delete_comment(
         crud.comment.delete(db=db, obj_id=comment_id)
         logger.info(f"Successfully deleted comment with ID: {comment_id}")
         return
-    except DependencyException as e:
+    except DependencyException:
         logger.error(f"Attempted to delete a comment with replies: {comment_id}")
         raise HTTPException(
-            status_code=403, detail=f"Comment with replies cannot be deleted"
+            status_code=403, detail="Comment with replies cannot be deleted"
         )
     except DatabaseException as e:
         logger.error(f"Database error while deleting comment: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@router.post(
+    "/{comment_id}/like",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Like a comment",
+    responses={
+        204: {"description": "Comment successfully liked"},
+        404: {"model": ErrorResponse, "description": "Comment not found"},
+        409: {"model": ErrorResponse, "description": "Comment already liked"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def like_comment(
+    comment_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+) -> None:
+    try:
+        return crud.user.like_comment(db=db, user_id=user.id, comment_id=comment_id)
+    except ObjectNotFoundException:
+        raise HTTPException(
+            status_code=404, detail=f"Comment not found for id {comment_id}"
+        )
+    except ObjectAlreadyExistsException:
+        raise HTTPException(status_code=409, detail="Comment already liked")
+    except DatabaseException as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@router.delete(
+    "/{comment_id}/like",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Unlike a comment",
+    responses={
+        204: {"description": "Comment successfully unliked"},
+        404: {"model": ErrorResponse, "description": "Comment like not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def unlike_comment(
+    comment_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+) -> None:
+    try:
+        return crud.user.unlike_comment(db=db, user_id=user.id, comment_id=comment_id)
+    except ObjectNotFoundException:
+        raise HTTPException(status_code=404, detail="Comment like not found")
+    except DatabaseException as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")

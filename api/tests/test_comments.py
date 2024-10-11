@@ -1,14 +1,14 @@
 from api.tests.test_utils import *
 
 
-def test_add_remove_comment(test_user_session, test_bill):
+def test_replies(test_user_session, test_bill):
     user, user_headers = test_user_session
 
     # Create a parent comment
     parent_comment_data = {
         "user_id": user["id"],
         "bill_id": test_bill["id"],
-        "parent_id": None,  # Null for top-level comments
+        "parent_id": None,
         "comment": "This is a parent comment.",
     }
     response = client.post("/comments", json=parent_comment_data, headers=user_headers)
@@ -62,3 +62,26 @@ def test_add_remove_comment(test_user_session, test_bill):
 
     response = client.get(f"/comments/{parent_comment['id']}", headers=user_headers)
     assert_status_code(response, 404)
+
+
+def test_delete_with_likes(test_user_session, test_bill):
+    user, user_headers = test_user_session
+
+    # Create a comment
+    comment_data = {
+        "user_id": user["id"],
+        "bill_id": test_bill["id"],
+        "parent_id": None,
+        "comment": "This is a parent comment.",
+    }
+    response = client.post("/comments", json=comment_data, headers=user_headers)
+    assert_status_code(response, 201)
+    comment_id = response.json()["id"]
+
+    # Like the comment
+    response = client.post(f"/comments/{comment_id}/like", headers=user_headers)
+    assert_status_code(response, 204)
+
+    # Delete the comment with likes
+    response = client.delete(f"/comments/{comment_id}", headers=user_headers)
+    assert_status_code(response, 204)

@@ -401,6 +401,30 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
         except SQLAlchemyError as e:
             raise DatabaseException(f"Database error: {str(e)}")
 
+    def like_comment(self, db: Session, user_id: int, comment_id: int):
+        db_user = self.read(db=db, obj_id=user_id)
+        db_comment = (
+            db.query(models.Comment).filter(models.Comment.id == comment_id).first()
+        )
+        if not db_comment:
+            raise ObjectNotFoundException(f"Comment not found for id: {comment_id}")
+        db_user.liked_comments.append(db_comment)
+        db.commit()
+
+    def unlike_comment(self, db: Session, user_id: int, comment_id: int):
+        db_user = self.read(db=db, obj_id=user_id)
+        db_comment = (
+            db.query(models.Comment).filter(models.Comment.id == comment_id).first()
+        )
+        if not db_comment:
+            raise ObjectNotFoundException(f"Comment not found for id: {comment_id}")
+        if db_comment not in db_user.liked_comments:
+            raise ObjectNotFoundException(
+                f"Cannot unfollow, User {user_id} is not following bill {comment_id}"
+            )
+        db_user.liked_comments.remove(db_comment)
+        db.commit()
+
 
 class LegislatorVoteCRUD(
     BaseCRUD[

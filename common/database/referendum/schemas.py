@@ -217,6 +217,12 @@ class UserCreate(UserBase):
     hashed_password: str
 
 
+class UserReference(UserBase):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class User(UserBase):
     id: int
 
@@ -263,5 +269,7 @@ class CommentCreate(CommentBase):
 
 class Comment(CommentCreate):
     id: int
+
+    likes: List[UserReference]
 
     model_config = ConfigDict(from_attributes=True)
