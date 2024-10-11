@@ -217,6 +217,12 @@ class UserCreate(UserBase):
     hashed_password: str
 
 
+class UserReference(UserBase):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class User(UserBase):
     id: int
 
@@ -247,5 +253,23 @@ class LegislatorVoteCreate(VoteBase):
 
 class LegislatorVote(VoteBase):
     legislator_id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CommentBase(BaseModel):
+    bill_id: int
+    parent_id: Optional[int]
+    comment: str
+
+
+class CommentCreate(CommentBase):
+    user_id: int
+
+
+class Comment(CommentCreate):
+    id: int
+
+    likes: List[UserReference]
 
     model_config = ConfigDict(from_attributes=True)

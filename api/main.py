@@ -21,6 +21,7 @@ from .endpoints import (
     committees,
     bill_actions,
     legislator_votes,
+    comments,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -41,6 +42,7 @@ app.include_router(health.router, tags=["health"])
 app.include_router(authentication.router, tags=["authentication"], prefix="/auth")
 app.include_router(bills.router, tags=["bills"], prefix="/bills")
 app.include_router(bill_actions.router, tags=["bill_actions"], prefix="/bill_actions")
+app.include_router(comments.router, tags=["comments"], prefix="/comments")
 app.include_router(committees.router, tags=["committees"], prefix="/committees")
 app.include_router(follow.router, tags=["follow"], prefix="/follow")
 app.include_router(legislators.router, tags=["legislators"], prefix="/legislators")

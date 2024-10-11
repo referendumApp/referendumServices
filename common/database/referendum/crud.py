@@ -32,7 +32,11 @@ class DatabaseException(CRUDException):
     pass
 
 
-class NullValueException(Exception):
+class DependencyException(CRUDException):
+    pass
+
+
+class NullValueException(CRUDException):
     pass
 
 
@@ -276,6 +280,26 @@ class CommitteeCRUD(
             raise DatabaseException(f"Database error: {str(e)}")
 
 
+class CommentCRUD(BaseCRUD[models.Comment, schemas.CommentCreate, schemas.Comment]):
+    def delete(self, db: Session, obj_id: int) -> None:
+        db_comment = db.get(self.model, obj_id)
+        if db_comment is None:
+            raise ObjectNotFoundException("Comment not found")
+
+        # Check if the comment has any children
+        replies = (
+            db.query(models.Comment).filter(models.Comment.parent_id == obj_id).all()
+        )
+        if len(replies) > 0:
+            raise DependencyException("Cannot delete a comment with replies")
+        try:
+            db.delete(db_comment)
+            db.commit()
+        except SQLAlchemyError as e:
+            db.rollback()
+            raise DatabaseException(f"Database error: {str(e)}")
+
+
 class LegislatorCRUD(
     BaseCRUD[models.Legislator, schemas.LegislatorCreate, schemas.LegislatorRecord]
 ):
@@ -377,6 +401,30 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
         except SQLAlchemyError as e:
             raise DatabaseException(f"Database error: {str(e)}")
 
+    def like_comment(self, db: Session, user_id: int, comment_id: int):
+        db_user = self.read(db=db, obj_id=user_id)
+        db_comment = (
+            db.query(models.Comment).filter(models.Comment.id == comment_id).first()
+        )
+        if not db_comment:
+            raise ObjectNotFoundException(f"Comment not found for id: {comment_id}")
+        db_user.liked_comments.append(db_comment)
+        db.commit()
+
+    def unlike_comment(self, db: Session, user_id: int, comment_id: int):
+        db_user = self.read(db=db, obj_id=user_id)
+        db_comment = (
+            db.query(models.Comment).filter(models.Comment.id == comment_id).first()
+        )
+        if not db_comment:
+            raise ObjectNotFoundException(f"Comment not found for id: {comment_id}")
+        if db_comment not in db_user.liked_comments:
+            raise ObjectNotFoundException(
+                f"Cannot unfollow, User {user_id} is not following bill {comment_id}"
+            )
+        db_user.liked_comments.remove(db_comment)
+        db.commit()
+
 
 class LegislatorVoteCRUD(
     BaseCRUD[
@@ -457,6 +505,7 @@ class UserVoteCRUD(BaseCRUD[models.UserVote, schemas.UserVoteCreate, schemas.Use
 
 bill = BillCRUD(models.Bill)
 bill_action = BillActionCRUD(models.BillAction)
+comment = CommentCRUD(models.Comment)
 committee = CommitteeCRUD(models.Committee)
 legislator = LegislatorCRUD(models.Legislator)
 legislative_body = LegislativeBodyCRUD(models.LegislativeBody)
