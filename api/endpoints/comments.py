@@ -25,25 +25,32 @@ router = APIRouter()
 
 @router.post(
     "/",
-    response_model=schemas.Comment,
+    response_model=schemas.Comment.Full,
     status_code=status.HTTP_201_CREATED,
     summary="Add a new comment",
     responses={
-        201: {"model": schemas.Comment, "description": "Comment successfully created"},
+        201: {
+            "model": schemas.Comment.Full,
+            "description": "Comment successfully created",
+        },
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
 async def create_comment(
-    comment: schemas.CommentBase,
+    comment: schemas.Comment.Base,
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ) -> models.Comment:
-    try:
-        user_comment = schemas.CommentCreate(
-            **comment.model_dump(),
-            user_id=user.id,
+    if user.id != comment.user_id:
+        logger.error(
+            f"Unauthorized attempt to create user comment: User {user.id} tried to create comment for user {comment.user_id}"
         )
-        return crud.comment.create(db=db, obj_in=user_comment)
+        raise HTTPException(
+            status_code=403,
+            detail="You can only create your own comments",
+        )
+    try:
+        return crud.comment.create(db=db, obj_in=comment)
     except DatabaseException as e:
         logger.error(f"Database error while creating comment: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
@@ -51,11 +58,11 @@ async def create_comment(
 
 @router.get(
     "/{comment_id}",
-    response_model=schemas.Comment,
+    response_model=schemas.Comment.Full,
     summary="Get a comment",
     responses={
         200: {
-            "model": schemas.Comment,
+            "model": schemas.Comment.Full,
             "description": "Comment successfully retrieved",
         },
         404: {"model": ErrorResponse, "description": "Comment not found"},
@@ -81,10 +88,13 @@ async def read_comment(
 
 @router.put(
     "/",
-    response_model=schemas.Comment,
-    summary="Get a comment",
+    response_model=schemas.Comment.Full,
+    summary="Update a comment",
     responses={
-        200: {"model": schemas.Comment, "description": "Comment successfully updated"},
+        200: {
+            "model": schemas.Comment.Full,
+            "description": "Comment successfully updated",
+        },
         403: {
             "model": ErrorResponse,
             "description": "Unauthorized to update this comment",
@@ -94,7 +104,7 @@ async def read_comment(
     },
 )
 async def update_comment(
-    comment: schemas.Comment,
+    comment: schemas.Comment.Record,
     db: Session = Depends(get_db),
     auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> models.Comment:

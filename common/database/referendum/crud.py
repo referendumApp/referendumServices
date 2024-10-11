@@ -130,7 +130,7 @@ class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             raise DatabaseException(f"Database error: {str(e)}")
 
 
-class BillCRUD(BaseCRUD[models.Bill, schemas.BillCreate, schemas.BillRecord]):
+class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
     def get_bill_by_legiscan_id(self, db: Session, legiscan_id: int) -> models.Bill:
         try:
             bill = (
@@ -224,13 +224,13 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.BillCreate, schemas.BillRecord]):
 
 
 class BillActionCRUD(
-    BaseCRUD[models.BillAction, schemas.BillActionCreate, schemas.BillAction]
+    BaseCRUD[models.BillAction, schemas.BillAction.Base, schemas.BillAction.Record]
 ):
     pass
 
 
 class CommitteeCRUD(
-    BaseCRUD[models.Committee, schemas.CommitteeCreate, schemas.Committee]
+    BaseCRUD[models.Committee, schemas.Committee.Base, schemas.Committee.Record]
 ):
     def add_legislator_membership(
         self, db: Session, committee_id: int, legislator_id: int
@@ -280,7 +280,9 @@ class CommitteeCRUD(
             raise DatabaseException(f"Database error: {str(e)}")
 
 
-class CommentCRUD(BaseCRUD[models.Comment, schemas.CommentCreate, schemas.Comment]):
+class CommentCRUD(
+    BaseCRUD[models.Comment, schemas.Comment.Record, schemas.Comment.Record]
+):
     def delete(self, db: Session, obj_id: int) -> None:
         db_comment = db.get(self.model, obj_id)
         if db_comment is None:
@@ -301,32 +303,34 @@ class CommentCRUD(BaseCRUD[models.Comment, schemas.CommentCreate, schemas.Commen
 
 
 class LegislatorCRUD(
-    BaseCRUD[models.Legislator, schemas.LegislatorCreate, schemas.LegislatorRecord]
+    BaseCRUD[models.Legislator, schemas.Legislator.Base, schemas.Legislator.Record]
 ):
     pass
 
 
 class LegislativeBodyCRUD(
     BaseCRUD[
-        models.LegislativeBody, schemas.LegislativeBodyCreate, schemas.LegislativeBody
+        models.LegislativeBody,
+        schemas.LegislativeBody.Base,
+        schemas.LegislativeBody.Record,
     ]
 ):
     pass
 
 
-class PartyCRUD(BaseCRUD[models.Party, schemas.PartyCreate, schemas.Party]):
+class PartyCRUD(BaseCRUD[models.Party, schemas.Party.Base, schemas.Party.Record]):
     pass
 
 
-class RoleCRUD(BaseCRUD[models.Role, schemas.RoleCreate, schemas.Role]):
+class RoleCRUD(BaseCRUD[models.Role, schemas.Role.Base, schemas.Role.Record]):
     pass
 
 
-class StateCRUD(BaseCRUD[models.State, schemas.StateCreate, schemas.State]):
+class StateCRUD(BaseCRUD[models.State, schemas.State.Base, schemas.State.Record]):
     pass
 
 
-class TopicCRUD(BaseCRUD[models.Topic, schemas.TopicCreate, schemas.Topic]):
+class TopicCRUD(BaseCRUD[models.Topic, schemas.Topic.Base, schemas.Topic.Record]):
     pass
 
 

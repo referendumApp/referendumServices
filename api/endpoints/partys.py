@@ -11,8 +11,8 @@ router = APIRouter()
 EndpointGenerator.add_crud_routes(
     router=router,
     crud_model=crud.party,
-    create_schema=schemas.PartyCreate,
-    update_schema=schemas.Party,
-    response_schema=schemas.Party,
+    create_schema=schemas.Party.Base,
+    update_schema=schemas.Party.Record,
+    response_schema=schemas.Party.Full,
     resource_name="party",
 )

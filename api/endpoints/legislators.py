@@ -11,8 +11,8 @@ router = APIRouter()
 EndpointGenerator.add_crud_routes(
     router=router,
     crud_model=crud.legislator,
-    create_schema=schemas.LegislatorCreate,
-    update_schema=schemas.LegislatorRecord,
-    response_schema=schemas.Legislator,
+    create_schema=schemas.Legislator.Base,
+    update_schema=schemas.Legislator.Record,
+    response_schema=schemas.Legislator.Full,
     resource_name="legislator",
 )

@@ -20,20 +20,20 @@ router = APIRouter()
 EndpointGenerator.add_crud_routes(
     router=router,
     crud_model=crud.committee,
-    create_schema=schemas.CommitteeCreate,
-    update_schema=schemas.Committee,
-    response_schema=schemas.Committee,
+    create_schema=schemas.Committee.Base,
+    update_schema=schemas.Committee.Record,
+    response_schema=schemas.Committee.Full,
     resource_name="committee",
 )
 
 
 @router.get(
     "/{committee_id}/legislators",
-    response_model=List[schemas.LegislatorRecord],
+    response_model=List[schemas.Legislator.Record],
     summary="Get committee legislators",
     responses={
         200: {
-            "model": List[schemas.LegislatorRecord],
+            "model": List[schemas.Legislator.Record],
             "description": "Committee legislators successfully retrieved",
         },
         401: {"model": ErrorResponse, "description": "Not authorized"},
