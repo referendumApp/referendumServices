@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session, noload
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from pydantic import BaseModel
-from typing import Any, Dict, Generic, List, TypeVar, Type, Union
+from typing import Any, Dict, Generic, List, TypeVar, Type, Union, Optional
 
 from common.database.referendum import models, schemas
 
@@ -543,8 +543,13 @@ class UserVoteCRUD(BaseCRUD[models.UserVote, schemas.UserVoteCreate, schemas.Use
     def get_votes_for_bill(self, db: Session, bill_id: int) -> List[models.UserVote]:
         return self.read_filtered(db=db, filters={"bill_id": bill_id})
 
-    def get_votes_for_user(self, db: Session, user_id: int) -> List[models.UserVote]:
-        return self.read_filtered(db=db, filters={"user_id": user_id})
+    def get_votes_for_user(
+        self, db: Session, user_id: int, bill_id: Optional[int] = None
+    ) -> List[models.UserVote]:
+        filters = {"user_id": user_id}
+        if bill_id is not None:
+            filters["bill_id"] = bill_id
+        return self.read_filtered(db=db, filters=filters)
 
 
 bill = BillCRUD(models.Bill)

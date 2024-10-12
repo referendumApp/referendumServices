@@ -17,7 +17,6 @@ from .endpoints import (
     partys,
     roles,
     states,
-    user_votes,
     committees,
     bill_actions,
     legislator_votes,
@@ -57,7 +56,6 @@ app.include_router(roles.router, tags=["roles"], prefix="/roles")
 app.include_router(states.router, tags=["states"], prefix="/states")
 app.include_router(topics.router, tags=["topics"], prefix="/topics")
 app.include_router(users.router, tags=["users"], prefix="/users")
-app.include_router(user_votes.router, tags=["user_votes"], prefix="/user_votes")
 
 
 ########################################################################################################
