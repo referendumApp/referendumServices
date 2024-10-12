@@ -473,33 +473,32 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
 
 class LegislatorVoteCRUD(
     BaseCRUD[
-        models.LegislatorVote, schemas.LegislatorVoteCreate, schemas.LegislatorVote
+        models.LegislatorVote,
+        schemas.LegislatorVote.Base,
+        schemas.LegislatorVote.Record,
     ]
 ):
-    def create_or_update_vote(
-        self, db: Session, legislator_vote_object: schemas.LegislatorVote
-    ):
+    def create_or_update_vote(self, db: Session, vote: schemas.LegislatorVote.Record):
         try:
-            existing_vote = (
+            db_vote = (
                 db.query(self.model)
                 .filter(
-                    models.LegislatorVote.legislator_id
-                    == legislator_vote_object.legislator_id,
-                    models.LegislatorVote.bill_id == legislator_vote_object.bill_id,
+                    models.LegislatorVote.legislator_id == vote.legislator_id,
+                    models.LegislatorVote.bill_id == vote.bill_id,
                 )
                 .first()
             )
 
-            if existing_vote:
-                for key, value in legislator_vote_object.model_dump().items():
-                    setattr(existing_vote, key, value)
+            if db_vote:
+                for key, value in vote.model_dump().items():
+                    setattr(db_vote, key, value)
             else:
-                existing_vote = self.model(**legislator_vote_object.model_dump())
-                db.add(existing_vote)
+                db_vote = self.model(**vote.model_dump())
+                db.add(db_vote)
 
             db.commit()
-            db.refresh(existing_vote)
-            return existing_vote
+            db.refresh(db_vote)
+            return db_vote
         except SQLAlchemyError as e:
             db.rollback()
             raise DatabaseException(f"Database error: {str(e)}")
@@ -516,27 +515,27 @@ class LegislatorVoteCRUD(
 
 
 class UserVoteCRUD(BaseCRUD[models.UserVote, schemas.UserVoteCreate, schemas.UserVote]):
-    def create_or_update_vote(self, db: Session, user_vote_object: schemas.UserVote):
+    def create_or_update_vote(self, db: Session, vote: schemas.UserVote):
         try:
-            existing_vote = (
+            db_vote = (
                 db.query(self.model)
                 .filter(
-                    models.UserVote.user_id == user_vote_object.user_id,
-                    models.UserVote.bill_id == user_vote_object.bill_id,
+                    models.UserVote.user_id == vote.user_id,
+                    models.UserVote.bill_id == vote.bill_id,
                 )
                 .first()
             )
 
-            if existing_vote:
-                for key, value in user_vote_object.model_dump().items():
-                    setattr(existing_vote, key, value)
+            if db_vote:
+                for key, value in vote.model_dump().items():
+                    setattr(db_vote, key, value)
             else:
-                existing_vote = self.model(**user_vote_object.model_dump())
-                db.add(existing_vote)
+                db_vote = self.model(**vote.model_dump())
+                db.add(db_vote)
 
             db.commit()
-            db.refresh(existing_vote)
-            return existing_vote
+            db.refresh(db_vote)
+            return db_vote
         except SQLAlchemyError as e:
             db.rollback()
             raise DatabaseException(f"Database error: {str(e)}")

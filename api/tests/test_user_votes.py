@@ -60,8 +60,7 @@ def test_get_votes_for_user(test_user_session, test_vote):
     assert votes[0]["user_id"] == user["id"]
 
 
-def test_get_votes_for_bill(test_user_session, test_vote):
-    user, headers = test_user_session
+def test_get_votes_for_bill(test_vote):
     response = client.get(
         f"/user_votes/?bill_id={test_vote['bill_id']}", headers=system_headers
     )

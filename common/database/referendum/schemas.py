@@ -37,7 +37,7 @@ def create_schema_container(
     record_class = create_model(
         f"{name}Record",
         __base__=(RecordSchema,),
-        **{**base_fields, **(record_fields or {}), "id": (int, ...)},
+        **{**base_fields, **(record_fields or {})},
     )
 
     relationship_class = create_model(
@@ -47,7 +47,6 @@ def create_schema_container(
             **base_fields,
             **(record_fields or {}),
             **(relationship_fields or {}),
-            "id": (int, ...),
         },
     )
 
@@ -59,30 +58,35 @@ def create_schema_container(
 Party = create_schema_container(
     name="Party",
     base_fields={"name": (str, ...)},
+    record_fields={"id": (int, ...)},
 )
 
 
 Role = create_schema_container(
     name="Role",
     base_fields={"name": (str, ...)},
+    record_fields={"id": (int, ...)},
 )
 
 
 State = create_schema_container(
     name="State",
     base_fields={"name": (str, ...)},
+    record_fields={"id": (int, ...)},
 )
 
 
 LegislativeBody = create_schema_container(
     name="State",
     base_fields={"role_id": (int, ...), "state_id": (int, ...)},
+    record_fields={"id": (int, ...)},
 )
 
 
 Committee = create_schema_container(
     name="Committee",
     base_fields={"name": (str, ...), "legislative_body_id": (int, ...)},
+    record_fields={"id": (int, ...)},
 )
 
 
@@ -91,6 +95,7 @@ Topic = create_schema_container(
     base_fields={
         "name": (str, ...),
     },
+    record_fields={"id": (int, ...)},
 )
 
 
@@ -108,6 +113,7 @@ Legislator = create_schema_container(
         "phone": (Optional[str], None),
         "twitter": (Optional[str], None),
     },
+    record_fields={"id": (int, ...)},
     relationship_fields={"committees": (List[Committee.Record], [])},
 )
 
@@ -118,6 +124,7 @@ BillVersion = create_schema_container(
         "bill_id": (int, ...),
         "version": (int, ...),
     },
+    record_fields={"id": (int, ...)},
 )
 
 
@@ -134,6 +141,7 @@ Bill = create_schema_container(
         "status_date": (date, ...),
         "briefing": (str, ...),
     },
+    record_fields={"id": (int, ...)},
     relationship_fields={
         "state": (Optional[State.Record], None),
         "legislative_body": (Optional[LegislativeBody.Record], None),
@@ -151,10 +159,20 @@ BillAction = create_schema_container(
         "date": (date, ...),
         "type": (BillActionType, ...),
     },
+    record_fields={"id": (int, ...)},
 )
 
 
-# User
+LegislatorVote = create_schema_container(
+    name="LegislatorVote",
+    base_fields={
+        "bill_id": (int, ...),
+        "legislator_id": (int, ...),
+        "vote_choice": (VoteChoice, ...),
+    },
+)
+
+
 class UserBase(BaseSchema):
     email: EmailStr = Field(..., max_length=100)
     name: str = Field(..., min_length=1, max_length=100)
@@ -175,28 +193,6 @@ class User(UserBase):
     followed_legislators: List[Legislator.Record] = []
 
 
-# Vote
-class VoteBase(BaseSchema):
-    bill_id: int
-    vote_choice: VoteChoice
-
-
-class UserVoteCreate(VoteBase):
-    pass
-
-
-class UserVote(VoteBase):
-    user_id: int
-
-
-class LegislatorVoteCreate(VoteBase):
-    pass
-
-
-class LegislatorVote(VoteBase):
-    legislator_id: int
-
-
 Comment = create_schema_container(
     name="Comment",
     base_fields={
@@ -205,5 +201,20 @@ Comment = create_schema_container(
         "parent_id": (Optional[int], None),
         "comment": (str, ...),
     },
+    record_fields={"id": (int, ...)},
     relationship_fields={"likes": (List[UserReference], [])},
 )
+
+
+# UserVote
+class UserVoteBase(BaseSchema):
+    bill_id: int
+    vote_choice: VoteChoice
+
+
+class UserVoteCreate(UserVoteBase):
+    pass
+
+
+class UserVote(UserVoteBase):
+    user_id: int
