@@ -485,6 +485,7 @@ class LegislatorVoteCRUD(
                 .filter(
                     models.LegislatorVote.legislator_id == vote.legislator_id,
                     models.LegislatorVote.bill_id == vote.bill_id,
+                    models.LegislatorVote.bill_action_id == vote.bill_action_id,
                 )
                 .first()
             )
