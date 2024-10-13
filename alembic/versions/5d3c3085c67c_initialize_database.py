@@ -272,14 +272,16 @@ def upgrade():
         "legislator_votes",
         sa.Column("legislator_id", sa.Integer(), nullable=False),
         sa.Column("bill_id", sa.Integer(), nullable=False),
+        sa.Column("bill_action_id", sa.Integer(), nullable=False),
         sa.Column(
             "vote_choice",
             sa.Enum("YES", "NO", name="votechoice", create_type=False),
             nullable=False,
         ),
         sa.ForeignKeyConstraint(["bill_id"], ["bills.id"]),
+        sa.ForeignKeyConstraint(["bill_action_id"], ["bill_actions.id"]),
         sa.ForeignKeyConstraint(["legislator_id"], ["legislators.id"]),
-        sa.PrimaryKeyConstraint("legislator_id", "bill_id"),
+        sa.PrimaryKeyConstraint("legislator_id", "bill_action_id"),
     )
 
     op.create_table(
