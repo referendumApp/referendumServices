@@ -187,24 +187,19 @@ def orchestrate_etl():
             ],
             "dataframe": None,
         },
-        # {
-        #     "source": "ls_bill_sponsor",
-        #     "destination": "bill_sponsors",
-        #     "transformations": [
-        #         {
-        #             "function": "keep_columns",
-        #             "parameters": {
-        #                 "columns": [
-        #                     "bill_id",
-        #                     "people_id",
-        #                     "sponsor_order",
-        #                     "sponsor_type_id",
-        #                 ]
-        #             },
-        #         },
-        #     ],
-        #     "dataframe": None,
-        # },
+        {
+            "source": "ls_bill_sponsor",
+            "destination": "bill_sponsors",
+            "transformations": [
+                {
+                    "function": "keep_columns",
+                    "parameters": {
+                        "columns": ["bill_id", "people_id", "sponsor_type_id"]
+                    },
+                },
+            ],
+            "dataframe": None,
+        },
         {
             "source": "ls_bill",
             "destination": "bills",
