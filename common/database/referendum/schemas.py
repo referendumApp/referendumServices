@@ -1,186 +1,180 @@
 from datetime import date
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
-from typing import Optional, List
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, create_model
+from typing import TypeVar, Generic, List, Type, Dict, Any, Optional
 
-from .models import VoteChoice
-
-
-# Party
+from .models import VoteChoice, BillActionType
 
 
-class PartyBase(BaseModel):
-    name: str
+T = TypeVar("T")
 
 
-class PartyCreate(PartyBase):
+class BaseSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RecordSchema(BaseSchema, Generic[T]):
+    id: int
+
+
+class RelationshipSchema(RecordSchema[T], Generic[T]):
     pass
 
 
-class Party(PartyBase):
-    id: int
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-# Role
-
-
-class RoleBase(BaseModel):
-    name: str
-
-
-class RoleCreate(RoleBase):
-    pass
-
-
-class Role(RoleBase):
-    id: int
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-# State
-
-
-class StateBase(BaseModel):
-    name: str
-
-
-class StateCreate(StateBase):
-    pass
-
-
-class State(StateBase):
-    id: int
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-# LegislativeBody
-
-
-class LegislativeBodyBase(BaseModel):
-    role_id: int
-    state_id: int
-
-
-class LegislativeBodyCreate(LegislativeBodyBase):
-    pass
-
-
-class LegislativeBody(LegislativeBodyBase):
-    id: int
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-# Committee
-
-
-class CommitteeBase(BaseModel):
-    name: str
-    legislative_body_id: int
-
-
-class CommitteeCreate(CommitteeBase):
-    pass
-
-
-class Committee(CommitteeBase):
-    id: int
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-# Topics
-
-
-class TopicBase(BaseModel):
-    name: str
-
-
-class TopicCreate(TopicBase):
-    pass
-
-
-class Topic(TopicBase):
-    id: int
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-# Legislators
-
-
-class LegislatorBase(BaseModel):
-    legiscan_id: int
-    name: str
-    image_url: Optional[str]
-    district: str
-    party_id: int
-
-    address: Optional[str] = None
-    facebook: Optional[str] = None
-    instagram: Optional[str] = None
-    phone: Optional[str] = None
-    twitter: Optional[str] = None
-
-
-class LegislatorCreate(LegislatorBase):
-    pass
-
-
-class LegislatorRecord(LegislatorBase):
-    id: int
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class Legislator(LegislatorRecord):
-    committees: List[Committee]
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-# Bills
-
-
-class BillBase(BaseModel):
-    legiscan_id: int
-    identifier: str
-    title: str
-    description: str
-    state_id: int
-    legislative_body_id: int
-    session_id: int
-    briefing: str
-    status_id: int
-    status_date: date
-
-
-class BillCreate(BillBase):
-    pass
-
-
-class BillRecord(BillBase):
-    id: int
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class Bill(BillRecord):
-    state: Optional[State] = None
-    legislative_body: Optional[LegislativeBody] = None
-    topics: List[Topic] = []
-    sponsors: List[LegislatorRecord] = []
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-# Users
-
-
-class UserBase(BaseModel):
+class SchemaContainer(BaseModel):
+    Base: Type[BaseSchema]
+    Record: Type[RecordSchema]
+    Full: Type[RelationshipSchema]
+
+
+def create_schema_container(
+    name: str,
+    base_fields: Dict[str, Any],
+    record_fields: Dict[str, Any] = None,
+    relationship_fields: Dict[str, Any] = None,
+) -> SchemaContainer:
+    base_class = create_model(f"{name}Base", __base__=BaseSchema, **base_fields)
+
+    record_class = create_model(
+        f"{name}Record",
+        __base__=(RecordSchema,),
+        **{**base_fields, **(record_fields or {})},
+    )
+
+    relationship_class = create_model(
+        name,
+        __base__=(RelationshipSchema,),
+        **{
+            **base_fields,
+            **(record_fields or {}),
+            **(relationship_fields or {}),
+        },
+    )
+
+    return SchemaContainer(
+        Base=base_class, Record=record_class, Full=relationship_class
+    )
+
+
+Party = create_schema_container(
+    name="Party",
+    base_fields={"name": (str, ...)},
+    record_fields={"id": (int, ...)},
+)
+
+
+Role = create_schema_container(
+    name="Role",
+    base_fields={"name": (str, ...)},
+    record_fields={"id": (int, ...)},
+)
+
+
+State = create_schema_container(
+    name="State",
+    base_fields={"name": (str, ...)},
+    record_fields={"id": (int, ...)},
+)
+
+
+LegislativeBody = create_schema_container(
+    name="State",
+    base_fields={"role_id": (int, ...), "state_id": (int, ...)},
+    record_fields={"id": (int, ...)},
+)
+
+
+Committee = create_schema_container(
+    name="Committee",
+    base_fields={"name": (str, ...), "legislative_body_id": (int, ...)},
+    record_fields={"id": (int, ...)},
+)
+
+
+Topic = create_schema_container(
+    name="Topic",
+    base_fields={
+        "name": (str, ...),
+    },
+    record_fields={"id": (int, ...)},
+)
+
+
+Legislator = create_schema_container(
+    name="Legislator",
+    base_fields={
+        "legiscan_id": (int, ...),
+        "name": (str, ...),
+        "image_url": (Optional[str], None),
+        "district": (str, ...),
+        "party_id": (int, ...),
+        "address": (Optional[str], None),
+        "facebook": (Optional[str], None),
+        "instagram": (Optional[str], None),
+        "phone": (Optional[str], None),
+        "twitter": (Optional[str], None),
+    },
+    record_fields={"id": (int, ...)},
+    relationship_fields={"committees": (List[Committee.Record], [])},
+)
+
+
+BillVersion = create_schema_container(
+    name="BillVersion",
+    base_fields={
+        "bill_id": (int, ...),
+        "version": (int, ...),
+    },
+    record_fields={"id": (int, ...)},
+)
+
+
+Bill = create_schema_container(
+    name="Bill",
+    base_fields={
+        "legiscan_id": (int, ...),
+        "identifier": (str, ...),
+        "title": (str, ...),
+        "description": (str, ...),
+        "session_id": (int, ...),
+        "state_id": (int, ...),
+        "status_id": (int, ...),
+        "status_date": (date, ...),
+        "briefing": (str, ...),
+    },
+    record_fields={"id": (int, ...)},
+    relationship_fields={
+        "state": (Optional[State.Record], None),
+        "legislative_body": (Optional[LegislativeBody.Record], None),
+        "topics": (List[Topic.Record], []),
+        "sponsors": (List[Legislator.Record], []),
+        "versions": (List[BillVersion.Record], []),
+    },
+)
+
+
+BillAction = create_schema_container(
+    name="BillAction",
+    base_fields={
+        "bill_id": (int, ...),
+        "date": (date, ...),
+        "type": (BillActionType, ...),
+    },
+    record_fields={"id": (int, ...)},
+)
+
+
+LegislatorVote = create_schema_container(
+    name="LegislatorVote",
+    base_fields={
+        "bill_id": (int, ...),
+        "bill_action_id": (int, ...),
+        "legislator_id": (int, ...),
+        "vote_choice": (VoteChoice, ...),
+    },
+)
+
+
+class UserBase(BaseSchema):
     email: EmailStr = Field(..., max_length=100)
     name: str = Field(..., min_length=1, max_length=100)
 
@@ -189,25 +183,39 @@ class UserCreate(UserBase):
     hashed_password: str
 
 
-class User(UserBase):
+class UserReference(UserBase):
     id: int
 
-    followed_bills: List[Bill] = []
-    followed_topics: List[Topic] = []
 
-    model_config = ConfigDict(from_attributes=True)
+class User(UserBase):
+    id: int
+    followed_bills: List[Bill.Record] = []
+    followed_topics: List[Topic.Record] = []
+    followed_legislators: List[Legislator.Record] = []
 
 
-class VoteBase(BaseModel):
+Comment = create_schema_container(
+    name="Comment",
+    base_fields={
+        "user_id": (int, ...),
+        "bill_id": (int, ...),
+        "parent_id": (Optional[int], None),
+        "comment": (str, ...),
+    },
+    record_fields={"id": (int, ...)},
+    relationship_fields={"likes": (List[UserReference], [])},
+)
+
+
+# UserVote
+class UserVoteBase(BaseSchema):
     bill_id: int
     vote_choice: VoteChoice
 
 
-class VoteCreate(VoteBase):
+class UserVoteCreate(UserVoteBase):
     pass
 
 
-class Vote(VoteBase):
+class UserVote(UserVoteBase):
     user_id: int
-
-    model_config = ConfigDict(from_attributes=True)

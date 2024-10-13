@@ -11,8 +11,8 @@ router = APIRouter()
 EndpointGenerator.add_crud_routes(
     router=router,
     crud_model=crud.state,
-    create_schema=schemas.StateCreate,
-    update_schema=schemas.State,
-    response_schema=schemas.State,
+    create_schema=schemas.State.Base,
+    update_schema=schemas.State.Record,
+    response_schema=schemas.State.Full,
     resource_name="state",
 )

@@ -32,7 +32,11 @@ class DatabaseException(CRUDException):
     pass
 
 
-class NullValueException(Exception):
+class DependencyException(CRUDException):
+    pass
+
+
+class NullValueException(CRUDException):
     pass
 
 
@@ -126,7 +130,7 @@ class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             raise DatabaseException(f"Database error: {str(e)}")
 
 
-class BillCRUD(BaseCRUD[models.Bill, schemas.BillCreate, schemas.BillRecord]):
+class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
     def get_bill_by_legiscan_id(self, db: Session, legiscan_id: int) -> models.Bill:
         try:
             bill = (
@@ -219,8 +223,14 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.BillCreate, schemas.BillRecord]):
         db.commit()
 
 
+class BillActionCRUD(
+    BaseCRUD[models.BillAction, schemas.BillAction.Base, schemas.BillAction.Record]
+):
+    pass
+
+
 class CommitteeCRUD(
-    BaseCRUD[models.Committee, schemas.CommitteeCreate, schemas.Committee]
+    BaseCRUD[models.Committee, schemas.Committee.Base, schemas.Committee.Record]
 ):
     def add_legislator_membership(
         self, db: Session, committee_id: int, legislator_id: int
@@ -270,33 +280,57 @@ class CommitteeCRUD(
             raise DatabaseException(f"Database error: {str(e)}")
 
 
+class CommentCRUD(
+    BaseCRUD[models.Comment, schemas.Comment.Record, schemas.Comment.Record]
+):
+    def delete(self, db: Session, obj_id: int) -> None:
+        db_comment = db.get(self.model, obj_id)
+        if db_comment is None:
+            raise ObjectNotFoundException("Comment not found")
+
+        # Check if the comment has any children
+        replies = (
+            db.query(models.Comment).filter(models.Comment.parent_id == obj_id).all()
+        )
+        if len(replies) > 0:
+            raise DependencyException("Cannot delete a comment with replies")
+        try:
+            db.delete(db_comment)
+            db.commit()
+        except SQLAlchemyError as e:
+            db.rollback()
+            raise DatabaseException(f"Database error: {str(e)}")
+
+
 class LegislatorCRUD(
-    BaseCRUD[models.Legislator, schemas.LegislatorCreate, schemas.LegislatorRecord]
+    BaseCRUD[models.Legislator, schemas.Legislator.Base, schemas.Legislator.Record]
 ):
     pass
 
 
 class LegislativeBodyCRUD(
     BaseCRUD[
-        models.LegislativeBody, schemas.LegislativeBodyCreate, schemas.LegislativeBody
+        models.LegislativeBody,
+        schemas.LegislativeBody.Base,
+        schemas.LegislativeBody.Record,
     ]
 ):
     pass
 
 
-class PartyCRUD(BaseCRUD[models.Party, schemas.PartyCreate, schemas.Party]):
+class PartyCRUD(BaseCRUD[models.Party, schemas.Party.Base, schemas.Party.Record]):
     pass
 
 
-class RoleCRUD(BaseCRUD[models.Role, schemas.RoleCreate, schemas.Role]):
+class RoleCRUD(BaseCRUD[models.Role, schemas.Role.Base, schemas.Role.Record]):
     pass
 
 
-class StateCRUD(BaseCRUD[models.State, schemas.StateCreate, schemas.State]):
+class StateCRUD(BaseCRUD[models.State, schemas.State.Base, schemas.State.Record]):
     pass
 
 
-class TopicCRUD(BaseCRUD[models.Topic, schemas.TopicCreate, schemas.Topic]):
+class TopicCRUD(BaseCRUD[models.Topic, schemas.Topic.Base, schemas.Topic.Record]):
     pass
 
 
@@ -371,47 +405,159 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
         except SQLAlchemyError as e:
             raise DatabaseException(f"Database error: {str(e)}")
 
+    def follow_legislator(self, db: Session, user_id: int, legislator_id: int):
+        db_user = self.read(db=db, obj_id=user_id)
+        db_legislator = (
+            db.query(models.Legislator)
+            .filter(models.Legislator.id == legislator_id)
+            .first()
+        )
+        if not db_legislator:
+            raise ObjectNotFoundException(
+                f"Legislator not found for id: {legislator_id}"
+            )
+        db_user.followed_legislators.append(db_legislator)
+        db.commit()
 
-class VoteCRUD(BaseCRUD[models.Vote, schemas.VoteCreate, schemas.Vote]):
-    def create_or_update_vote(self, db: Session, user_vote: schemas.Vote):
+    def unfollow_legislator(self, db: Session, user_id: int, legislator_id: int):
+        db_user = self.read(db=db, obj_id=user_id)
+        db_legislator = (
+            db.query(models.Legislator)
+            .filter(models.Legislator.id == legislator_id)
+            .first()
+        )
+        if not db_legislator:
+            raise ObjectNotFoundException(
+                f"Legislator not found for id: {legislator_id}"
+            )
+        if db_legislator not in db_user.followed_legislators:
+            raise ObjectNotFoundException(
+                f"Cannot unfollow, User {user_id} is not following legislator {legislator_id}"
+            )
+        db_user.followed_legislators.remove(db_legislator)
+        db.commit()
+
+    def get_user_legislators(
+        self, db: Session, user_id: int
+    ) -> List[models.Legislator]:
         try:
-            existing_vote = (
+            db_user = self.read(db=db, obj_id=user_id)
+            return db_user.followed_legislators
+        except SQLAlchemyError as e:
+            raise DatabaseException(f"Database error: {str(e)}")
+
+    def like_comment(self, db: Session, user_id: int, comment_id: int):
+        db_user = self.read(db=db, obj_id=user_id)
+        db_comment = (
+            db.query(models.Comment).filter(models.Comment.id == comment_id).first()
+        )
+        if not db_comment:
+            raise ObjectNotFoundException(f"Comment not found for id: {comment_id}")
+        db_user.liked_comments.append(db_comment)
+        db.commit()
+
+    def unlike_comment(self, db: Session, user_id: int, comment_id: int):
+        db_user = self.read(db=db, obj_id=user_id)
+        db_comment = (
+            db.query(models.Comment).filter(models.Comment.id == comment_id).first()
+        )
+        if not db_comment:
+            raise ObjectNotFoundException(f"Comment not found for id: {comment_id}")
+        if db_comment not in db_user.liked_comments:
+            raise ObjectNotFoundException(
+                f"Cannot unfollow, User {user_id} is not following bill {comment_id}"
+            )
+        db_user.liked_comments.remove(db_comment)
+        db.commit()
+
+
+class LegislatorVoteCRUD(
+    BaseCRUD[
+        models.LegislatorVote,
+        schemas.LegislatorVote.Base,
+        schemas.LegislatorVote.Record,
+    ]
+):
+    def create_or_update_vote(self, db: Session, vote: schemas.LegislatorVote.Record):
+        try:
+            db_vote = (
                 db.query(self.model)
                 .filter(
-                    models.Vote.user_id == user_vote.user_id,
-                    models.Vote.bill_id == user_vote.bill_id,
+                    models.LegislatorVote.legislator_id == vote.legislator_id,
+                    models.LegislatorVote.bill_id == vote.bill_id,
+                    models.LegislatorVote.bill_action_id == vote.bill_action_id,
                 )
                 .first()
             )
 
-            if existing_vote:
-                for key, value in user_vote.model_dump().items():
-                    setattr(existing_vote, key, value)
+            if db_vote:
+                for key, value in vote.model_dump().items():
+                    setattr(db_vote, key, value)
             else:
-                existing_vote = self.model(**user_vote.model_dump())
-                db.add(existing_vote)
+                db_vote = self.model(**vote.model_dump())
+                db.add(db_vote)
 
             db.commit()
-            db.refresh(existing_vote)
-            return existing_vote
+            db.refresh(db_vote)
+            return db_vote
         except SQLAlchemyError as e:
             db.rollback()
             raise DatabaseException(f"Database error: {str(e)}")
 
-    def get_votes_for_bill(self, db: Session, bill_id: int) -> List[models.Vote]:
+    def get_votes_for_bill(
+        self, db: Session, bill_id: int
+    ) -> List[models.LegislatorVote]:
         return self.read_filtered(db=db, filters={"bill_id": bill_id})
 
-    def get_votes_for_user(self, db: Session, user_id: int) -> List[models.Vote]:
+    def get_votes_for_legislator(
+        self, db: Session, legislator_id: int
+    ) -> List[models.LegislatorVote]:
+        return self.read_filtered(db=db, filters={"legislator_id": legislator_id})
+
+
+class UserVoteCRUD(BaseCRUD[models.UserVote, schemas.UserVoteCreate, schemas.UserVote]):
+    def create_or_update_vote(self, db: Session, vote: schemas.UserVote):
+        try:
+            db_vote = (
+                db.query(self.model)
+                .filter(
+                    models.UserVote.user_id == vote.user_id,
+                    models.UserVote.bill_id == vote.bill_id,
+                )
+                .first()
+            )
+
+            if db_vote:
+                for key, value in vote.model_dump().items():
+                    setattr(db_vote, key, value)
+            else:
+                db_vote = self.model(**vote.model_dump())
+                db.add(db_vote)
+
+            db.commit()
+            db.refresh(db_vote)
+            return db_vote
+        except SQLAlchemyError as e:
+            db.rollback()
+            raise DatabaseException(f"Database error: {str(e)}")
+
+    def get_votes_for_bill(self, db: Session, bill_id: int) -> List[models.UserVote]:
+        return self.read_filtered(db=db, filters={"bill_id": bill_id})
+
+    def get_votes_for_user(self, db: Session, user_id: int) -> List[models.UserVote]:
         return self.read_filtered(db=db, filters={"user_id": user_id})
 
 
 bill = BillCRUD(models.Bill)
+bill_action = BillActionCRUD(models.BillAction)
+comment = CommentCRUD(models.Comment)
 committee = CommitteeCRUD(models.Committee)
 legislator = LegislatorCRUD(models.Legislator)
 legislative_body = LegislativeBodyCRUD(models.LegislativeBody)
+legislator_vote = LegislatorVoteCRUD(models.LegislatorVote)
 party = UserCRUD(models.Party)
 role = UserCRUD(models.Role)
 state = UserCRUD(models.State)
 topic = TopicCRUD(models.Topic)
 user = UserCRUD(models.User)
-vote = VoteCRUD(models.Vote)
+user_vote = UserVoteCRUD(models.UserVote)

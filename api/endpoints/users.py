@@ -52,7 +52,7 @@ async def create_user(
         logger.info(f"Successfully created user with ID: {created_user.id}")
         return created_user
     except ObjectAlreadyExistsException:
-        logger.warning(f"Attempt to create user with existing email: {user.email}")
+        logger.warning(f"Attempted to create user with existing email: {user.email}")
         raise HTTPException(
             status_code=409, detail=f"Email already registered: {user.email}"
         )
@@ -99,7 +99,7 @@ async def read_user(
         logger.info(f"Successfully retrieved information for user ID: {user_id}")
         return user
     except ObjectNotFoundException:
-        logger.warning(f"Attempt to read non-existent user with ID: {user_id}")
+        logger.warning(f"Attempted to read non-existent user with ID: {user_id}")
         raise HTTPException(status_code=404, detail=f"User not found for id: {user_id}")
     except DatabaseException as e:
         logger.error(f"Database error while reading user: {str(e)}")
@@ -190,11 +190,11 @@ async def delete_user(
 
 @router.get(
     "/{user_id}/topics",
-    response_model=List[schemas.Topic],
+    response_model=List[schemas.Topic.Record],
     summary="Get user's followed topics",
     responses={
         200: {
-            "model": List[schemas.Topic],
+            "model": List[schemas.Topic.Record],
             "description": "User's topics successfully retrieved",
         },
         403: {
@@ -223,11 +223,11 @@ def get_user_topics(
 
 @router.get(
     "/{user_id}/bills",
-    response_model=List[schemas.Bill],
+    response_model=List[schemas.Bill.Record],
     summary="Get user's followed bills",
     responses={
         200: {
-            "model": List[schemas.Bill],
+            "model": List[schemas.Bill.Record],
             "description": "User's bills successfully retrieved",
         },
         403: {
@@ -249,4 +249,37 @@ def get_user_bills(
         return bills
     except DatabaseException as e:
         logger.error(f"Database error while retrieving user bills: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@router.get(
+    "/{user_id}/legislators",
+    response_model=List[schemas.Legislator.Record],
+    summary="Get user's followed legislators",
+    responses={
+        200: {
+            "model": List[schemas.Legislator.Record],
+            "description": "User's legislators successfully retrieved",
+        },
+        403: {
+            "model": ErrorResponse,
+            "description": "Unauthorized to retrieve this user's legislators",
+        },
+        404: {"model": ErrorResponse, "description": "User not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+def get_user_legislators(
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+) -> List[models.Legislator]:
+    logger.info(f"Attempting to retrieve legislators for user ID: {user.id}")
+    try:
+        legislators = crud.user.get_user_legislators(db=db, user_id=user.id)
+        logger.info(
+            f"Successfully retrieved {len(legislators)} legislators for user ID: {user.id}"
+        )
+        return legislators
+    except DatabaseException as e:
+        logger.error(f"Database error while retrieving user legislators: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")

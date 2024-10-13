@@ -1,8 +1,8 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List, Dict, Any, Generic, TypeVar, Type
-from pydantic import BaseModel
+from typing import List, Dict, Any, Generic, TypeVar, Type, Optional, Callable
+from pydantic import BaseModel, ConfigDict
 
 from common.database.referendum import crud
 from common.database.referendum.crud import (
@@ -23,6 +23,16 @@ UpdateSchema = TypeVar("UpdateSchema", bound=BaseModel)
 ResponseSchema = TypeVar("ResponseSchema", bound=BaseModel)
 
 
+class CRUDPermissions(BaseModel):
+    create: Callable
+    read: Callable
+    update: Callable
+    delete: Callable
+    read_all: Callable
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
 class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
     @classmethod
     def add_crud_routes(
@@ -33,8 +43,17 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
         update_schema: Type[UpdateSchema],
         response_schema: Type[ResponseSchema],
         resource_name: str,
+        permissions: Optional[CRUDPermissions] = None,
     ):
         logger.info(f"Generating CRUD routes for resource: {resource_name}")
+        if not permissions:
+            permissions = CRUDPermissions(
+                create=verify_system_token,
+                read=get_current_user_or_verify_system_token,
+                update=verify_system_token,
+                delete=verify_system_token,
+                read_all=get_current_user_or_verify_system_token,
+            )
 
         @router.post(
             "/",
@@ -57,7 +76,7 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
         async def create_item(
             item: create_schema,
             db: Session = Depends(get_db),
-            _: Dict[str, Any] = Depends(verify_system_token),
+            _: Dict[str, Any] = Depends(permissions.create),
         ):
             logger.info(f"Attempting to create new {resource_name}")
             try:
@@ -95,7 +114,7 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
         async def read_item(
             item_id: int,
             db: Session = Depends(get_db),
-            _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+            _: Dict[str, Any] = Depends(permissions.read),
         ):
             logger.info(f"Attempting to read {resource_name} with ID: {item_id}")
             try:
@@ -134,7 +153,7 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
         async def update_item(
             item: update_schema,
             db: Session = Depends(get_db),
-            _: Dict[str, Any] = Depends(verify_system_token),
+            _: Dict[str, Any] = Depends(permissions.update),
         ):
             logger.info(f"Attempting to update {resource_name} with ID: {item.id}")
             try:
@@ -169,7 +188,7 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
         async def delete_item(
             item_id: int,
             db: Session = Depends(get_db),
-            _: Dict[str, Any] = Depends(verify_system_token),
+            _: Dict[str, Any] = Depends(permissions.delete),
         ):
             logger.info(f"Attempting to delete {resource_name} with ID: {item_id}")
             try:
@@ -203,7 +222,7 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
             skip: int = 0,
             limit: int = 100,
             db: Session = Depends(get_db),
-            _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+            _: Dict[str, Any] = Depends(permissions.read_all),
         ):
             logger.info(
                 f"Attempting to read all {resource_name}s (skip: {skip}, limit: {limit})"

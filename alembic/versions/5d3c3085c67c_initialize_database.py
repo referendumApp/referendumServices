@@ -20,6 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade():
+    # Create base tables
     op.create_table(
         "users",
         sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
@@ -59,6 +60,7 @@ def upgrade():
         sa.PrimaryKeyConstraint("id"),
     )
 
+    # Create tables with foreign key dependencies
     op.create_table(
         "legislative_bodys",
         sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
@@ -141,12 +143,23 @@ def upgrade():
     )
     op.create_index(op.f("ix_legislators_name"), "legislators", ["name"], unique=False)
     op.create_index(op.f("ix_legiscan_id"), "legislators", ["legiscan_id"], unique=True)
-
     op.create_index(
         op.f("ix_legislator_name_district"),
         "legislators",
         ["name", "district"],
         unique=True,
+    )
+
+    # Create junction tables
+    op.create_table(
+        "bill_versions",
+        sa.Column("bill_id", sa.Integer(), nullable=False),
+        sa.Column("version", sa.Integer(), nullable=False),
+        sa.PrimaryKeyConstraint("bill_id", "version"),
+        sa.ForeignKeyConstraint(
+            ["bill_id"],
+            ["bills.id"],
+        ),
     )
 
     op.create_table(
@@ -195,6 +208,22 @@ def upgrade():
     )
 
     op.create_table(
+        "bill_actions",
+        sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("bill_id", sa.Integer(), nullable=False),
+        sa.Column("date", sa.Date(), nullable=False),
+        sa.Column(
+            "type",
+            sa.Enum(
+                "FLOOR_VOTE", "COMMITTEE_VOTE", name="billactiontype", create_type=True
+            ),
+            nullable=False,
+        ),
+        sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(["bill_id"], ["bills.id"]),
+    )
+
+    op.create_table(
         "bill_sponsors",
         sa.Column("bill_id", sa.Integer(), nullable=False),
         sa.Column("legislator_id", sa.Integer(), nullable=False),
@@ -226,30 +255,103 @@ def upgrade():
     )
 
     op.create_table(
-        "votes",
+        "user_votes",
         sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column("bill_id", sa.Integer(), nullable=False),
         sa.Column(
-            "vote_choice", sa.Enum("YES", "NO", name="votechoice"), nullable=False
+            "vote_choice",
+            sa.Enum("YES", "NO", name="votechoice", create_type=True),
+            nullable=False,
         ),
         sa.ForeignKeyConstraint(["bill_id"], ["bills.id"]),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"]),
         sa.PrimaryKeyConstraint("user_id", "bill_id"),
     )
 
+    op.create_table(
+        "legislator_votes",
+        sa.Column("legislator_id", sa.Integer(), nullable=False),
+        sa.Column("bill_id", sa.Integer(), nullable=False),
+        sa.Column("bill_action_id", sa.Integer(), nullable=False),
+        sa.Column(
+            "vote_choice",
+            sa.Enum("YES", "NO", name="votechoice", create_type=False),
+            nullable=False,
+        ),
+        sa.ForeignKeyConstraint(["bill_id"], ["bills.id"]),
+        sa.ForeignKeyConstraint(["bill_action_id"], ["bill_actions.id"]),
+        sa.ForeignKeyConstraint(["legislator_id"], ["legislators.id"]),
+        sa.PrimaryKeyConstraint("legislator_id", "bill_action_id"),
+    )
+
+    op.create_table(
+        "comments",
+        sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("bill_id", sa.Integer(), nullable=False),
+        sa.Column("user_id", sa.Integer(), nullable=False),
+        sa.Column("parent_id", sa.Integer(), nullable=True),
+        sa.Column("comment", sa.String, nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(["bill_id"], ["bills.id"]),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"]),
+    )
+
+    op.create_table(
+        "user_comment_likes",
+        sa.Column("user_id", sa.Integer(), nullable=False),
+        sa.Column("comment_id", sa.Integer(), nullable=False),
+        sa.PrimaryKeyConstraint("user_id", "comment_id"),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"]),
+        sa.ForeignKeyConstraint(["comment_id"], ["comments.id"]),
+    )
+
+    op.create_table(
+        "user_legislator_follows",
+        sa.Column("user_id", sa.Integer(), nullable=False),
+        sa.Column("legislator_id", sa.Integer(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["legislator_id"],
+            ["legislators.id"],
+        ),
+        sa.ForeignKeyConstraint(
+            ["user_id"],
+            ["users.id"],
+        ),
+        sa.PrimaryKeyConstraint("user_id", "legislator_id"),
+    )
+
 
 def downgrade():
-    op.drop_table("votes")
-    op.execute("DROP TYPE votechoice")
+    # Drop junction tables
+    op.drop_table("user_legislator_follows")
+    op.drop_table("user_comment_likes")
+    op.drop_table("comments")
+    op.drop_table("legislator_votes")
+    op.drop_table("user_votes")
+    op.drop_table("bill_topics")
+    op.drop_table("bill_sponsors")
+    op.drop_table("bill_actions")
+    op.drop_table("committee_membership")
     op.drop_table("user_bill_follows")
     op.drop_table("user_topic_follows")
+    op.drop_table("bill_versions")
+
+    # Drop tables with foreign key dependencies
+    op.drop_index(op.f("ix_legislator_name_district"), table_name="legislators")
+    op.drop_index(op.f("ix_legiscan_id"), table_name="legislators")
+    op.drop_index(op.f("ix_legislators_name"), table_name="legislators")
     op.drop_table("legislators")
-    op.drop_index(op.f("ix_bills_session"), table_name="bills")
-    op.drop_index(op.f("ix_bills_body"), table_name="bills")
-    op.drop_index(op.f("ix_bills_state"), table_name="bills")
+
+    op.drop_index(op.f("ix_bills_session_id"), table_name="bills")
+    op.drop_index(op.f("ix_bills_legislative_body_id"), table_name="bills")
+    op.drop_index(op.f("ix_bills_state_id"), table_name="bills")
     op.drop_index(op.f("ix_bills_legiscan_id"), table_name="bills")
     op.drop_table("bills")
+
+    op.drop_table("committees")
     op.drop_table("legislative_bodys")
+
+    # Drop base tables
     op.drop_table("roles")
     op.drop_table("states")
     op.drop_table("partys")
@@ -257,3 +359,7 @@ def downgrade():
     op.drop_table("topics")
     op.drop_index(op.f("ix_users_email"), table_name="users")
     op.drop_table("users")
+
+    # Drop enum types
+    op.execute("DROP TYPE IF EXISTS billactiontype")
+    op.execute("DROP TYPE IF EXISTS votechoice")
