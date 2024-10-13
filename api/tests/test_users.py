@@ -114,14 +114,14 @@ def test_user_login(test_user_session):
     user, _ = test_user_session
 
     login_data = {"username": user["email"], "password": "testpassword"}
-    response = client.post("/auth/token", data=login_data)
+    response = client.post("/auth/login", data=login_data)
     assert_status_code(response, 200)
     assert "access_token" in response.json()
 
 
 def test_user_login_invalid_credentials():
     login_data = {"username": "nonexistent@example.com", "password": "wrongpassword"}
-    response = client.post("/auth/token", data=login_data)
+    response = client.post("/auth/login", data=login_data)
     assert_status_code(response, 401)
 
 
