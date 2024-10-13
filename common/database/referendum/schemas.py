@@ -167,6 +167,7 @@ LegislatorVote = create_schema_container(
     name="LegislatorVote",
     base_fields={
         "bill_id": (int, ...),
+        "bill_action_id": (int, ...),
         "legislator_id": (int, ...),
         "vote_choice": (VoteChoice, ...),
     },
