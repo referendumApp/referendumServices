@@ -147,9 +147,13 @@ def test_legislator(test_party):
 
 
 @pytest.fixture(scope="function")
-def test_vote(test_user_session, test_bill):
+def test_vote(test_user_session, test_bill_action):
     user, headers = test_user_session
-    vote_data = {"bill_id": test_bill["id"], "vote_choice": VoteChoice.YES.value}
+    vote_data = {
+        "bill_id": test_bill_action["bill_id"],
+        "bill_action_id": test_bill_action["id"],
+        "vote_choice": VoteChoice.YES.value,
+    }
     response = client.put(
         f"/users/{user['id']}/votes/", json=vote_data, headers=headers
     )

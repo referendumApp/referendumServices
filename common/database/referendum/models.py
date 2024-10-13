@@ -215,6 +215,7 @@ class LegislatorVote(Base):
 
     legislator_id = Column(Integer, ForeignKey("legislators.id"), primary_key=True)
     bill_id = Column(Integer, ForeignKey("bills.id"), primary_key=True)
+    bill_action_id = Column(Integer, ForeignKey("bill_actions.id"), primary_key=True)
     vote_choice = Column(Enum(VoteChoice), nullable=False)
 
 
