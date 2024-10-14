@@ -58,7 +58,7 @@ async def signup(user: UserCreateInput, db: Session = Depends(get_db)) -> schema
 
 
 @router.post(
-    "/token",
+    "/login",
     response_model=TokenResponse,
     summary="Login for Access Token",
     responses={

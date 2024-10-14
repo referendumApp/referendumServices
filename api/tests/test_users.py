@@ -114,14 +114,14 @@ def test_user_login(test_user_session):
     user, _ = test_user_session
 
     login_data = {"username": user["email"], "password": "testpassword"}
-    response = client.post("/auth/token", data=login_data)
+    response = client.post("/auth/login", data=login_data)
     assert_status_code(response, 200)
     assert "access_token" in response.json()
 
 
 def test_user_login_invalid_credentials():
     login_data = {"username": "nonexistent@example.com", "password": "wrongpassword"}
-    response = client.post("/auth/token", data=login_data)
+    response = client.post("/auth/login", data=login_data)
     assert_status_code(response, 401)
 
 
@@ -137,7 +137,9 @@ def test_follow_topic(test_user_session, test_topic):
     user, user_headers = test_user_session
     topic = test_topic
 
-    response = client.post(f"/follow/topic/{topic['id']}", headers=user_headers)
+    response = client.post(
+        f"/users/{user['id']}/topics/{topic['id']}", headers=user_headers
+    )
     assert_status_code(response, 204)
 
     # Verify that the topic is in the user's topics
@@ -148,7 +150,7 @@ def test_follow_topic(test_user_session, test_topic):
 
     # Now, unfollow the topic
     unfollow_response = client.delete(
-        f"/follow/topic/{topic['id']}", headers=user_headers
+        f"/users/{user['id']}/topics/{topic['id']}", headers=user_headers
     )
     assert_status_code(unfollow_response, 204)
 
@@ -162,14 +164,14 @@ def test_follow_topic(test_user_session, test_topic):
 def test_follow_nonexistent_topic(test_user_session):
     user, user_headers = test_user_session
 
-    response = client.post("/follow/topic/99999", headers=user_headers)
+    response = client.post(f"/users/{user['id']}/topics/99999", headers=user_headers)
     assert_status_code(response, 404)
 
 
 def test_unfollow_nonexistent_topic(test_user_session):
     user, user_headers = test_user_session
 
-    response = client.delete("/follow/topic/99999", headers=user_headers)
+    response = client.delete(f"/users/{user['id']}/topics/99999", headers=user_headers)
     assert_status_code(response, 404)
 
 
@@ -184,7 +186,9 @@ def test_get_user_bills(test_user_session):
 def test_follow_bill(test_user_session, test_bill):
     user, user_headers = test_user_session
 
-    response = client.post(f"/follow/bill/{test_bill['id']}", headers=user_headers)
+    response = client.post(
+        f"/users/{user['id']}/bills/{test_bill['id']}", headers=user_headers
+    )
     assert_status_code(response, 204)
 
     # Verify that the bill is in the user's bills
@@ -195,7 +199,7 @@ def test_follow_bill(test_user_session, test_bill):
 
     # Now, unfollow the bill
     unfollow_response = client.delete(
-        f"/follow/bill/{test_bill['id']}", headers=user_headers
+        f"/users/{user['id']}/bills/{test_bill['id']}", headers=user_headers
     )
     assert_status_code(unfollow_response, 204)
 
@@ -206,11 +210,25 @@ def test_follow_bill(test_user_session, test_bill):
     assert not any(t["id"] == test_bill["id"] for t in user_topics)
 
 
+def test_follow_nonexistent_bill(test_user_session):
+    user, user_headers = test_user_session
+
+    response = client.post(f"/users/{user['id']}/bills/99999", headers=user_headers)
+    assert_status_code(response, 404)
+
+
+def test_unfollow_nonexistent_bill(test_user_session):
+    user, user_headers = test_user_session
+
+    response = client.delete(f"/users/{user['id']}/bills/99999", headers=user_headers)
+    assert_status_code(response, 404)
+
+
 def test_follow_legislator(test_user_session, test_legislator):
     user, user_headers = test_user_session
 
     response = client.post(
-        f"/follow/legislator/{test_legislator['id']}", headers=user_headers
+        f"/users/{user['id']}/legislators/{test_legislator['id']}", headers=user_headers
     )
     assert_status_code(response, 204)
 
@@ -222,7 +240,7 @@ def test_follow_legislator(test_user_session, test_legislator):
 
     # Now, unfollow the legislator
     unfollow_response = client.delete(
-        f"/follow/legislator/{test_legislator['id']}", headers=user_headers
+        f"/users/{user['id']}/legislators/{test_legislator['id']}", headers=user_headers
     )
     assert_status_code(unfollow_response, 204)
 
@@ -231,17 +249,3 @@ def test_follow_legislator(test_user_session, test_legislator):
     assert_status_code(response, 200)
     user_legislators = response.json()
     assert not any(l["id"] == test_legislator["id"] for l in user_legislators)
-
-
-def test_follow_nonexistent_bill(test_user_session):
-    user, user_headers = test_user_session
-
-    response = client.post("/follow/bill/99999", headers=user_headers)
-    assert_status_code(response, 404)
-
-
-def test_unfollow_nonexistent_bill(test_user_session):
-    user, user_headers = test_user_session
-
-    response = client.delete("/follow/bill/99999", headers=user_headers)
-    assert_status_code(response, 404)
