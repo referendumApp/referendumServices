@@ -10,6 +10,7 @@ authors = [{name = "Makani Dalton", email = "makani@referendumapp.com"}]
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "alembic",
     "boto3",
     "debugpy",
     "fastapi[standard]",

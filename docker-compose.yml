@@ -22,6 +22,13 @@ services:
   api-local:
     extends:
       service: api-base
+    depends_on:
+      db:
+        condition: service_healthy
+      local-init:
+        condition: service_completed_successfully
+      migrations:
+        condition: service_completed_successfully
     environment:
       - ENVIRONMENT=local
       - API_ACCESS_TOKEN=12345
@@ -65,6 +72,25 @@ services:
     command: ["/code/local_init.sh"]
     profiles: ["local", "test"]
 
+  migrations:
+    build:
+      context: .
+      target: migrations
+    environment:
+      - ENVIRONMENT=local
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - REFERENDUM_DB_NAME=referendum
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+      local-init:
+        condition: service_completed_successfully
+    profiles: ["local", "test"]
+
   pipeline:
     build:
       context: .
@@ -91,6 +117,8 @@ services:
       db:
         condition: service_healthy
       local-init:
+        condition: service_completed_successfully
+      migrations:
         condition: service_completed_successfully
     environment:
       - ENVIRONMENT=test

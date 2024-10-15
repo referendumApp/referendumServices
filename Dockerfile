@@ -4,6 +4,12 @@ WORKDIR /code
 COPY pyproject.toml .
 RUN pip install --no-cache-dir .
 
+# Alembic migration stage
+FROM base AS migrations
+
+COPY alembic.ini /code/
+COPY alembic /code/alembic
+
 # API stage
 FROM base AS api
 
