@@ -42,8 +42,8 @@ FROM base AS test
 
 RUN pip install --no-cache-dir .[test]
 
-COPY api /code/api
 COPY pipeline /code/pipeline
+COPY api /code/api
 COPY common /code/common
 
 ENV PYTHONPATH=/code:$PYTHONPATH

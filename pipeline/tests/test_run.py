@@ -8,7 +8,6 @@ def is_running_in_docker():
 
 
 def test_pipeline_execution():
-    pytest.skip("This test is skipped pending implementation of new bills model")
     if not is_running_in_docker():
         pytest.skip("This test should only run inside a Docker container")
 
@@ -16,6 +15,7 @@ def test_pipeline_execution():
         ["python", "-m", "pipeline.run"], capture_output=True, text=True, check=True
     )
     full_output = result.stdout + result.stderr
+    print(full_output)
     assert (
         "ETL process completed successfully" in full_output
     ), "Success message not found in pipeline output"

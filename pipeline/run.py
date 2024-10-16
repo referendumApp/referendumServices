@@ -1,5 +1,6 @@
 import logging
 import pandas as pd
+import sqlalchemy
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from typing import Dict
@@ -89,6 +90,8 @@ def transform(etl_configs) -> Dict[str, pd.DataFrame]:
 
                     df[is_primary_col] = df[sponsor_type_col] == 1
 
+                    df = df.drop(columns=[sponsor_type_col])
+
             config["dataframe"] = df
 
         except Exception as e:
@@ -103,10 +106,22 @@ def load(etl_configs):
     referendum_db = next(get_referendum_db())
 
     if check_db_connection(referendum_db):
+        try:
+            inspector = sqlalchemy.inspect(referendum_db.connection())
+            tables = inspector.get_table_names()
 
+            logger.info(f"Tables in Referendum database: {tables}")
+            for table in tables:
+                columns = inspector.get_columns(table)
+                column_names = [column["name"] for column in columns]
+                logger.info(f"Columns in '{table}' table: {column_names}")
+        except Exception as e:
+            logger.error(f"Error fetching table metadata: {e}")
+            raise
+
+        # Process the ETL load
         for config in etl_configs:
             destination_table = config["destination"]
-
             df = config["dataframe"]
 
             try:
@@ -119,7 +134,6 @@ def load(etl_configs):
             except Exception as e:
                 logger.error(f"Error inserting data into '{destination_table}': {e}")
                 raise
-
     else:
         logger.error("Failed to connect to Referendum database. Load aborted.")
         raise ConnectionError("Referendum database connection failed")
@@ -188,19 +202,6 @@ def orchestrate_etl():
             "dataframe": None,
         },
         {
-            "source": "ls_bill_sponsor",
-            "destination": "bill_sponsors",
-            "transformations": [
-                {
-                    "function": "keep_columns",
-                    "parameters": {
-                        "columns": ["bill_id", "people_id", "sponsor_type_id"]
-                    },
-                },
-            ],
-            "dataframe": None,
-        },
-        {
             "source": "ls_bill",
             "destination": "bills",
             "transformations": [
@@ -255,6 +256,84 @@ def orchestrate_etl():
             ],
             "dataframe": None,
         },
+        {
+            "source": "ls_committee",
+            "destination": "committees",
+            "transformations": [
+                {
+                    "function": "keep_columns",
+                    "parameters": {
+                        "columns": [
+                            "committee_id",
+                            "committee_body_id",
+                            "committee_name",
+                        ]
+                    },
+                },
+                {
+                    "function": "rename",
+                    "parameters": {
+                        "columns": {
+                            "committee_id": "id",
+                            "committee_body_id": "legislative_body_id",
+                            "committee_name": "name",
+                        }
+                    },
+                },
+            ],
+            "dataframe": None,
+        },
+        # {
+        #     "source": "ls_bill_vote",
+        #     "destination": "bill_actions",
+        #     "transformations": [
+        #         {
+        #             "function": "keep_columns",
+        #             "parameters": {
+        #                 "columns": [
+        #                     "bill_id",
+        #                     "created",
+        #                     "passed",
+        #                 ]
+        #             },
+        #         },
+        #         {
+        #             "function": "rename",
+        #             "parameters": {
+        #                 "columns": {
+        #                     "created": "date",
+        #                     "passed": "type",
+        #                 }
+        #             },
+        #         },
+        #     ],
+        #     "dataframe": None,
+        # },
+        # {
+        #     "source": "ls_bill_sponsor",
+        #     "destination": "bill_sponsors",
+        #     "transformations": [
+        #         {
+        #             "function": "keep_columns",
+        #             "parameters": {
+        #                 "columns": ["bill_id", "people_id", "sponsor_type_id"]
+        #                 ### bill_id has relationship with bill.id, which we create ??? ###
+        #             },
+        #         },
+        #         {
+        #             "function": "rename",
+        #             "parameters": {"columns": {"people_id": "legislator_id"}},
+        #         },
+        #         {
+        #             "function": "set_primary_sponsor",
+        #             "parameters": {
+        #                 "sponsor_type_column": "sponsor_type_id",
+        #                 "is_primary_column": "is_primary"
+        #             }
+        #         }
+        #     ],
+        #     "dataframe": None,
+        # },
     ]
     try:
         etl_configs = extract(etl_configs)
