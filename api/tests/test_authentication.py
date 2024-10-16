@@ -66,7 +66,7 @@ def test_login_success():
 
     # Now try to login
     login_data = {"username": user_data["email"], "password": user_data["password"]}
-    response = client.post("/auth/token", data=login_data)
+    response = client.post("/auth/login", data=login_data)
     assert_status_code(response, 200)
     token_data = response.json()
     assert "access_token" in token_data
@@ -84,7 +84,7 @@ def test_login_incorrect_password():
 
     # Now try to login with wrong password
     login_data = {"username": user_data["email"], "password": "wrongpassword"}
-    response = client.post("/auth/token", data=login_data)
+    response = client.post("/auth/login", data=login_data)
     assert_status_code(response, 401)
     assert "Incorrect username or password" in response.json()["detail"]
 
@@ -95,11 +95,11 @@ def test_login_nonexistent_user():
         "name": "Test User",
         "password": "anypassword",
     }
-    response = client.post("/auth/token", data=login_data)
+    response = client.post("/auth/login", data=login_data)
     assert_status_code(response, 401)
     assert "Incorrect username or password" in response.json()["detail"]
 
 
 def test_login_missing_fields():
-    response = client.post("/auth/token", data={})
+    response = client.post("/auth/login", data={})
     assert_status_code(response, 422)  # Unprocessable Entity
