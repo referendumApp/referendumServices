@@ -62,6 +62,33 @@ async def create_user(
 
 
 @router.get(
+    "/",
+    response_model=List[schemas.User],
+    status_code=status.HTTP_200_OK,
+    summary="Get all users",
+    responses={
+        201: {"model": List[schemas.User], "description": "User successfully created"},
+        403: {
+            "model": ErrorResponse,
+            "description": "Only system token can get all users",
+        },
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def get_all_users(
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(verify_system_token),
+) -> List[models.User]:
+    try:
+        users = crud.user.read_all(db=db)
+        logger.info(f"Successfully retrieved information for users")
+        return users
+    except DatabaseException as e:
+        logger.error(f"Database error while creating user: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@router.get(
     "/{user_id}",
     response_model=schemas.User,
     summary="Get user information",

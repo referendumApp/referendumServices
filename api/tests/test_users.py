@@ -249,3 +249,9 @@ def test_follow_legislator(test_user_session, test_legislator):
     assert_status_code(response, 200)
     user_legislators = response.json()
     assert not any(l["id"] == test_legislator["id"] for l in user_legislators)
+
+
+def test_all_users_are_gone():
+    response = client.get(f"/users/", headers=system_headers)
+    assert_status_code(response, 200)
+    assert len(response.json()) == 0

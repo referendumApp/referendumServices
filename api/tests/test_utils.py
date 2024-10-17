@@ -4,6 +4,7 @@ import random
 import string
 
 from api.config import settings
+from api.database import get_db
 from api.main import app
 from api.security import create_access_token
 from common.database.referendum.models import VoteChoice
@@ -12,6 +13,14 @@ from common.database.referendum.models import VoteChoice
 
 client = TestClient(app)
 system_headers = {"X-API_Key": settings.API_ACCESS_TOKEN}
+
+
+@pytest.fixture(scope="function", autouse=True)
+def rollback_transaction():
+    with next(get_db()) as db:
+        transaction = db.begin_nested()
+        yield
+        transaction.rollback()
 
 
 def assert_status_code(response, expected_status_code: int):
