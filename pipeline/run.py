@@ -91,6 +91,10 @@ def transform(etl_configs) -> Dict[str, pd.DataFrame]:
                     df[is_primary_col] = df[sponsor_type_col] == 1
 
                     df = df.drop(columns=[sponsor_type_col])
+                elif transformation["function"] == "duplicate":
+                    source_name = transformation["parameters"]["source_name"]
+                    destination_name = transformation["parameters"]["destination_name"]
+                    df[destination_name] = df[source_name]
 
             config["dataframe"] = df
 
@@ -225,10 +229,17 @@ def orchestrate_etl():
                     "function": "rename",
                     "parameters": {
                         "columns": {
-                            "bill_id": "legiscan_id",
+                            "bill_id": "id",
                             "bill_number": "identifier",
                             "body_id": "legislative_body_id",
                         }
+                    },
+                },
+                {
+                    "function": "duplicate",
+                    "parameters": {
+                        "source_name": "id",
+                        "destination_name": "legiscan_id",
                     },
                 },
             ],
@@ -251,7 +262,14 @@ def orchestrate_etl():
                 },
                 {
                     "function": "rename",
-                    "parameters": {"columns": {"people_id": "legiscan_id"}},
+                    "parameters": {"columns": {"people_id": "id"}},
+                },
+                {
+                    "function": "duplicate",
+                    "parameters": {
+                        "source_name": "id",
+                        "destination_name": "legiscan_id",
+                    },
                 },
             ],
             "dataframe": None,

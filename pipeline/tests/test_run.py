@@ -15,7 +15,6 @@ def test_pipeline_execution():
         ["python", "-m", "pipeline.run"], capture_output=True, text=True, check=True
     )
     full_output = result.stdout + result.stderr
-    print(full_output)
     assert (
         "ETL process completed successfully" in full_output
-    ), "Success message not found in pipeline output"
+    ), f"Success message not found in pipeline output: {full_output}"
