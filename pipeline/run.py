@@ -1,5 +1,6 @@
 import logging
 import pandas as pd
+import sqlalchemy
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from typing import Dict
@@ -29,7 +30,6 @@ def get_referendum_db():
 
 def check_db_connection(db_session):
     try:
-        # Attempt to execute a simple query
         db_session.execute(text("SELECT 1"))
         return True
     except SQLAlchemyError as e:
@@ -37,157 +37,307 @@ def check_db_connection(db_session):
         return False
 
 
-def extract() -> Dict[str, pd.DataFrame]:
-    legiscan_dataframes = {}
+def extract(etl_configs) -> Dict[str, pd.DataFrame]:
     logger.info("EXTRACT: Extracting data")
     legiscan_db = next(get_legiscan_api_db())
 
     if check_db_connection(legiscan_db):
-        logger.info("EXTRACT: Successfully connected to Legiscan API database")
-        tables = ["ls_bill", "ls_people"]
 
         with legiscan_db.connection() as conn:
-            for table_name in tables:
+            for config in etl_configs:
+                table_name = config["source"]
 
-                df = pd.read_sql(table_name, con=conn)
-                legiscan_dataframes[table_name] = df
-                logger.info(f"EXTRACT: Data extracted from table: {table_name}")
+                try:
+                    df = pd.read_sql(table_name, con=conn)
 
-        logger.info("EXTRACT: Extract completed")
+                    for transformation in config.get("transformations", []):
+                        if transformation["function"] == "keep_columns":
+                            columns_to_keep = transformation["parameters"]["columns"]
+                            df = df[columns_to_keep]
 
-        return legiscan_dataframes
+                    config["dataframe"] = df
+
+                except Exception as e:
+                    logger.error(f"Error processing table {table_name}: {e}")
+
+        return etl_configs
+
     else:
         logger.error("Failed to connect to Legiscan API database. Extraction aborted.")
         raise ConnectionError("Legiscan API database connection failed")
 
 
-# def transform(dataframes):
-def transform(legiscan_dataframes):
-    logger.info("TRANSFORM: Transforming data")
-    transformed_data = {}
+def transform(etl_configs) -> Dict[str, pd.DataFrame]:
+    logger.info("EXTRACT: Transforming data")
+    for config in etl_configs:
+        table_name = config["source"]
 
-    ### bills ###
-    if "ls_bill" in legiscan_dataframes:
-        ls_bill = legiscan_dataframes["ls_bill"][["bill_id", "title", "status_id"]]
-        transformed_bill = ls_bill.rename(
-            columns={"bill_id": "legiscan_id", "title": "title", "status_id": "status"}
-        )
-        transformed_data["bills"] = transformed_bill
-        logger.info(
-            f"TRANSFORM: Transformed 'ls_bill' into 'bills' table with {len(transformed_bill)} rows"
-        )
+        try:
 
-    else:
-        logger.warning("'ls_bill' table not found in legiscan dataframes")
+            df = config["dataframe"]
 
-    ### legislators ###
-    if "ls_people" in legiscan_dataframes:
-        ls_people = legiscan_dataframes["ls_people"][
-            ["people_id", "name", "state_id", "district", "party_id"]
-        ]
-        transformed_legislator = ls_people.rename(
-            columns={
-                "people_id": "legiscan_id",
-                "name": "name",
-                "state_id": "state_id",  ### WHAT IS 'state_id' ???????
-                "district": "district",
-                "party_id": "party_id",  ### CHECK ALL OF THESE MATCH REFERENDUM
-                "role_id": "role_id",
-            }
-        )
-        transformed_legislator["state"] = (
-            transformed_legislator["district"].str.split("-").str[1]
-        )
-        transformed_data["legislators"] = transformed_legislator
-        logger.info(
-            f"TRANSFORM: Transformed 'ls_people' into 'legislators' table with {len(transformed_legislator)} rows"
-        )
-    else:
-        logger.warning("'ls_people' table not found in legiscan dataframes")
+            for transformation in config.get("transformations", []):
+                if transformation["function"] == "rename":
+                    columns_to_rename = transformation["parameters"]["columns"]
+                    df = df.rename(columns=columns_to_rename)
 
-    logger.info("TRANSFORM: Transform completed")
-    return transformed_data
+                elif transformation["function"] == "set_primary_sponsor":
+                    sponsor_type_col = transformation["parameters"][
+                        "sponsor_type_column"
+                    ]
+                    is_primary_col = transformation["parameters"]["is_primary_column"]
+
+                    df[is_primary_col] = df[sponsor_type_col] == 1
+
+                    df = df.drop(columns=[sponsor_type_col])
+
+            config["dataframe"] = df
+
+        except Exception as e:
+            logger.error(f"Error transforming data for table {table_name}: {e}")
+            raise
+
+    return etl_configs
 
 
-def load(transformed_data):
-    logger.info("LOAD: Loading data")
+def load(etl_configs):
+    logger.info("EXTRACT: Loading data")
     referendum_db = next(get_referendum_db())
+
     if check_db_connection(referendum_db):
-        logger.info("LOAD: Successfully connected to Referendum database")
+        try:
+            inspector = sqlalchemy.inspect(referendum_db.connection())
+            tables = inspector.get_table_names()
 
-        # Insert only the first bill into the Referendum database
-        if "bills" in transformed_data:
-            bills_df = transformed_data["bills"]
+            logger.info(f"Tables in Referendum database: {tables}")
+            for table in tables:
+                columns = inspector.get_columns(table)
+                column_names = [column["name"] for column in columns]
+                logger.info(f"Columns in '{table}' table: {column_names}")
+        except Exception as e:
+            logger.error(f"Error fetching table metadata: {e}")
+            raise
 
-            # Extract the first row
-            first_row = bills_df.iloc[0]
+        # Process the ETL load
+        for config in etl_configs:
+            destination_table = config["destination"]
+            df = config["dataframe"]
 
-            # Convert types for compatibility with PostgreSQL
-            bill_data = {
-                "legiscan_id": int(
-                    first_row["legiscan_id"]
-                ),  # Convert numpy.int64 to native Python int
-                "title": str(first_row["title"]),
-                "status": str(first_row["status"]),
-            }
-
-            # Insert the first row into the BILL table in the Referendum database
-            referendum_db.execute(
-                text(
-                    "INSERT INTO bills (legiscan_id, title, status) VALUES (:legiscan_id, :title, :status) ON CONFLICT (id) DO NOTHING;"
-                ),
-                bill_data,
-            )
-
-            # Log all details of the first row
-            logger.info(f"LOAD: First bill inserted - ID: {bill_data['legiscan_id']}, ")
-
-        logger.info("LOAD: Load completed")
-
-        result = referendum_db.execute(
-            text(
-                "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
-            )
-        )
-        tables = result.fetchall()
-        # Log the columns of the 'bills' table if it exists
-        if "bills" in [table[0] for table in tables]:
-            logger.info("LOAD: Fetching column names for the 'bills' table")
-            result = referendum_db.execute(
-                text(
-                    "SELECT column_name FROM information_schema.columns WHERE table_name = 'bills'"
+            try:
+                df.to_sql(
+                    destination_table,
+                    referendum_db.connection(),
+                    if_exists="append",
+                    index=False,
                 )
-            )
-            columns = result.fetchall()
-            logger.info(
-                f"LOAD: Columns in the 'bills' table: {[col[0] for col in columns]}"
-            )
-        else:
-            logger.warning("LOAD: 'bills' table not found in the Referendum database")
-
-        # Log the names of all tables in the database
-        logger.info(f"LOAD: Tables in referendum_db: {[table[0] for table in tables]}")
-
-        # Fetch and log the first row from the 'bills' table to confirm the insertion
-        first_row_query = referendum_db.execute(text("SELECT * FROM bills LIMIT 1"))
-        first_row_result = first_row_query.fetchone()
-        if first_row_result:
-            logger.info(
-                f"LOAD: First row of the 'bills' table in referendum_db to verify insertion: {first_row_result}"
-            )
-        else:
-            logger.warning("LOAD: No rows found in 'bills' table after insertion")
-
+            except Exception as e:
+                logger.error(f"Error inserting data into '{destination_table}': {e}")
+                raise
     else:
         logger.error("Failed to connect to Referendum database. Load aborted.")
         raise ConnectionError("Referendum database connection failed")
 
 
 def orchestrate_etl():
+    etl_configs = [
+        {
+            "source": "ls_state",
+            "destination": "states",
+            "transformations": [
+                {
+                    "function": "keep_columns",
+                    "parameters": {"columns": ["state_id", "state_name"]},
+                },
+                {
+                    "function": "rename",
+                    "parameters": {"columns": {"state_id": "id", "state_name": "name"}},
+                },
+            ],
+            "dataframe": None,
+        },
+        {
+            "source": "ls_role",
+            "destination": "roles",
+            "transformations": [
+                {
+                    "function": "keep_columns",
+                    "parameters": {"columns": ["role_id", "role_name"]},
+                },
+                {
+                    "function": "rename",
+                    "parameters": {"columns": {"role_id": "id", "role_name": "name"}},
+                },
+            ],
+            "dataframe": None,
+        },
+        {
+            "source": "ls_body",
+            "destination": "legislative_bodys",
+            "transformations": [
+                {
+                    "function": "keep_columns",
+                    "parameters": {"columns": ["body_id", "state_id", "role_id"]},
+                },
+                {
+                    "function": "rename",
+                    "parameters": {"columns": {"body_id": "id"}},
+                },
+            ],
+            "dataframe": None,
+        },
+        {
+            "source": "ls_party",
+            "destination": "partys",
+            "transformations": [
+                {
+                    "function": "keep_columns",
+                    "parameters": {"columns": ["party_id", "party_name"]},
+                },
+                {
+                    "function": "rename",
+                    "parameters": {"columns": {"party_id": "id", "party_name": "name"}},
+                },
+            ],
+            "dataframe": None,
+        },
+        {
+            "source": "ls_bill",
+            "destination": "bills",
+            "transformations": [
+                {
+                    "function": "keep_columns",
+                    "parameters": {
+                        "columns": [
+                            "bill_id",
+                            "title",
+                            "description",
+                            "state_id",
+                            "body_id",
+                            "bill_number",
+                            "session_id",
+                            "status_id",
+                            "status_date",
+                        ]
+                    },
+                },
+                {
+                    "function": "rename",
+                    "parameters": {
+                        "columns": {
+                            "bill_id": "legiscan_id",
+                            "bill_number": "identifier",
+                            "body_id": "legislative_body_id",
+                        }
+                    },
+                },
+            ],
+            "dataframe": None,
+        },
+        {
+            "source": "ls_people",
+            "destination": "legislators",
+            "transformations": [
+                {
+                    "function": "keep_columns",
+                    "parameters": {
+                        "columns": [
+                            "people_id",
+                            "name",
+                            "party_id",
+                            "district",
+                        ]
+                    },
+                },
+                {
+                    "function": "rename",
+                    "parameters": {"columns": {"people_id": "legiscan_id"}},
+                },
+            ],
+            "dataframe": None,
+        },
+        {
+            "source": "ls_committee",
+            "destination": "committees",
+            "transformations": [
+                {
+                    "function": "keep_columns",
+                    "parameters": {
+                        "columns": [
+                            "committee_id",
+                            "committee_body_id",
+                            "committee_name",
+                        ]
+                    },
+                },
+                {
+                    "function": "rename",
+                    "parameters": {
+                        "columns": {
+                            "committee_id": "id",
+                            "committee_body_id": "legislative_body_id",
+                            "committee_name": "name",
+                        }
+                    },
+                },
+            ],
+            "dataframe": None,
+        },
+        # {
+        #     "source": "ls_bill_vote",
+        #     "destination": "bill_actions",
+        #     "transformations": [
+        #         {
+        #             "function": "keep_columns",
+        #             "parameters": {
+        #                 "columns": [
+        #                     "bill_id",
+        #                     "created",
+        #                     "passed",
+        #                 ]
+        #             },
+        #         },
+        #         {
+        #             "function": "rename",
+        #             "parameters": {
+        #                 "columns": {
+        #                     "created": "date",
+        #                     "passed": "type",
+        #                 }
+        #             },
+        #         },
+        #     ],
+        #     "dataframe": None,
+        # },
+        # {
+        #     "source": "ls_bill_sponsor",
+        #     "destination": "bill_sponsors",
+        #     "transformations": [
+        #         {
+        #             "function": "keep_columns",
+        #             "parameters": {
+        #                 "columns": ["bill_id", "people_id", "sponsor_type_id"]
+        #                 ### bill_id has relationship with bill.id, which we create ??? ###
+        #             },
+        #         },
+        #         {
+        #             "function": "rename",
+        #             "parameters": {"columns": {"people_id": "legislator_id"}},
+        #         },
+        #         {
+        #             "function": "set_primary_sponsor",
+        #             "parameters": {
+        #                 "sponsor_type_column": "sponsor_type_id",
+        #                 "is_primary_column": "is_primary"
+        #             }
+        #         }
+        #     ],
+        #     "dataframe": None,
+        # },
+    ]
     try:
-        legiscan_dataframes = extract()
-        transformed_data = transform(legiscan_dataframes)
-        load(transformed_data)
+        etl_configs = extract(etl_configs)
+        etl_configs = transform(etl_configs)
+        load(etl_configs)
         logger.info("ETL process completed successfully")
     except ConnectionError as e:
         logger.error(f"ETL process failed: {str(e)}")
