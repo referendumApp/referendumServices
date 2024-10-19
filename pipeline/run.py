@@ -59,7 +59,6 @@ def extract(etl_configs) -> Dict[str, pd.DataFrame]:
 
                 except Exception as e:
                     logger.error(f"Error processing table {table_name}: {e}")
-                    raise
 
         return etl_configs
 
