@@ -5,14 +5,9 @@ build:
 	docker compose --profile "*" build
 
 # Run the application in local development mode
-api:
+local:
 	docker compose --profile local build
 	docker compose --profile local up
-
-# Run the pipeline in local development mode
-pipeline:
-	docker compose --profile pipeline --profile local build
-	docker compose --profile pipeline --profile local up
 
 # Run the tests
 test:
