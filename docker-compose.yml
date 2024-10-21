@@ -22,13 +22,6 @@ services:
   api-local:
     extends:
       service: api-base
-    depends_on:
-      db:
-        condition: service_healthy
-      local-init:
-        condition: service_completed_successfully
-      migrations:
-        condition: service_completed_successfully
     environment:
       - ENVIRONMENT=local
       - API_ACCESS_TOKEN=12345
