@@ -33,6 +33,13 @@ services:
       - ENVIRONMENT=local
       - API_ACCESS_TOKEN=12345
       - SECRET_KEY=12345
+    depends_on:
+      db:
+        condition: service_healthy
+      local-init:
+        condition: service_completed_successfully
+      pipeline:
+        condition: service_completed_successfully
     ports:
       - "5678:5678"  # debugger port
     volumes:
@@ -107,7 +114,7 @@ services:
       - POSTGRES_PORT=5432
       - LEGISCAN_API_DB_NAME=legiscan_api
       - REFERENDUM_DB_NAME=referendum
-    profiles: ["pipeline"]
+    profiles: ["local"]
 
   test:
     build:
