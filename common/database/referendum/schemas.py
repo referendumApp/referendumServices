@@ -139,7 +139,7 @@ Bill = create_schema_container(
         "state_id": (int, ...),
         "status_id": (int, ...),
         "status_date": (date, ...),
-        "briefing": (str, ...),
+        "briefing": (Optional[str], ...),
     },
     record_fields={"id": (int, ...)},
     relationship_fields={
