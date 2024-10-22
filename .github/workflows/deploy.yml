@@ -280,30 +280,79 @@ jobs:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
         docker build --target pipeline -t $ECR_REGISTRY/$ECR_REPOSITORY_PIPELINE:${{ env.IMAGE_TAG }} .
+        docker tag $ECR_REGISTRY/$ECR_REPOSITORY_PIPELINE:${{ env.IMAGE_TAG }} $ECR_REGISTRY/$ECR_REPOSITORY_PIPELINE:${{ env.DEPLOY_ENV }}-stable
+
+        if [[ "${{ github.event_name }}" == "push" && "${{ env.DEPLOY_ENV }}" == "prod" ]]; then
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY_PIPELINE:${{ env.IMAGE_TAG }} $ECR_REGISTRY/$ECR_REPOSITORY_PIPELINE:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_PIPELINE:latest
+        fi
+
         docker push $ECR_REGISTRY/$ECR_REPOSITORY_PIPELINE:${{ env.IMAGE_TAG }}
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY_PIPELINE:${{ env.DEPLOY_ENV }}-stable
 
     - name: Update ECS Task Definition
       run: |
-        TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition pipeline-task --query taskDefinition --output json)
-        NEW_TASK_DEFINITION=$(echo $TASK_DEFINITION | jq '.containerDefinitions[0].image = "${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_PIPELINE }}:${{ env.IMAGE_TAG }}"')
+        SSM_PARAMS_JSON=$(aws ssm get-parameters-by-path --path /${{ env.DEPLOY_ENV }}/ --with-decryption --query "Parameters[*].{Name:Name,Value:Value}" --output json)
+        POSTGRES_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.POSTGRES_PASSWORD_SECRET_NAME }} --query SecretString --output text)
+        ENV_VARS=$(echo "$SSM_PARAMS_JSON" | jq -r '.[] | {
+          "name": (.Name | split("/")[-1]),
+          "value": .Value
+        }')
+        
+        # Add secrets to environment variables
+        ENV_VARS=$(echo "$ENV_VARS" | jq '. + [
+          {"name": "POSTGRES_PASSWORD", "value": '\""$(echo $POSTGRES_SECRET | jq -r '.password')"\"'},
+          {"name": "ENVIRONMENT", "value": "${{ env.DEPLOY_ENV }}"}
+        ]')
+
+        # Get current task definition
+        TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition PipelineTask-2 --query taskDefinition --output json)
+        
+        # Update task definition with new image and environment variables
+        NEW_TASK_DEFINITION=$(echo $TASK_DEFINITION | jq --arg IMAGE "${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_PIPELINE }}:${{ env.IMAGE_TAG }}" \
+          --arg ENV_VARS "$ENV_VARS" '
+          .containerDefinitions[0].image = $IMAGE |
+          .containerDefinitions[0].environment = ($ENV_VARS | fromjson) |
+          .cpu = "1" |
+          .memory = "3" |
+          .networkMode = "awsvpc"
+        ')
+        
         echo $NEW_TASK_DEFINITION > task-definition.json
         aws ecs register-task-definition --cli-input-json file://task-definition.json
 
+    - name: Update ECS Service
+      run: |
+        aws ecs update-service \
+          --cluster PipelineCluster \
+          --service pipeline \
+          --task-definition PipelineTask \
+          --network-configuration "awsvpcConfiguration={subnets=[subnet-0eb47118647abbb5],securityGroups=[sg-0Qe6a9bc50bac756f],assignPublicIp=ENABLED}" \
+          --force-new-deployment
+
     - name: Set up EventBridge rule for weekly pipeline run
       run: |
-        TASK_DEFINITION_ARN=$(aws ecs describe-task-definition --task-definition pipeline-task --query taskDefinition.taskDefinitionArn --output text)
-        CLUSTER_ARN=$(aws ecs list-clusters --query clusterArns[0] --output text)
+        TASK_DEFINITION_ARN=$(aws ecs describe-task-definition --task-definition PipelineTask --query taskDefinition.taskDefinitionArn --output text)
+        CLUSTER_ARN="arn:aws:ecs:${{ env.AWS_REGION }}:${{ steps.login-ecr.outputs.registry }}:cluster/PipelineCluster"
         RULE_NAME="weekly-pipeline-run"
         
-        # Create or update the EventBridge rule
         aws events put-rule \
           --name $RULE_NAME \
           --schedule-expression "cron(0 0 ? * SUN *)" \
           --state ENABLED
 
-        # Set the ECS task as the target for the EventBridge rule
         aws events put-targets \
           --rule $RULE_NAME \
-          --targets "[{\"Id\": \"1\", \"Arn\": \"$CLUSTER_ARN\", \"RoleArn\": \"$ECS_EVENTS_ROLE_ARN\", \"EcsParameters\": {\"TaskDefinitionArn\": \"$TASK_DEFINITION_ARN\", \"TaskCount\": 1}}]"
-
-        echo "EventBridge rule set up for weekly pipeline run"
+          --targets "[{\"Id\": \"1\", \"Arn\": \"$CLUSTER_ARN\", \"RoleArn\": \"${{ secrets.ECS_EVENTS_ROLE_ARN }}\", 
+            \"EcsParameters\": {
+              \"TaskDefinitionArn\": \"$TASK_DEFINITION_ARN\",
+              \"TaskCount\": 1,
+              \"LaunchType\": \"FARGATE\",
+              \"NetworkConfiguration\": {
+                \"awsvpcConfiguration\": {
+                  \"Subnets\": [\"subnet-0eb47118647abbb5\"],
+                  \"SecurityGroups\": [\"sg-0Qe6a9bc50bac756f\"],
+                  \"AssignPublicIp\": \"ENABLED\"
+                }
+              }
+            }}]"
