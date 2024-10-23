@@ -338,15 +338,6 @@ jobs:
         echo $NEW_TASK_DEFINITION > task-definition.json
         aws ecs register-task-definition --cli-input-json file://task-definition.json
 
-    - name: Update ECS Service
-      run: |
-        aws ecs update-service \
-          --cluster PipelineCluster \
-          --service pipeline \
-          --task-definition PipelineTask \
-          --network-configuration "awsvpcConfiguration={subnets=[subnet-0eb47118647abbb5],securityGroups=[sg-0Qe6a9bc50bac756f],assignPublicIp=ENABLED}" \
-          --force-new-deployment
-
     - name: Set up EventBridge rule for weekly pipeline run
       run: |
         TASK_DEFINITION_ARN=$(aws ecs describe-task-definition --task-definition PipelineTask --query taskDefinition.taskDefinitionArn --output text)
