@@ -306,11 +306,11 @@ jobs:
         ')
         
         # Get secrets
-        POSTGRES_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.POSTGRES_PASSWORD_SECRET_NAME }} --query SecretString --output text)
-        SECRETS_JSON=$(jq -n --arg pwd "$(echo $POSTGRES_SECRET | jq -r '.password')" '[
+        SECRET_ARN=$(aws secretsmanager describe-secret --secret-id ${{ env.POSTGRES_PASSWORD_SECRET_NAME }} --query 'ARN' --output text)
+        SECRETS_JSON=$(jq -n --arg secret_arn "$SECRET_ARN" '[
           {
             "name": "POSTGRES_PASSWORD",
-            "valueFrom": "${{ env.POSTGRES_PASSWORD_SECRET_NAME }}"
+            "valueFrom": $secret_arn
           }
         ]')
 
