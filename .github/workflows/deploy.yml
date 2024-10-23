@@ -351,7 +351,10 @@ jobs:
 
         aws events put-targets \
           --rule $RULE_NAME \
-          --targets "[{\"Id\": \"1\", \"Arn\": \"$CLUSTER_ARN\", \"RoleArn\": \"${{ secrets.ECS_EVENTS_ROLE_ARN }}\", 
+          --targets "[{
+            \"Id\": \"1\",
+            \"Arn\": \"$CLUSTER_ARN\",
+            \"RoleArn\": \"${{ secrets.ECS_EVENTS_ROLE_ARN }}\", 
             \"EcsParameters\": {
               \"TaskDefinitionArn\": \"$TASK_DEFINITION_ARN\",
               \"TaskCount\": 1,
@@ -363,4 +366,5 @@ jobs:
                   \"AssignPublicIp\": \"ENABLED\"
                 }
               }
-            }}]"
+            }
+          }]"
