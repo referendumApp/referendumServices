@@ -341,7 +341,7 @@ jobs:
     - name: Set up EventBridge rule for weekly pipeline run
       run: |
         TASK_DEFINITION_ARN=$(aws ecs describe-task-definition --task-definition PipelineTask --query taskDefinition.taskDefinitionArn --output text)
-        CLUSTER_ARN="arn:aws:ecs:${{ env.AWS_REGION }}:${{ steps.login-ecr.outputs.registry }}:cluster/PipelineCluster"
+        CLUSTER_ARN=$(aws ecs describe-clusters --clusters PipelineCluster --query 'clusters[0].clusterArn' --output text)
         RULE_NAME="weekly-pipeline-run"
         
         aws events put-rule \
