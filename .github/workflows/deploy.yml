@@ -18,6 +18,7 @@ env:
   POSTGRES_PASSWORD_SECRET_NAME: rds!db-a5c629ff-4d6e-4d68-9680-6cdab848369c
   API_ACCESS_TOKEN_SECRET_NAME: /system/API_ACCESS_TOKEN
   SECRET_KEY_SECRET_NAME: /system/SECRET_KEY
+  PIPELINE_TASK_DEFINITION: PipelineTask
 
 permissions:
   contents: write
@@ -308,7 +309,7 @@ jobs:
         ')
 
         # Get current task definition
-        TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition PipelineTask-2 --query taskDefinition --output json)
+        TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition ${{ env.PIPELINE_TASK_DEFINITION }} --query taskDefinition --output json)
         
         # Update task definition with new image and environment variables
         NEW_TASK_DEFINITION=$(echo $TASK_DEFINITION | jq --arg IMAGE "${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_PIPELINE }}:${{ env.IMAGE_TAG }}" \
