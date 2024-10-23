@@ -294,25 +294,27 @@ jobs:
       run: |
         SSM_PARAMS_JSON=$(aws ssm get-parameters-by-path --path /${{ env.DEPLOY_ENV }}/ --with-decryption --query "Parameters[*].{Name:Name,Value:Value}" --output json)
         POSTGRES_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.POSTGRES_PASSWORD_SECRET_NAME }} --query SecretString --output text)
-        ENV_VARS=$(echo "$SSM_PARAMS_JSON" | jq -r '.[] | {
+        ENV_VARS=$(echo "$SSM_PARAMS_JSON" | jq -r '[.[] | {
           "name": (.Name | split("/")[-1]),
           "value": .Value
-        }')
+        }]')
         
         # Add secrets to environment variables
-        ENV_VARS=$(echo "$ENV_VARS" | jq '. + [
-          {"name": "POSTGRES_PASSWORD", "value": '\""$(echo $POSTGRES_SECRET | jq -r '.password')"\"'},
-          {"name": "ENVIRONMENT", "value": "${{ env.DEPLOY_ENV }}"}
-        ]')
+        ENV_VARS=$(echo "$ENV_VARS" | jq --arg pwd "$(echo $POSTGRES_SECRET | jq -r '.password')" '
+          . + [
+            {"name": "POSTGRES_PASSWORD", "value": $pwd},
+            {"name": "ENVIRONMENT", "value": "${{ env.DEPLOY_ENV }}"}
+          ]
+        ')
 
         # Get current task definition
         TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition PipelineTask-2 --query taskDefinition --output json)
         
         # Update task definition with new image and environment variables
         NEW_TASK_DEFINITION=$(echo $TASK_DEFINITION | jq --arg IMAGE "${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_PIPELINE }}:${{ env.IMAGE_TAG }}" \
-          --arg ENV_VARS "$ENV_VARS" '
+          --argjson ENV_VARS "$ENV_VARS" '
           .containerDefinitions[0].image = $IMAGE |
-          .containerDefinitions[0].environment = ($ENV_VARS | fromjson) |
+          .containerDefinitions[0].environment = $ENV_VARS |
           .cpu = "1" |
           .memory = "3" |
           .networkMode = "awsvpc"
