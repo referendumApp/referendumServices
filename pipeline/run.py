@@ -126,11 +126,10 @@ def load(etl_configs):
         for config in etl_configs:
             destination_table = config["destination"]
             df = config["dataframe"]
-
             try:
                 df.to_sql(
                     destination_table,
-                    referendum_db.connection(),
+                    referendum_db.bind,
                     if_exists="append",
                     index=False,
                 )
