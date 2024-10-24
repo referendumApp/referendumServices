@@ -166,5 +166,5 @@ myenv/
 _version.py
 
 # Local
-local_tools
+local
 .DS_Store

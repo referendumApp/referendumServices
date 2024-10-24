@@ -338,6 +338,7 @@ jobs:
         echo $NEW_TASK_DEFINITION > task-definition.json
         aws ecs register-task-definition --cli-input-json file://task-definition.json
 
+
     - name: Set up EventBridge rule for weekly pipeline run
       run: |
         TASK_DEFINITION_ARN=$(aws ecs describe-task-definition --task-definition PipelineTask --query taskDefinition.taskDefinitionArn --output text)
@@ -361,8 +362,8 @@ jobs:
               \"LaunchType\": \"FARGATE\",
               \"NetworkConfiguration\": {
                 \"awsvpcConfiguration\": {
-                  \"Subnets\": [\"subnet-0eb47118647abbb5\"],
-                  \"SecurityGroups\": [\"sg-0Qe6a9bc50bac756f\"],
+                  \"Subnets\": [\"subnet-0eeb47118647abbb5\"],
+                  \"SecurityGroups\": [\"sg-0a4b16a640c6f2d13\"],
                   \"AssignPublicIp\": \"ENABLED\"
                 }
               }
