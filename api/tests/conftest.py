@@ -11,7 +11,7 @@ from api.security import create_access_token
 from common.database.referendum.models import VoteChoice
 
 
-@pytest.fixture(autouse=True, scope="function")
+@pytest.fixture(autouse=True, scope="session")
 def client() -> Generator[TestClient, None, None]:
     yield TestClient(app)
 
@@ -61,7 +61,7 @@ def test_topic(create_test_entity, delete_test_entity):
     delete_test_entity("topics", topic["id"])
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def test_state(create_test_entity, delete_test_entity):
     state_data = {"name": "Washington"}
     state = create_test_entity("/states", state_data)
