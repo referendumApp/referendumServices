@@ -1,3 +1,3 @@
-def test_health(client):
-    response = client.get("/health")
+async def test_health(client):
+    response = await client.get("/health")
     assert response.status_code == 200

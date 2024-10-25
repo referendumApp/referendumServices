@@ -1,8 +1,9 @@
+import asyncio
 import random
-from typing import Dict, Generator
+from typing import AsyncGenerator, Dict
 
 import pytest
-from starlette.testclient import TestClient
+from httpx import AsyncClient
 from api.tests.test_utils import assert_status_code, generate_random_string
 
 from api.config import settings
@@ -12,9 +13,10 @@ from common.database.referendum.models import VoteChoice
 
 
 @pytest.fixture(scope="session")
-def client() -> Generator[TestClient, None, None]:
-    with TestClient(app) as client:
-        yield client
+def event_loop():
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
 
 
 @pytest.fixture(scope="session")
@@ -23,9 +25,15 @@ def system_headers() -> dict:
 
 
 @pytest.fixture(scope="session")
-def create_test_entity(client: TestClient, system_headers: Dict[str, str]):
-    def create_entity(endpoint: str, payload: Dict):
-        response = client.post(endpoint, json=payload, headers=system_headers)
+async def client() -> AsyncGenerator[AsyncClient, None]:
+    async with AsyncClient(app=app) as client:
+        yield client
+
+
+@pytest.fixture(scope="session")
+def create_test_entity(client: AsyncClient, system_headers: Dict[str, str]):
+    async def create_entity(endpoint: str, payload: Dict):
+        response = await client.post(endpoint, json=payload, headers=system_headers)
         assert_status_code(response, 201)
         return response.json()
 
@@ -33,47 +41,17 @@ def create_test_entity(client: TestClient, system_headers: Dict[str, str]):
 
 
 @pytest.fixture(scope="session")
-def delete_test_entity(client: TestClient, system_headers: Dict):
-    def delete_entity(resource: str, entity_id: str):
-        response = client.delete(f"/{resource}/{entity_id}", headers=system_headers)
+def delete_test_entity(client: AsyncClient, system_headers: Dict):
+    async def delete_entity(resource: str, entity_id: str):
+        response = await client.delete(f"/{resource}/{entity_id}", headers=system_headers)
         if response.status_code != 404:
             assert_status_code(response, 204)
 
     return delete_entity
 
 
-# class TestSessionCache:
-#     """Holds state data for the entire test session"""
-#
-#     def __init__(self):
-#         self.state: Dict
-#         self.party: Dict
-#
-#
-# @pytest.fixture(scope="session")
-# def session_cache() -> TestSessionCache:
-#     return TestSessionCache()
-#
-#
-# @pytest.fixture(autouse=True, scope="session")
-# def create_unique_session_fixtures(create_test_entity, delete_test_entity, session_cache):
-#     state_data = {"name": "Washington"}
-#     state = create_test_entity("/states", state_data)
-#
-#     party_data = {"name": "Independent"}
-#     party = create_test_entity("/partys", party_data)
-#
-#     session_cache.state = state
-#     session_cache.party = party
-#
-#     yield None
-#
-#     delete_test_entity("states", state["id"])
-#     delete_test_entity("partys", party["id"])
-
-
-@pytest.fixture(scope="session")
-def test_create_state(create_test_entity, delete_test_entity):
+@pytest.fixture(scope="module")
+def test_state(create_test_entity, delete_test_entity):
     state_data = {"name": "Washington"}
     state = create_test_entity("/states", state_data)
     yield state
@@ -81,33 +59,11 @@ def test_create_state(create_test_entity, delete_test_entity):
 
 
 @pytest.fixture(scope="module")
-def test_state(test_create_state):
-    yield test_create_state
-
-
-@pytest.fixture(scope="session")
-def test_create_party(create_test_entity, delete_test_entity):
+def test_party(create_test_entity, delete_test_entity):
     party_data = {"name": "Independent"}
     party = create_test_entity("/partys", party_data)
     yield None
     delete_test_entity("partys", party["id"])
-
-
-@pytest.fixture(scope="module")
-def test_party(test_create_party):
-    yield test_create_party
-
-
-# @pytest.fixture(scope="module")
-# def test_state(state_cache):
-#     assert state_cache.state is not None, "State not initialized"
-#     return state_cache.state
-
-
-# @pytest.fixture(scope="module")
-# def test_party(session_cache):
-#     assert session_cache.party is not None, "State not initialized"
-#     return session_cache.party
 
 
 @pytest.fixture(scope="module")
@@ -221,8 +177,8 @@ def test_get_legislators(client, system_headers, test_legislator):
 
 
 @pytest.fixture(scope="module")
-def test_vote(
-    client: TestClient,
+async def test_vote(
+    client: AsyncClient,
     test_user_session: Dict,
     test_bill_action: Dict,
 ):
@@ -232,6 +188,6 @@ def test_vote(
         "bill_action_id": test_bill_action["id"],
         "vote_choice": VoteChoice.YES.value,
     }
-    response = client.put(f"/users/{user['id']}/votes/", json=vote_data, headers=headers)
+    response = await client.put(f"/users/{user['id']}/votes/", json=vote_data, headers=headers)
     assert_status_code(response, 200)
     return response.json()
