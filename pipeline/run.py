@@ -82,9 +82,7 @@ def transform(etl_configs) -> Dict[str, pd.DataFrame]:
                     df = df.rename(columns=columns_to_rename)
 
                 elif transformation["function"] == "set_primary_sponsor":
-                    sponsor_type_col = transformation["parameters"][
-                        "sponsor_type_column"
-                    ]
+                    sponsor_type_col = transformation["parameters"]["sponsor_type_column"]
                     is_primary_col = transformation["parameters"]["is_primary_column"]
 
                     df[is_primary_col] = df[sponsor_type_col] == 1
@@ -126,11 +124,10 @@ def load(etl_configs):
         for config in etl_configs:
             destination_table = config["destination"]
             df = config["dataframe"]
-
             try:
                 df.to_sql(
                     destination_table,
-                    referendum_db.connection(),
+                    referendum_db.bind,
                     if_exists="append",
                     index=False,
                 )

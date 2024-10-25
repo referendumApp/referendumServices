@@ -122,7 +122,6 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
 .venv
 env/
 venv/
@@ -164,6 +163,7 @@ myenv/
 
 # Versioning
 _version.py
+.python-version
 
 # Local
 local

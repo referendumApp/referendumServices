@@ -1,28 +1,28 @@
 from typing import Optional
 
-from pydantic import BaseModel, field_validator
+from pydantic import field_validator
 
-from common.database.referendum import schemas
+from common.database.referendum.schemas import CamelCaseBaseModel, UserBase
 
 
-class ErrorResponse(BaseModel):
+class ErrorResponse(CamelCaseBaseModel):
     detail: str
 
 
-class HealthResponse(BaseModel):
+class HealthResponse(CamelCaseBaseModel):
     status: str
 
 
-class TokenResponse(BaseModel):
+class TokenResponse(CamelCaseBaseModel):
     access_token: str
     token_type: str
 
 
-class TokenData(BaseModel):
+class TokenData(CamelCaseBaseModel):
     email: Optional[str] = None
 
 
-class UserCreateInput(schemas.UserBase):
+class UserCreateInput(UserBase):
     password: str
 
     @field_validator("password")
