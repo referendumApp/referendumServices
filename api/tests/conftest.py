@@ -12,7 +12,7 @@ from common.database.referendum.models import VoteChoice
 
 
 @pytest.fixture(autouse=True, scope="session")
-def client() -> Generator[TestClient]:
+def client() -> Generator[TestClient, None, None]:
     yield TestClient(app)
 
 
