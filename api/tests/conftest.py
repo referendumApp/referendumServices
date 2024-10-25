@@ -11,7 +11,7 @@ from api.security import create_access_token
 from common.database.referendum.models import VoteChoice
 
 
-@pytest.fixture(autouse=True, scope="session")
+@pytest.fixture(autouse=True, scope="function")
 def client() -> Generator[TestClient, None, None]:
     yield TestClient(app)
 
