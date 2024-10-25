@@ -47,7 +47,7 @@ def test_user_session(create_test_entity, delete_test_entity):
         "password": "testpassword",
         "name": "Test User",
     }
-    user = create_test_entity(client, "/users", user_data)
+    user = create_test_entity("/users", user_data)
     token = create_access_token(data={"sub": user["email"]})
     headers = {"Authorization": f"Bearer {token}"}
     yield user, headers
@@ -56,7 +56,7 @@ def test_user_session(create_test_entity, delete_test_entity):
 
 @pytest.fixture(scope="function")
 def test_topic(create_test_entity, delete_test_entity):
-    topic = create_test_entity(client, "/topics", {"name": generate_random_string()})
+    topic = create_test_entity("/topics", {"name": generate_random_string()})
     yield topic
     delete_test_entity("topics", topic["id"])
 
@@ -64,7 +64,7 @@ def test_topic(create_test_entity, delete_test_entity):
 @pytest.fixture(scope="function")
 def test_state(create_test_entity, delete_test_entity):
     state_data = {"name": "Washington"}
-    state = create_test_entity(client, "/states", state_data)
+    state = create_test_entity("/states", state_data)
     yield state
     delete_test_entity("states", state["id"])
 
@@ -72,7 +72,7 @@ def test_state(create_test_entity, delete_test_entity):
 @pytest.fixture(scope="function")
 def test_role(create_test_entity, delete_test_entity):
     role_data = {"name": "House"}
-    role = create_test_entity(client, "/roles", role_data)
+    role = create_test_entity("/roles", role_data)
     yield role
     delete_test_entity("roles", role["id"])
 
@@ -80,7 +80,7 @@ def test_role(create_test_entity, delete_test_entity):
 @pytest.fixture(scope="function")
 def test_legislative_body(create_test_entity, delete_test_entity, test_state, test_role):
     legislative_body_data = {"state_id": test_state["id"], "role_id": test_role["id"]}
-    legislative_body = create_test_entity(client, "/legislative_bodys", legislative_body_data)
+    legislative_body = create_test_entity("/legislative_bodys", legislative_body_data)
     yield legislative_body
     delete_test_entity("legislative_bodys", legislative_body["id"])
 
@@ -91,7 +91,7 @@ def test_committee(create_test_entity, delete_test_entity, test_legislative_body
         "name": f"Test Committee {generate_random_string()}",
         "legislative_body_id": test_legislative_body["id"],
     }
-    committee = create_test_entity(client, "/committees", committee_data)
+    committee = create_test_entity("/committees", committee_data)
     yield committee
     delete_test_entity("committees", committee["id"])
 
@@ -115,7 +115,7 @@ def test_bill(
         "status_id": 1,
         "status_date": "2024-01-01",
     }
-    bill = create_test_entity(client, "/bills", bill_data)
+    bill = create_test_entity("/bills", bill_data)
     yield bill
     delete_test_entity("bills", bill["id"])
 
@@ -134,7 +134,7 @@ def test_bill_action(
     test_bill: Dict,
 ):
     bill_action_data = {"bill_id": test_bill["id"], "date": "2024-01-01", "type": 1}
-    bill_action = create_test_entity(client, "/bill_actions", bill_action_data)
+    bill_action = create_test_entity("/bill_actions", bill_action_data)
     yield bill_action
     delete_test_entity("bill_actions", bill_action["id"])
 
@@ -142,7 +142,7 @@ def test_bill_action(
 @pytest.fixture(scope="function")
 def test_party(create_test_entity, delete_test_entity):
     party_data = {"name": "Independent"}
-    party = create_test_entity(client, "/partys", party_data)
+    party = create_test_entity("/partys", party_data)
     yield party
     delete_test_entity("partys", party["id"])
 
@@ -159,7 +159,7 @@ def test_legislator(create_test_entity, delete_test_entity, test_party):
         "phone": f"(202) {random.randint(100,999)}-{random.randint(1000,9999)}",
         "party_id": test_party["id"],
     }
-    legislator = create_test_entity(client, "/legislators", legislator_data)
+    legislator = create_test_entity("/legislators", legislator_data)
     yield legislator
     delete_test_entity("legislators", legislator["id"])
 
