@@ -3,7 +3,7 @@ from typing import Dict, Generator
 
 import pytest
 from starlette.testclient import TestClient
-from test_utils import assert_status_code, generate_random_string
+from api.tests.test_utils import assert_status_code, generate_random_string
 
 from api.config import settings
 from api.main import app
