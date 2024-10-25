@@ -53,9 +53,7 @@ async def create_user(
         return created_user
     except ObjectAlreadyExistsException:
         logger.warning(f"Attempted to create user with existing email: {user.email}")
-        raise HTTPException(
-            status_code=409, detail=f"Email already registered: {user.email}"
-        )
+        raise HTTPException(status_code=409, detail=f"Email already registered: {user.email}")
     except DatabaseException as e:
         logger.error(f"Database error while creating user: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
@@ -146,9 +144,7 @@ async def update_user(
         return updated_user
     except ObjectNotFoundException:
         logger.warning(f"Attempt to update non-existent user with email: {user.email}")
-        raise HTTPException(
-            status_code=404, detail=f"User not found for email: {user.email}."
-        )
+        raise HTTPException(status_code=404, detail=f"User not found for email: {user.email}.")
     except DatabaseException as e:
         logger.error(f"Database error while updating user: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
@@ -180,9 +176,7 @@ async def delete_user(
         return
     except ObjectNotFoundException:
         logger.warning(f"Attempt to delete non-existent user with ID: {user_id}")
-        raise HTTPException(
-            status_code=404, detail=f"User not found for ID: {user_id}."
-        )
+        raise HTTPException(status_code=404, detail=f"User not found for ID: {user_id}.")
     except DatabaseException as e:
         logger.error(f"Database error while deleting user: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
@@ -212,9 +206,7 @@ def get_user_topics(
     logger.info(f"Attempting to retrieve topics for user ID: {user.id}")
     try:
         topics = crud.user.get_user_topics(db=db, user_id=user.id)
-        logger.info(
-            f"Successfully retrieved {len(topics)} topics for user ID: {user.id}"
-        )
+        logger.info(f"Successfully retrieved {len(topics)} topics for user ID: {user.id}")
         return topics
     except DatabaseException as e:
         logger.error(f"Database error while retrieving user topics: {str(e)}")
@@ -276,9 +268,7 @@ def get_user_legislators(
     logger.info(f"Attempting to retrieve legislators for user ID: {user.id}")
     try:
         legislators = crud.user.get_user_legislators(db=db, user_id=user.id)
-        logger.info(
-            f"Successfully retrieved {len(legislators)} legislators for user ID: {user.id}"
-        )
+        logger.info(f"Successfully retrieved {len(legislators)} legislators for user ID: {user.id}")
         return legislators
     except DatabaseException as e:
         logger.error(f"Database error while retrieving user legislators: {str(e)}")
@@ -337,9 +327,7 @@ async def get_user_votes(
                     status_code=403,
                     detail=f"User {auth_info['user'].id} not allowed to fetch all votes for user {user_id}",
                 )
-        return crud.user_vote.get_votes_for_user(
-            db=db, user_id=user_id, bill_id=bill_id
-        )
+        return crud.user_vote.get_votes_for_user(db=db, user_id=user_id, bill_id=bill_id)
     except DatabaseException as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
@@ -449,12 +437,8 @@ def unfollow_legislator(
 ) -> None:
     logger.info(f"User {user.id} attempting to unfollow legislator {legislator_id}")
     try:
-        crud.user.unfollow_legislator(
-            db=db, user_id=user.id, legislator_id=legislator_id
-        )
-        logger.info(
-            f"User {user.id} successfully unfollowed legislator {legislator_id}"
-        )
+        crud.user.unfollow_legislator(db=db, user_id=user.id, legislator_id=legislator_id)
+        logger.info(f"User {user.id} successfully unfollowed legislator {legislator_id}")
         return
     except ObjectNotFoundException as e:
         logger.warning(f"Error unfollowing legislator: {str(e)}")

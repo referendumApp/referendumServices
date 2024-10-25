@@ -48,9 +48,7 @@ def test_update_legislator_not_found(client, system_headers):
         "phone": "(202) 111-1112",
         "party_id": 1,
     }
-    response = client.put(
-        "/legislators", json=non_existent_legislator, headers=system_headers
-    )
+    response = client.put("/legislators", json=non_existent_legislator, headers=system_headers)
     assert_status_code(response, 404)
     assert "legislator not found" in response.json()["detail"]
 
@@ -66,9 +64,7 @@ def test_update_legislator_unauthorized(client, test_legislator):
 
 
 def test_get_legislator_success(client, system_headers, test_legislator):
-    response = client.get(
-        f"/legislators/{test_legislator['id']}", headers=system_headers
-    )
+    response = client.get(f"/legislators/{test_legislator['id']}", headers=system_headers)
     assert_status_code(response, 200)
     retrieved_legislator = response.json()
     assert retrieved_legislator["id"] == test_legislator["id"]
@@ -82,9 +78,7 @@ def test_get_legislator_not_found(client, system_headers):
 
 
 def test_delete_legislator_success(client, system_headers, test_legislator):
-    response = client.delete(
-        f"/legislators/{test_legislator['id']}", headers=system_headers
-    )
+    response = client.delete(f"/legislators/{test_legislator['id']}", headers=system_headers)
     assert_status_code(response, 204)
 
 

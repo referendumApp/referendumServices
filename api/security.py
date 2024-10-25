@@ -57,9 +57,7 @@ def create_access_token(data: dict) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(
-        to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
-    )
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     logger.debug(f"Access token created for user: {data.get('sub')}")
     return encoded_jwt
 
@@ -68,9 +66,7 @@ async def get_current_user(
     token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
 ) -> models.User:
     try:
-        payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
-        )
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         email: str = payload.get("sub")
         if email is None:
             logger.warning("Token decode failed: missing 'sub' claim")
@@ -119,9 +115,7 @@ async def get_current_user_or_verify_system_token(
 async def verify_system_token(api_key: str = Security(api_key_header)):
     if api_key != settings.API_ACCESS_TOKEN:
         logger.warning("Invalid system token used")
-        raise HTTPException(
-            status_code=403, detail="Only system token can perform this action."
-        )
+        raise HTTPException(status_code=403, detail="Only system token can perform this action.")
     logger.info("System token verified")
 
 

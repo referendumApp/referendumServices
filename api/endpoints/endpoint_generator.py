@@ -81,15 +81,11 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
             logger.info(f"Attempting to create new {resource_name}")
             try:
                 created_item = crud_model.create(db=db, obj_in=item)
-                logger.info(
-                    f"Successfully created {resource_name} with ID: {created_item.id}"
-                )
+                logger.info(f"Successfully created {resource_name} with ID: {created_item.id}")
                 return created_item
             except ObjectAlreadyExistsException:
                 logger.warning(f"Attempt to create duplicate {resource_name}")
-                raise HTTPException(
-                    status_code=409, detail=f"{resource_name} already exists"
-                )
+                raise HTTPException(status_code=409, detail=f"{resource_name} already exists")
             except DatabaseException as e:
                 logger.error(f"Database error while creating {resource_name}: {str(e)}")
                 raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
@@ -119,9 +115,7 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
             logger.info(f"Attempting to read {resource_name} with ID: {item_id}")
             try:
                 item = crud_model.read(db=db, obj_id=item_id)
-                logger.info(
-                    f"Successfully retrieved {resource_name} with ID: {item_id}"
-                )
+                logger.info(f"Successfully retrieved {resource_name} with ID: {item_id}")
                 return item
             except ObjectNotFoundException:
                 logger.warning(f"{resource_name} not found for ID: {item_id}")
@@ -224,15 +218,11 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
             db: Session = Depends(get_db),
             _: Dict[str, Any] = Depends(permissions.read_all),
         ):
-            logger.info(
-                f"Attempting to read all {resource_name}s (skip: {skip}, limit: {limit})"
-            )
+            logger.info(f"Attempting to read all {resource_name}s (skip: {skip}, limit: {limit})")
             try:
                 items = crud_model.read_all(db=db, skip=skip, limit=limit)
                 logger.info(f"Successfully retrieved {len(items)} {resource_name}s")
                 return items
             except DatabaseException as e:
-                logger.error(
-                    f"Database error while reading all {resource_name}s: {str(e)}"
-                )
+                logger.error(f"Database error while reading all {resource_name}s: {str(e)}")
                 raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")

@@ -96,9 +96,7 @@ def test_delete_bill_unauthorized(client, test_bill):
 
 
 def test_get_bill_text_success(client, system_headers, test_bill):
-    response = client.get(
-        f"/bills/{test_bill['id']}/version/1/text", headers=system_headers
-    )
+    response = client.get(f"/bills/{test_bill['id']}/version/1/text", headers=system_headers)
     assert_status_code(response, 200)
     bill_text = response.json()
     assert "bill_id" in bill_text

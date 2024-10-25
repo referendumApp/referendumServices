@@ -137,9 +137,7 @@ def test_follow_topic(client, test_user_session, test_topic):
     user, user_headers = test_user_session
     topic = test_topic
 
-    response = client.post(
-        f"/users/{user['id']}/topics/{topic['id']}", headers=user_headers
-    )
+    response = client.post(f"/users/{user['id']}/topics/{topic['id']}", headers=user_headers)
     assert_status_code(response, 204)
 
     # Verify that the topic is in the user's topics
@@ -186,9 +184,7 @@ def test_get_user_bills(client, test_user_session):
 def test_follow_bill(client, test_user_session, test_bill):
     user, user_headers = test_user_session
 
-    response = client.post(
-        f"/users/{user['id']}/bills/{test_bill['id']}", headers=user_headers
-    )
+    response = client.post(f"/users/{user['id']}/bills/{test_bill['id']}", headers=user_headers)
     assert_status_code(response, 204)
 
     # Verify that the bill is in the user's bills

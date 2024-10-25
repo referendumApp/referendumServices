@@ -60,9 +60,7 @@ def create_schema_container(
         },
     )
 
-    return SchemaContainer(
-        Base=base_class, Record=record_class, Full=relationship_class
-    )
+    return SchemaContainer(Base=base_class, Record=record_class, Full=relationship_class)
 
 
 Party = create_schema_container(
