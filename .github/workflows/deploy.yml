@@ -18,6 +18,7 @@ env:
   POSTGRES_PASSWORD_SECRET_NAME: rds!db-a5c629ff-4d6e-4d68-9680-6cdab848369c
   API_ACCESS_TOKEN_SECRET_NAME: /system/API_ACCESS_TOKEN
   SECRET_KEY_SECRET_NAME: /system/SECRET_KEY
+  PIPELINE_CLUSTER: ETLCluster
   PIPELINE_TASK_DEFINITION: load-referendum-from-legiscan
 
 permissions:
@@ -341,8 +342,8 @@ jobs:
 
     - name: Set up EventBridge rule for weekly pipeline run
       run: |
-        TASK_DEFINITION_ARN=$(aws ecs describe-task-definition --task-definition PipelineTask --query taskDefinition.taskDefinitionArn --output text)
-        CLUSTER_ARN=$(aws ecs describe-clusters --clusters PipelineCluster --query 'clusters[0].clusterArn' --output text)
+        TASK_DEFINITION_ARN=$(aws ecs describe-task-definition --task-definition ${{ env.PIPELINE_TASK_DEFINITION }} --query taskDefinition.taskDefinitionArn --output text)
+        CLUSTER_ARN=$(aws ecs describe-clusters --clusters ${{ env.PIPELINE_CLUSTER }} --query 'clusters[0].clusterArn' --output text)
         RULE_NAME="weekly-pipeline-run"
         
         aws events put-rule \
