@@ -43,17 +43,50 @@ def delete_test_entity(client: TestClient, system_headers: Dict):
     return delete_entity
 
 
-@pytest.fixture(scope="module")
-def test_state(create_test_entity, delete_test_entity, request: SubRequest):
+class TestSessionCache:
+    """Holds state data for the entire test session"""
+
+    def __init__(self):
+        self.state: Dict
+        self.party: Dict
+
+
+@pytest.fixture(scope="session")
+def session_cache() -> TestSessionCache:
+    return TestSessionCache()
+
+
+@pytest.fixture(autouse=True, scope="session")
+def create_unique_session_fixtures(create_test_entity, delete_test_entity, session_cache):
     state_data = {"name": "Washington"}
     state = create_test_entity("/states", state_data)
-    # request.addfinalizer(lambda: delete_test_entity("states", state["id"]))
-    yield state
+
+    party_data = {"name": "Independent"}
+    party = create_test_entity("/partys", party_data)
+
+    session_cache.state = state
+    session_cache.party = party
+
+    yield None
+
     delete_test_entity("states", state["id"])
+    delete_test_entity("partys", party["id"])
 
 
-@pytest.fixture
-def test_user_session(create_test_entity, delete_test_entity, request: SubRequest):
+@pytest.fixture(scope="function")
+def test_state(state_cache):
+    assert state_cache.state is not None, "State not initialized"
+    return state_cache.state
+
+
+@pytest.fixture(scope="function")
+def test_party(session_cache):
+    assert session_cache.party is not None, "State not initialized"
+    return session_cache.party
+
+
+@pytest.fixture(scope="function")
+def test_user_session(create_test_entity, delete_test_entity):
     user_data = {
         "email": f"{generate_random_string()}@example.com",
         "password": "testpassword",
@@ -62,61 +95,46 @@ def test_user_session(create_test_entity, delete_test_entity, request: SubReques
     user = create_test_entity("/users", user_data)
     token = create_access_token(data={"sub": user["email"]})
     headers = {"Authorization": f"Bearer {token}"}
-    # request.addfinalizer(lambda: delete_test_entity("users", user["id"]))
     yield user, headers
     delete_test_entity("users", user["id"])
 
 
-@pytest.fixture
-def test_topic(create_test_entity, delete_test_entity, request: SubRequest):
+@pytest.fixture(scope="function")
+def test_topic(create_test_entity, delete_test_entity):
     topic = create_test_entity("/topics", {"name": generate_random_string()})
-    # request.addfinalizer(lambda: delete_test_entity("topics", topic["id"]))
     yield topic
     delete_test_entity("topics", topic["id"])
 
 
-@pytest.fixture
-def test_role(create_test_entity, delete_test_entity, request: SubRequest):
+@pytest.fixture(scope="function")
+def test_role(create_test_entity, delete_test_entity):
     role_data = {"name": "House"}
     role = create_test_entity("/roles", role_data)
-    # request.addfinalizer(lambda: delete_test_entity("roles", role["id"]))
     yield role
     delete_test_entity("roles", role["id"])
 
 
-@pytest.fixture(scope="module")
-def test_legislative_body(
-    create_test_entity, delete_test_entity, test_state, test_role, request: SubRequest
-):
+@pytest.fixture(scope="function")
+def test_legislative_body(create_test_entity, delete_test_entity, test_state, test_role):
     legislative_body_data = {"state_id": test_state["id"], "role_id": test_role["id"]}
     legislative_body = create_test_entity("/legislative_bodys", legislative_body_data)
-    # request.addfinalizer(lambda: delete_test_entity("legislative_bodys", legislative_body["id"]))
     yield legislative_body
     delete_test_entity("legislative_bodys", legislative_body["id"])
 
 
-@pytest.fixture(scope="module")
-def test_committee(
-    create_test_entity, delete_test_entity, test_legislative_body, request: SubRequest
-):
+@pytest.fixture(scope="function")
+def test_committee(create_test_entity, delete_test_entity, test_legislative_body):
     committee_data = {
         "name": f"Test Committee {generate_random_string()}",
         "legislative_body_id": test_legislative_body["id"],
     }
     committee = create_test_entity("/committees", committee_data)
-    # request.addfinalizer(lambda: delete_test_entity("committees", committee["id"]))
     yield committee
     delete_test_entity("committees", committee["id"])
 
 
-@pytest.fixture(scope="module")
-def test_bill(
-    create_test_entity,
-    delete_test_entity,
-    test_state,
-    test_legislative_body,
-    request: SubRequest,
-):
+@pytest.fixture(scope="function")
+def test_bill(create_test_entity, delete_test_entity, test_state, test_legislative_body):
     bill_data = {
         "legiscan_id": random.randint(100000, 999999),
         "identifier": f"H.B.{random.randint(1, 999)}",
@@ -130,43 +148,31 @@ def test_bill(
         "status_date": "2024-01-01",
     }
     bill = create_test_entity("/bills", bill_data)
-    # request.addfinalizer(lambda: delete_test_entity("bills", bill["id"]))
     yield bill
     delete_test_entity("bills", bill["id"])
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def test_get_bills(client, system_headers, test_bill):
     bills = client.get("/bills", headers=system_headers)
     assert_status_code(bills, 200)
     return bills.json()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def test_bill_action(
     create_test_entity,
     delete_test_entity,
     test_bill: Dict,
-    request: SubRequest,
 ):
     bill_action_data = {"bill_id": test_bill["id"], "date": "2024-01-01", "type": 1}
     bill_action = create_test_entity("/bill_actions", bill_action_data)
-    # request.addfinalizer(lambda: delete_test_entity("bill_actions", bill_action["id"]))
     yield bill_action
     delete_test_entity("bill_actions", bill_action["id"])
 
 
-@pytest.fixture
-def test_party(create_test_entity, delete_test_entity, request: SubRequest):
-    party_data = {"name": "Independent"}
-    party = create_test_entity("/partys", party_data)
-    # request.addfinalizer(lambda: delete_test_entity("partys", party["id"]))
-    yield party
-    delete_test_entity("partys", party["id"])
-
-
-@pytest.fixture
-def test_legislator(create_test_entity, delete_test_entity, test_party, request: SubRequest):
+@pytest.fixture(scope="function")
+def test_legislator(create_test_entity, delete_test_entity, test_party):
     legislator_data = {
         "legiscan_id": f"{random.randint(100,999)}",
         "name": f"John Doe {generate_random_string()}",
@@ -178,19 +184,18 @@ def test_legislator(create_test_entity, delete_test_entity, test_party, request:
         "party_id": test_party["id"],
     }
     legislator = create_test_entity("/legislators", legislator_data)
-    # request.addfinalizer(lambda: delete_test_entity("legislators", legislator["id"]))
     yield legislator
     delete_test_entity("legislators", legislator["id"])
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def test_get_legislators(client, system_headers, test_legislator):
     legislators = client.get("/legislators", headers=system_headers)
     assert_status_code(legislators, 200)
     return legislators.json()
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def test_vote(
     client: TestClient,
     test_user_session: Dict,
