@@ -2,7 +2,7 @@ from typing import Optional
 
 from pydantic import field_validator
 
-from common.database.referendum.schemas import CamelCaseBaseModel, UserBase 
+from common.database.referendum.schemas import CamelCaseBaseModel, UserBase
 
 
 class ErrorResponse(CamelCaseBaseModel):
