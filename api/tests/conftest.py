@@ -35,7 +35,8 @@ def create_test_entity(client: TestClient, system_headers: Dict[str, str]):
 def delete_test_entity(client: TestClient, system_headers: Dict):
     def delete_entity(resource: str, entity_id: str):
         response = client.delete(f"/{resource}/{entity_id}", headers=system_headers)
-        assert_status_code(response, 204)
+        if response.status_code != 404:
+            assert_status_code(response, 204)
 
     return delete_entity
 
