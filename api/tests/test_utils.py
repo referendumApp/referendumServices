@@ -2,6 +2,7 @@ from starlette.testclient import TestClient
 import pytest
 import random
 import string
+import logging
 
 from api.config import settings
 from api.main import app
@@ -57,7 +58,7 @@ def test_topic():
 
 @pytest.fixture(scope="function")
 def test_state():
-    state_data = {"name": "Washington"}
+    state_data = {"name": "test"}
     state = create_test_entity("/states", lambda: state_data)
     yield state
     client.delete(f"/states/{state['id']}", headers=system_headers)

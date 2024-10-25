@@ -63,6 +63,7 @@ class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             return db_obj
         except IntegrityError as e:
             db.rollback()
+            logger.error(str(e))
             if "unique constraint" in str(e).lower():
                 raise ObjectAlreadyExistsException("Object already exists")
             raise DatabaseException(f"Integrity error: {str(e)}")
