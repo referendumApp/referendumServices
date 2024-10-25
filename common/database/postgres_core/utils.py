@@ -16,12 +16,6 @@ def get_connection_string(db_name: str):
     host = os.getenv("POSTGRES_HOST")
     port = os.getenv("POSTGRES_PORT")
 
-    logger.info(f"Attempting database connection with:")
-    logger.info(f"User: {user}")
-    logger.info(f"Host: {host}")
-    logger.info(f"Port: {port}")
-    logger.info(f"DB Name: {db_name}")
-
     if not user:
         raise ValueError(f"POSTGRES_USER environment variable is not set")
     if not password:
@@ -36,5 +30,8 @@ def get_connection_string(db_name: str):
 
 def create_session(db_name: str):
     connection_string = get_connection_string(db_name)
+
+    logger.info(f"Connecting to database: {connection_string}")
     engine = create_engine(connection_string, pool_size=10, max_overflow=20)
+    logger.info(f"Connected")
     return sessionmaker(autocommit=False, autoflush=False, bind=engine)
