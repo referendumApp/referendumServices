@@ -51,71 +51,71 @@ def delete_test_entity(client: AsyncClient, system_headers: Dict):
 
 
 @pytest.fixture(scope="module")
-def test_state(create_test_entity, delete_test_entity):
+async def test_state(create_test_entity, delete_test_entity):
     state_data = {"name": "Washington"}
-    state = create_test_entity("/states", state_data)
+    state = await create_test_entity("/states", state_data)
     yield state
-    delete_test_entity("states", state["id"])
+    await delete_test_entity("states", state["id"])
 
 
 @pytest.fixture(scope="module")
-def test_party(create_test_entity, delete_test_entity):
+async def test_party(create_test_entity, delete_test_entity):
     party_data = {"name": "Independent"}
-    party = create_test_entity("/partys", party_data)
+    party = await create_test_entity("/partys", party_data)
     yield None
-    delete_test_entity("partys", party["id"])
+    await delete_test_entity("partys", party["id"])
 
 
 @pytest.fixture(scope="module")
-def test_user_session(create_test_entity, delete_test_entity):
+async def test_user_session(create_test_entity, delete_test_entity):
     user_data = {
         "email": f"{generate_random_string()}@example.com",
         "password": "testpassword",
         "name": "Test User",
     }
-    user = create_test_entity("/users", user_data)
+    user = await create_test_entity("/users", user_data)
     token = create_access_token(data={"sub": user["email"]})
     headers = {"Authorization": f"Bearer {token}"}
     yield user, headers
-    delete_test_entity("users", user["id"])
+    await delete_test_entity("users", user["id"])
 
 
 @pytest.fixture(scope="module")
-def test_topic(create_test_entity, delete_test_entity):
-    topic = create_test_entity("/topics", {"name": generate_random_string()})
+async def test_topic(create_test_entity, delete_test_entity):
+    topic = await create_test_entity("/topics", {"name": generate_random_string()})
     yield topic
-    delete_test_entity("topics", topic["id"])
+    await delete_test_entity("topics", topic["id"])
 
 
 @pytest.fixture(scope="module")
-def test_role(create_test_entity, delete_test_entity):
+async def test_role(create_test_entity, delete_test_entity):
     role_data = {"name": "House"}
-    role = create_test_entity("/roles", role_data)
+    role = await create_test_entity("/roles", role_data)
     yield role
-    delete_test_entity("roles", role["id"])
+    await delete_test_entity("roles", role["id"])
 
 
 @pytest.fixture(scope="module")
-def test_legislative_body(create_test_entity, delete_test_entity, test_state, test_role):
+async def test_legislative_body(create_test_entity, delete_test_entity, test_state, test_role):
     legislative_body_data = {"state_id": test_state["id"], "role_id": test_role["id"]}
-    legislative_body = create_test_entity("/legislative_bodys", legislative_body_data)
+    legislative_body = await create_test_entity("/legislative_bodys", legislative_body_data)
     yield legislative_body
-    delete_test_entity("legislative_bodys", legislative_body["id"])
+    await delete_test_entity("legislative_bodys", legislative_body["id"])
 
 
 @pytest.fixture(scope="module")
-def test_committee(create_test_entity, delete_test_entity, test_legislative_body):
+async def test_committee(create_test_entity, delete_test_entity, test_legislative_body):
     committee_data = {
         "name": f"Test Committee {generate_random_string()}",
         "legislative_body_id": test_legislative_body["id"],
     }
-    committee = create_test_entity("/committees", committee_data)
+    committee = await create_test_entity("/committees", committee_data)
     yield committee
-    delete_test_entity("committees", committee["id"])
+    await delete_test_entity("committees", committee["id"])
 
 
 @pytest.fixture(scope="module")
-def test_bill(create_test_entity, delete_test_entity, test_state, test_legislative_body):
+async def test_bill(create_test_entity, delete_test_entity, test_state, test_legislative_body):
     bill_data = {
         "legiscan_id": random.randint(100000, 999999),
         "identifier": f"H.B.{random.randint(1, 999)}",
@@ -128,32 +128,32 @@ def test_bill(create_test_entity, delete_test_entity, test_state, test_legislati
         "status_id": 1,
         "status_date": "2024-01-01",
     }
-    bill = create_test_entity("/bills", bill_data)
+    bill = await create_test_entity("/bills", bill_data)
     yield bill
-    delete_test_entity("bills", bill["id"])
+    await delete_test_entity("bills", bill["id"])
 
 
 @pytest.fixture(scope="module")
-def test_get_bills(client, system_headers, test_bill):
+async def test_get_bills(client, system_headers, test_bill):
     bills = client.get("/bills", headers=system_headers)
     assert_status_code(bills, 200)
     return bills.json()
 
 
 @pytest.fixture(scope="module")
-def test_bill_action(
+async def test_bill_action(
     create_test_entity,
     delete_test_entity,
     test_bill: Dict,
 ):
     bill_action_data = {"bill_id": test_bill["id"], "date": "2024-01-01", "type": 1}
-    bill_action = create_test_entity("/bill_actions", bill_action_data)
+    bill_action = await create_test_entity("/bill_actions", bill_action_data)
     yield bill_action
-    delete_test_entity("bill_actions", bill_action["id"])
+    await delete_test_entity("bill_actions", bill_action["id"])
 
 
 @pytest.fixture(scope="module")
-def test_legislator(create_test_entity, delete_test_entity, test_party):
+async def test_legislator(create_test_entity, delete_test_entity, test_party):
     legislator_data = {
         "legiscan_id": f"{random.randint(100,999)}",
         "name": f"John Doe {generate_random_string()}",
@@ -164,14 +164,14 @@ def test_legislator(create_test_entity, delete_test_entity, test_party):
         "phone": f"(202) {random.randint(100,999)}-{random.randint(1000,9999)}",
         "party_id": test_party["id"],
     }
-    legislator = create_test_entity("/legislators", legislator_data)
+    legislator = await create_test_entity("/legislators", legislator_data)
     yield legislator
-    delete_test_entity("legislators", legislator["id"])
+    await delete_test_entity("legislators", legislator["id"])
 
 
 @pytest.fixture(scope="module")
-def test_get_legislators(client, system_headers, test_legislator):
-    legislators = client.get("/legislators", headers=system_headers)
+async def test_get_legislators(client, system_headers, test_legislator):
+    legislators = await client.get("/legislators", headers=system_headers)
     assert_status_code(legislators, 200)
     return legislators.json()
 
