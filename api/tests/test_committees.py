@@ -10,9 +10,7 @@ def test_add_remove_legislator_workflow(client, system_headers, test_committee, 
     assert_status_code(response, 204)
 
     # Check for membership
-    response = client.get(
-        f"/committees/{test_committee['id']}/legislators", headers=system_headers
-    )
+    response = client.get(f"/committees/{test_committee['id']}/legislators", headers=system_headers)
     assert_status_code(response, 200)
     legislators = response.json()
     assert len(legislators) == 1
@@ -26,9 +24,7 @@ def test_add_remove_legislator_workflow(client, system_headers, test_committee, 
     assert_status_code(response, 204)
 
     # Check for removal
-    response = client.get(
-        f"/committees/{test_committee['id']}/legislators", headers=system_headers
-    )
+    response = client.get(f"/committees/{test_committee['id']}/legislators", headers=system_headers)
     assert_status_code(response, 200)
     legislators = response.json()
     assert len(legislators) == 0
