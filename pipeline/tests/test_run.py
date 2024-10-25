@@ -18,3 +18,5 @@ def test_pipeline_execution():
     assert (
         "ETL process completed successfully" in full_output
     ), f"Success message not found in pipeline output: {full_output}"
+
+    ## count rows here ##

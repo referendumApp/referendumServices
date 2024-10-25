@@ -2,6 +2,7 @@ import logging
 import pandas as pd
 import sqlalchemy
 import json
+import os
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from typing import Dict
@@ -47,7 +48,7 @@ def extract(etl_configs) -> Dict[str, pd.DataFrame]:
         with legiscan_db.connection() as conn:
             for config in etl_configs:
                 table_name = config["source"]
-
+                logger.info(f"extracting table {table_name}")
                 try:
                     df = pd.read_sql(table_name, con=conn)
 
@@ -131,7 +132,7 @@ def load(etl_configs):
             try:
                 df.to_sql(
                     destination_table,
-                    referendum_db.bind(),
+                    referendum_db.bind,
                     if_exists="append",
                     index=False,
                 )
@@ -147,20 +148,21 @@ def load(etl_configs):
 
 
 def orchestrate_etl():
-    config_filepath = "etl_configs.json"
+    directory = os.path.dirname(os.path.abspath(__file__))
+    config_filepath = f"{directory}/etl_configs.json"
+
     with open(config_filepath, "r") as config_file:
         etl_configs = json.load(config_file)
-
-        try:
-            logger.info("Starting ETL pipeline...")
-            etl_configs = extract(etl_configs)
-            etl_configs = transform(etl_configs)
-            load(etl_configs)
-            logger.info("ETL process completed successfully")
-        except ConnectionError as e:
-            logger.error(f"ETL process failed: {str(e)}")
-        except Exception as e:
-            logger.error(f"An unexpected error occurred during ETL process: {str(e)}")
+    try:
+        logger.info("Starting ETL pipeline...")
+        etl_configs = extract(etl_configs)
+        etl_configs = transform(etl_configs)
+        load(etl_configs)
+        logger.info("ETL process completed successfully")
+    except ConnectionError as e:
+        logger.error(f"ETL process failed: {str(e)}")
+    except Exception as e:
+        logger.error(f"An unexpected error occurred during ETL process: {str(e)}")
 
 
 if __name__ == "__main__":
