@@ -50,9 +50,7 @@ def test_user_session():
 
 @pytest.fixture(scope="function")
 def test_topic():
-    topic = create_test_entity(
-        "/topics", lambda: {"id": 999999, "name": generate_random_string()}
-    )
+    topic = create_test_entity("/topics", lambda: {"id": 999999, "name": generate_random_string()})
     yield topic
     client.delete(f"/topics/{topic['id']}", headers=system_headers)
 
@@ -82,14 +80,10 @@ def test_legislative_body(test_state, test_role):
         "state_id": test_state["id"],
         "role_id": test_role["id"],
     }
-    legislative_body = create_test_entity(
-        "/legislative_bodys", lambda: legislative_body_data
-    )
+    legislative_body = create_test_entity("/legislative_bodys", lambda: legislative_body_data)
     print(f"Created body {legislative_body}")
     yield legislative_body
-    client.delete(
-        f"/legislative_bodys/{legislative_body['id']}", headers=system_headers
-    )
+    client.delete(f"/legislative_bodys/{legislative_body['id']}", headers=system_headers)
     print(f"Deleted body {legislative_body}")
 
 
@@ -174,8 +168,6 @@ def test_vote(test_user_session, test_bill_action):
         "bill_action_id": test_bill_action["id"],
         "vote_choice": VoteChoice.YES.value,
     }
-    response = client.put(
-        f"/users/{user['id']}/votes/", json=vote_data, headers=headers
-    )
+    response = client.put(f"/users/{user['id']}/votes/", json=vote_data, headers=headers)
     assert_status_code(response, 200)
     return response.json()

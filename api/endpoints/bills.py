@@ -127,9 +127,7 @@ def add_sponsor(
     db: Session = Depends(get_db),
     _: None = Depends(verify_system_token),
 ) -> None:
-    logger.info(
-        f"Attempting to add sponsor legislator {legislator_id} to bill {bill_id}"
-    )
+    logger.info(f"Attempting to add sponsor legislator {legislator_id} to bill {bill_id}")
     try:
         crud.bill.add_sponsor(db=db, bill_id=bill_id, legislator_id=legislator_id)
         logger.info(f"Sponsor {legislator_id} successfully added to bill {bill_id}")
@@ -159,9 +157,7 @@ def remove_sponsor(
     db: Session = Depends(get_db),
     _: None = Depends(verify_system_token),
 ) -> None:
-    logger.info(
-        f"Attempting to remove sponsor legislator {legislator_id} from bill {bill_id}"
-    )
+    logger.info(f"Attempting to remove sponsor legislator {legislator_id} from bill {bill_id}")
     try:
         crud.bill.remove_sponsor(db=db, bill_id=bill_id, legislator_id=legislator_id)
         logger.info(f"Sponsor {legislator_id} successfully removed from bill {bill_id}")

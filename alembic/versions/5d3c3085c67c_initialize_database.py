@@ -214,9 +214,7 @@ def upgrade():
         sa.Column("date", sa.Date(), nullable=False),
         sa.Column(
             "type",
-            sa.Enum(
-                "FLOOR_VOTE", "COMMITTEE_VOTE", name="billactiontype", create_type=True
-            ),
+            sa.Enum("FLOOR_VOTE", "COMMITTEE_VOTE", name="billactiontype", create_type=True),
             nullable=False,
         ),
         sa.PrimaryKeyConstraint("id"),

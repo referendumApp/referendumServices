@@ -43,9 +43,7 @@ app.include_router(bill_actions.router, tags=["bill_actions"], prefix="/bill_act
 app.include_router(comments.router, tags=["comments"], prefix="/comments")
 app.include_router(committees.router, tags=["committees"], prefix="/committees")
 app.include_router(legislators.router, tags=["legislators"], prefix="/legislators")
-app.include_router(
-    legislator_votes.router, tags=["legislator_votes"], prefix="/legislator_votes"
-)
+app.include_router(legislator_votes.router, tags=["legislator_votes"], prefix="/legislator_votes")
 app.include_router(
     legislative_bodys.router, tags=["legislative_bodys"], prefix="/legislative_bodys"
 )
