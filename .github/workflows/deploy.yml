@@ -18,7 +18,7 @@ env:
   POSTGRES_PASSWORD_SECRET_NAME: rds!db-a5c629ff-4d6e-4d68-9680-6cdab848369c
   API_ACCESS_TOKEN_SECRET_NAME: /system/API_ACCESS_TOKEN
   SECRET_KEY_SECRET_NAME: /system/SECRET_KEY
-  PIPELINE_TASK_DEFINITION: PipelineTask
+  PIPELINE_TASK_DEFINITION: load-referendum-from-legiscan
 
 permissions:
   contents: write
