@@ -35,6 +35,10 @@ def check_db_connection(db_session):
     except SQLAlchemyError as e:
         logger.error(f"Database connection failed: {str(e)}")
         return False
+    except Exception as e:
+        logger.error(f"Unexpected error during database connection check: {str(e)}")
+        db_session.invalidate()
+        raise
 
 
 def extract(etl_configs) -> Dict[str, pd.DataFrame]:
