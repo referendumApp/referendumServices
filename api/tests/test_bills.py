@@ -5,8 +5,8 @@ def test_add_bill_success(test_bill):
     assert "id" in test_bill
 
 
-def test_list_bills(test_get_bill):
-    assert len(test_get_bill) > 0
+def test_list_bills(test_get_bills):
+    assert len(test_get_bills) > 0
 
 
 def test_add_bill_already_exists(client, system_headers, test_bill):
