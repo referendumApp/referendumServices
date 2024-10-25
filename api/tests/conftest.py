@@ -43,6 +43,15 @@ def delete_test_entity(client: TestClient, system_headers: Dict):
     return delete_entity
 
 
+@pytest.fixture(scope="session")
+def test_state(create_test_entity, delete_test_entity, request: SubRequest):
+    state_data = {"name": "Washington"}
+    state = create_test_entity("/states", state_data)
+    # request.addfinalizer(lambda: delete_test_entity("states", state["id"]))
+    yield state
+    delete_test_entity("states", state["id"])
+
+
 @pytest.fixture(scope="module")
 def test_user_session(create_test_entity, delete_test_entity, request: SubRequest):
     user_data = {
@@ -64,15 +73,6 @@ def test_topic(create_test_entity, delete_test_entity, request: SubRequest):
     # request.addfinalizer(lambda: delete_test_entity("topics", topic["id"]))
     yield topic
     delete_test_entity("topics", topic["id"])
-
-
-@pytest.fixture(scope="module")
-def test_state(create_test_entity, delete_test_entity, request: SubRequest):
-    state_data = {"name": "Washington"}
-    state = create_test_entity("/states", state_data)
-    # request.addfinalizer(lambda: delete_test_entity("states", state["id"]))
-    yield state
-    delete_test_entity("states", state["id"])
 
 
 @pytest.fixture(scope="module")
