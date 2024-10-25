@@ -1,7 +1,7 @@
-from api.tests.test_utils import *
+from api.tests.test_utils import assert_status_code
 
 
-def test_add_remove_legislator_workflow(test_committee, test_legislator):
+def test_add_remove_legislator_workflow(client, system_headers, test_committee, test_legislator):
     # Add the legislator
     response = client.post(
         f"/committees/{test_committee['id']}/legislators/{test_legislator['id']}",

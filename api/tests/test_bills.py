@@ -1,18 +1,15 @@
-from api.tests.test_utils import *  # Import everything to initialize all fixtures
+from api.tests.test_utils import assert_status_code
 
 
 def test_add_bill_success(test_bill):
     assert "id" in test_bill
 
 
-def test_list_bills(test_bill):
-    response = client.get("/bills", headers=system_headers)
-    assert_status_code(response, 200)
-    bills = response.json()
-    assert len(bills) > 0
+def test_list_bills(test_get_bill):
+    assert len(test_get_bill) > 0
 
 
-def test_add_bill_already_exists(test_bill):
+def test_add_bill_already_exists(client, system_headers, test_bill):
     bill_data = {**test_bill}
     bill_data.pop("id")
     response = client.post("/bills", json=bill_data, headers=system_headers)
@@ -20,7 +17,7 @@ def test_add_bill_already_exists(test_bill):
     assert "bill already exists" in response.json()["detail"]
 
 
-def test_add_bill_unauthorized(test_bill):
+def test_add_bill_unauthorized(client, test_bill):
     bill_data = {**test_bill}
     bill_data.pop("id")
     response = client.post(
@@ -31,7 +28,7 @@ def test_add_bill_unauthorized(test_bill):
     assert_status_code(response, 403)
 
 
-def test_update_bill(test_bill):
+def test_update_bill(client, system_headers, test_bill):
     updated_data = {**test_bill, "title": "Updated Bill Title"}
     response = client.put("/bills", json=updated_data, headers=system_headers)
     assert_status_code(response, 200)
@@ -39,7 +36,7 @@ def test_update_bill(test_bill):
     assert updated_bill["title"] == "Updated Bill Title"
 
 
-def test_update_bill_not_found():
+def test_update_bill_not_found(client, system_headers):
     non_existent_bill = {
         "id": 9999,
         "legiscan_id": 0,
@@ -58,7 +55,7 @@ def test_update_bill_not_found():
     assert "bill not found" in response.json()["detail"]
 
 
-def test_update_bill_unauthorized(test_bill):
+def test_update_bill_unauthorized(client, test_bill):
     updated_data = {**test_bill, "title": "Updated Test Bill"}
     response = client.put(
         "/bills", json=updated_data, headers={"Authorization": "Bearer user_token"}
@@ -66,7 +63,7 @@ def test_update_bill_unauthorized(test_bill):
     assert_status_code(response, 403)
 
 
-def test_get_bill_success(test_bill):
+def test_get_bill_success(client, system_headers, test_bill):
     response = client.get(f"/bills/{test_bill['id']}", headers=system_headers)
     assert_status_code(response, 200)
     retrieved_bill = response.json()
@@ -74,31 +71,31 @@ def test_get_bill_success(test_bill):
     assert retrieved_bill["title"] == test_bill["title"]
 
 
-def test_get_bill_not_found():
+def test_get_bill_not_found(client, system_headers):
     response = client.get("/bills/9999", headers=system_headers)
     assert_status_code(response, 404)
     assert "bill not found" in response.json()["detail"]
 
 
-def test_delete_bill_success(test_bill):
+def test_delete_bill_success(client, system_headers, test_bill):
     response = client.delete(f"/bills/{test_bill['id']}", headers=system_headers)
     assert_status_code(response, 204)
 
 
-def test_delete_bill_not_found():
+def test_delete_bill_not_found(client, system_headers):
     response = client.delete("/bills/9999", headers=system_headers)
     assert_status_code(response, 404)
     assert "bill not found" in response.json()["detail"]
 
 
-def test_delete_bill_unauthorized(test_bill):
+def test_delete_bill_unauthorized(client, test_bill):
     response = client.delete(
         f"/bills/{test_bill['id']}", headers={"Authorization": "Bearer user_token"}
     )
     assert_status_code(response, 403)
 
 
-def test_get_bill_text_success(test_bill):
+def test_get_bill_text_success(client, system_headers, test_bill):
     response = client.get(
         f"/bills/{test_bill['id']}/version/1/text", headers=system_headers
     )
@@ -110,7 +107,7 @@ def test_get_bill_text_success(test_bill):
     assert bill_text["text"] == "Lorem ipsum dolor sit amet"
 
 
-def test_add_remove_bill_topic(test_bill, test_topic):
+def test_add_remove_bill_topic(client, system_headers, test_bill, test_topic):
     # Add topic to bill
     response = client.post(
         f"/bills/{test_bill['id']}/topics/{test_topic['id']}", headers=system_headers
@@ -137,7 +134,7 @@ def test_add_remove_bill_topic(test_bill, test_topic):
     assert len(topics) == 0
 
 
-def test_add_remove_bill_sponsor(test_bill, test_legislator):
+def test_add_remove_bill_sponsor(client, system_headers, test_bill, test_legislator):
     # Add legislator to bill
     response = client.post(
         f"/bills/{test_bill['id']}/sponsors/{test_legislator['id']}",

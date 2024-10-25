@@ -1,7 +1,7 @@
-from api.tests.test_utils import *
+from api.tests.test_utils import assert_status_code
 
 
-def test_replies(test_user_session, test_bill):
+def test_replies(client, test_user_session, test_bill):
     user, user_headers = test_user_session
 
     # Create a parent comment
@@ -15,7 +15,7 @@ def test_replies(test_user_session, test_bill):
     assert_status_code(response, 201)
     parent_comment = response.json()
     assert parent_comment["comment"] == parent_comment_data["comment"]
-    assert parent_comment["parent_id"] is None
+    assert parent_comment["parentId"] is None
 
     # Create a child comment
     child_comment_data = {
@@ -28,7 +28,7 @@ def test_replies(test_user_session, test_bill):
     assert_status_code(response, 201)
     child_comment = response.json()
     assert child_comment["comment"] == child_comment_data["comment"]
-    assert child_comment["parent_id"] == parent_comment["id"]
+    assert child_comment["parentId"] == parent_comment["id"]
 
     # Verify both comments were added
     response = client.get(f"/comments/{parent_comment['id']}", headers=user_headers)
@@ -41,7 +41,7 @@ def test_replies(test_user_session, test_bill):
     assert_status_code(response, 200)
     retrieved_child = response.json()
     assert retrieved_child["id"] == child_comment["id"]
-    assert retrieved_child["parent_id"] == parent_comment["id"]
+    assert retrieved_child["parentId"] == parent_comment["id"]
     assert retrieved_child["comment"] == child_comment_data["comment"]
 
     # Attempt to remove the parent comment
@@ -64,7 +64,7 @@ def test_replies(test_user_session, test_bill):
     assert_status_code(response, 404)
 
 
-def test_delete_with_likes(test_user_session, test_bill):
+def test_delete_with_likes(client, test_user_session, test_bill):
     user, user_headers = test_user_session
 
     # Create a comment

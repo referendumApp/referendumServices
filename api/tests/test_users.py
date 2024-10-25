@@ -1,4 +1,4 @@
-from api.tests.test_utils import *  # Import everything to initialize all fixtures
+from api.tests.test_utils import assert_status_code
 
 
 def test_create_user(test_user_session):
@@ -6,7 +6,7 @@ def test_create_user(test_user_session):
     assert "id" in user
 
 
-def test_create_user_duplicate_email(test_user_session):
+def test_create_user_duplicate_email(client, system_headers, test_user_session):
     user, _ = test_user_session
     user_data = {
         "email": user["email"],
@@ -19,7 +19,7 @@ def test_create_user_duplicate_email(test_user_session):
     assert "Email already registered" in response.json()["detail"]
 
 
-def test_get_user(test_user_session):
+def test_get_user(client, system_headers, test_user_session):
     user, user_headers = test_user_session
 
     response = client.get(f"/users/{user['id']}", headers=system_headers)
@@ -31,7 +31,7 @@ def test_get_user(test_user_session):
     assert response.json()["email"] == user["email"]
 
 
-def test_update_user(test_user_session):
+def test_update_user(client, test_user_session):
     user, user_headers = test_user_session
 
     update_data = {
@@ -45,7 +45,7 @@ def test_update_user(test_user_session):
     assert updated_user["name"] == update_data["name"]
 
 
-def test_update_user_unauthorized(test_user_session):
+def test_update_user_unauthorized(client, system_headers, test_user_session):
     _, user_headers = test_user_session
 
     user_data = {
@@ -69,7 +69,7 @@ def test_update_user_unauthorized(test_user_session):
     assert_status_code(response, 204)
 
 
-def test_delete_user():
+def test_delete_user(client, system_headers):
     user_data = {
         "email": "deleteuser@example.com",
         "password": "password",
@@ -86,7 +86,7 @@ def test_delete_user():
     assert_status_code(response, 404)
 
 
-def test_delete_user_unauthorized(test_user_session):
+def test_delete_user_unauthorized(client, system_headers, test_user_session):
     _, user_headers = test_user_session
 
     user_data = {
@@ -105,27 +105,27 @@ def test_delete_user_unauthorized(test_user_session):
     assert_status_code(response, 204)
 
 
-def test_get_non_existent_user():
+def test_get_non_existent_user(client, system_headers):
     response = client.get("/users/99999", headers=system_headers)
     assert_status_code(response, 404)
 
 
-def test_user_login(test_user_session):
+def test_user_login(client, test_user_session):
     user, _ = test_user_session
 
     login_data = {"username": user["email"], "password": "testpassword"}
     response = client.post("/auth/login", data=login_data)
     assert_status_code(response, 200)
-    assert "access_token" in response.json()
+    assert "accessToken" in response.json()
 
 
-def test_user_login_invalid_credentials():
+def test_user_login_invalid_credentials(client):
     login_data = {"username": "nonexistent@example.com", "password": "wrongpassword"}
     response = client.post("/auth/login", data=login_data)
     assert_status_code(response, 401)
 
 
-def test_get_user_topics(test_user_session):
+def test_get_user_topics(client, test_user_session):
     user, user_headers = test_user_session
 
     response = client.get(f"/users/{user['id']}/topics", headers=user_headers)
@@ -133,7 +133,7 @@ def test_get_user_topics(test_user_session):
     assert isinstance(response.json(), list)
 
 
-def test_follow_topic(test_user_session, test_topic):
+def test_follow_topic(client, test_user_session, test_topic):
     user, user_headers = test_user_session
     topic = test_topic
 
@@ -161,7 +161,7 @@ def test_follow_topic(test_user_session, test_topic):
     assert not any(t["id"] == topic["id"] for t in user_topics)
 
 
-def test_follow_nonexistent_topic(test_user_session):
+def test_follow_nonexistent_topic(client, test_user_session):
     user, user_headers = test_user_session
 
     response = client.post(f"/users/{user['id']}/topics/99999", headers=user_headers)
@@ -175,7 +175,7 @@ def test_unfollow_nonexistent_topic(test_user_session):
     assert_status_code(response, 404)
 
 
-def test_get_user_bills(test_user_session):
+def test_get_user_bills(client, test_user_session):
     user, user_headers = test_user_session
 
     response = client.get(f"/users/{user['id']}/bills", headers=user_headers)
@@ -183,7 +183,7 @@ def test_get_user_bills(test_user_session):
     assert isinstance(response.json(), list)
 
 
-def test_follow_bill(test_user_session, test_bill):
+def test_follow_bill(client, test_user_session, test_bill):
     user, user_headers = test_user_session
 
     response = client.post(
@@ -210,21 +210,21 @@ def test_follow_bill(test_user_session, test_bill):
     assert not any(t["id"] == test_bill["id"] for t in user_topics)
 
 
-def test_follow_nonexistent_bill(test_user_session):
+def test_follow_nonexistent_bill(client, test_user_session):
     user, user_headers = test_user_session
 
     response = client.post(f"/users/{user['id']}/bills/99999", headers=user_headers)
     assert_status_code(response, 404)
 
 
-def test_unfollow_nonexistent_bill(test_user_session):
+def test_unfollow_nonexistent_bill(client, test_user_session):
     user, user_headers = test_user_session
 
     response = client.delete(f"/users/{user['id']}/bills/99999", headers=user_headers)
     assert_status_code(response, 404)
 
 
-def test_follow_legislator(test_user_session, test_legislator):
+def test_follow_legislator(client, test_user_session, test_legislator):
     user, user_headers = test_user_session
 
     response = client.post(

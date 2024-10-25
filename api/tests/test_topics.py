@@ -1,11 +1,11 @@
-from api.tests.test_utils import client, assert_status_code, system_headers, test_topic
+from api.tests.test_utils import assert_status_code
 
 
 def test_add_topic_success(test_topic):
     assert "id" in test_topic
 
 
-def test_add_topic_already_exists(test_topic):
+def test_add_topic_already_exists(client, system_headers, test_topic):
     topic_data = {**test_topic}
     topic_data.pop("id")
     response = client.post("/topics", json=topic_data, headers=system_headers)
@@ -13,7 +13,7 @@ def test_add_topic_already_exists(test_topic):
     assert "topic already exists" in response.json()["detail"]
 
 
-def test_add_topic_unauthorized(test_topic):
+def test_add_topic_unauthorized(client, test_topic):
     topic_data = {**test_topic}
     topic_data.pop("id")
     response = client.post(
@@ -24,7 +24,7 @@ def test_add_topic_unauthorized(test_topic):
     assert_status_code(response, 403)
 
 
-def test_update_topic_success(test_topic):
+def test_update_topic_success(client, system_headers, test_topic):
     updated_data = {**test_topic, "name": "Updated topic Name"}
     response = client.put("/topics", json=updated_data, headers=system_headers)
     assert_status_code(response, 200)
@@ -32,7 +32,7 @@ def test_update_topic_success(test_topic):
     assert updated_topic["name"] == "Updated topic Name"
 
 
-def test_update_topic_not_found():
+def test_update_topic_not_found(client, system_headers):
     non_existent_topic = {
         "id": 9999,
         "name": "DNE",
@@ -42,7 +42,7 @@ def test_update_topic_not_found():
     assert "topic not found" in response.json()["detail"]
 
 
-def test_update_topic_unauthorized(test_topic):
+def test_update_topic_unauthorized(client, test_topic):
     updated_data = {**test_topic, "name": "Updated topic Name"}
     response = client.put(
         "/topics", json=updated_data, headers={"Authorization": "Bearer user_token"}
@@ -50,7 +50,7 @@ def test_update_topic_unauthorized(test_topic):
     assert_status_code(response, 403)
 
 
-def test_get_topic_success(test_topic):
+def test_get_topic_success(client, system_headers, test_topic):
     response = client.get(f"/topics/{test_topic['id']}", headers=system_headers)
     assert_status_code(response, 200)
     retrieved_topic = response.json()
@@ -58,24 +58,24 @@ def test_get_topic_success(test_topic):
     assert retrieved_topic["name"] == test_topic["name"]
 
 
-def test_get_topic_not_found():
+def test_get_topic_not_found(client, system_headers):
     response = client.get("/topics/9999", headers=system_headers)
     assert_status_code(response, 404)
     assert "topic not found" in response.json()["detail"]
 
 
-def test_delete_topic_success(test_topic):
+def test_delete_topic_success(client, system_headers, test_topic):
     response = client.delete(f"/topics/{test_topic['id']}", headers=system_headers)
     assert_status_code(response, 204)
 
 
-def test_delete_topic_not_found():
+def test_delete_topic_not_found(client, system_headers):
     response = client.delete("/topics/9999", headers=system_headers)
     assert_status_code(response, 404)
     assert "topic not found" in response.json()["detail"]
 
 
-def test_delete_bill_unauthorized(test_topic):
+def test_delete_bill_unauthorized(client, test_topic):
     response = client.delete(
         f"/topics/{test_topic['id']}", headers={"Authorization": "Bearer user_token"}
     )
