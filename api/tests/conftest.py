@@ -43,7 +43,7 @@ def delete_test_entity(client: TestClient, system_headers: Dict):
     return delete_entity
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def test_state(create_test_entity, delete_test_entity, request: SubRequest):
     state_data = {"name": "Washington"}
     state = create_test_entity("/states", state_data)
@@ -52,7 +52,7 @@ def test_state(create_test_entity, delete_test_entity, request: SubRequest):
     delete_test_entity("states", state["id"])
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def test_user_session(create_test_entity, delete_test_entity, request: SubRequest):
     user_data = {
         "email": f"{generate_random_string()}@example.com",
@@ -67,7 +67,7 @@ def test_user_session(create_test_entity, delete_test_entity, request: SubReques
     delete_test_entity("users", user["id"])
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def test_topic(create_test_entity, delete_test_entity, request: SubRequest):
     topic = create_test_entity("/topics", {"name": generate_random_string()})
     # request.addfinalizer(lambda: delete_test_entity("topics", topic["id"]))
@@ -75,7 +75,7 @@ def test_topic(create_test_entity, delete_test_entity, request: SubRequest):
     delete_test_entity("topics", topic["id"])
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def test_role(create_test_entity, delete_test_entity, request: SubRequest):
     role_data = {"name": "House"}
     role = create_test_entity("/roles", role_data)
@@ -84,7 +84,7 @@ def test_role(create_test_entity, delete_test_entity, request: SubRequest):
     delete_test_entity("roles", role["id"])
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def test_legislative_body(
     create_test_entity, delete_test_entity, test_state, test_role, request: SubRequest
 ):
@@ -95,7 +95,7 @@ def test_legislative_body(
     delete_test_entity("legislative_bodys", legislative_body["id"])
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def test_committee(
     create_test_entity, delete_test_entity, test_legislative_body, request: SubRequest
 ):
@@ -109,7 +109,7 @@ def test_committee(
     delete_test_entity("committees", committee["id"])
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def test_bill(
     create_test_entity,
     delete_test_entity,
@@ -135,14 +135,14 @@ def test_bill(
     delete_test_entity("bills", bill["id"])
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def test_get_bills(client, system_headers, test_bill):
     bills = client.get("/bills", headers=system_headers)
     assert_status_code(bills, 200)
     return bills.json()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def test_bill_action(
     create_test_entity,
     delete_test_entity,
@@ -156,7 +156,7 @@ def test_bill_action(
     delete_test_entity("bill_actions", bill_action["id"])
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def test_party(create_test_entity, delete_test_entity, request: SubRequest):
     party_data = {"name": "Independent"}
     party = create_test_entity("/partys", party_data)
@@ -165,7 +165,7 @@ def test_party(create_test_entity, delete_test_entity, request: SubRequest):
     delete_test_entity("partys", party["id"])
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def test_legislator(create_test_entity, delete_test_entity, test_party, request: SubRequest):
     legislator_data = {
         "legiscan_id": f"{random.randint(100,999)}",
@@ -183,14 +183,14 @@ def test_legislator(create_test_entity, delete_test_entity, test_party, request:
     delete_test_entity("legislators", legislator["id"])
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def test_get_legislators(client, system_headers, test_legislator):
     legislators = client.get("/legislators", headers=system_headers)
     assert_status_code(legislators, 200)
     return legislators.json()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def test_vote(
     client: TestClient,
     test_user_session: Dict,
