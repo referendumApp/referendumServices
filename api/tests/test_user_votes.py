@@ -1,6 +1,10 @@
 from api.tests.test_utils import *
 from common.database.referendum.models import VoteChoice
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 def test_cast_vote_success(test_user_session, test_bill):
     user, headers = test_user_session
@@ -13,9 +17,11 @@ def test_cast_vote_success(test_user_session, test_bill):
     assert created_vote["user_id"] == user["id"]
     assert created_vote["bill_id"] == test_bill["id"]
     assert created_vote["vote_choice"] == VoteChoice.YES.value
+    logger.info("Completed Vote Test 1")
 
 
 def test_cast_vote_update(test_user_session, test_vote):
+    logger.info("Started Vote Test 2")
     user, headers = test_user_session
     updated_vote_data = {
         "bill_id": test_vote["bill_id"],

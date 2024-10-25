@@ -41,21 +41,21 @@ def upgrade():
 
     op.create_table(
         "partys",
-        sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("name", sa.String(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
 
     op.create_table(
         "states",
-        sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("name", sa.String(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
 
     op.create_table(
         "roles",
-        sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("name", sa.String(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -63,7 +63,7 @@ def upgrade():
     # Create tables with foreign key dependencies
     op.create_table(
         "legislative_bodys",
-        sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("state_id", sa.Integer(), nullable=False),
         sa.Column("role_id", sa.Integer(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
@@ -79,7 +79,7 @@ def upgrade():
 
     op.create_table(
         "committees",
-        sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("name", sa.String(), nullable=False),
         sa.Column("legislative_body_id", sa.Integer(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
@@ -91,7 +91,7 @@ def upgrade():
 
     op.create_table(
         "bills",
-        sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("legiscan_id", sa.Integer(), nullable=True),
         sa.Column("identifier", sa.String(), nullable=True),
         sa.Column("title", sa.String(), nullable=True),
@@ -124,7 +124,7 @@ def upgrade():
 
     op.create_table(
         "legislators",
-        sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("legiscan_id", sa.Integer(), nullable=False),
         sa.Column("name", sa.String(), nullable=True),
         sa.Column("image_url", sa.String(), nullable=True),
@@ -209,7 +209,7 @@ def upgrade():
 
     op.create_table(
         "bill_actions",
-        sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("bill_id", sa.Integer(), nullable=False),
         sa.Column("date", sa.Date(), nullable=False),
         sa.Column(

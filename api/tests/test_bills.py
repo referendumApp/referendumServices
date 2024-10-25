@@ -13,8 +13,7 @@ def test_list_bills(test_bill):
 
 
 def test_add_bill_already_exists(test_bill):
-    bill_data = {**test_bill}
-    bill_data.pop("id")
+    bill_data = {**test_bill, "id": 900000}
     response = client.post("/bills", json=bill_data, headers=system_headers)
     assert_status_code(response, 409)
     assert "bill already exists" in response.json()["detail"]

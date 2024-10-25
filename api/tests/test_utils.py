@@ -50,22 +50,26 @@ def test_user_session():
 
 @pytest.fixture(scope="function")
 def test_topic():
-    topic = create_test_entity("/topics", lambda: {"name": generate_random_string()})
+    topic = create_test_entity(
+        "/topics", lambda: {"id": 999999, "name": generate_random_string()}
+    )
     yield topic
     client.delete(f"/topics/{topic['id']}", headers=system_headers)
 
 
 @pytest.fixture(scope="function")
 def test_state():
-    state_data = {"name": "Washington"}
+    state_data = {"id": 999999, "name": "Washington"}
     state = create_test_entity("/states", lambda: state_data)
+    print(f"Created state {state}")
     yield state
     client.delete(f"/states/{state['id']}", headers=system_headers)
+    print(f"Deleted state {state}")
 
 
 @pytest.fixture(scope="function")
 def test_role():
-    role_data = {"name": "House"}
+    role_data = {"id": 999999, "name": "House"}
     role = create_test_entity("/roles", lambda: role_data)
     yield role
     client.delete(f"/roles/{role['id']}", headers=system_headers)
@@ -73,19 +77,26 @@ def test_role():
 
 @pytest.fixture(scope="function")
 def test_legislative_body(test_state, test_role):
-    legislative_body_data = {"state_id": test_state["id"], "role_id": test_role["id"]}
+    legislative_body_data = {
+        "id": 999999,
+        "state_id": test_state["id"],
+        "role_id": test_role["id"],
+    }
     legislative_body = create_test_entity(
         "/legislative_bodys", lambda: legislative_body_data
     )
+    print(f"Created body {legislative_body}")
     yield legislative_body
     client.delete(
         f"/legislative_bodys/{legislative_body['id']}", headers=system_headers
     )
+    print(f"Deleted body {legislative_body}")
 
 
 @pytest.fixture(scope="function")
 def test_committee(test_legislative_body):
     committee_data = {
+        "id": 999999,
         "name": f"Test Committee {generate_random_string()}",
         "legislative_body_id": test_legislative_body["id"],
     }
@@ -95,13 +106,14 @@ def test_committee(test_legislative_body):
 
 
 @pytest.fixture(scope="function")
-def test_bill(test_state, test_legislative_body):
+def test_bill(test_legislative_body):
     bill_data = {
+        "id": 999999,
         "legiscan_id": random.randint(100000, 999999),
         "identifier": f"H.B.{random.randint(1, 999)}",
         "title": f"Test Bill {generate_random_string()}",
         "description": "This is a test bill",
-        "state_id": test_state["id"],
+        "state_id": test_legislative_body["state_id"],
         "legislative_body_id": test_legislative_body["id"],
         "session_id": 118,
         "briefing": "yadayadayada",
@@ -109,13 +121,20 @@ def test_bill(test_state, test_legislative_body):
         "status_date": "2024-01-01",
     }
     bill = create_test_entity("/bills", lambda: bill_data)
+    print(f"Created bill {bill}")
     yield bill
     client.delete(f"/bills/{bill['id']}", headers=system_headers)
+    print(f"Deleted bill {bill}")
 
 
 @pytest.fixture(scope="function")
 def test_bill_action(test_bill):
-    bill_action_data = {"bill_id": test_bill["id"], "date": "2024-01-01", "type": 1}
+    bill_action_data = {
+        "id": 999999,
+        "bill_id": test_bill["id"],
+        "date": "2024-01-01",
+        "type": 1,
+    }
     bill_action = create_test_entity("/bill_actions", lambda: bill_action_data)
     yield bill_action
     client.delete(f"/bill_actions/{bill_action['id']}", headers=system_headers)
@@ -123,7 +142,7 @@ def test_bill_action(test_bill):
 
 @pytest.fixture(scope="function")
 def test_party():
-    party_data = {"name": "Independent"}
+    party_data = {"id": 999999, "name": "Independent"}
     party = create_test_entity("/partys", lambda: party_data)
     yield party
     client.delete(f"/partys/{party['id']}", headers=system_headers)
@@ -132,6 +151,7 @@ def test_party():
 @pytest.fixture(scope="function")
 def test_legislator(test_party):
     legislator_data = {
+        "id": 999999,
         "legiscan_id": f"{random.randint(100,999)}",
         "name": f"John Doe {generate_random_string()}",
         "image_url": "example.com/image.png",

@@ -19,8 +19,7 @@ def test_list_legislators(test_legislator):
 
 
 def test_add_legislator_already_exists(test_legislator):
-    legislator_data = {**test_legislator}
-    legislator_data.pop("id")
+    legislator_data = {**test_legislator, "id": 900000}
     response = client.post("/legislators", json=legislator_data, headers=system_headers)
     assert_status_code(response, 409)
     assert "legislator already exists" in response.json()["detail"]
