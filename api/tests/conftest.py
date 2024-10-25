@@ -11,17 +11,17 @@ from api.security import create_access_token
 from common.database.referendum.models import VoteChoice
 
 
-@pytest.fixture(autouse=True, scope="session")
+@pytest.fixture(scope="session")
 def client() -> Generator[TestClient, None, None]:
     yield TestClient(app)
 
 
-@pytest.fixture(autouse=True, scope="session")
+@pytest.fixture(scope="session")
 def system_headers() -> dict:
     return {"X-API_Key": settings.API_ACCESS_TOKEN}
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def create_test_entity(client: TestClient, system_headers: Dict[str, str]):
     def create_entity(endpoint: str, payload: Dict):
         response = client.post(endpoint, json=payload, headers=system_headers)
@@ -31,7 +31,7 @@ def create_test_entity(client: TestClient, system_headers: Dict[str, str]):
     return create_entity
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def delete_test_entity(client: TestClient, system_headers: Dict):
     def delete_entity(resource: str, entity_id: str):
         response = client.delete(f"/{resource}/{entity_id}", headers=system_headers)

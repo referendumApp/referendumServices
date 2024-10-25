@@ -166,7 +166,7 @@ def test_follow_nonexistent_topic(client, test_user_session):
     assert_status_code(response, 404)
 
 
-def test_unfollow_nonexistent_topic(test_user_session):
+def test_unfollow_nonexistent_topic(client, test_user_session):
     user, user_headers = test_user_session
 
     response = client.delete(f"/users/{user['id']}/topics/99999", headers=user_headers)
