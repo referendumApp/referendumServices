@@ -42,46 +42,72 @@ def delete_test_entity(client: TestClient, system_headers: Dict):
     return delete_entity
 
 
-class TestSessionCache:
-    """Holds state data for the entire test session"""
-
-    def __init__(self):
-        self.state: Dict
-        self.party: Dict
+# class TestSessionCache:
+#     """Holds state data for the entire test session"""
+#
+#     def __init__(self):
+#         self.state: Dict
+#         self.party: Dict
+#
+#
+# @pytest.fixture(scope="session")
+# def session_cache() -> TestSessionCache:
+#     return TestSessionCache()
+#
+#
+# @pytest.fixture(autouse=True, scope="session")
+# def create_unique_session_fixtures(create_test_entity, delete_test_entity, session_cache):
+#     state_data = {"name": "Washington"}
+#     state = create_test_entity("/states", state_data)
+#
+#     party_data = {"name": "Independent"}
+#     party = create_test_entity("/partys", party_data)
+#
+#     session_cache.state = state
+#     session_cache.party = party
+#
+#     yield None
+#
+#     delete_test_entity("states", state["id"])
+#     delete_test_entity("partys", party["id"])
 
 
 @pytest.fixture(scope="session")
-def session_cache() -> TestSessionCache:
-    return TestSessionCache()
-
-
-@pytest.fixture(autouse=True, scope="session")
-def create_unique_session_fixtures(create_test_entity, delete_test_entity, session_cache):
+def test_create_state(create_test_entity, delete_test_entity):
     state_data = {"name": "Washington"}
     state = create_test_entity("/states", state_data)
+    yield state
+    delete_test_entity("states", state["id"])
 
+
+@pytest.fixture(scope="module")
+def test_state(test_create_state):
+    yield test_create_state
+
+
+@pytest.fixture(scope="session")
+def test_create_party(create_test_entity, delete_test_entity):
     party_data = {"name": "Independent"}
     party = create_test_entity("/partys", party_data)
-
-    session_cache.state = state
-    session_cache.party = party
-
     yield None
-
-    delete_test_entity("states", state["id"])
     delete_test_entity("partys", party["id"])
 
 
 @pytest.fixture(scope="module")
-def test_state(state_cache):
-    assert state_cache.state is not None, "State not initialized"
-    return state_cache.state
+def test_party(test_create_party):
+    yield test_create_party
 
 
-@pytest.fixture(scope="module")
-def test_party(session_cache):
-    assert session_cache.party is not None, "State not initialized"
-    return session_cache.party
+# @pytest.fixture(scope="module")
+# def test_state(state_cache):
+#     assert state_cache.state is not None, "State not initialized"
+#     return state_cache.state
+
+
+# @pytest.fixture(scope="module")
+# def test_party(session_cache):
+#     assert session_cache.party is not None, "State not initialized"
+#     return session_cache.party
 
 
 @pytest.fixture(scope="module")
