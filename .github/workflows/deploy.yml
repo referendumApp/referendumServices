@@ -301,30 +301,30 @@ jobs:
           "value": .Value
         }]')
         
-        # Get secrets and add to environment variables
-        POSTGRES_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.POSTGRES_PASSWORD_SECRET_NAME }} --query SecretString --output text)
-        POSTGRES_PASSWORD=$(echo $POSTGRES_SECRET | jq -r '.password')
-        
-        ENV_VARS=$(echo "$ENV_VARS" | jq --arg env "${{ env.DEPLOY_ENV }}" --arg pg_pass "$POSTGRES_PASSWORD" '
+        ENV_VARS=$(echo "$ENV_VARS" | jq --arg env "${{ env.DEPLOY_ENV }}" '
           . + [
-            {"name": "ENVIRONMENT", "value": $env},
-            {"name": "POSTGRES_PASSWORD", "value": $pg_pass}
+            {"name": "ENVIRONMENT", "value": $env}
           ]
         ')
     
-        # Get current task definition
         TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition ${{ env.PIPELINE_TASK_DEFINITION }} --query taskDefinition --output json)
         
-        # Update task definition with new image and environment variables
         NEW_TASK_DEFINITION=$(
           echo $TASK_DEFINITION |
           jq \
             --arg IMAGE "${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_PIPELINE }}:${{ env.IMAGE_TAG }}" \
             --argjson ENV_VARS "$ENV_VARS" \
+            --arg SECRET_ARN "${{ env.POSTGRES_PASSWORD_SECRET_NAME }}" \
             '
               del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy) |
               .containerDefinitions[0].image = $IMAGE |
               .containerDefinitions[0].environment = $ENV_VARS |
+              .containerDefinitions[0].secrets = [
+                {
+                  "name": "POSTGRES_PASSWORD",
+                  "valueFrom": ($SECRET_ARN + ":password::")
+                }
+              ] |
               .cpu = "1024" |
               .memory = "3072" |
               .networkMode = "awsvpc"
