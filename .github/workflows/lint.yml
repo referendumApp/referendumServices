@@ -20,4 +20,4 @@ jobs:
         pip install black
 
     - name: Run black
-      run: black . --check
+      run: black . --check --line-length=100

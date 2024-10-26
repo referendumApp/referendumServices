@@ -1,5 +1,6 @@
 from datetime import date
 from pydantic import BaseModel, EmailStr, Field, ConfigDict, create_model
+from pydantic.alias_generators import to_camel
 from typing import TypeVar, Generic, List, Type, Dict, Any, Optional
 
 from .models import VoteChoice, BillActionType
@@ -8,7 +9,16 @@ from .models import VoteChoice, BillActionType
 T = TypeVar("T")
 
 
-class BaseSchema(BaseModel):
+class CamelCaseBaseModel(BaseModel):
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        protected_namespaces=(),
+        arbitrary_types_allowed=True,
+    )
+
+
+class BaseSchema(CamelCaseBaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -50,9 +60,7 @@ def create_schema_container(
         },
     )
 
-    return SchemaContainer(
-        Base=base_class, Record=record_class, Full=relationship_class
-    )
+    return SchemaContainer(Base=base_class, Record=record_class, Full=relationship_class)
 
 
 Party = create_schema_container(
@@ -139,7 +147,7 @@ Bill = create_schema_container(
         "state_id": (int, ...),
         "status_id": (int, ...),
         "status_date": (date, ...),
-        "briefing": (str, ...),
+        "briefing": (Optional[str], ...),
     },
     record_fields={"id": (int, ...)},
     relationship_fields={

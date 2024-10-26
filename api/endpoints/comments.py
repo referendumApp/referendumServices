@@ -78,9 +78,7 @@ async def read_comment(
         return crud.comment.read(db=db, obj_id=comment_id)
     except ObjectNotFoundException:
         logger.warning(f"Comment not found for id: {comment_id}")
-        raise HTTPException(
-            status_code=404, detail=f"Comment not found for id: {comment_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"Comment not found for id: {comment_id}")
     except DatabaseException as e:
         logger.error(f"Database error while reading comment: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
@@ -114,17 +112,13 @@ async def update_comment(
             logger.error(
                 f"Unauthorized attempt to update user comment: User {current_user.id} tried to update comment {comment.id}"
             )
-            raise HTTPException(
-                status_code=403, detail="You can only update your own comments"
-            )
+            raise HTTPException(status_code=403, detail="You can only update your own comments")
     try:
         db_comment = crud.comment.read(db=db, obj_id=comment.id)
         return crud.comment.update(db=db, db_obj=db_comment, obj_in=comment)
     except ObjectNotFoundException:
         logger.warning(f"Attempt to update non-existent comment with id: {comment.id}")
-        raise HTTPException(
-            status_code=404, detail=f"Comment not found for id: {comment.email}."
-        )
+        raise HTTPException(status_code=404, detail=f"Comment not found for id: {comment.email}.")
     except DatabaseException as e:
         logger.error(f"Database error while updating comment: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
@@ -153,9 +147,7 @@ async def delete_comment(
         db_comment = crud.comment.read(db=db, obj_id=comment_id)
     except ObjectNotFoundException:
         logger.warning(f"Attempt to delete non-existent comment with ID: {comment_id}")
-        raise HTTPException(
-            status_code=404, detail=f"Comment not found for ID: {comment_id}."
-        )
+        raise HTTPException(status_code=404, detail=f"Comment not found for ID: {comment_id}.")
 
     if not auth_info["is_system"]:
         current_user = auth_info["user"]
@@ -163,9 +155,7 @@ async def delete_comment(
             logger.error(
                 f"Unauthorized attempt to delete user comment: User {current_user.id} tried to update comment {db_comment.id}"
             )
-            raise HTTPException(
-                status_code=403, detail="You can only delete your own comments"
-            )
+            raise HTTPException(status_code=403, detail="You can only delete your own comments")
 
     try:
         crud.comment.delete(db=db, obj_id=comment_id)
@@ -173,9 +163,7 @@ async def delete_comment(
         return
     except DependencyException:
         logger.error(f"Attempted to delete a comment with replies: {comment_id}")
-        raise HTTPException(
-            status_code=403, detail="Comment with replies cannot be deleted"
-        )
+        raise HTTPException(status_code=403, detail="Comment with replies cannot be deleted")
     except DatabaseException as e:
         logger.error(f"Database error while deleting comment: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
@@ -200,9 +188,7 @@ async def like_comment(
     try:
         return crud.user.like_comment(db=db, user_id=user.id, comment_id=comment_id)
     except ObjectNotFoundException:
-        raise HTTPException(
-            status_code=404, detail=f"Comment not found for id {comment_id}"
-        )
+        raise HTTPException(status_code=404, detail=f"Comment not found for id {comment_id}")
     except ObjectAlreadyExistsException:
         raise HTTPException(status_code=409, detail="Comment already liked")
     except DatabaseException as e:
