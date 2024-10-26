@@ -48,4 +48,4 @@ COPY common /code/common
 
 ENV PYTHONPATH=/code:$PYTHONPATH
 
-CMD ["sh", "-c", "pytest pipeline && pytest api"]
+CMD ["sh", "-c", "pytest api && pytest pipeline"]
