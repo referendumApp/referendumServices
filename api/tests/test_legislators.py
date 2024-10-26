@@ -16,7 +16,7 @@ async def test_list_legislators(test_get_legislators):
 async def test_add_legislator_already_exists(client, system_headers, test_legislator):
     legislator_data = {**test_legislator}
     legislator_data.pop("id")
-    response = await client.post("/legislators", json=legislator_data, headers=system_headers)
+    response = await client.post("/legislators/", json=legislator_data, headers=system_headers)
     assert_status_code(response, 409)
     assert "legislator already exists" in response.json()["detail"]
 
@@ -26,7 +26,7 @@ async def test_add_legislator_unauthorized(client, test_legislator):
     legislator_data = {**test_legislator}
     legislator_data.pop("id")
     response = await client.post(
-        "/legislators",
+        "/legislators/",
         json=legislator_data,
         headers={"Authorization": "Bearer user_token"},
     )
@@ -36,7 +36,7 @@ async def test_add_legislator_unauthorized(client, test_legislator):
 @pytest.mark.asyncio
 async def test_update_legislator_success(client, system_headers, test_legislator):
     updated_data = {**test_legislator, "name": "Updated Test legislator"}
-    response = await client.put("/legislators", json=updated_data, headers=system_headers)
+    response = await client.put("/legislators/", json=updated_data, headers=system_headers)
     assert_status_code(response, 200)
     updated_legislator = response.json()
     assert updated_legislator["name"] == "Updated Test legislator"
@@ -56,7 +56,7 @@ async def test_update_legislator_not_found(client, system_headers):
         "party_id": 1,
     }
     response = await client.put(
-        "/legislators", json=non_existent_legislator, headers=system_headers
+        "/legislators/", json=non_existent_legislator, headers=system_headers
     )
     assert_status_code(response, 404)
     assert "legislator not found" in response.json()["detail"]
@@ -66,7 +66,7 @@ async def test_update_legislator_not_found(client, system_headers):
 async def test_update_legislator_unauthorized(client, test_legislator):
     updated_data = {**test_legislator, "title": "Updated Test legislator"}
     response = await client.put(
-        "/legislators",
+        "/legislators/",
         json=updated_data,
         headers={"Authorization": "Bearer user_token"},
     )

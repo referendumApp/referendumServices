@@ -13,7 +13,7 @@ async def test_replies(client, test_user_session, test_bill):
         "parent_id": None,
         "comment": "This is a parent comment.",
     }
-    response = await client.post("/comments", json=parent_comment_data, headers=user_headers)
+    response = await client.post("/comments/", json=parent_comment_data, headers=user_headers)
     assert_status_code(response, 201)
     parent_comment = response.json()
     assert parent_comment["comment"] == parent_comment_data["comment"]
@@ -26,7 +26,7 @@ async def test_replies(client, test_user_session, test_bill):
         "parent_id": parent_comment["id"],
         "comment": "This is a child comment.",
     }
-    response = await client.post("/comments", json=child_comment_data, headers=user_headers)
+    response = await client.post("/comments/", json=child_comment_data, headers=user_headers)
     assert_status_code(response, 201)
     child_comment = response.json()
     assert child_comment["comment"] == child_comment_data["comment"]
@@ -77,7 +77,7 @@ async def test_delete_with_likes(client, test_user_session, test_bill):
         "parent_id": None,
         "comment": "This is a parent comment.",
     }
-    response = await client.post("/comments", json=comment_data, headers=user_headers)
+    response = await client.post("/comments/", json=comment_data, headers=user_headers)
     assert_status_code(response, 201)
     comment_id = response.json()["id"]
 
