@@ -11,26 +11,28 @@ from api.main import app
 from api.security import create_access_token
 from common.database.referendum.models import VoteChoice
 
+pytestmark = pytest.mark.asyncio
 
-@pytest.fixture(scope="session")
+
+@pytest.fixture(scope="function")
 def event_loop():
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def system_headers() -> dict:
     return {"X-API_Key": settings.API_ACCESS_TOKEN}
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 async def client() -> AsyncGenerator[AsyncClient, None]:
-    async with AsyncClient(app=app) as client:
+    async with AsyncClient(app=app, base_url="http://test", follow_redirects=True) as client:
         yield client
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def create_test_entity(client: AsyncClient, system_headers: Dict[str, str]):
     async def create_entity(endpoint: str, payload: Dict):
         response = await client.post(endpoint, json=payload, headers=system_headers)
@@ -40,7 +42,7 @@ def create_test_entity(client: AsyncClient, system_headers: Dict[str, str]):
     return create_entity
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def delete_test_entity(client: AsyncClient, system_headers: Dict):
     async def delete_entity(resource: str, entity_id: str):
         response = await client.delete(f"/{resource}/{entity_id}", headers=system_headers)
@@ -62,7 +64,7 @@ async def test_state(create_test_entity, delete_test_entity):
 async def test_party(create_test_entity, delete_test_entity):
     party_data = {"name": "Independent"}
     party = await create_test_entity("/partys", party_data)
-    yield None
+    yield party
     await delete_test_entity("partys", party["id"])
 
 
@@ -135,7 +137,7 @@ async def test_bill(create_test_entity, delete_test_entity, test_state, test_leg
 
 @pytest.fixture(scope="module")
 async def test_get_bills(client, system_headers, test_bill):
-    bills = client.get("/bills", headers=system_headers)
+    bills = await client.get("/bills", headers=system_headers)
     assert_status_code(bills, 200)
     return bills.json()
 
