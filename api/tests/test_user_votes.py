@@ -1,7 +1,9 @@
+import pytest
 from api.tests.test_utils import assert_status_code
 from common.database.referendum.models import VoteChoice
 
 
+@pytest.mark.asyncio
 async def test_cast_vote_success(client, test_user_session, test_bill):
     user, headers = test_user_session
     vote_data = {"bill_id": test_bill["id"], "vote_choice": VoteChoice.YES.value}
@@ -13,6 +15,7 @@ async def test_cast_vote_success(client, test_user_session, test_bill):
     assert created_vote["voteChoice"] == VoteChoice.YES.value
 
 
+@pytest.mark.asyncio
 async def test_cast_vote_update(client, system_headers, test_user_session, test_vote):
     user, headers = test_user_session
     updated_vote_data = {
@@ -32,12 +35,14 @@ async def test_cast_vote_update(client, system_headers, test_user_session, test_
     assert len(votes) == 1
 
 
+@pytest.mark.asyncio
 async def test_cast_vote_unauthorized(client, test_bill):
     vote_data = {"bill_id": test_bill["id"], "vote_choice": VoteChoice.YES.value}
     response = await client.put("/users/0/votes/", json=vote_data)
     assert_status_code(response, 401)
 
 
+@pytest.mark.asyncio
 async def test_cast_vote_invalid_bill(client, test_user_session):
     user, headers = test_user_session
     vote_data = {"bill_id": 9999, "vote_choice": VoteChoice.YES.value}
@@ -46,6 +51,7 @@ async def test_cast_vote_invalid_bill(client, test_user_session):
     assert "Database error" in response.json()["detail"]
 
 
+@pytest.mark.asyncio
 async def test_cast_vote_invalid_choice(client, test_user_session, test_bill):
     user, headers = test_user_session
     vote_data = {"bill_id": test_bill["id"], "vote_choice": "MAYBE"}
@@ -53,6 +59,7 @@ async def test_cast_vote_invalid_choice(client, test_user_session, test_bill):
     assert_status_code(response, 422)
 
 
+@pytest.mark.asyncio
 async def test_get_votes_for_user(client, test_user_session, test_vote):
     user, headers = test_user_session
     response = await client.get(f"/users/{user['id']}/votes", headers=headers)
@@ -62,6 +69,7 @@ async def test_get_votes_for_user(client, test_user_session, test_vote):
     assert votes[0]["userId"] == user["id"]
 
 
+@pytest.mark.asyncio
 async def test_get_votes_for_bill(client, system_headers, test_vote):
     response = await client.get(
         f"/users/{test_vote['user_id']}/votes/?bill_id={test_vote['bill_id']}",
@@ -73,11 +81,13 @@ async def test_get_votes_for_bill(client, system_headers, test_vote):
     assert votes[0]["billId"] == test_vote["bill_id"]
 
 
+@pytest.mark.asyncio
 async def test_get_votes_unauthorized(client):
     response = await client.get("/users/1/votes/")
     assert_status_code(response, 401)
 
 
+@pytest.mark.asyncio
 async def test_get_votes_for_other_user(client, test_user_session):
     _, headers = test_user_session
     response = await client.get("/users/9999/votes/", headers=headers)

@@ -2,11 +2,13 @@ import pytest
 from api.tests.test_utils import assert_status_code
 
 
-def test_add_legislator_success(test_legislator):
+@pytest.mark.asyncio
+async def test_add_legislator_success(test_legislator):
     assert "id" in test_legislator
 
 
-def test_list_legislators(test_get_legislators):
+@pytest.mark.asyncio
+async def test_list_legislators(test_get_legislators):
     assert len(test_get_legislators) > 0
 
 

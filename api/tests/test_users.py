@@ -2,7 +2,8 @@ import pytest
 from api.tests.test_utils import assert_status_code
 
 
-def test_create_user(test_user_session):
+@pytest.mark.asyncio
+async def test_create_user(test_user_session):
     user, _ = test_user_session
     assert "id" in user
 
