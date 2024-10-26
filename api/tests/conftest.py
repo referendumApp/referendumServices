@@ -31,7 +31,7 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
         yield client
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session")
 def create_test_entity(client: AsyncClient, system_headers: Dict[str, str]):
     async def create_entity(endpoint: str, payload: Dict):
         response = await client.post(endpoint, json=payload, headers=system_headers)
@@ -41,7 +41,7 @@ def create_test_entity(client: AsyncClient, system_headers: Dict[str, str]):
     return create_entity
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session")
 def delete_test_entity(client: AsyncClient, system_headers: Dict):
     async def delete_entity(resource: str, entity_id: str):
         response = await client.delete(f"/{resource}/{entity_id}", headers=system_headers)
