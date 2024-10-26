@@ -50,7 +50,7 @@ async def delete_test_entity(system_headers: Dict):
     return delete_entity
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="function")
 async def test_state(create_test_entity, delete_test_entity):
     state_data = {"name": "Washington"}
     state = await create_test_entity("/states/", state_data)
@@ -58,7 +58,7 @@ async def test_state(create_test_entity, delete_test_entity):
     await delete_test_entity("states", state["id"])
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="function")
 async def test_party(create_test_entity, delete_test_entity):
     party_data = {"name": "Independent"}
     party = await create_test_entity("/partys/", party_data)
