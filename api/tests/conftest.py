@@ -22,13 +22,13 @@ def system_headers() -> dict:
     return {"X-API_Key": settings.API_ACCESS_TOKEN}
 
 
-@pytest_asyncio.fixture(scope="module")
+@pytest_asyncio.fixture(scope="session")
 async def client() -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(base_url=base_url, transport=transport) as client:
         yield client
 
 
-@pytest_asyncio.fixture(scope="module")
+@pytest_asyncio.fixture(scope="session")
 async def create_test_entity(system_headers: Dict[str, str]):
     async def create_entity(endpoint: str, payload: Dict):
         async with AsyncClient(base_url=base_url, transport=transport) as client:
@@ -39,7 +39,7 @@ async def create_test_entity(system_headers: Dict[str, str]):
     return create_entity
 
 
-@pytest_asyncio.fixture(scope="module")
+@pytest_asyncio.fixture(scope="session")
 async def delete_test_entity(system_headers: Dict):
     async def delete_entity(resource: str, entity_id: str):
         async with AsyncClient(base_url=base_url, transport=transport) as client:
@@ -50,23 +50,42 @@ async def delete_test_entity(system_headers: Dict):
     return delete_entity
 
 
-@pytest_asyncio.fixture(scope="module")
-async def test_state(create_test_entity, delete_test_entity):
+class TestSessionCache:
+    def __init__(self):
+        self.state: Dict
+        self.party: Dict
+
+
+@pytest.fixture(scope="session")
+def session_cache():
+    return TestSessionCache()
+
+
+@pytest_asyncio.fixture(autouse=True, scope="session")
+async def populate_test_session_global_entities(
+    create_test_entity,
+    delete_test_entity,
+    session_cache,
+):
     state_data = {"name": "Washington"}
     state = await create_test_entity("/states/", state_data)
-    yield state
-    await delete_test_entity("states", state["id"])
 
-
-@pytest_asyncio.fixture(scope="module")
-async def test_party(create_test_entity, delete_test_entity):
     party_data = {"name": "Independent"}
     party = await create_test_entity("/partys/", party_data)
-    yield party
+
+    session_cache.state = state
+    session_cache.party = party
+
+    yield None
+
+    await delete_test_entity("states", state["id"])
     await delete_test_entity("partys", party["id"])
 
+    session_cache.state = None
+    session_cache.party = None
 
-@pytest_asyncio.fixture(scope="module")
+
+@pytest_asyncio.fixture(scope="function")
 async def test_user_session(create_test_entity, delete_test_entity):
     user_data = {
         "email": f"{generate_random_string()}@example.com",
@@ -96,7 +115,8 @@ async def test_role(create_test_entity, delete_test_entity):
 
 
 @pytest_asyncio.fixture(scope="function")
-async def test_legislative_body(create_test_entity, delete_test_entity, test_state, test_role):
+async def test_legislative_body(create_test_entity, delete_test_entity, session_cache, test_role):
+    test_state = session_cache.state
     legislative_body_data = {"state_id": test_state["id"], "role_id": test_role["id"]}
     legislative_body = await create_test_entity("/legislative_bodys/", legislative_body_data)
     yield legislative_body
@@ -115,7 +135,8 @@ async def test_committee(create_test_entity, delete_test_entity, test_legislativ
 
 
 @pytest_asyncio.fixture(scope="function")
-async def test_bill(create_test_entity, delete_test_entity, test_state, test_legislative_body):
+async def test_bill(create_test_entity, delete_test_entity, session_cache, test_legislative_body):
+    test_state = session_cache.state
     bill_data = {
         "legiscan_id": random.randint(100000, 999999),
         "identifier": f"H.B.{random.randint(1, 999)}",
@@ -153,7 +174,8 @@ async def test_bill_action(
 
 
 @pytest_asyncio.fixture(scope="function")
-async def test_legislator(create_test_entity, delete_test_entity, test_party):
+async def test_legislator(create_test_entity, delete_test_entity, session_cache):
+    test_party = session_cache.party
     legislator_data = {
         "legiscan_id": f"{random.randint(100,999)}",
         "name": f"John Doe {generate_random_string()}",
