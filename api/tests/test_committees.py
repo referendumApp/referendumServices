@@ -1,6 +1,8 @@
+import pytest
 from api.tests.test_utils import assert_status_code
 
 
+@pytest.mark.asyncio
 async def test_add_remove_legislator_workflow(
     client, system_headers, test_committee, test_legislator
 ):
