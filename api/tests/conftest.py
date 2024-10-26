@@ -50,41 +50,6 @@ async def delete_test_entity(system_headers: Dict):
     return delete_entity
 
 
-class TestSessionCache:
-    def __init__(self):
-        self.state: Dict
-        self.party: Dict
-
-
-@pytest.fixture(scope="session")
-def session_cache():
-    return TestSessionCache()
-
-
-@pytest_asyncio.fixture(autouse=True, scope="session")
-async def populate_test_session_global_entities(
-    create_test_entity,
-    delete_test_entity,
-    session_cache,
-):
-    state_data = {"name": "Washington"}
-    state = await create_test_entity("/states/", state_data)
-
-    party_data = {"name": "Independent"}
-    party = await create_test_entity("/partys/", party_data)
-
-    session_cache.state = state
-    session_cache.party = party
-
-    yield None
-
-    await delete_test_entity("states", state["id"])
-    await delete_test_entity("partys", party["id"])
-
-    session_cache.state = None
-    session_cache.party = None
-
-
 @pytest_asyncio.fixture(scope="function")
 async def test_user_session(create_test_entity, delete_test_entity):
     user_data = {
