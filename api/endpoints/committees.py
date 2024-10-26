@@ -49,12 +49,8 @@ async def get_committee_legislators(
     try:
         return crud.committee.get_legislators(db=db, committee_id=committee_id)
     except ObjectNotFoundException:
-        logger.warning(
-            f"Attempt to read non-existent committee with ID: {committee_id}"
-        )
-        raise HTTPException(
-            status_code=404, detail=f"Committee not found for id: {committee_id}"
-        )
+        logger.warning(f"Attempt to read non-existent committee with ID: {committee_id}")
+        raise HTTPException(status_code=404, detail=f"Committee not found for id: {committee_id}")
     except DatabaseException as e:
         logger.error(f"Database error while retrieving user topics: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
@@ -82,12 +78,8 @@ async def add_legislator_membership(
             db=db, committee_id=committee_id, legislator_id=legislator_id
         )
     except ObjectNotFoundException:
-        logger.warning(
-            f"Attempt to read non-existent committee with ID: {committee_id}"
-        )
-        raise HTTPException(
-            status_code=404, detail=f"Committee not found for id: {committee_id}"
-        )
+        logger.warning(f"Attempt to read non-existent committee with ID: {committee_id}")
+        raise HTTPException(status_code=404, detail=f"Committee not found for id: {committee_id}")
     except DatabaseException as e:
         logger.error(f"Database error while retrieving user topics: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
@@ -115,12 +107,8 @@ async def remove_legislator_membership(
             db=db, committee_id=committee_id, legislator_id=legislator_id
         )
     except ObjectNotFoundException:
-        logger.warning(
-            f"Attempt to read non-existent committee with ID: {committee_id}"
-        )
-        raise HTTPException(
-            status_code=404, detail=f"Committee not found for id: {committee_id}"
-        )
+        logger.warning(f"Attempt to read non-existent committee with ID: {committee_id}")
+        raise HTTPException(status_code=404, detail=f"Committee not found for id: {committee_id}")
     except DatabaseException as e:
         logger.error(f"Database error while retrieving user topics: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")

@@ -84,9 +84,7 @@ async def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
     except SecurityException:
-        logger.warning(
-            f"Login failed: Incorrect password for user - {form_data.username}"
-        )
+        logger.warning(f"Login failed: Incorrect password for user - {form_data.username}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
