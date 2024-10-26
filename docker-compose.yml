@@ -33,8 +33,6 @@ services:
         condition: service_healthy
       local-init:
         condition: service_completed_successfully
-      pipeline:
-        condition: service_completed_successfully
     ports:
       - "5678:5678"  # debugger port
     volumes:
