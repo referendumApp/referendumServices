@@ -51,7 +51,7 @@ async def delete_test_entity(system_headers: Dict):
 
 
 @pytest_asyncio.fixture(scope="session")
-async def test_create_state(create_test_entity, delete_test_entity):
+async def test_state(create_test_entity, delete_test_entity):
     state_data = {"name": "Washington"}
     state = await create_test_entity("/states/", state_data)
     yield state
