@@ -14,25 +14,25 @@ from common.database.referendum.models import VoteChoice
 pytestmark = pytest.mark.asyncio
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def event_loop():
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def system_headers() -> dict:
     return {"X-API_Key": settings.API_ACCESS_TOKEN}
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 async def client() -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(app=app, base_url="http://test", follow_redirects=True) as client:
         yield client
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def create_test_entity(client: AsyncClient, system_headers: Dict[str, str]):
     async def create_entity(endpoint: str, payload: Dict):
         response = await client.post(endpoint, json=payload, headers=system_headers)
@@ -42,7 +42,7 @@ def create_test_entity(client: AsyncClient, system_headers: Dict[str, str]):
     return create_entity
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def delete_test_entity(client: AsyncClient, system_headers: Dict):
     async def delete_entity(resource: str, entity_id: str):
         response = await client.delete(f"/{resource}/{entity_id}", headers=system_headers)
