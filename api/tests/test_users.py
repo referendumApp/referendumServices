@@ -1,11 +1,13 @@
+import pytest
 from api.tests.test_utils import assert_status_code
 
 
-async def test_create_user(test_user_session):
+def test_create_user(test_user_session):
     user, _ = test_user_session
     assert "id" in user
 
 
+@pytest.mark.asyncio
 async def test_create_user_duplicate_email(client, system_headers, test_user_session):
     user, _ = test_user_session
     user_data = {
@@ -19,6 +21,7 @@ async def test_create_user_duplicate_email(client, system_headers, test_user_ses
     assert "Email already registered" in response.json()["detail"]
 
 
+@pytest.mark.asyncio
 async def test_get_user(client, system_headers, test_user_session):
     user, user_headers = test_user_session
 
@@ -31,6 +34,7 @@ async def test_get_user(client, system_headers, test_user_session):
     assert response.json()["email"] == user["email"]
 
 
+@pytest.mark.asyncio
 async def test_update_user(client, test_user_session):
     user, user_headers = test_user_session
 
@@ -45,6 +49,7 @@ async def test_update_user(client, test_user_session):
     assert updated_user["name"] == update_data["name"]
 
 
+@pytest.mark.asyncio
 async def test_update_user_unauthorized(client, system_headers, test_user_session):
     _, user_headers = test_user_session
 
@@ -69,6 +74,7 @@ async def test_update_user_unauthorized(client, system_headers, test_user_sessio
     assert_status_code(response, 204)
 
 
+@pytest.mark.asyncio
 async def test_delete_user(client, system_headers):
     user_data = {
         "email": "deleteuser@example.com",
@@ -86,6 +92,7 @@ async def test_delete_user(client, system_headers):
     assert_status_code(response, 404)
 
 
+@pytest.mark.asyncio
 async def test_delete_user_unauthorized(client, system_headers, test_user_session):
     _, user_headers = test_user_session
 
@@ -105,11 +112,13 @@ async def test_delete_user_unauthorized(client, system_headers, test_user_sessio
     assert_status_code(response, 204)
 
 
+@pytest.mark.asyncio
 async def test_get_non_existent_user(client, system_headers):
     response = await client.get("/users/99999", headers=system_headers)
     assert_status_code(response, 404)
 
 
+@pytest.mark.asyncio
 async def test_user_login(client, test_user_session):
     user, _ = test_user_session
 
@@ -119,12 +128,14 @@ async def test_user_login(client, test_user_session):
     assert "accessToken" in response.json()
 
 
+@pytest.mark.asyncio
 async def test_user_login_invalid_credentials(client):
     login_data = {"username": "nonexistent@example.com", "password": "wrongpassword"}
     response = await client.post("/auth/login", data=login_data)
     assert_status_code(response, 401)
 
 
+@pytest.mark.asyncio
 async def test_get_user_topics(client, test_user_session):
     user, user_headers = test_user_session
 
@@ -133,6 +144,7 @@ async def test_get_user_topics(client, test_user_session):
     assert isinstance(response.json(), list)
 
 
+@pytest.mark.asyncio
 async def test_follow_topic(client, test_user_session, test_topic):
     user, user_headers = test_user_session
     topic = test_topic
@@ -159,6 +171,7 @@ async def test_follow_topic(client, test_user_session, test_topic):
     assert not any(t["id"] == topic["id"] for t in user_topics)
 
 
+@pytest.mark.asyncio
 async def test_follow_nonexistent_topic(client, test_user_session):
     user, user_headers = test_user_session
 
@@ -166,6 +179,7 @@ async def test_follow_nonexistent_topic(client, test_user_session):
     assert_status_code(response, 404)
 
 
+@pytest.mark.asyncio
 async def test_unfollow_nonexistent_topic(client, test_user_session):
     user, user_headers = test_user_session
 
@@ -173,6 +187,7 @@ async def test_unfollow_nonexistent_topic(client, test_user_session):
     assert_status_code(response, 404)
 
 
+@pytest.mark.asyncio
 async def test_get_user_bills(client, test_user_session):
     user, user_headers = test_user_session
 
@@ -181,6 +196,7 @@ async def test_get_user_bills(client, test_user_session):
     assert isinstance(response.json(), list)
 
 
+@pytest.mark.asyncio
 async def test_follow_bill(client, test_user_session, test_bill):
     user, user_headers = test_user_session
 
@@ -208,6 +224,7 @@ async def test_follow_bill(client, test_user_session, test_bill):
     assert not any(t["id"] == test_bill["id"] for t in user_topics)
 
 
+@pytest.mark.asyncio
 async def test_follow_nonexistent_bill(client, test_user_session):
     user, user_headers = test_user_session
 
@@ -215,6 +232,7 @@ async def test_follow_nonexistent_bill(client, test_user_session):
     assert_status_code(response, 404)
 
 
+@pytest.mark.asyncio
 async def test_unfollow_nonexistent_bill(client, test_user_session):
     user, user_headers = test_user_session
 
@@ -222,6 +240,7 @@ async def test_unfollow_nonexistent_bill(client, test_user_session):
     assert_status_code(response, 404)
 
 
+@pytest.mark.asyncio
 async def test_follow_legislator(client, test_user_session, test_legislator):
     user, user_headers = test_user_session
 
