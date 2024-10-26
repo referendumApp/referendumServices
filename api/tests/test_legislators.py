@@ -1,18 +1,14 @@
-import pytest
 from api.tests.test_utils import assert_status_code
 
 
-@pytest.mark.asyncio
 async def test_add_legislator_success(test_legislator):
     assert "id" in test_legislator
 
 
-@pytest.mark.asyncio
 async def test_list_legislators(test_get_legislators):
     assert len(test_get_legislators) > 0
 
 
-@pytest.mark.asyncio
 async def test_add_legislator_already_exists(client, system_headers, test_legislator):
     legislator_data = {**test_legislator}
     legislator_data.pop("id")
@@ -21,7 +17,6 @@ async def test_add_legislator_already_exists(client, system_headers, test_legisl
     assert "legislator already exists" in response.json()["detail"]
 
 
-@pytest.mark.asyncio
 async def test_add_legislator_unauthorized(client, test_legislator):
     legislator_data = {**test_legislator}
     legislator_data.pop("id")
@@ -33,7 +28,6 @@ async def test_add_legislator_unauthorized(client, test_legislator):
     assert_status_code(response, 403)
 
 
-@pytest.mark.asyncio
 async def test_update_legislator_success(client, system_headers, test_legislator):
     updated_data = {**test_legislator, "name": "Updated Test legislator"}
     response = await client.put("/legislators/", json=updated_data, headers=system_headers)
@@ -42,7 +36,6 @@ async def test_update_legislator_success(client, system_headers, test_legislator
     assert updated_legislator["name"] == "Updated Test legislator"
 
 
-@pytest.mark.asyncio
 async def test_update_legislator_not_found(client, system_headers):
     non_existent_legislator = {
         "id": 9999,
@@ -62,7 +55,6 @@ async def test_update_legislator_not_found(client, system_headers):
     assert "legislator not found" in response.json()["detail"]
 
 
-@pytest.mark.asyncio
 async def test_update_legislator_unauthorized(client, test_legislator):
     updated_data = {**test_legislator, "title": "Updated Test legislator"}
     response = await client.put(
@@ -73,7 +65,6 @@ async def test_update_legislator_unauthorized(client, test_legislator):
     assert_status_code(response, 403)
 
 
-@pytest.mark.asyncio
 async def test_get_legislator_success(client, system_headers, test_legislator):
     response = await client.get(f"/legislators/{test_legislator['id']}", headers=system_headers)
     assert_status_code(response, 200)
@@ -82,27 +73,23 @@ async def test_get_legislator_success(client, system_headers, test_legislator):
     assert retrieved_legislator["name"] == test_legislator["name"]
 
 
-@pytest.mark.asyncio
 async def test_get_legislator_not_found(client, system_headers):
     response = await client.get("/legislators/9999", headers=system_headers)
     assert_status_code(response, 404)
     assert "legislator not found" in response.json()["detail"]
 
 
-@pytest.mark.asyncio
 async def test_delete_legislator_success(client, system_headers, test_legislator):
     response = await client.delete(f"/legislators/{test_legislator['id']}", headers=system_headers)
     assert_status_code(response, 204)
 
 
-@pytest.mark.asyncio
 async def test_delete_legislator_not_found(client, system_headers):
     response = await client.delete("/legislators/9999", headers=system_headers)
     assert_status_code(response, 404)
     assert "legislator not found" in response.json()["detail"]
 
 
-@pytest.mark.asyncio
 async def test_delete_legislator_unauthorized(client, test_legislator):
     response = await client.delete(
         f"/legislators/{test_legislator['id']}",
