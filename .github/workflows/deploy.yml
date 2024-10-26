@@ -300,21 +300,18 @@ jobs:
           "name": (.Name | split("/")[-1]),
           "value": .Value
         }]')
-        ENV_VARS=$(echo "$ENV_VARS" | jq '
+        
+        # Get secrets and add to environment variables
+        POSTGRES_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.POSTGRES_PASSWORD_SECRET_NAME }} --query SecretString --output text)
+        POSTGRES_PASSWORD=$(echo $POSTGRES_SECRET | jq -r '.password')
+        
+        ENV_VARS=$(echo "$ENV_VARS" | jq --arg env "${{ env.DEPLOY_ENV }}" --arg pg_pass "$POSTGRES_PASSWORD" '
           . + [
-            {"name": "ENVIRONMENT", "value": "${{ env.DEPLOY_ENV }}"}
+            {"name": "ENVIRONMENT", "value": $env},
+            {"name": "POSTGRES_PASSWORD", "value": $pg_pass}
           ]
         ')
-        
-        # Get secrets
-        SECRET_ARN=$(aws secretsmanager describe-secret --secret-id ${{ env.POSTGRES_PASSWORD_SECRET_NAME }} --query 'ARN' --output text)
-        SECRETS_JSON=$(jq -n --arg secret_arn "$SECRET_ARN" '[
-          {
-            "name": "POSTGRES_PASSWORD",
-            "valueFrom": $secret_arn
-          }
-        ]')
-
+    
         # Get current task definition
         TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition ${{ env.PIPELINE_TASK_DEFINITION }} --query taskDefinition --output json)
         
@@ -324,12 +321,10 @@ jobs:
           jq \
             --arg IMAGE "${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_PIPELINE }}:${{ env.IMAGE_TAG }}" \
             --argjson ENV_VARS "$ENV_VARS" \
-            --argjson SECRETS "$SECRETS_JSON" \
             '
               del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy) |
               .containerDefinitions[0].image = $IMAGE |
               .containerDefinitions[0].environment = $ENV_VARS |
-              .containerDefinitions[0].secrets = $SECRETS |
               .cpu = "1024" |
               .memory = "3072" |
               .networkMode = "awsvpc"
