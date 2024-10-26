@@ -1,8 +1,6 @@
-import pytest
 from api.tests.test_utils import assert_status_code
 
 
-@pytest.mark.asyncio
 async def test_signup_success(client):
     user_data = {
         "email": "newuser@example.com",
@@ -17,7 +15,6 @@ async def test_signup_success(client):
     assert "id" in created_user
 
 
-@pytest.mark.asyncio
 async def test_signup_existing_email(client):
     user_data = {
         "email": "existinguser@example.com",
@@ -34,7 +31,6 @@ async def test_signup_existing_email(client):
     assert "Email already registered" in response.json()["detail"]
 
 
-@pytest.mark.asyncio
 async def test_signup_invalid_email(client):
     user_data = {
         "email": "invalidemailstring",
@@ -47,7 +43,6 @@ async def test_signup_invalid_email(client):
     assert "@" in str(response.json()["detail"])
 
 
-@pytest.mark.asyncio
 async def test_signup_invalid_password(client):
     user_data = {
         "email": "invalidpassworduser@example.com",
@@ -60,7 +55,6 @@ async def test_signup_invalid_password(client):
     assert "8 characters" in str(response.json()["detail"])
 
 
-@pytest.mark.asyncio
 async def test_login_success(client):
     # First, create a user
     user_data = {
@@ -79,7 +73,6 @@ async def test_login_success(client):
     assert token_data["tokenType"] == "bearer"
 
 
-@pytest.mark.asyncio
 async def test_login_incorrect_password(client):
     # First, create a user
     user_data = {
@@ -96,7 +89,6 @@ async def test_login_incorrect_password(client):
     assert "Incorrect username or password" in response.json()["detail"]
 
 
-@pytest.mark.asyncio
 async def test_login_nonexistent_user(client):
     login_data = {
         "username": "nonexistent@example.com",
@@ -108,7 +100,6 @@ async def test_login_nonexistent_user(client):
     assert "Incorrect username or password" in response.json()["detail"]
 
 
-@pytest.mark.asyncio
 async def test_login_missing_fields(client):
     response = await client.post("/auth/login", data={})
     assert_status_code(response, 422)  # Unprocessable Entity

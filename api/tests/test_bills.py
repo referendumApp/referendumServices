@@ -1,16 +1,14 @@
-import pytest
 from api.tests.test_utils import assert_status_code
 
 
-def test_add_bill_success(test_bill):
+async def test_add_bill_success(test_bill):
     assert "id" in test_bill
 
 
-def test_list_bills(test_get_bills):
+async def test_list_bills(test_get_bills):
     assert len(test_get_bills) > 0
 
 
-@pytest.mark.asyncio
 async def test_add_bill_already_exists(client, system_headers, test_bill):
     bill_data = {**test_bill}
     bill_data.pop("id")
@@ -19,7 +17,6 @@ async def test_add_bill_already_exists(client, system_headers, test_bill):
     assert "bill already exists" in response.json()["detail"]
 
 
-@pytest.mark.asyncio
 async def test_add_bill_unauthorized(client, test_bill):
     bill_data = {**test_bill}
     bill_data.pop("id")
@@ -31,7 +28,6 @@ async def test_add_bill_unauthorized(client, test_bill):
     assert_status_code(response, 403)
 
 
-@pytest.mark.asyncio
 async def test_update_bill(client, system_headers, test_bill):
     updated_data = {**test_bill, "title": "Updated Bill Title"}
     response = await client.put("/bills", json=updated_data, headers=system_headers)
@@ -40,7 +36,6 @@ async def test_update_bill(client, system_headers, test_bill):
     assert updated_bill["title"] == "Updated Bill Title"
 
 
-@pytest.mark.asyncio
 async def test_update_bill_not_found(client, system_headers):
     non_existent_bill = {
         "id": 9999,
@@ -60,7 +55,6 @@ async def test_update_bill_not_found(client, system_headers):
     assert "bill not found" in response.json()["detail"]
 
 
-@pytest.mark.asyncio
 async def test_update_bill_unauthorized(client, test_bill):
     updated_data = {**test_bill, "title": "Updated Test Bill"}
     response = await client.put(
@@ -69,7 +63,6 @@ async def test_update_bill_unauthorized(client, test_bill):
     assert_status_code(response, 403)
 
 
-@pytest.mark.asyncio
 async def test_get_bill_success(client, system_headers, test_bill):
     response = await client.get(f"/bills/{test_bill['id']}", headers=system_headers)
     assert_status_code(response, 200)
@@ -78,27 +71,23 @@ async def test_get_bill_success(client, system_headers, test_bill):
     assert retrieved_bill["title"] == test_bill["title"]
 
 
-@pytest.mark.asyncio
 async def test_get_bill_not_found(client, system_headers):
     response = await client.get("/bills/9999", headers=system_headers)
     assert_status_code(response, 404)
     assert "bill not found" in response.json()["detail"]
 
 
-@pytest.mark.asyncio
 async def test_delete_bill_success(client, system_headers, test_bill):
     response = await client.delete(f"/bills/{test_bill['id']}", headers=system_headers)
     assert_status_code(response, 204)
 
 
-@pytest.mark.asyncio
 async def test_delete_bill_not_found(client, system_headers):
     response = await client.delete("/bills/9999", headers=system_headers)
     assert_status_code(response, 404)
     assert "bill not found" in response.json()["detail"]
 
 
-@pytest.mark.asyncio
 async def test_delete_bill_unauthorized(client, test_bill):
     response = await client.delete(
         f"/bills/{test_bill['id']}", headers={"Authorization": "Bearer user_token"}
@@ -106,7 +95,6 @@ async def test_delete_bill_unauthorized(client, test_bill):
     assert_status_code(response, 403)
 
 
-@pytest.mark.asyncio
 async def test_get_bill_text_success(client, system_headers, test_bill):
     response = await client.get(f"/bills/{test_bill['id']}/version/1/text", headers=system_headers)
     assert_status_code(response, 200)
@@ -117,7 +105,6 @@ async def test_get_bill_text_success(client, system_headers, test_bill):
     assert bill_text["text"] == "Lorem ipsum dolor sit amet"
 
 
-@pytest.mark.asyncio
 async def test_add_remove_bill_topic(client, system_headers, test_bill, test_topic):
     # Add topic to bill
     response = await client.post(
@@ -145,7 +132,6 @@ async def test_add_remove_bill_topic(client, system_headers, test_bill, test_top
     assert len(topics) == 0
 
 
-@pytest.mark.asyncio
 async def test_add_remove_bill_sponsor(client, system_headers, test_bill, test_legislator):
     # Add legislator to bill
     response = await client.post(

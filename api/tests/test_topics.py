@@ -1,12 +1,10 @@
-import pytest
 from api.tests.test_utils import assert_status_code
 
 
-def test_add_topic_success(test_topic):
+async def test_add_topic_success(test_topic):
     assert "id" in test_topic
 
 
-@pytest.mark.asyncio
 async def test_add_topic_already_exists(client, system_headers, test_topic):
     topic_data = {**test_topic}
     topic_data.pop("id")
@@ -15,7 +13,6 @@ async def test_add_topic_already_exists(client, system_headers, test_topic):
     assert "topic already exists" in response.json()["detail"]
 
 
-@pytest.mark.asyncio
 async def test_add_topic_unauthorized(client, test_topic):
     topic_data = {**test_topic}
     topic_data.pop("id")
@@ -27,7 +24,6 @@ async def test_add_topic_unauthorized(client, test_topic):
     assert_status_code(response, 403)
 
 
-@pytest.mark.asyncio
 async def test_update_topic_success(client, system_headers, test_topic):
     updated_data = {**test_topic, "name": "Updated topic Name"}
     response = await client.put("/topics", json=updated_data, headers=system_headers)
@@ -36,7 +32,6 @@ async def test_update_topic_success(client, system_headers, test_topic):
     assert updated_topic["name"] == "Updated topic Name"
 
 
-@pytest.mark.asyncio
 async def test_update_topic_not_found(client, system_headers):
     non_existent_topic = {
         "id": 9999,
@@ -47,7 +42,6 @@ async def test_update_topic_not_found(client, system_headers):
     assert "topic not found" in response.json()["detail"]
 
 
-@pytest.mark.asyncio
 async def test_update_topic_unauthorized(client, test_topic):
     updated_data = {**test_topic, "name": "Updated topic Name"}
     response = await client.put(
@@ -56,7 +50,6 @@ async def test_update_topic_unauthorized(client, test_topic):
     assert_status_code(response, 403)
 
 
-@pytest.mark.asyncio
 async def test_get_topic_success(client, system_headers, test_topic):
     response = await client.get(f"/topics/{test_topic['id']}", headers=system_headers)
     assert_status_code(response, 200)
@@ -65,27 +58,23 @@ async def test_get_topic_success(client, system_headers, test_topic):
     assert retrieved_topic["name"] == test_topic["name"]
 
 
-@pytest.mark.asyncio
 async def test_get_topic_not_found(client, system_headers):
     response = await client.get("/topics/9999", headers=system_headers)
     assert_status_code(response, 404)
     assert "topic not found" in response.json()["detail"]
 
 
-@pytest.mark.asyncio
 async def test_delete_topic_success(client, system_headers, test_topic):
     response = await client.delete(f"/topics/{test_topic['id']}", headers=system_headers)
     assert_status_code(response, 204)
 
 
-@pytest.mark.asyncio
 async def test_delete_topic_not_found(client, system_headers):
     response = await client.delete("/topics/9999", headers=system_headers)
     assert_status_code(response, 404)
     assert "topic not found" in response.json()["detail"]
 
 
-@pytest.mark.asyncio
 async def test_delete_bill_unauthorized(client, test_topic):
     response = await client.delete(
         f"/topics/{test_topic['id']}", headers={"Authorization": "Bearer user_token"}

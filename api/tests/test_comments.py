@@ -1,8 +1,6 @@
-import pytest
 from api.tests.test_utils import assert_status_code
 
 
-@pytest.mark.asyncio
 async def test_replies(client, test_user_session, test_bill):
     user, user_headers = test_user_session
 
@@ -66,7 +64,6 @@ async def test_replies(client, test_user_session, test_bill):
     assert_status_code(response, 404)
 
 
-@pytest.mark.asyncio
 async def test_delete_with_likes(client, test_user_session, test_bill):
     user, user_headers = test_user_session
 
