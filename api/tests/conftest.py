@@ -33,6 +33,8 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
 @pytest.fixture(scope="session")
 def create_test_entity(client: AsyncClient, system_headers: Dict[str, str]):
     async def create_entity(endpoint: str, payload: Dict):
+        if "id" not in payload:
+            payload["id"] = 999999
         response = await client.post(endpoint, json=payload, headers=system_headers)
         assert_status_code(response, 201)
         return response.json()
