@@ -3,6 +3,7 @@ import random
 from typing import AsyncGenerator, Dict
 
 import pytest
+import pytest_asyncio
 from httpx import AsyncClient
 from api.tests.test_utils import assert_status_code, generate_random_string
 
@@ -50,7 +51,7 @@ def delete_test_entity(client: AsyncClient, system_headers: Dict):
     return delete_entity
 
 
-@pytest.fixture(scope="module")
+@pytest_asyncio.fixture(scope="module")
 async def test_state(create_test_entity, delete_test_entity):
     state_data = {"name": "Washington"}
     state = await create_test_entity("/states", state_data)
@@ -58,7 +59,7 @@ async def test_state(create_test_entity, delete_test_entity):
     await delete_test_entity("states", state["id"])
 
 
-@pytest.fixture(scope="module")
+@pytest_asyncio.fixture(scope="module")
 async def test_party(create_test_entity, delete_test_entity):
     party_data = {"name": "Independent"}
     party = await create_test_entity("/partys", party_data)
@@ -66,7 +67,7 @@ async def test_party(create_test_entity, delete_test_entity):
     await delete_test_entity("partys", party["id"])
 
 
-@pytest.fixture(scope="module")
+@pytest_asyncio.fixture(scope="module")
 async def test_user_session(create_test_entity, delete_test_entity):
     user_data = {
         "email": f"{generate_random_string()}@example.com",
@@ -80,14 +81,14 @@ async def test_user_session(create_test_entity, delete_test_entity):
     await delete_test_entity("users", user["id"])
 
 
-@pytest.fixture(scope="module")
+@pytest_asyncio.fixture(scope="module")
 async def test_topic(create_test_entity, delete_test_entity):
     topic = await create_test_entity("/topics", {"name": generate_random_string()})
     yield topic
     await delete_test_entity("topics", topic["id"])
 
 
-@pytest.fixture(scope="module")
+@pytest_asyncio.fixture(scope="module")
 async def test_role(create_test_entity, delete_test_entity):
     role_data = {"name": "House"}
     role = await create_test_entity("/roles", role_data)
@@ -95,7 +96,7 @@ async def test_role(create_test_entity, delete_test_entity):
     await delete_test_entity("roles", role["id"])
 
 
-@pytest.fixture(scope="module")
+@pytest_asyncio.fixture(scope="module")
 async def test_legislative_body(create_test_entity, delete_test_entity, test_state, test_role):
     legislative_body_data = {"state_id": test_state["id"], "role_id": test_role["id"]}
     legislative_body = await create_test_entity("/legislative_bodys", legislative_body_data)
@@ -103,7 +104,7 @@ async def test_legislative_body(create_test_entity, delete_test_entity, test_sta
     await delete_test_entity("legislative_bodys", legislative_body["id"])
 
 
-@pytest.fixture(scope="module")
+@pytest_asyncio.fixture(scope="module")
 async def test_committee(create_test_entity, delete_test_entity, test_legislative_body):
     committee_data = {
         "name": f"Test Committee {generate_random_string()}",
@@ -114,7 +115,7 @@ async def test_committee(create_test_entity, delete_test_entity, test_legislativ
     await delete_test_entity("committees", committee["id"])
 
 
-@pytest.fixture(scope="module")
+@pytest_asyncio.fixture(scope="module")
 async def test_bill(create_test_entity, delete_test_entity, test_state, test_legislative_body):
     bill_data = {
         "legiscan_id": random.randint(100000, 999999),
@@ -133,14 +134,14 @@ async def test_bill(create_test_entity, delete_test_entity, test_state, test_leg
     await delete_test_entity("bills", bill["id"])
 
 
-@pytest.fixture(scope="module")
+@pytest_asyncio.fixture(scope="module")
 async def test_get_bills(client, system_headers, test_bill):
     bills = client.get("/bills", headers=system_headers)
     assert_status_code(bills, 200)
     return bills.json()
 
 
-@pytest.fixture(scope="module")
+@pytest_asyncio.fixture(scope="module")
 async def test_bill_action(
     create_test_entity,
     delete_test_entity,
@@ -152,7 +153,7 @@ async def test_bill_action(
     await delete_test_entity("bill_actions", bill_action["id"])
 
 
-@pytest.fixture(scope="module")
+@pytest_asyncio.fixture(scope="module")
 async def test_legislator(create_test_entity, delete_test_entity, test_party):
     legislator_data = {
         "legiscan_id": f"{random.randint(100,999)}",
@@ -169,14 +170,14 @@ async def test_legislator(create_test_entity, delete_test_entity, test_party):
     await delete_test_entity("legislators", legislator["id"])
 
 
-@pytest.fixture(scope="module")
+@pytest_asyncio.fixture(scope="module")
 async def test_get_legislators(client, system_headers, test_legislator):
     legislators = await client.get("/legislators", headers=system_headers)
     assert_status_code(legislators, 200)
     return legislators.json()
 
 
-@pytest.fixture(scope="module")
+@pytest_asyncio.fixture(scope="module")
 async def test_vote(
     client: AsyncClient,
     test_user_session: Dict,
