@@ -4,7 +4,7 @@ from common.database.referendum.models import VoteChoice
 
 async def test_cast_vote_success(client, test_user_session, test_bill):
     user, headers = test_user_session
-    vote_data = {"bill_id": test_bill["id"], "vote_choice": VoteChoice.YES.value}
+    vote_data = {"billId": test_bill["id"], "voteChoice": VoteChoice.YES.value}
     response = await client.put(f"/users/{user['id']}/votes", json=vote_data, headers=headers)
     assert_status_code(response, 200)
     created_vote = response.json()
