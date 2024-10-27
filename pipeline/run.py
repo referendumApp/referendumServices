@@ -35,10 +35,13 @@ def check_db_connection(db_session):
     except SQLAlchemyError as e:
         logger.error(f"Database connection failed: {str(e)}")
         return False
+    except Exception as e:
+        logger.error(f"Unexpected error during database connection check: {str(e)}")
+        db_session.invalidate()
+        raise
 
 
 def extract(etl_configs) -> Dict[str, pd.DataFrame]:
-    logger.info("EXTRACT: Extracting data")
     legiscan_db = next(get_legiscan_api_db())
 
     if check_db_connection(legiscan_db):
@@ -46,6 +49,7 @@ def extract(etl_configs) -> Dict[str, pd.DataFrame]:
         with legiscan_db.connection() as conn:
             for config in etl_configs:
                 table_name = config["source"]
+                logger.info(f"Extracting table {table_name}")
 
                 try:
                     df = pd.read_sql(table_name, con=conn)
@@ -68,9 +72,9 @@ def extract(etl_configs) -> Dict[str, pd.DataFrame]:
 
 
 def transform(etl_configs) -> Dict[str, pd.DataFrame]:
-    logger.info("EXTRACT: Transforming data")
     for config in etl_configs:
         table_name = config["source"]
+        logger.info(f"Transforming table {table_name}")
 
         try:
 
@@ -103,7 +107,6 @@ def transform(etl_configs) -> Dict[str, pd.DataFrame]:
 
 
 def load(etl_configs):
-    logger.info("EXTRACT: Loading data")
     referendum_db = next(get_referendum_db())
 
     if check_db_connection(referendum_db):
@@ -123,6 +126,7 @@ def load(etl_configs):
         # Process the ETL load
         for config in etl_configs:
             destination_table = config["destination"]
+            logger.info(f"Loading table {destination_table}")
             df = config["dataframe"]
             try:
                 df.to_sql(
@@ -350,14 +354,18 @@ def orchestrate_etl():
         # },
     ]
     try:
+        logger.info("ETL process starting")
+        logger.info("Beginning extraction")
         etl_configs = extract(etl_configs)
+        logger.info("Beginning transformation")
         etl_configs = transform(etl_configs)
+        logger.info("Beginning load")
         load(etl_configs)
         logger.info("ETL process completed successfully")
     except ConnectionError as e:
         logger.error(f"ETL process failed: {str(e)}")
     except Exception as e:
-        logger.error(f"An unexpected error occurred during ETL process: {str(e)}")
+        logger.error(f"ETL process failed with unexpected error: {str(e)}")
 
 
 if __name__ == "__main__":
