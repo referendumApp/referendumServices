@@ -295,7 +295,7 @@ async def cast_vote(
 ) -> models.UserVote:
     try:
         user_vote = schemas.UserVote(**vote.model_dump(), user_id=user.id)
-        return crud.user_vote.create_or_update_vote(db=db, vote=user_vote)
+        return crud.user_vote.cast_vote(db=db, vote=user_vote)
     except DatabaseException as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
@@ -328,6 +328,28 @@ async def get_user_votes(
                     detail=f"User {auth_info['user'].id} not allowed to fetch all votes for user {user_id}",
                 )
         return crud.user_vote.get_votes_for_user(db=db, user_id=user_id, bill_id=bill_id)
+    except DatabaseException as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@router.delete(
+    "/{user_id}/votes",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Uncast vote",
+    responses={
+        204: {"description": "Vote deleted successfully"},
+        401: {"model": ErrorResponse, "description": "Unauthorized"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def uncast_vote(
+    bill_id: int,
+    user_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(verify_system_token),
+):
+    try:
+        return crud.user_vote.uncast_vote(db=db, bill_id=bill_id, user_id=user_id)
     except DatabaseException as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 

@@ -14,7 +14,7 @@ async def test_create_user_duplicate_email(client, system_headers, test_user_ses
         "name": "Duplicate User",
     }
 
-    response = await client.post("/users", json=user_data, headers=system_headers)
+    response = await client.post("/users/", json=user_data, headers=system_headers)
     assert_status_code(response, 409)
     assert "Email already registered" in response.json()["detail"]
 
@@ -39,7 +39,7 @@ async def test_update_user(client, test_user_session):
         "password": "newpassword",
         "name": "Updated User",
     }
-    response = await client.put("/users", json=update_data, headers=user_headers)
+    response = await client.put("/users/", json=update_data, headers=user_headers)
     assert_status_code(response, 200)
     updated_user = response.json()
     assert updated_user["name"] == update_data["name"]
@@ -53,7 +53,7 @@ async def test_update_user_unauthorized(client, system_headers, test_user_sessio
         "password": "password",
         "name": "Unauthorized Update User",
     }
-    create_response = await client.post("/users", json=user_data, headers=system_headers)
+    create_response = await client.post("/users/", json=user_data, headers=system_headers)
     assert_status_code(create_response, 201)
     created_user = create_response.json()
 
@@ -62,7 +62,7 @@ async def test_update_user_unauthorized(client, system_headers, test_user_sessio
         "password": "newpassword",
         "name": "Updated User",
     }
-    response = await client.put("/users", json=update_data, headers=user_headers)
+    response = await client.put("/users/", json=update_data, headers=user_headers)
     assert_status_code(response, 403)
 
     response = await client.delete(f"/users/{created_user['id']}", headers=system_headers)
@@ -75,7 +75,7 @@ async def test_delete_user(client, system_headers):
         "password": "password",
         "name": "Delete User",
     }
-    create_response = await client.post("/users", json=user_data, headers=system_headers)
+    create_response = await client.post("/users/", json=user_data, headers=system_headers)
     assert_status_code(create_response, 201)
     created_user = create_response.json()
 
@@ -94,7 +94,7 @@ async def test_delete_user_unauthorized(client, system_headers, test_user_sessio
         "password": "password",
         "name": "Unauthorized Delete User",
     }
-    create_response = await client.post("/users", json=user_data, headers=system_headers)
+    create_response = await client.post("/users/", json=user_data, headers=system_headers)
     assert_status_code(create_response, 201)
     created_user = create_response.json()
 
