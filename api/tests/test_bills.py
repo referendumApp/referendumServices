@@ -10,8 +10,7 @@ async def test_list_bills(test_get_bills):
 
 
 async def test_add_bill_already_exists(client, system_headers, test_bill):
-    bill_data = {**test_bill}
-    bill_data.pop("id")
+    bill_data = {**test_bill, "id": 9000}
     response = await client.post("/bills/", json=bill_data, headers=system_headers)
     assert_status_code(response, 409)
     assert "bill already exists" in response.json()["detail"]
