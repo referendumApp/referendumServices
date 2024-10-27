@@ -6,8 +6,7 @@ async def test_add_topic_success(test_topic):
 
 
 async def test_add_topic_already_exists(client, system_headers, test_topic):
-    topic_data = {**test_topic}
-    topic_data.pop("id")
+    topic_data = {**test_topic, "id": 9000}
     response = await client.post("/topics/", json=topic_data, headers=system_headers)
     assert_status_code(response, 409)
     assert "topic already exists" in response.json()["detail"]
