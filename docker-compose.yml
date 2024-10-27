@@ -4,50 +4,53 @@ services:
       context: .
       target: api
     environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_HOST=db
-      - POSTGRES_PORT=5432
-      - REFERENDUM_DB_NAME=referendum
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - REFERENDUM_DB_NAME=${REFERENDUM_DB_NAME}
     ports:
       - "80:80"
     profiles: ["base"]
 
   api:
+    container_name: api
     extends:
       service: api-base
     command: [ "python", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "80" ]
     profiles: ["api"]
 
   api-local:
+    container_name: api-local
     extends:
       service: api-base
     environment:
       - ENVIRONMENT=local
-      - API_ACCESS_TOKEN=12345
-      - SECRET_KEY=12345
+      - API_ACCESS_TOKEN=${API_ACCESS_TOKEN}
+      - SECRET_KEY=${API_ACCESS_TOKEN}
     depends_on:
       db:
         condition: service_healthy
       local-init:
         condition: service_completed_successfully
-      pipeline:
-        condition: service_completed_successfully
     ports:
       - "5678:5678"  # debugger port
     volumes:
-      - ./api:/code/api  #mount the api and common directory
+      - ./api:/code/api  # mount the api and common directory
       - ./common:/code/common
     command: ["python", "-m", "debugpy", "--listen", "0.0.0.0:5678", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
     profiles: ["local"]
 
   db:
+    container_name: db
     image: postgres:13
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U user"]
       interval: 5s
@@ -56,16 +59,17 @@ services:
     profiles: ["local", "test"]
 
   local-init:
+    container_name: local_init
     build:
       context: .
       target: local-init
     environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_HOST=db
-      - POSTGRES_PORT=5432
-      - LEGISCAN_API_DB_NAME=legiscan_api
-      - REFERENDUM_DB_NAME=referendum
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - LEGISCAN_API_DB_NAME=${LEGISCAN_API_DB_NAME}
+      - REFERENDUM_DB_NAME=${REFERENDUM_DB_NAME}
     depends_on:
       db:
         condition: service_healthy
@@ -73,6 +77,7 @@ services:
     profiles: ["local", "test"]
 
   pipeline:
+    container_name: pipeline
     build:
       context: .
       target: pipeline
@@ -82,15 +87,16 @@ services:
       local-init:
         condition: service_completed_successfully
     environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_HOST=db
-      - POSTGRES_PORT=5432
-      - LEGISCAN_API_DB_NAME=legiscan_api
-      - REFERENDUM_DB_NAME=referendum
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - LEGISCAN_API_DB_NAME=${LEGISCAN_API_DB_NAME}
+      - REFERENDUM_DB_NAME=${REFERENDUM_DB_NAME}
     profiles: ["local"]
 
   test:
+    container_name: test
     build:
       context: .
       target: test
@@ -101,14 +107,14 @@ services:
         condition: service_completed_successfully
     environment:
       - ENVIRONMENT=test
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_HOST=db
-      - POSTGRES_PORT=5432
-      - LEGISCAN_API_DB_NAME=legiscan_api
-      - REFERENDUM_DB_NAME=referendum
-      - API_ACCESS_TOKEN=12345
-      - SECRET_KEY=12345
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - LEGISCAN_API_DB_NAME=${LEGISCAN_API_DB_NAME}
+      - REFERENDUM_DB_NAME=${REFERENDUM_DB_NAME}
+      - API_ACCESS_TOKEN=${API_ACCESS_TOKEN}
+      - SECRET_KEY=${API_ACCESS_TOKEN}
     profiles: ["test"]
 
 volumes:
