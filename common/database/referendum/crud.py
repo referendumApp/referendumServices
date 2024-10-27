@@ -455,7 +455,7 @@ class LegislatorVoteCRUD(
 
 
 class UserVoteCRUD(BaseCRUD[models.UserVote, schemas.UserVoteCreate, schemas.UserVote]):
-    def create_or_update_vote(self, db: Session, vote: schemas.UserVote):
+    def cast_vote(self, db: Session, vote: schemas.UserVote):
         try:
             db_vote = (
                 db.query(self.model)
@@ -476,6 +476,29 @@ class UserVoteCRUD(BaseCRUD[models.UserVote, schemas.UserVoteCreate, schemas.Use
             db.commit()
             db.refresh(db_vote)
             return db_vote
+        except SQLAlchemyError as e:
+            db.rollback()
+            raise DatabaseException(f"Database error: {str(e)}")
+
+    def uncast_vote(self, db: Session, user_id: int, bill_id: int) -> None:
+        try:
+            db_vote = (
+                db.query(self.model)
+                .filter(
+                    models.UserVote.user_id == user_id,
+                    models.UserVote.bill_id == bill_id,
+                )
+                .first()
+            )
+
+            if db_vote:
+                db.delete(db_vote)
+                db.commit()
+            else:
+                raise ObjectNotFoundException(
+                    f"No vote exists for user {user_id} on bill {bill_id}"
+                )
+
         except SQLAlchemyError as e:
             db.rollback()
             raise DatabaseException(f"Database error: {str(e)}")
