@@ -1,4 +1,4 @@
-name: Deploy Services
+name: Run Pipeline Task
 
 on:
   workflow_dispatch:
@@ -28,7 +28,7 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-role
           aws-region: ${{ env.AWS_REGION }}
-      - name: Run pipeline task
+      - name: Run task
         run: |
           aws ecs run-task \
             --cluster ${{ env.PIPELINE_CLUSTER }} \
