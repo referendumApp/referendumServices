@@ -79,9 +79,7 @@ class User(Base):
     followed_topics = relationship("Topic", secondary=user_topic_follows)
     followed_bills = relationship("Bill", secondary=user_bill_follows)
     followed_legislators = relationship("Legislator", secondary=user_legislator_follows)
-    liked_comments = relationship(
-        "Comment", secondary=user_comment_likes, back_populates="likes"
-    )
+    liked_comments = relationship("Comment", secondary=user_comment_likes, back_populates="likes")
 
 
 class Party(Base):
@@ -144,20 +142,16 @@ class Bill(Base):
     title = Column(String, nullable=False)
     description = Column(String)
     state_id = Column(Integer, ForeignKey("states.id"), index=True)
-    legislative_body_id = Column(
-        Integer, ForeignKey("legislative_bodys.id"), index=True
-    )
+    legislative_body_id = Column(Integer, ForeignKey("legislative_bodys.id"), index=True)
     session_id = Column(Integer, index=True)
-    briefing = Column(String)
+    briefing = Column(String, nullable=True)
     status_id = Column(Integer)
     status_date = Column(Date)
 
     state = relationship("State")
     legislative_body = relationship("LegislativeBody")
     topics = relationship("Topic", secondary=bill_topics)
-    sponsors = relationship(
-        "Legislator", secondary=bill_sponsors, back_populates="sponsored_bills"
-    )
+    sponsors = relationship("Legislator", secondary=bill_sponsors, back_populates="sponsored_bills")
 
 
 class BillVersion(Base):
@@ -197,9 +191,7 @@ class Legislator(Base):
     committees = relationship(
         "Committee", secondary=committee_membership, back_populates="legislators"
     )
-    sponsored_bills = relationship(
-        "Bill", secondary=bill_sponsors, back_populates="sponsors"
-    )
+    sponsored_bills = relationship("Bill", secondary=bill_sponsors, back_populates="sponsors")
 
 
 class UserVote(Base):
@@ -228,6 +220,4 @@ class Comment(Base):
     parent_id = Column(Integer, ForeignKey("comments.id"))
     comment = Column(String, nullable=False)
 
-    likes = relationship(
-        "User", secondary=user_comment_likes, back_populates="liked_comments"
-    )
+    likes = relationship("User", secondary=user_comment_likes, back_populates="liked_comments")

@@ -1,5 +1,6 @@
 from datetime import date
 from pydantic import BaseModel, EmailStr, Field, ConfigDict, create_model
+from pydantic.alias_generators import to_camel
 from typing import TypeVar, Generic, List, Type, Dict, Any, Optional
 
 from .models import VoteChoice, BillActionType
@@ -8,7 +9,16 @@ from .models import VoteChoice, BillActionType
 T = TypeVar("T")
 
 
-class BaseSchema(BaseModel):
+class CamelCaseBaseModel(BaseModel):
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        protected_namespaces=(),
+        arbitrary_types_allowed=True,
+    )
+
+
+class BaseSchema(CamelCaseBaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -50,58 +60,53 @@ def create_schema_container(
         },
     )
 
-    return SchemaContainer(
-        Base=base_class, Record=record_class, Full=relationship_class
-    )
+    return SchemaContainer(Base=base_class, Record=record_class, Full=relationship_class)
 
 
 Party = create_schema_container(
     name="Party",
-    base_fields={"name": (str, ...)},
-    record_fields={"id": (int, ...)},
+    base_fields={"id": (int, ...), "name": (str, ...)},
 )
 
 
 Role = create_schema_container(
     name="Role",
-    base_fields={"name": (str, ...)},
-    record_fields={"id": (int, ...)},
+    base_fields={"id": (int, ...), "name": (str, ...)},
 )
 
 
 State = create_schema_container(
     name="State",
-    base_fields={"name": (str, ...)},
-    record_fields={"id": (int, ...)},
+    base_fields={"id": (int, ...), "name": (str, ...)},
 )
 
 
 LegislativeBody = create_schema_container(
     name="State",
-    base_fields={"role_id": (int, ...), "state_id": (int, ...)},
-    record_fields={"id": (int, ...)},
+    base_fields={"id": (int, ...), "role_id": (int, ...), "state_id": (int, ...)},
 )
 
 
 Committee = create_schema_container(
     name="Committee",
-    base_fields={"name": (str, ...), "legislative_body_id": (int, ...)},
-    record_fields={"id": (int, ...)},
+    base_fields={
+        "id": (int, ...),
+        "name": (str, ...),
+        "legislative_body_id": (int, ...),
+    },
 )
 
 
 Topic = create_schema_container(
     name="Topic",
-    base_fields={
-        "name": (str, ...),
-    },
-    record_fields={"id": (int, ...)},
+    base_fields={"id": (int, ...), "name": (str, ...)},
 )
 
 
 Legislator = create_schema_container(
     name="Legislator",
     base_fields={
+        "id": (int, ...),
         "legiscan_id": (int, ...),
         "name": (str, ...),
         "image_url": (Optional[str], None),
@@ -113,7 +118,6 @@ Legislator = create_schema_container(
         "phone": (Optional[str], None),
         "twitter": (Optional[str], None),
     },
-    record_fields={"id": (int, ...)},
     relationship_fields={"committees": (List[Committee.Record], [])},
 )
 
@@ -124,13 +128,13 @@ BillVersion = create_schema_container(
         "bill_id": (int, ...),
         "version": (int, ...),
     },
-    record_fields={"id": (int, ...)},
 )
 
 
 Bill = create_schema_container(
     name="Bill",
     base_fields={
+        "id": (int, ...),
         "legiscan_id": (int, ...),
         "identifier": (str, ...),
         "title": (str, ...),
@@ -139,9 +143,8 @@ Bill = create_schema_container(
         "state_id": (int, ...),
         "status_id": (int, ...),
         "status_date": (date, ...),
-        "briefing": (str, ...),
+        "briefing": (Optional[str], ...),
     },
-    record_fields={"id": (int, ...)},
     relationship_fields={
         "state": (Optional[State.Record], None),
         "legislative_body": (Optional[LegislativeBody.Record], None),
@@ -155,11 +158,11 @@ Bill = create_schema_container(
 BillAction = create_schema_container(
     name="BillAction",
     base_fields={
+        "id": (int, ...),
         "bill_id": (int, ...),
         "date": (date, ...),
         "type": (BillActionType, ...),
     },
-    record_fields={"id": (int, ...)},
 )
 
 

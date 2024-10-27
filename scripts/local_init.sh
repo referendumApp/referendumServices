@@ -23,6 +23,26 @@ create_database_if_not_exists() {
 create_database_if_not_exists $LEGISCAN_API_DB_NAME
 create_database_if_not_exists $REFERENDUM_DB_NAME
 
+# SQL commands to create the legiscan_api user and grant privileges
+
+CREATE_LEGISCAN_USER="
+DO \$\$
+BEGIN
+   -- Check if the user already exists
+   IF NOT EXISTS (
+       SELECT FROM pg_catalog.pg_roles
+       WHERE rolname = '${LEGISCAN_API_DB_NAME}'
+   ) THEN
+       -- Create the user
+       CREATE USER ${LEGISCAN_API_DB_NAME} WITH PASSWORD '${POSTGRES_PASSWORD}';
+       -- Grant necessary permissions (modify as per requirements)
+       GRANT CREATE ON SCHEMA public TO ${LEGISCAN_API_DB_NAME};
+   END IF;
+END \$\$;
+"
+
+PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$LEGISCAN_API_DB_NAME" -c "$CREATE_LEGISCAN_USER"
+
 PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$LEGISCAN_API_DB_NAME" -f "/code/data/legiscan_api.sql"
 
 echo "Local initialization completed"

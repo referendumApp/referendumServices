@@ -1,4 +1,4 @@
-.PHONY: build api pipeline test clean shell logs restart
+.PHONY: build local pipeline test clean shell logs restart
 
 # Build the Docker images
 build:
