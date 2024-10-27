@@ -334,13 +334,10 @@ async def get_user_votes(
 
 @router.delete(
     "/{user_id}/votes",
-    response_model=schemas.UserVote,
+    status_code=status.HTTP_204_NO_CONTENT,
     summary="Uncast vote",
     responses={
-        200: {
-            "model": schemas.UserVote,
-            "description": "Vote deleted successfully",
-        },
+        204: {"description": "Vote deleted successfully"},
         401: {"model": ErrorResponse, "description": "Unauthorized"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
@@ -350,7 +347,7 @@ async def uncast_vote(
     user_id: int,
     db: Session = Depends(get_db),
     _=Depends(verify_system_token),
-) -> models.UserVote:
+):
     try:
         return crud.user_vote.uncast_vote(db=db, bill_id=bill_id, user_id=user_id)
     except DatabaseException as e:

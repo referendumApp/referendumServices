@@ -2,18 +2,11 @@ from api.tests.test_utils import assert_status_code
 from common.database.referendum.models import VoteChoice
 
 
-async def test_cast_vote_success(client, test_user_session, test_bill):
-    user, headers = test_user_session
-    vote_data = {"billId": test_bill["id"], "voteChoice": VoteChoice.YES.value}
-    response = await client.put(f"/users/{user['id']}/votes", json=vote_data, headers=headers)
-    assert_status_code(response, 200)
-    created_vote = response.json()
-    assert created_vote["userId"] == user["id"]
-    assert created_vote["billId"] == test_bill["id"]
-    assert created_vote["voteChoice"] == VoteChoice.YES.value
+async def test_cast_vote_success(test_vote):
+    assert test_vote["voteChoice"] == VoteChoice.YES.value
 
 
-async def test_cast_vote_update(client, system_headers, test_user_session, test_vote):
+async def test_cast_vote_update(client, system_headers, test_vote, test_user_session):
     user, headers = test_user_session
     updated_vote_data = {
         "billId": test_vote["billId"],

@@ -28,7 +28,7 @@ def system_headers() -> dict:
 
 @pytest_asyncio.fixture(scope="session")
 async def client() -> AsyncGenerator[AsyncClient, None]:
-    async with AsyncClient(base_url=base_url, transport=transport) as client:
+    async with AsyncClient(app=app, base_url="http://test", follow_redirects=True) as client:
         yield client
 
 
@@ -81,6 +81,7 @@ async def test_user_session(create_test_entity, delete_test_entity):
     token = create_access_token(data={"sub": user["email"]})
     headers = {"Authorization": f"Bearer {token}"}
     yield user, headers
+    print("Deleting user")
     await delete_test_entity("users", user["id"])
 
 
@@ -183,6 +184,7 @@ async def test_get_legislators(client, system_headers, test_legislator):
 @pytest_asyncio.fixture(scope="function")
 async def test_vote(
     client: AsyncClient,
+    system_headers,
     test_user_session: Dict,
     test_bill_action: Dict,
 ):
@@ -196,8 +198,9 @@ async def test_vote(
     assert_status_code(response, 200)
     user_vote = response.json()
     yield user_vote
+    logger.error("Deleting user vote")
     response = await client.delete(
-        f"/users/{user['id']}/votes?bill_id={user_vote['billId']}", headers=headers
+        f"/users/{user['id']}/votes?bill_id={user_vote['billId']}", headers=system_headers
     )
     assert_status_code(response, 204)
     logger.error("VOTE DELETED")
