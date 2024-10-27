@@ -16,6 +16,10 @@ from common.database.referendum.models import VoteChoice
 transport = ASGITransport(app=app)
 base_url = "http://localhost"
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 @pytest.fixture(scope="session")
 def system_headers() -> dict:
@@ -97,7 +101,7 @@ async def test_role(create_test_entity, delete_test_entity):
 
 @pytest_asyncio.fixture(scope="function")
 async def test_legislative_body(create_test_entity, delete_test_entity, test_state, test_role):
-    legislative_body_data = {"state_id": test_state["id"], "role_id": test_role["id"]}
+    legislative_body_data = {"stateId": test_state["id"], "roleId": test_role["id"]}
     legislative_body = await create_test_entity("/legislative_bodys/", legislative_body_data)
     yield legislative_body
     await delete_test_entity("legislative_bodys", legislative_body["id"])
@@ -107,7 +111,7 @@ async def test_legislative_body(create_test_entity, delete_test_entity, test_sta
 async def test_committee(create_test_entity, delete_test_entity, test_legislative_body):
     committee_data = {
         "name": f"Test Committee {generate_random_string()}",
-        "legislative_body_id": test_legislative_body["id"],
+        "legislativeBodyId": test_legislative_body["id"],
     }
     committee = await create_test_entity("/committees/", committee_data)
     yield committee
@@ -117,15 +121,15 @@ async def test_committee(create_test_entity, delete_test_entity, test_legislativ
 @pytest_asyncio.fixture(scope="function")
 async def test_bill(create_test_entity, delete_test_entity, test_state, test_legislative_body):
     bill_data = {
-        "legiscan_id": random.randint(100000, 999999),
+        "legiscanId": random.randint(100000, 999999),
         "identifier": f"H.B.{random.randint(1, 999)}",
         "title": f"Test Bill {generate_random_string()}",
         "description": "This is a test bill",
-        "state_id": test_state["id"],
-        "legislative_body_id": test_legislative_body["id"],
-        "session_id": 118,
+        "stateId": test_state["id"],
+        "legislativeBodyId": test_legislative_body["id"],
+        "sessionId": 118,
         "briefing": "yadayadayada",
-        "status_id": 1,
+        "statusId": 1,
         "status_date": "2024-01-01",
     }
     bill = await create_test_entity("/bills/", bill_data)
@@ -146,7 +150,7 @@ async def test_bill_action(
     delete_test_entity,
     test_bill: Dict,
 ):
-    bill_action_data = {"bill_id": test_bill["id"], "date": "2024-01-01", "type": 1}
+    bill_action_data = {"billId": test_bill["id"], "date": "2024-01-01", "type": 1}
     bill_action = await create_test_entity("/bill_actions/", bill_action_data)
     yield bill_action
     await delete_test_entity("bill_actions", bill_action["id"])
@@ -155,14 +159,14 @@ async def test_bill_action(
 @pytest_asyncio.fixture(scope="function")
 async def test_legislator(create_test_entity, delete_test_entity, test_party):
     legislator_data = {
-        "legiscan_id": f"{random.randint(100,999)}",
+        "legiscanId": f"{random.randint(100,999)}",
         "name": f"John Doe {generate_random_string()}",
         "image_url": "example.com/image.png",
         "district": f"DC-{random.randint(100,999)}",
         "address": "100 Senate Office Building Washington, DC 20510",
         "instagram": f"@sen{generate_random_string()}",
         "phone": f"(202) {random.randint(100,999)}-{random.randint(1000,9999)}",
-        "party_id": test_party["id"],
+        "partyId": test_party["id"],
     }
     legislator = await create_test_entity("/legislators/", legislator_data)
     yield legislator
@@ -184,10 +188,16 @@ async def test_vote(
 ):
     user, headers = test_user_session
     vote_data = {
-        "bill_id": test_bill_action["bill_id"],
-        "bill_action_id": test_bill_action["id"],
+        "billId": test_bill_action["billId"],
+        "bill_actionId": test_bill_action["id"],
         "vote_choice": VoteChoice.YES.value,
     }
     response = await client.put(f"/users/{user['id']}/votes/", json=vote_data, headers=headers)
     assert_status_code(response, 200)
-    return response.json()
+    user_vote = response.json()
+    yield user_vote
+    response = await client.delete(
+        f"/users/{user['id']}/votes?bill_id={user_vote['billId']}", headers=headers
+    )
+    assert_status_code(response, 204)
+    logger.error("VOTE DELETED")

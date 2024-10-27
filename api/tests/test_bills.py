@@ -39,15 +39,15 @@ async def test_update_bill(client, system_headers, test_bill):
 async def test_update_bill_not_found(client, system_headers):
     non_existent_bill = {
         "id": 9999,
-        "legiscan_id": 0,
+        "legiscanId": 0,
         "identifier": "DNE.1",
         "title": "Non-existent Bill",
         "description": "This bill does not exist",
-        "state_id": 1,
-        "legislative_body_id": 1,
-        "session_id": 118,
+        "stateId": 1,
+        "legislativeBodyId": 1,
+        "sessionId": 118,
         "briefing": "yadayadayada",
-        "status_id": 1,
+        "statusId": 1,
         "status_date": "2024-01-01",
     }
     response = await client.put("/bills/", json=non_existent_bill, headers=system_headers)
@@ -99,7 +99,7 @@ async def test_get_bill_text_success(client, system_headers, test_bill):
     response = await client.get(f"/bills/{test_bill['id']}/version/1/text", headers=system_headers)
     assert_status_code(response, 200)
     bill_text = response.json()
-    assert "bill_id" in bill_text
+    assert "billId" in bill_text
     assert "version" in bill_text
     assert "text" in bill_text
     assert bill_text["text"] == "Lorem ipsum dolor sit amet"

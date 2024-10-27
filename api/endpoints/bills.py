@@ -47,7 +47,7 @@ async def get_bill_text(
 ) -> dict:
     lorem_ipsum = "Lorem ipsum dolor sit amet"
     logger.info(f"Fetched bill text for bill {bill_id}, version {version}")
-    return {"bill_id": bill_id, "version": version, "text": lorem_ipsum}
+    return {"billId": bill_id, "version": version, "text": lorem_ipsum}
 
 
 @router.post(

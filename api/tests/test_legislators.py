@@ -39,14 +39,14 @@ async def test_update_legislator_success(client, system_headers, test_legislator
 async def test_update_legislator_not_found(client, system_headers):
     non_existent_legislator = {
         "id": 9999,
-        "legiscan_id": 99999999,
+        "legiscanId": 99999999,
         "name": "Anti-John Doe",
         "image_url": "example.com/image.png",
         "district": "ED-1",
         "address": "999 Senate Office Building Washington, DC 20510",
         "instagram": "@senantijohndoe",
         "phone": "(202) 111-1112",
-        "party_id": 1,
+        "partyId": 1,
     }
     response = await client.put(
         "/legislators/", json=non_existent_legislator, headers=system_headers
