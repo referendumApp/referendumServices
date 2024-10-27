@@ -360,18 +360,9 @@ jobs:
               \"NetworkConfiguration\": {
                 \"awsvpcConfiguration\": {
                   \"Subnets\": [\"subnet-030216eccd9d8d317\"],
-                  \"SecurityGroups\": [\"sg-0c0a90439deaf8b68\",\"sg-0d65a5b9089171007\"],
+                  \"SecurityGroups\": [\"sg-0ddba9c80c77125c2\",\"sg-0d65a5b9089171007\"],
                   \"AssignPublicIp\": \"DISABLED\"
                 }
               }
             }
           }]"
-
-    - name: Run pipeline task
-      run: |
-        aws ecs run-task \
-          --cluster ${{ env.PIPELINE_CLUSTER }} \
-          --task-definition ${{ env.PIPELINE_TASK_DEFINITION }} \
-          --launch-type FARGATE \
-          --network-configuration "awsvpcConfiguration={subnets=[subnet-030216eccd9d8d317],securityGroups=[sg-0c0a90439deaf8b68,sg-0d65a5b9089171007],assignPublicIp=DISABLED}" \
-          --tags key=Environment,value=${{ env.DEPLOY_ENV }}
