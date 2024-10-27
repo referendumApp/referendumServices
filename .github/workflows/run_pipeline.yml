@@ -8,6 +8,10 @@ on:
         required: true
         default: 'dev'
 
+permissions:
+  id-token: write
+  contents: read
+
 env:
   AWS_ACCOUNT_ID: 842675976781
   AWS_REGION: us-east-2
