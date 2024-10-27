@@ -8,7 +8,7 @@ async def test_add_topic_success(test_topic):
 async def test_add_topic_already_exists(client, system_headers, test_topic):
     topic_data = {**test_topic}
     topic_data.pop("id")
-    response = await client.post("/topics", json=topic_data, headers=system_headers)
+    response = await client.post("/topics/", json=topic_data, headers=system_headers)
     assert_status_code(response, 409)
     assert "topic already exists" in response.json()["detail"]
 
@@ -17,7 +17,7 @@ async def test_add_topic_unauthorized(client, test_topic):
     topic_data = {**test_topic}
     topic_data.pop("id")
     response = await client.post(
-        "/topics",
+        "/topics/",
         json=topic_data,
         headers={"Authorization": "Bearer user_token"},
     )
@@ -26,7 +26,7 @@ async def test_add_topic_unauthorized(client, test_topic):
 
 async def test_update_topic_success(client, system_headers, test_topic):
     updated_data = {**test_topic, "name": "Updated topic Name"}
-    response = await client.put("/topics", json=updated_data, headers=system_headers)
+    response = await client.put("/topics/", json=updated_data, headers=system_headers)
     assert_status_code(response, 200)
     updated_topic = response.json()
     assert updated_topic["name"] == "Updated topic Name"
@@ -37,7 +37,7 @@ async def test_update_topic_not_found(client, system_headers):
         "id": 9999,
         "name": "DNE",
     }
-    response = await client.put("/topics", json=non_existent_topic, headers=system_headers)
+    response = await client.put("/topics/", json=non_existent_topic, headers=system_headers)
     assert_status_code(response, 404)
     assert "topic not found" in response.json()["detail"]
 
@@ -45,7 +45,7 @@ async def test_update_topic_not_found(client, system_headers):
 async def test_update_topic_unauthorized(client, test_topic):
     updated_data = {**test_topic, "name": "Updated topic Name"}
     response = await client.put(
-        "/topics", json=updated_data, headers={"Authorization": "Bearer user_token"}
+        "/topics/", json=updated_data, headers={"Authorization": "Bearer user_token"}
     )
     assert_status_code(response, 403)
 
