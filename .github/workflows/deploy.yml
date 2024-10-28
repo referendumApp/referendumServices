@@ -356,7 +356,7 @@ jobs:
               ] |
               .cpu = "1024" |
               .memory = "3072" |
-              .networkMode = "awsvpc"
+              .networkMode = "awsvpc" |
               .family = "'$TASK_DEFINITION'"
             '
         )
