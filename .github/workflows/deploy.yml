@@ -357,7 +357,7 @@ jobs:
               .cpu = "1024" |
               .memory = "3072" |
               .networkMode = "awsvpc" |
-              .family = "'$TASK_DEFINITION'"
+              .family = "${{ env.PIPELINE_TASK_DEFINITION }}-${{ env.DEPLOY_ENV }}"
             '
         )
         
