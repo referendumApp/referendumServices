@@ -1,8 +1,15 @@
-FROM python:3.11 AS base
+FROM python:3.11.4-slim-bullseye AS base
 
 WORKDIR /code
 COPY pyproject.toml .
+RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir .
+
+# Alembic migration stage
+FROM base AS migrations
+
+COPY alembic.ini /code/
+COPY alembic /code/alembic
 
 # API stage
 FROM base AS api
