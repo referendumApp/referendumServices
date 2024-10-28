@@ -126,7 +126,6 @@ def upgrade():
         "legislators",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("legiscan_id", sa.Integer(), nullable=False),
-        sa.Column("state_id", sa.Integer(), nullable=True),
         sa.Column("name", sa.String(), nullable=True),
         sa.Column("image_url", sa.String(), nullable=True),
         sa.Column("district", sa.String(), nullable=True),
@@ -140,10 +139,6 @@ def upgrade():
         sa.ForeignKeyConstraint(
             ["party_id"],
             ["partys.id"],
-        ),
-        sa.ForeignKeyConstraint(
-            ["state_id"],
-            ["states.id"],
         ),
     )
     op.create_index(op.f("ix_legislators_name"), "legislators", ["name"], unique=False)
