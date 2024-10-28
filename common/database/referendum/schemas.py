@@ -119,7 +119,11 @@ Legislator = create_schema_container(
         "phone": (Optional[str], None),
         "twitter": (Optional[str], None),
     },
-    relationship_fields={"committees": (List[Committee.Record], [])},
+    relationship_fields={
+        "committees": (List[Committee.Record], []),
+        "state": (State.Record, None),
+        "party": (Party.Record, None),
+    },
 )
 
 

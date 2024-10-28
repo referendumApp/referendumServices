@@ -149,12 +149,6 @@ def upgrade():
         ["name", "district"],
         unique=True,
     )
-    op.create_index(
-        op.f("ix_legislator_name_state"),
-        "legislators",
-        ["name", "state"],
-        unique=True,
-    )
 
     # Create junction tables
     op.create_table(
