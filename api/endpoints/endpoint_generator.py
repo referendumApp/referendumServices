@@ -213,8 +213,8 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
             },
         )
         async def read_items(
-            skip: int = 0,
-            limit: int = 100,
+            skip: int,
+            limit: int,
             db: Session = Depends(get_db),
             _: Dict[str, Any] = Depends(permissions.read_all),
         ):
