@@ -150,6 +150,7 @@ def orchestrate_etl():
 
     with open(config_filepath, "r") as config_file:
         etl_configs = json.load(config_file)
+
     try:
         logger.info("ETL process starting")
         logger.info("Beginning extraction")

@@ -45,12 +45,4 @@ PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$
 
 PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$LEGISCAN_API_DB_NAME" -f "/code/data/legiscan_api.sql"
 
-
-echo "Running migrations for REFERENDUM_DB_NAME..."
-if ! alembic -c alembic.ini upgrade head; then
-  echo "Error running migrations for REFERENDUM_DB_NAME"
-  exit 1
-fi
-
-
 echo "Local initialization completed"

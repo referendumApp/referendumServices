@@ -5,13 +5,12 @@ from typing import AsyncGenerator, Dict
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from api.tests.test_utils import assert_status_code, generate_random_string
 
 from api.config import settings
 from api.main import app
 from api.security import create_access_token
+from api.tests.test_utils import assert_status_code, generate_random_string
 from common.database.referendum.models import VoteChoice
-
 
 transport = ASGITransport(app=app)
 base_url = "http://localhost"
@@ -24,30 +23,29 @@ def system_headers() -> dict:
 
 @pytest_asyncio.fixture(scope="session")
 async def client() -> AsyncGenerator[AsyncClient, None]:
-    async with AsyncClient(app=app, base_url=base_url, follow_redirects=True) as client:
+    async with AsyncClient(base_url=base_url, follow_redirects=True, transport=transport) as client:
         yield client
 
 
 @pytest_asyncio.fixture(scope="session")
-async def create_test_entity(system_headers: Dict[str, str]):
+async def create_test_entity(client: AsyncClient, system_headers: Dict[str, str]):
     async def create_entity(endpoint: str, payload: Dict):
         if "id" not in payload:
             payload["id"] = 999999
-        async with AsyncClient(base_url=base_url, transport=transport) as client:
-            response = await client.post(endpoint, json=payload, headers=system_headers)
-            assert_status_code(response, 201)
-            return response.json()
+
+        response = await client.post(endpoint, json=payload, headers=system_headers)
+        assert_status_code(response, 201)
+        return response.json()
 
     return create_entity
 
 
 @pytest_asyncio.fixture(scope="session")
-async def delete_test_entity(system_headers: Dict):
+async def delete_test_entity(client: AsyncClient, system_headers: Dict):
     async def delete_entity(resource: str, entity_id: str):
-        async with AsyncClient(base_url=base_url, transport=transport) as client:
-            response = await client.delete(f"/{resource}/{entity_id}", headers=system_headers)
-            if response.status_code != 404:
-                assert_status_code(response, 204)
+        response = await client.delete(f"/{resource}/{entity_id}", headers=system_headers)
+        if response.status_code != 404:
+            assert_status_code(response, 204)
 
     return delete_entity
 
@@ -155,7 +153,7 @@ async def test_bill_action(
 
 
 @pytest_asyncio.fixture(scope="function")
-async def test_legislator(create_test_entity, delete_test_entity, test_party):
+async def test_legislator(create_test_entity, delete_test_entity, test_party, test_state):
     legislator_data = {
         "legiscanId": f"{random.randint(100,999)}",
         "name": f"John Doe {generate_random_string()}",
@@ -165,6 +163,7 @@ async def test_legislator(create_test_entity, delete_test_entity, test_party):
         "instagram": f"@sen{generate_random_string()}",
         "phone": f"(202) {random.randint(100,999)}-{random.randint(1000,9999)}",
         "partyId": test_party["id"],
+        "stateId": test_state["id"],
     }
     legislator = await create_test_entity("/legislators/", legislator_data)
     yield legislator
