@@ -5,10 +5,11 @@ import json
 import os
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
-from typing import Dict
+from typing import List
 
 from common.database.referendum import connection as referendum_connection
 from common.database.legiscan_api import connection as legiscan_api_connection
+from pipeline.etl_config import ETLConfig, TransformationFunction
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -43,70 +44,61 @@ def check_db_connection(db_session):
         raise
 
 
-def extract(etl_configs) -> Dict[str, pd.DataFrame]:
+def extract(etl_configs: List[ETLConfig]) -> List[ETLConfig]:
     legiscan_db = next(get_legiscan_api_db())
 
     if check_db_connection(legiscan_db):
-
         with legiscan_db.connection() as conn:
             for config in etl_configs:
-                table_name = config["source"]
-                logger.info(f"extracting table {table_name}")
+                logger.info(f"extracting table {config.source}")
                 try:
-                    df = pd.read_sql(table_name, con=conn)
+                    df = pd.read_sql(config.source, con=conn)
 
-                    for transformation in config.get("transformations", []):
-                        if transformation["function"] == "keep_columns":
-                            columns_to_keep = transformation["parameters"]["columns"]
+                    for transformation in config.transformations:
+                        if transformation.function == TransformationFunction.KEEP_COLUMNS:
+                            columns_to_keep = transformation.parameters.columns
                             df = df[columns_to_keep]
 
-                    config["dataframe"] = df
+                    config.dataframe = df
 
                 except Exception as e:
-                    logger.error(f"Error processing table {table_name}: {e}")
+                    logger.error(f"Error processing table {config.source}: {e}")
 
         return etl_configs
-
     else:
         logger.error("Failed to connect to Legiscan API database. Extraction aborted.")
         raise ConnectionError("Legiscan API database connection failed")
 
 
-def transform(etl_configs) -> Dict[str, pd.DataFrame]:
+def transform(etl_configs: List[ETLConfig]) -> List[ETLConfig]:
     for config in etl_configs:
-        table_name = config["source"]
-        logger.info(f"Transforming table {table_name}")
-
+        logger.info(f"Transforming table from {config.source} to {config.destination}")
         try:
-            df = config["dataframe"]
+            df = config.dataframe
 
-            for transformation in config.get("transformations", []):
-                if transformation["function"] == "rename":
-                    columns_to_rename = transformation["parameters"]["columns"]
-                    df = df.rename(columns=columns_to_rename)
+            for transformation in config.transformations:
+                match transformation.function:
+                    case TransformationFunction.RENAME:
+                        column_mapping = transformation.parameters.columns
+                        df = df.rename(columns=column_mapping)
 
-                elif transformation["function"] == "set_primary_sponsor":
-                    sponsor_type_col = transformation["parameters"]["sponsor_type_column"]
-                    is_primary_col = transformation["parameters"]["is_primary_column"]
+                    # TODO - generalize to conditional
+                    case TransformationFunction.SET_PRIMARY_SPONSOR:
+                        df[transformation.parameters.is_primary_column] = df[transformation.parameters.sponsor_type_column] == 1
+                        df = df.drop(columns=[transformation.parameters.sponsor_type_column])
 
-                    df[is_primary_col] = df[sponsor_type_col] == 1
+                    case TransformationFunction.DUPLICATE:
+                        df[transformation.parameters.destination_name] = df[transformation.parameters.source_name]
 
-                    df = df.drop(columns=[sponsor_type_col])
-                elif transformation["function"] == "duplicate":
-                    source_name = transformation["parameters"]["source_name"]
-                    destination_name = transformation["parameters"]["destination_name"]
-                    df[destination_name] = df[source_name]
-
-            config["dataframe"] = df
+            config.dataframe = df
 
         except Exception as e:
-            logger.error(f"Error transforming data for table {table_name}: {e}")
-            raise
+            logger.error(f"Error transforming data for source table {config.source}: {e}")
 
     return etl_configs
 
 
-def load(etl_configs):
+def load(etl_configs: List[ETLConfig]):
     referendum_db = next(get_referendum_db())
 
     if check_db_connection(referendum_db):
@@ -123,21 +115,18 @@ def load(etl_configs):
             logger.error(f"Error fetching table metadata: {e}")
             raise
 
-        # Process the ETL load
         for config in etl_configs:
-            destination_table = config["destination"]
-            logger.info(f"Loading table {destination_table}")
-            df = config["dataframe"]
             try:
-                df.to_sql(
-                    destination_table,
+                logger.info(f"Loading data into {config.destination}")
+                config.dataframe.to_sql(
+                    config.destination,
                     referendum_db.bind,
                     if_exists="append",
                     index=False,
                 )
 
             except Exception as e:
-                logger.error(f"Error inserting data into '{destination_table}': {e}")
+                logger.error(f"Error inserting data into '{config.destination}': {e}")
                 raise
     else:
         logger.error("Failed to connect to Referendum database. Load aborted.")
@@ -149,7 +138,8 @@ def orchestrate_etl():
     config_filepath = f"{directory}/etl_configs.json"
 
     with open(config_filepath, "r") as config_file:
-        etl_configs = json.load(config_file)
+        config_data = json.load(config_file)
+        etl_configs = [ETLConfig(**config) for config in config_data]
 
     try:
         logger.info("ETL process starting")

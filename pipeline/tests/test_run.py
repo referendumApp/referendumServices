@@ -11,12 +11,19 @@ def test_pipeline_execution():
     if not is_running_in_docker():
         pytest.skip("This test should only run inside a Docker container")
 
-    result = subprocess.run(
-        ["python", "-m", "pipeline.run"], capture_output=True, text=True, check=True
-    )
-    full_output = result.stdout + result.stderr
-    assert (
-        "ETL process completed successfully" in full_output
-    ), f"Success message not found in pipeline output: {full_output}"
+    try:
+        result = subprocess.run(
+            ["python", "-m", "pipeline.run"], capture_output=True, text=True, check=True
+        )
+        full_output = result.stdout + result.stderr
+        assert (
+            "ETL process completed successfully" in full_output
+        ), f"Success message not found in pipeline output: {full_output}"
+    except subprocess.CalledProcessError as e:
+        pytest.fail(
+            f"ETL process failed with exit code {e.returncode}\n\n"
+            f"STDOUT:\n{e.stdout}\n\n"
+            f"STDERR:\n{e.stderr}\n\n"
+        )
 
     ## count rows here ##
