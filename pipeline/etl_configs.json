@@ -197,6 +197,7 @@
             "bill_id",
             "state_url",
             "bill_text_type_id"
+          ]
         }
       },
       {
