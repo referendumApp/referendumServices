@@ -185,6 +185,30 @@
       }
     ],
     "dataframe": null
+  },
+  {
+    "source": "ls_bill_text",
+    "destination": "bill_versions",
+    "transformations": [
+      {
+        "function": "keep_columns",
+        "parameters": {
+          "columns": [
+            "bill_id",
+            "state_url",
+            "bill_text_type_id"
+        }
+      },
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "bill_text_type_id": "version",
+            "state_url": "url"
+          }
+        }
+      }
+    ],
+    "dataframe": null
   }
 ]
-
