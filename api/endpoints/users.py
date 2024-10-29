@@ -173,6 +173,38 @@ async def update_user(
 
 
 @router.delete(
+    "/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a user",
+    responses={
+        204: {"description": "User successfully deleted"},
+        403: {
+            "model": ErrorResponse,
+            "description": "Only system token can delete users",
+        },
+        404: {"model": ErrorResponse, "description": "User not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def admin_delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(verify_system_token),
+) -> None:
+    logger.info(f"Attempting to delete user with ID: {user_id}")
+    try:
+        crud.user.delete(db=db, obj_id=user_id)
+        logger.info(f"Successfully deleted user with ID: {user_id}")
+        return
+    except ObjectNotFoundException:
+        logger.warning(f"Attempt to delete non-existent user with ID: {user_id}")
+        raise HTTPException(status_code=404, detail=f"User not found for ID: {user_id}.")
+    except DatabaseException as e:
+        logger.error(f"Database error while deleting user: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@router.delete(
     "/",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a user",
@@ -188,7 +220,7 @@ async def update_user(
 )
 async def delete_user(
     db: Session = Depends(get_db),
-    user: Dict[str, Any] = Depends(get_current_user),
+    user: models.User = Depends(get_current_user),
 ) -> None:
     logger.info(f"Attempting to delete user with ID: {user.id}")
     try:
