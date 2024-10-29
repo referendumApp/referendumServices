@@ -1,14 +1,12 @@
 [
   {
     "source": "ls_state",
+    "source_columns": [
+      "state_id",
+      "state_name"
+    ],
     "destination": "states",
     "transformations": [
-      {
-        "function": "keep_columns",
-        "parameters": {
-          "columns": ["state_id", "state_name"]
-        }
-      },
       {
         "function": "rename",
         "parameters": {
@@ -23,14 +21,12 @@
   },
   {
     "source": "ls_role",
+    "source_columns": [
+      "role_id",
+      "role_name"
+    ],
     "destination": "roles",
     "transformations": [
-      {
-        "function": "keep_columns",
-        "parameters": {
-          "columns": ["role_id", "role_name"]
-        }
-      },
       {
         "function": "rename",
         "parameters": {
@@ -45,14 +41,13 @@
   },
   {
     "source": "ls_body",
+    "source_columns": [
+      "body_id",
+      "state_id",
+      "role_id"
+    ],
     "destination": "legislative_bodys",
     "transformations": [
-      {
-        "function": "keep_columns",
-        "parameters": {
-          "columns": ["body_id", "state_id", "role_id"]
-        }
-      },
       {
         "function": "rename",
         "parameters": {
@@ -66,14 +61,12 @@
   },
   {
     "source": "ls_party",
+    "source_columns": [
+      "party_id",
+      "party_name"
+    ],
     "destination": "partys",
     "transformations": [
-      {
-        "function": "keep_columns",
-        "parameters": {
-          "columns": ["party_id", "party_name"]
-        }
-      },
       {
         "function": "rename",
         "parameters": {
@@ -88,24 +81,19 @@
   },
   {
     "source": "ls_bill",
+    "source_columns": [
+      "bill_id",
+      "title",
+      "description",
+      "state_id",
+      "body_id",
+      "bill_number",
+      "session_id",
+      "status_id",
+      "status_date"
+    ],
     "destination": "bills",
     "transformations": [
-      {
-        "function": "keep_columns",
-        "parameters": {
-          "columns": [
-            "bill_id",
-            "title",
-            "description",
-            "state_id",
-            "body_id",
-            "bill_number",
-            "session_id",
-            "status_id",
-            "status_date"
-          ]
-        }
-      },
       {
         "function": "rename",
         "parameters": {
@@ -128,19 +116,14 @@
   },
   {
     "source": "ls_people",
+    "source_columns": [
+      "people_id",
+      "name",
+      "party_id",
+      "district"
+    ],
     "destination": "legislators",
     "transformations": [
-      {
-        "function": "keep_columns",
-        "parameters": {
-          "columns": [
-            "people_id",
-            "name",
-            "party_id",
-            "district"
-          ]
-        }
-      },
       {
         "function": "rename",
         "parameters": {
@@ -161,18 +144,13 @@
   },
   {
     "source": "ls_committee",
+    "source_columns": [
+      "committee_id",
+      "committee_body_id",
+      "committee_name"
+    ],
     "destination": "committees",
     "transformations": [
-      {
-        "function": "keep_columns",
-        "parameters": {
-          "columns": [
-            "committee_id",
-            "committee_body_id",
-            "committee_name"
-          ]
-        }
-      },
       {
         "function": "rename",
         "parameters": {
@@ -188,18 +166,13 @@
   },
   {
     "source": "ls_bill_text",
+    "source_columns": [
+      "bill_id",
+      "bill_text_type_id",
+      "state_url"
+    ],
     "destination": "bill_versions",
     "transformations": [
-      {
-        "function": "keep_columns",
-        "parameters": {
-          "columns": [
-            "bill_id",
-            "state_url",
-            "bill_text_type_id"
-          ]
-        }
-      },
       {
         "function": "rename",
         "parameters": {
