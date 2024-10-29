@@ -72,6 +72,7 @@ def extract(etl_configs) -> Dict[str, pd.DataFrame]:
         raise ConnectionError("Legiscan API database connection failed")
 
 
+### add image url stuff from ballotpedia
 def transform(etl_configs) -> Dict[str, pd.DataFrame]:
     for config in etl_configs:
         table_name = config["source"]
