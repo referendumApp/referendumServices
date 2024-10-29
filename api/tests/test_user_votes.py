@@ -25,7 +25,7 @@ async def test_cast_vote_update(client, system_headers, test_vote, test_user_ses
 
 async def test_cast_vote_unauthorized(client, test_bill):
     vote_data = {"billId": test_bill["id"], "vote_choice": VoteChoice.YES.value}
-    response = await client.put("/users/0/votes", json=vote_data)
+    response = await client.put("/users/votes", json=vote_data)
     assert_status_code(response, 401)
 
 
@@ -65,7 +65,7 @@ async def test_get_votes_for_bill(client, system_headers, test_vote):
 
 
 async def test_get_votes_unauthorized(client):
-    response = await client.get("/users/1/votes")
+    response = await client.get("/users/votes")
     assert_status_code(response, 401)
 
 

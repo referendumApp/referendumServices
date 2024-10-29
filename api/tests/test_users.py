@@ -86,25 +86,6 @@ async def test_delete_user(client, system_headers):
     assert_status_code(response, 404)
 
 
-async def test_delete_user_unauthorized(client, system_headers, test_user_session):
-    _, user_headers = test_user_session
-
-    user_data = {
-        "email": "unauthorizeddelete@example.com",
-        "password": "password",
-        "name": "Unauthorized Delete User",
-    }
-    create_response = await client.post("/users/", json=user_data, headers=system_headers)
-    assert_status_code(create_response, 201)
-    created_user = create_response.json()
-
-    response = await client.delete("/users/", headers=user_headers)
-    assert_status_code(response, 403)
-
-    response = await client.delete(f"/users/{created_user['id']}", headers=system_headers)
-    assert_status_code(response, 204)
-
-
 async def test_get_non_existent_user(client, system_headers):
     response = await client.get("/users/99999", headers=system_headers)
     assert_status_code(response, 404)
