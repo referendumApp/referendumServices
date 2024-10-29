@@ -82,7 +82,7 @@ def transform(etl_configs: List[ETLConfig]) -> List[ETLConfig]:
                         column_mapping = transformation.parameters.columns
                         df = df.rename(columns=column_mapping)
 
-                    # TODO - generalize to conditional
+                    # TODO - generalize to conditional operation
                     case TransformationFunction.SET_PRIMARY_SPONSOR:
                         df[transformation.parameters.is_primary_column] = df[transformation.parameters.sponsor_type_column] == 1
                         df = df.drop(columns=[transformation.parameters.sponsor_type_column])
