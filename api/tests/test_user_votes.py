@@ -66,10 +66,10 @@ async def test_get_votes_for_bill(client, system_headers, test_vote):
 
 async def test_get_votes_unauthorized(client):
     response = await client.get("/users/votes")
-    assert_status_code(response, 403)
+    assert_status_code(response, 401)
 
 
 async def test_get_votes_for_other_user(client, test_user_session):
     _, headers = test_user_session
-    response = await client.get("/users/9999/votes", headers=headers)
+    response = await client.get("/users/admin/9999/votes", headers=headers)
     assert_status_code(response, 403)

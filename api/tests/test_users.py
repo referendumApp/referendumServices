@@ -1,4 +1,5 @@
 from api.tests.test_utils import assert_status_code
+from api.security import create_access_token
 
 
 async def test_create_user(test_user_session):
@@ -86,12 +87,22 @@ async def test_admin_delete_user(client, system_headers):
     assert_status_code(response, 404)
 
 
-async def test_delete_user(client, test_user_session):
-    _, user_headers = test_user_session
+async def test_delete_user(client, system_headers):
+    user_data = {
+        "email": "deleteuser@example.com",
+        "password": "password",
+        "name": "Delete User",
+    }
+    create_response = await client.post("/users/", json=user_data, headers=system_headers)
+    assert_status_code(create_response, 201)
+
+    created_user = create_response.json()
+    token = create_access_token(data={"sub": created_user["email"]})
+    user_headers = {"Authorization": f"Bearer {token}"}
     response = await client.delete("/users/", headers=user_headers)
     assert_status_code(response, 204)
 
-    response = await client.get("/users/", headers=user_headers)
+    response = await client.get(f"/users/admin/{created_user['id']}", headers=system_headers)
     assert_status_code(response, 404)
 
 

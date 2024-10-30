@@ -92,13 +92,5 @@ async def add_feedback(feedback: dict):
 if __name__ == "__main__":
     import uvicorn
 
-    env = os.environ.get("ENVIRONMENT")
-    debugger = os.environ.get("ENABLE_DEBUGGER")
-    if env == "local" and debugger is not None and debugger.lower() == "true":
-        import debugpy
-
-        debugpy.listen(("0.0.0.0", 5678))
-        debugpy.wait_for_client()
-
     logger.info("Starting application")
     uvicorn.run(app, host="0.0.0.0", port=80, reload=True)

@@ -6,8 +6,13 @@ build:
 
 # Run the application in local development mode
 local:
-	docker compose --profile local build
-	docker compose --profile local up
+	docker compose --profile local-data build
+	docker compose --profile local-data up
+
+# Run the application in local development mode without the pipeline
+empty:
+	docker compose --profile local-empty build
+	docker compose --profile local-empty up
 
 # Run the tests
 test:
