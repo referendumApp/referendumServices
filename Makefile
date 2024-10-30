@@ -29,4 +29,4 @@ logs:
 	docker compose logs -f
 
 # Rebuild and restart the app in local development mode
-restart: clean build api
+restart: clean local

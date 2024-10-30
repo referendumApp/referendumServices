@@ -312,6 +312,9 @@ jobs:
 
     - name: Update ECS Task Definition
       run: |
+        # Get task definition name based on environment
+        TASK_DEFINITION="${{ env.PIPELINE_TASK_DEFINITION }}-${{ env.DEPLOY_ENV }}"
+        
         # Get environment variables
         SSM_PARAMS_JSON=$(aws ssm get-parameters-by-path --path /${{ env.DEPLOY_ENV }}/ --with-decryption --query "Parameters[*].{Name:Name,Value:Value}" --output json)
         ENV_VARS=$(echo "$SSM_PARAMS_JSON" | jq -r '[.[] | {
@@ -325,7 +328,15 @@ jobs:
           ]
         ')
     
-        TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition ${{ env.PIPELINE_TASK_DEFINITION }} --query taskDefinition --output json)
+        # Get existing task definition or create new one if it doesn't exist
+        TASK_DEFINITION_EXISTS=$(aws ecs describe-task-definition --task-definition $TASK_DEFINITION 2>/dev/null || echo "false")
+        
+        if [ "$TASK_DEFINITION_EXISTS" == "false" ]; then
+          # Use base task definition as template
+          TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition ${{ env.PIPELINE_TASK_DEFINITION }} --query taskDefinition --output json)
+        else
+          TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition $TASK_DEFINITION --query taskDefinition --output json)
+        fi
         
         NEW_TASK_DEFINITION=$(
           echo $TASK_DEFINITION |
@@ -345,7 +356,8 @@ jobs:
               ] |
               .cpu = "1024" |
               .memory = "3072" |
-              .networkMode = "awsvpc"
+              .networkMode = "awsvpc" |
+              .family = "${{ env.PIPELINE_TASK_DEFINITION }}-${{ env.DEPLOY_ENV }}"
             '
         )
         
