@@ -394,6 +394,7 @@ async def admin_get_user_votes(
     },
 )
 async def get_user_votes(
+    bill_id: int,
     db: Session = Depends(get_db),
     user: Dict[str, Any] = Depends(get_current_user),
 ) -> List[models.UserVote]:
@@ -414,6 +415,7 @@ async def get_user_votes(
     },
 )
 async def uncast_vote(
+    bill_id: int,
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
