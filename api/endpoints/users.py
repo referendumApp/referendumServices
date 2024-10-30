@@ -1,7 +1,7 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from common.database.referendum import crud, schemas, models
 from common.database.referendum.crud import (
@@ -60,7 +60,41 @@ async def create_user(
 
 
 @router.get(
-    "/{user_id}",
+    "/admin/{user_id}",
+    response_model=schemas.User,
+    summary="Get user information with system token",
+    responses={
+        200: {
+            "model": schemas.User,
+            "description": "User information successfully retrieved",
+        },
+        403: {
+            "model": ErrorResponse,
+            "description": "Unauthorized to retrieve this user's information",
+        },
+        404: {"model": ErrorResponse, "description": "User not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def admin_read_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(verify_system_token),
+) -> models.User:
+    try:
+        user = crud.user.read(db=db, obj_id=user_id)
+        logger.info(f"Successfully retrieved information for user ID: {user_id}")
+        return user
+    except ObjectNotFoundException:
+        logger.warning(f"Attempted to read non-existent user with ID: {user_id}")
+        raise HTTPException(status_code=404, detail=f"User not found for id: {user_id}")
+    except DatabaseException as e:
+        logger.error(f"Database error while reading user: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@router.get(
+    "/",
     response_model=schemas.User,
     summary="Get user information",
     responses={
@@ -77,28 +111,16 @@ async def create_user(
     },
 )
 async def read_user(
-    user_id: int,
     db: Session = Depends(get_db),
-    auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+    user: models.User = Depends(get_current_user),
 ) -> models.User:
-    logger.info(f"Attempting to read user information for user ID: {user_id}")
-    if not auth_info["is_system"]:
-        current_user = auth_info["user"]
-        if current_user.id != user_id:
-            logger.warning(
-                f"Unauthorized attempt to access user info: User {current_user.id} tried to access User {user_id}"
-            )
-            raise HTTPException(
-                status_code=403,
-                detail="You can only retrieve your own user information.",
-            )
     try:
-        user = crud.user.read(db=db, obj_id=user_id)
-        logger.info(f"Successfully retrieved information for user ID: {user_id}")
+        user = crud.user.read(db=db, obj_id=user.id)
+        logger.info(f"Successfully retrieved information for user ID: {user.id}")
         return user
     except ObjectNotFoundException:
-        logger.warning(f"Attempted to read non-existent user with ID: {user_id}")
-        raise HTTPException(status_code=404, detail=f"User not found for id: {user_id}")
+        logger.warning(f"Attempted to read non-existent user with ID: {user.id}")
+        raise HTTPException(status_code=404, detail=f"User not found for id: {user.id}")
     except DatabaseException as e:
         logger.error(f"Database error while reading user: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
@@ -151,7 +173,7 @@ async def update_user(
 
 
 @router.delete(
-    "/{user_id}",
+    "/admin/{user_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a user",
     responses={
@@ -164,7 +186,7 @@ async def update_user(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
-async def delete_user(
+async def admin_delete_user(
     user_id: int,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(verify_system_token),
@@ -182,8 +204,39 @@ async def delete_user(
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
+@router.delete(
+    "/",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a user",
+    responses={
+        204: {"description": "User successfully deleted"},
+        403: {
+            "model": ErrorResponse,
+            "description": "Only system token can delete users",
+        },
+        404: {"model": ErrorResponse, "description": "User not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def delete_user(
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+) -> None:
+    logger.info(f"Attempting to delete user with ID: {user.id}")
+    try:
+        crud.user.delete(db=db, obj_id=user.id)
+        logger.info(f"Successfully deleted user with ID: {user.id}")
+        return
+    except ObjectNotFoundException:
+        logger.warning(f"Attempt to delete non-existent user with ID: {user.id}")
+        raise HTTPException(status_code=404, detail=f"User not found for ID: {user.id}.")
+    except DatabaseException as e:
+        logger.error(f"Database error while deleting user: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
 @router.get(
-    "/{user_id}/topics",
+    "/topics",
     response_model=List[schemas.Topic.Record],
     summary="Get user's followed topics",
     responses={
@@ -203,8 +256,8 @@ def get_user_topics(
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ) -> List[models.Topic]:
-    logger.info(f"Attempting to retrieve topics for user ID: {user.id}")
     try:
+        logger.info(f"Attempting to retrieve topics for user ID: {user.id}")
         topics = crud.user.get_user_topics(db=db, user_id=user.id)
         logger.info(f"Successfully retrieved {len(topics)} topics for user ID: {user.id}")
         return topics
@@ -214,7 +267,7 @@ def get_user_topics(
 
 
 @router.get(
-    "/{user_id}/bills",
+    "/bills",
     response_model=List[schemas.Bill.Record],
     summary="Get user's followed bills",
     responses={
@@ -245,7 +298,7 @@ def get_user_bills(
 
 
 @router.get(
-    "/{user_id}/legislators",
+    "/legislators",
     response_model=List[schemas.Legislator.Record],
     summary="Get user's followed legislators",
     responses={
@@ -276,7 +329,7 @@ def get_user_legislators(
 
 
 @router.put(
-    "/{user_id}/votes",
+    "/votes",
     response_model=schemas.UserVote,
     summary="Cast vote",
     responses={
@@ -301,7 +354,33 @@ async def cast_vote(
 
 
 @router.get(
-    "/{user_id}/votes",
+    "/admin/{user_id}/votes",
+    response_model=List[schemas.UserVote],
+    summary="Get votes for user",
+    responses={
+        200: {
+            "model": List[schemas.UserVote],
+            "description": "List of votes retrieved successfully",
+        },
+        401: {"model": ErrorResponse, "description": "Unauthorized"},
+        404: {"model": ErrorResponse, "description": "Not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def admin_get_user_votes(
+    user_id: int,
+    bill_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(verify_system_token),
+) -> List[models.UserVote]:
+    try:
+        return crud.user_vote.get_votes_for_user(db=db, user_id=user_id, bill_id=bill_id)
+    except DatabaseException as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@router.get(
+    "/votes",
     response_model=List[schemas.UserVote],
     summary="Get votes for user",
     responses={
@@ -315,25 +394,18 @@ async def cast_vote(
     },
 )
 async def get_user_votes(
-    user_id: int,
-    bill_id: int = None,
+    bill_id: Optional[int] = None,
     db: Session = Depends(get_db),
-    auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+    user: Dict[str, Any] = Depends(get_current_user),
 ) -> List[models.UserVote]:
     try:
-        if not auth_info.get("is_system"):
-            if user_id != auth_info["user"].id:
-                raise HTTPException(
-                    status_code=403,
-                    detail=f"User {auth_info['user'].id} not allowed to fetch all votes for user {user_id}",
-                )
-        return crud.user_vote.get_votes_for_user(db=db, user_id=user_id, bill_id=bill_id)
+        return crud.user_vote.get_votes_for_user(db=db, user_id=user.id, bill_id=bill_id)
     except DatabaseException as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @router.delete(
-    "/{user_id}/votes",
+    "/votes",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Uncast vote",
     responses={
@@ -344,18 +416,17 @@ async def get_user_votes(
 )
 async def uncast_vote(
     bill_id: int,
-    user_id: int,
     db: Session = Depends(get_db),
-    _=Depends(verify_system_token),
+    user: models.User = Depends(get_current_user),
 ):
     try:
-        return crud.user_vote.uncast_vote(db=db, bill_id=bill_id, user_id=user_id)
+        return crud.user_vote.uncast_vote(db=db, bill_id=bill_id, user_id=user.id)
     except DatabaseException as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @router.post(
-    "/{user_id}/bills/{bill_id}",
+    "/bills/{bill_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Follow a bill",
     responses={
@@ -384,7 +455,7 @@ def follow_bill(
 
 
 @router.delete(
-    "/{user_id}/bills/{bill_id}",
+    "/bills/{bill_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Unfollow a bill",
     responses={
@@ -413,7 +484,7 @@ def unfollow_bill(
 
 
 @router.post(
-    "/{user_id}/legislators/{legislator_id}",
+    "/legislators/{legislator_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Follow a legislator",
     responses={
@@ -442,7 +513,7 @@ def follow_legislator(
 
 
 @router.delete(
-    "/{user_id}/legislators/{legislator_id}",
+    "/legislators/{legislator_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Unfollow a legislator",
     responses={
@@ -471,7 +542,7 @@ def unfollow_legislator(
 
 
 @router.post(
-    "/{user_id}/topics/{topic_id}",
+    "/topics/{topic_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Follow a topic",
     responses={
@@ -500,7 +571,7 @@ def follow_topic(
 
 
 @router.delete(
-    "/{user_id}/topics/{topic_id}",
+    "/topics/{topic_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Unfollow a topic",
     responses={
