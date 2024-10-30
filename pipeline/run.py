@@ -103,11 +103,10 @@ def extract_bill_text():
     # Extract text from diff
 
 
-
-def run():
+def orchestrate():
     run_etl()
     extract_bill_text()
 
 
 if __name__ == "__main__":
-    run()
+    orchestrate()
