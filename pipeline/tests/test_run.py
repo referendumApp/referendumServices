@@ -61,7 +61,9 @@ def test_pipeline_execution():
         # Assert that the row counts are the same
         assert legiscan_count == referendum_count, (
             f"Row count mismatch for tables {legiscan_table} and {referendum_table}: "
-            f"{legiscan_count} vs {referendum_count}"
+            f"{legiscan_count} vs {referendum_count}\n"
+            f"Full Output\n"
+            f"{full_output}"
         )
 
     referendum_db.close()

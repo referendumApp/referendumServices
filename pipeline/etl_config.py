@@ -100,6 +100,7 @@ class ETLConfig(BaseModel):
                 if_exists="append",
                 index=False,
             )
+            conn.commit()
         except Exception as e:
             logger.error(f"Error inserting data into '{self.destination}': {e}")
             raise
