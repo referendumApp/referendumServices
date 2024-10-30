@@ -184,17 +184,17 @@ async def test_vote(
     test_user_session: Dict,
     test_bill_action: Dict,
 ):
-    user, headers = test_user_session
+    _, headers = test_user_session
     vote_data = {
         "billId": test_bill_action["billId"],
         "bill_actionId": test_bill_action["id"],
         "vote_choice": VoteChoice.YES.value,
     }
-    response = await client.put(f"/users/{user['id']}/votes/", json=vote_data, headers=headers)
+    response = await client.put("/users/votes/", json=vote_data, headers=headers)
     assert_status_code(response, 200)
     user_vote = response.json()
     yield user_vote
     response = await client.delete(
-        f"/users/{user['id']}/votes?bill_id={user_vote['billId']}", headers=system_headers
+        f"/users/votes?bill_id={user_vote['billId']}", headers=system_headers
     )
     assert_status_code(response, 204)

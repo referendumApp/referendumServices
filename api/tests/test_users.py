@@ -115,7 +115,7 @@ async def test_get_user_topics(client, test_user_session):
 
 
 async def test_follow_topic(client, test_user_session, test_topic):
-    user, user_headers = test_user_session
+    _, user_headers = test_user_session
     topic = test_topic
 
     response = await client.post(f"/users/topics/{topic['id']}", headers=user_headers)
@@ -139,21 +139,21 @@ async def test_follow_topic(client, test_user_session, test_topic):
 
 
 async def test_follow_nonexistent_topic(client, test_user_session):
-    user, user_headers = test_user_session
+    _, user_headers = test_user_session
 
     response = await client.post("/users/topics/99999", headers=user_headers)
     assert_status_code(response, 404)
 
 
 async def test_unfollow_nonexistent_topic(client, test_user_session):
-    user, user_headers = test_user_session
+    _, user_headers = test_user_session
 
     response = await client.delete("/users/topics/99999", headers=user_headers)
     assert_status_code(response, 404)
 
 
 async def test_get_user_bills(client, test_user_session):
-    user, user_headers = test_user_session
+    _, user_headers = test_user_session
 
     response = await client.get("/users/bills", headers=user_headers)
     assert_status_code(response, 200)
@@ -161,7 +161,7 @@ async def test_get_user_bills(client, test_user_session):
 
 
 async def test_follow_bill(client, test_user_session, test_bill):
-    user, user_headers = test_user_session
+    _, user_headers = test_user_session
 
     response = await client.post(f"/users/bills/{test_bill['id']}", headers=user_headers)
     assert_status_code(response, 204)
@@ -184,21 +184,21 @@ async def test_follow_bill(client, test_user_session, test_bill):
 
 
 async def test_follow_nonexistent_bill(client, test_user_session):
-    user, user_headers = test_user_session
+    _, user_headers = test_user_session
 
     response = await client.post("/users/bills/99999", headers=user_headers)
     assert_status_code(response, 404)
 
 
 async def test_unfollow_nonexistent_bill(client, test_user_session):
-    user, user_headers = test_user_session
+    _, user_headers = test_user_session
 
     response = await client.delete("/users/bills/99999", headers=user_headers)
     assert_status_code(response, 404)
 
 
 async def test_follow_legislator(client, test_user_session, test_legislator):
-    user, user_headers = test_user_session
+    _, user_headers = test_user_session
 
     response = await client.post(
         f"/users/legislators/{test_legislator['id']}", headers=user_headers
