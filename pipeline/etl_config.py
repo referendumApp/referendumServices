@@ -45,6 +45,18 @@ class Transformation(BaseModel):
 
                     return df
 
+                case TransformationFunction.ADD_URL:
+                    source_name = self.parameters.get("source_name")
+                    destination_name = self.parameters.get("destination_name")
+                    base_url = "https://s3.amazonaws.com/ballotpedia-api4/files/thumbs/200/300/"
+                    if source_name not in df.columns:
+                        raise ValueError(f"Source column '{source_name}' not found")
+
+                    df = df.copy()
+                    df[destination_name] = base_url + df[source_name] + ".jpg"
+
+                    return df
+
                 case _:
                     raise ValueError(f"Unsupported transformation: {self.function}")
 

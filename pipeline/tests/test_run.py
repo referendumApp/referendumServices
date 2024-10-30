@@ -34,19 +34,19 @@ def test_pipeline_execution():
         "ls_bill": "bills",
         "ls_party": "partys",
         "ls_people": "legislators",
-        # "legiscan_table2": "bill_versions",
-        # "legiscan_table2": "topics",
-        # "legiscan_table2": "user_topic_follows",
-        # "legiscan_table2": "users",
-        # "legiscan_table2": "user_bill_follows",
-        # "legiscan_table2": "committee_membership",
-        # "legiscan_table2": "bill_actions",
-        # "legiscan_table2": "bill_sponsors",
-        # "legiscan_table2": "bill_topics",
-        # "legiscan_table2": "user_votes",
-        # "legiscan_table2": "legislator_votes",
-        # "legiscan_table2": "comments",
-        # "legiscan_table2": "user_legislator_follows"
+        # "legiscan_table": "bill_versions",
+        # "legiscan_table": "topics",
+        # "legiscan_table": "user_topic_follows",
+        # "legiscan_table": "users",
+        # "legiscan_table": "user_bill_follows",
+        # "legiscan_table": "committee_membership",
+        # "legiscan_table": "bill_actions",
+        # "legiscan_table": "bill_sponsors",
+        # "legiscan_table": "bill_topics",
+        # "legiscan_table": "user_votes",
+        # "legiscan_table": "legislator_votes",
+        # "legiscan_table": "comments",
+        # "legiscan_table": "user_legislator_follows"
     }
 
     for legiscan_table, referendum_table in table_pairs.items():
