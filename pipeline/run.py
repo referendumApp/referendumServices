@@ -71,7 +71,7 @@ def load_all(etl_configs: List[ETLConfig]):
             config.load(conn)
 
 
-def orchestrate_etl():
+def run_etl():
     directory = os.path.dirname(os.path.abspath(__file__))
     config_filepath = f"{directory}/etl_configs.json"
 
@@ -94,5 +94,20 @@ def orchestrate_etl():
         logger.error(f"ETL process failed with unexpected error: {str(e)}")
 
 
+def extract_bill_text():
+    # Get all hashes from database
+    referendum_db = next(get_referendum_db())
+
+    # Get all hashes from s3
+
+    # Extract text from diff
+
+
+
+def run():
+    run_etl()
+    extract_bill_text()
+
+
 if __name__ == "__main__":
-    orchestrate_etl()
+    run()
