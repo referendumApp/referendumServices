@@ -72,7 +72,6 @@ def extract(etl_configs) -> Dict[str, pd.DataFrame]:
         raise ConnectionError("Legiscan API database connection failed")
 
 
-### add image url stuff from ballotpedia
 def transform(etl_configs) -> Dict[str, pd.DataFrame]:
     for config in etl_configs:
         table_name = config["source"]
@@ -82,6 +81,7 @@ def transform(etl_configs) -> Dict[str, pd.DataFrame]:
             df = config["dataframe"]
 
             for transformation in config.get("transformations", []):
+
                 if transformation["function"] == "rename":
                     columns_to_rename = transformation["parameters"]["columns"]
                     df = df.rename(columns=columns_to_rename)
@@ -97,6 +97,14 @@ def transform(etl_configs) -> Dict[str, pd.DataFrame]:
                     source_name = transformation["parameters"]["source_name"]
                     destination_name = transformation["parameters"]["destination_name"]
                     df[destination_name] = df[source_name]
+
+                elif transformation["function"] == "create_image_url":
+                    name_column = transformation["parameters"]["columns"]
+
+                    # Transform the name for image URL creation
+                    df["image_url"] = df[name_column].apply(
+                        lambda name: f"https://s3.amazonaws.com/ballotpedia-api4/files/thumbs/200/300/{'_'.join([part.capitalize() for part in name.split()])}.jpg"
+                    )
 
             config["dataframe"] = df
 

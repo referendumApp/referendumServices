@@ -27,27 +27,26 @@ def test_pipeline_execution():
     legiscan_db = legiscan_api_connection.SessionLocal()
 
     table_pairs = {
-        "legiscan_table1": "states",
-        "legiscan_table2": "legislative_bodys",
-        "legiscan_table2": "roles",
-        "legiscan_table2": "committees",
-        "legiscan_table2": "bills",
-        "legiscan_table2": "partys",
+        "ls_state": "states",
+        "ls_body": "legislative_bodys",
+        "ls_role": "roles",
+        "ls_committee": "committees",
+        "ls_bill": "bills",
+        "ls_party": "partys",
         "ls_people": "legislators",
-        "legiscan_table2": "bill_versions",
-        "legiscan_table2": "topics",
-        "legiscan_table2": "user_topic_follows",
-        "legiscan_table2": "users",
-        "legiscan_table2": "user_bill_follows",
-        "legiscan_table2": "committee_membership",
-        "legiscan_table2": "bill_actions",
-        "legiscan_table2": "bill_sponsors",
-        "legiscan_table2": "bill_topics",
-        "legiscan_table2": "user_votes",
-        "legiscan_table2": "legislator_votes",
-        "legiscan_table2": "comments",
-        "legiscan_table2": "user_legislator_follows"
-        # Add more table pairs as needed
+        # "legiscan_table2": "bill_versions",
+        # "legiscan_table2": "topics",
+        # "legiscan_table2": "user_topic_follows",
+        # "legiscan_table2": "users",
+        # "legiscan_table2": "user_bill_follows",
+        # "legiscan_table2": "committee_membership",
+        # "legiscan_table2": "bill_actions",
+        # "legiscan_table2": "bill_sponsors",
+        # "legiscan_table2": "bill_topics",
+        # "legiscan_table2": "user_votes",
+        # "legiscan_table2": "legislator_votes",
+        # "legiscan_table2": "comments",
+        # "legiscan_table2": "user_legislator_follows"
     }
 
     for legiscan_table, referendum_table in table_pairs.items():

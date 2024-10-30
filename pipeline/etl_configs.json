@@ -155,6 +155,12 @@
           "source_name": "id",
           "destination_name": "legiscan_id"
         }
+      },
+      {
+        "function": "create_image_url",
+        "parameters": {
+          "columns": "name"
+        }
       }
     ],
     "dataframe": null
