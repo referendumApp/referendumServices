@@ -256,6 +256,7 @@ def orchestrate_etl():
                             "people_id",
                             "name",
                             "party_id",
+                            "state_id",
                             "district",
                         ]
                     },

@@ -75,16 +75,32 @@ class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             raise ObjectNotFoundException("Object not found")
         return db_obj
 
-    def read_all(self, db: Session, *, skip: int = 0, limit: int = 100) -> List[ModelType]:
-        return db.query(self.model).offset(skip).limit(limit).all()
+    def read_all(
+        self, db: Session, *, skip: int | None = None, limit: int | None = None
+    ) -> List[ModelType]:
+        query = db.query(self.model)
+        if skip is not None:
+            query = query.offset(skip)
+        if limit is not None:
+            query = query.limit(limit)
+        return query.all()
 
     def read_filtered(
-        self, db: Session, *, filters: Dict[str, Any], skip: int = 0, limit: int = 100
+        self,
+        db: Session,
+        *,
+        filters: Dict[str, Any],
+        skip: int | None = None,
+        limit: int | None = None,
     ) -> List[ModelType]:
         query = db.query(self.model)
         for prop, value in filters.items():
             query = query.filter(getattr(self.model, prop) == value)
-        return query.offset(skip).limit(limit).all()
+        if skip is not None:
+            query = query.offset(skip)
+        if limit is not None:
+            query = query.limit(limit)
+        return query.all()
 
     def update(
         self,

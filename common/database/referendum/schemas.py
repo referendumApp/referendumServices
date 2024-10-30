@@ -112,13 +112,18 @@ Legislator = create_schema_container(
         "image_url": (Optional[str], None),
         "district": (str, ...),
         "party_id": (int, ...),
+        "state_id": (int, ...),
         "address": (Optional[str], None),
         "facebook": (Optional[str], None),
         "instagram": (Optional[str], None),
         "phone": (Optional[str], None),
         "twitter": (Optional[str], None),
     },
-    relationship_fields={"committees": (List[Committee.Record], [])},
+    relationship_fields={
+        "committees": (List[Committee.Record], []),
+        "state": (State.Record, None),
+        "party": (Party.Record, None),
+    },
 )
 
 

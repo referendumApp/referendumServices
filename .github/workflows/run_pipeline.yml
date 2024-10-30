@@ -4,30 +4,30 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to deploy to (prod/dev)'
+        description: 'Environment to run pipeline for'
         required: true
         default: 'dev'
 
 env:
-  AWS_ACCOUNT_ID: 842675976781
   AWS_REGION: us-east-2
-  ECR_REPOSITORY_API: referendum/api
-  ECR_REPOSITORY_PIPELINE: referendum/pipeline
-  POSTGRES_PASSWORD_SECRET_NAME: rds!db-a5c629ff-4d6e-4d68-9680-6cdab848369c
-  API_ACCESS_TOKEN_SECRET_NAME: /system/API_ACCESS_TOKEN
-  SECRET_KEY_SECRET_NAME: /system/SECRET_KEY
   PIPELINE_CLUSTER: ETLCluster
   PIPELINE_TASK_DEFINITION: load-referendum-from-legiscan
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   run-pipeline:
     runs-on: ubuntu-latest
     steps:
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-role
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+
       - name: Run task
         run: |
           aws ecs run-task \
@@ -36,7 +36,7 @@ jobs:
             --launch-type FARGATE \
             --network-configuration "awsvpcConfiguration={
               subnets=[subnet-030216eccd9d8d317],
-              securityGroups=[sg-0c0a90439deaf8b68,sg-0d65a5b9089171007],
+              securityGroups=[sg-0ddba9c80c77125c2,sg-0d65a5b9089171007],
               assignPublicIp=DISABLED
             }" \
             --tags key=Environment,value=${{ github.event.inputs.environment }}
