@@ -86,7 +86,7 @@ async def test_user_session(create_test_entity, delete_test_entity):
     token = create_access_token(data={"sub": user["email"]})
     headers = {"Authorization": f"Bearer {token}"}
     yield user, headers
-    await delete_test_entity("users", user["id"])
+    await delete_test_entity("users/admin", user["id"])
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -204,6 +204,7 @@ async def test_vote(
     user_vote = response.json()
     yield user_vote
     response = await client.delete(
-        f"/users/votes?bill_id={user_vote['billId']}", headers=system_headers
+        f"/users/votes?bill_id={user_vote['billId']}",
+        headers=headers,
     )
     assert_status_code(response, 204)
