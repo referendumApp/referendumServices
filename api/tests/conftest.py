@@ -66,7 +66,7 @@ async def test_party(create_test_entity, delete_test_entity):
     await delete_test_entity("partys", party["id"])
 
 
-@pytest_asyncio.fixture(scope="function")
+@pytest_asyncio.fixture(scope="module")
 async def test_user_session(create_test_entity, delete_test_entity):
     user_data = {
         "email": f"{generate_random_string()}@example.com",
