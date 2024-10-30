@@ -7,17 +7,17 @@ async def test_cast_vote_success(test_vote):
 
 
 async def test_cast_vote_update(client, system_headers, test_vote, test_user_session):
-    _, headers = test_user_session
+    _, user_headers = test_user_session
     updated_vote_data = {
         "billId": test_vote["billId"],
         "vote_choice": VoteChoice.NO.value,
     }
-    response = await client.put("/users/votes", json=updated_vote_data, headers=headers)
+    response = await client.put("/users/votes", json=updated_vote_data, headers=user_headers)
     assert_status_code(response, 200)
     updated_vote = response.json()
     assert updated_vote["voteChoice"] == VoteChoice.NO.value
 
-    response = await client.get("/users/votes", headers=system_headers)
+    response = await client.get("/users/votes", headers=user_headers)
     assert_status_code(response, 200)
     votes = response.json()
     assert len(votes) == 1
@@ -55,7 +55,7 @@ async def test_get_votes_for_user(client, test_user_session, test_vote):
 
 async def test_get_votes_for_bill(client, system_headers, test_vote):
     response = await client.get(
-        f"/users/{test_vote['userId']}/votes/?bill_id={test_vote['billId']}",
+        f"/users/admin/{test_vote['userId']}/votes/?bill_id={test_vote['billId']}",
         headers=system_headers,
     )
     assert_status_code(response, 200)
