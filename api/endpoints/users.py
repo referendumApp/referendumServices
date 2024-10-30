@@ -60,7 +60,7 @@ async def create_user(
 
 
 @router.get(
-    "/{user_id}",
+    "/admin/{user_id}",
     response_model=schemas.User,
     summary="Get user information with system token",
     responses={
@@ -173,7 +173,7 @@ async def update_user(
 
 
 @router.delete(
-    "/{user_id}",
+    "/admin/{user_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a user",
     responses={
@@ -256,8 +256,8 @@ def get_user_topics(
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ) -> List[models.Topic]:
-    logger.info(f"Attempting to retrieve topics for user ID: {user.id}")
     try:
+        logger.info(f"Attempting to retrieve topics for user ID: {user.id}")
         topics = crud.user.get_user_topics(db=db, user_id=user.id)
         logger.info(f"Successfully retrieved {len(topics)} topics for user ID: {user.id}")
         return topics
@@ -354,7 +354,7 @@ async def cast_vote(
 
 
 @router.get(
-    "/{user_id}/votes",
+    "/admin/{user_id}/votes",
     response_model=List[schemas.UserVote],
     summary="Get votes for user",
     responses={

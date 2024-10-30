@@ -22,7 +22,7 @@ async def test_create_user_duplicate_email(client, system_headers, test_user_ses
 async def test_get_user(client, system_headers, test_user_session):
     user, user_headers = test_user_session
 
-    response = await client.get(f"/users/{user['id']}", headers=system_headers)
+    response = await client.get(f"/users/admin/{user['id']}", headers=system_headers)
     assert_status_code(response, 200)
     assert response.json()["email"] == user["email"]
 
@@ -65,11 +65,11 @@ async def test_update_user_unauthorized(client, system_headers, test_user_sessio
     response = await client.put("/users/", json=update_data, headers=user_headers)
     assert_status_code(response, 403)
 
-    response = await client.delete(f"/users/{created_user['id']}", headers=system_headers)
+    response = await client.delete(f"/users/admin/{created_user['id']}", headers=system_headers)
     assert_status_code(response, 204)
 
 
-async def test_delete_user(client, system_headers):
+async def test_admin_delete_user(client, system_headers):
     user_data = {
         "email": "deleteuser@example.com",
         "password": "password",
@@ -79,15 +79,24 @@ async def test_delete_user(client, system_headers):
     assert_status_code(create_response, 201)
     created_user = create_response.json()
 
-    response = await client.delete(f"/users/{created_user['id']}", headers=system_headers)
+    response = await client.delete(f"/users/admin/{created_user['id']}", headers=system_headers)
     assert_status_code(response, 204)
 
-    response = await client.get(f"/users/{created_user['id']}", headers=system_headers)
+    response = await client.get(f"/users/admin/{created_user['id']}", headers=system_headers)
+    assert_status_code(response, 404)
+
+
+async def test_delete_user(client, test_user_session):
+    _, user_headers = test_user_session
+    response = await client.delete("/users/", headers=user_headers)
+    assert_status_code(response, 204)
+
+    response = await client.get("/users/", headers=user_headers)
     assert_status_code(response, 404)
 
 
 async def test_get_non_existent_user(client, system_headers):
-    response = await client.get("/users/99999", headers=system_headers)
+    response = await client.get("/users/admin/99999", headers=system_headers)
     assert_status_code(response, 404)
 
 

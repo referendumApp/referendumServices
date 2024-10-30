@@ -1,3 +1,4 @@
+import os
 import random
 from typing import AsyncGenerator, Dict
 
@@ -10,6 +11,15 @@ from api.main import app
 from api.security import create_access_token
 from api.tests.test_utils import assert_status_code, generate_random_string
 from common.database.referendum.models import VoteChoice
+
+ENV = os.environ.get("ENVIRONMENT")
+DEBUGGER = os.environ.get("ENABLE_DEBUGGER")
+if ENV == "local" and DEBUGGER is not None and DEBUGGER.lower() == "true":
+    import debugpy
+
+    debugpy.listen(("0.0.0.0", 6000))
+    debugpy.wait_for_client()
+
 
 transport = ASGITransport(app=app)
 base_url = "http://localhost"

@@ -1,0 +1,58 @@
+{
+  "version": "0.2.0",
+  "tasks": [
+    {
+      "label": "Run File Remote Pytest",
+      "type": "shell",
+      "command": "docker",
+      "args": [
+        "compose",
+        "exec",
+        "${input:serverName}",
+        "pytest",
+        "${relativeFile}"
+      ],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Run All Remote Pytest",
+      "type": "shell",
+      "command": "docker",
+      "args": [
+        "compose",
+        "exec",
+        "${input:serverName}",
+        "pytest"
+      ],
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "serviceName",
+      "type": "promptString",
+      "description": "Enter the Docker Service",
+      "default": "api-local"
+    }
+  ]
+}
