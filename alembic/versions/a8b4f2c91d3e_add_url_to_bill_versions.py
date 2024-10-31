@@ -25,26 +25,26 @@ def upgrade():
         sa.PrimaryKeyConstraint("id"),
     )
 
-    op.drop_constraint('bill_versions_pkey', 'bill_versions')
+    op.drop_constraint("bill_versions_pkey", "bill_versions")
 
     op.add_column("bill_versions", sa.Column("id", sa.Integer(), nullable=False))
     op.add_column("bill_versions", sa.Column("bill_version_type_id", sa.Integer(), nullable=True))
     op.add_column("bill_versions", sa.Column("url", sa.String(), nullable=True))
 
-    op.create_primary_key('bill_versions_pkey', 'bill_versions', ['id'])
+    op.create_primary_key("bill_versions_pkey", "bill_versions", ["id"])
 
-    op.drop_column('bill_versions', 'version')
+    op.drop_column("bill_versions", "version")
 
 
 def downgrade():
-    op.add_column('bill_versions', sa.Column('version', sa.Integer(), nullable=False))
+    op.add_column("bill_versions", sa.Column("version", sa.Integer(), nullable=False))
 
-    op.drop_constraint('bill_versions_pkey', 'bill_versions')
+    op.drop_constraint("bill_versions_pkey", "bill_versions")
 
     op.drop_column("bill_versions", "url")
     op.drop_column("bill_versions", "bill_version_type_id")
     op.drop_column("bill_versions", "id")
 
-    op.create_primary_key('bill_versions_pkey', 'bill_versions', ['bill_id', 'version'])
+    op.create_primary_key("bill_versions_pkey", "bill_versions", ["bill_id", "version"])
 
     op.drop_table("bill_version_types")
