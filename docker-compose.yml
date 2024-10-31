@@ -51,8 +51,6 @@ services:
   db:
     container_name: db
     image: postgres:13
-    volumes:
-      - postgres_data:/var/lib/postgresql/data/
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -146,6 +144,3 @@ services:
       - API_ACCESS_TOKEN=${API_ACCESS_TOKEN}
       - SECRET_KEY=${API_ACCESS_TOKEN}
     profiles: ["test"]
-
-volumes:
-  postgres_data:

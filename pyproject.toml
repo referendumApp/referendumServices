@@ -23,6 +23,7 @@ dependencies = [
     "pydantic",
     "pydantic-settings",
     "python-jose",
+    "requests",
     "watchtower"
 ]
 
