@@ -44,6 +44,18 @@ COPY scripts/load_database.py /code/load_database.py
 
 RUN chmod +x /code/local_init.sh
 
+# API Local stage
+FROM base AS api-local
+
+RUN pip install --no-cache-dir .[test]
+
+COPY api /code/api
+COPY common /code/common
+COPY scripts/entrypoint.sh /code/entrypoint.sh
+RUN chmod +x /code/entrypoint.sh
+
+CMD ["/code/entrypoint.sh"]
+
 # Test stage
 FROM base AS test
 

@@ -24,22 +24,29 @@ services:
     container_name: api-local
     extends:
       service: api-base
+    build:
+      context: .
+      target: api-local
     environment:
       - ENVIRONMENT=local
       - API_ACCESS_TOKEN=${API_ACCESS_TOKEN}
       - SECRET_KEY=${API_ACCESS_TOKEN}
+      - ENABLE_DEBUGGER=${ENABLE_DEBUGGER}
     depends_on:
       db:
         condition: service_healthy
       local-init:
         condition: service_completed_successfully
+      migrations:
+        condition: service_completed_successfully
     ports:
       - "5678:5678"  # debugger port
+      - "6000:6000"  # pytest debugger port
     volumes:
       - ./api:/code/api  # mount the api and common directory
       - ./common:/code/common
     command: ["python", "-m", "debugpy", "--listen", "0.0.0.0:5678", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
-    profiles: ["local"]
+    profiles: ["local-data", "local-empty"]
 
   db:
     container_name: db
@@ -56,7 +63,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-    profiles: ["local", "test"]
+    profiles: ["local-data", "local-empty", "test"]
 
   local-init:
     container_name: local_init
@@ -74,7 +81,7 @@ services:
       db:
         condition: service_healthy
     command: ["/code/local_init.sh"]
-    profiles: ["local", "test"]
+    profiles: ["local-data", "local-empty", "test"]
 
   migrations:
     build:
@@ -93,7 +100,7 @@ services:
         condition: service_healthy
       local-init:
         condition: service_completed_successfully
-    profiles: ["local", "test"]
+    profiles: ["local-data", "local-empty", "test"]
 
   pipeline:
     container_name: pipeline
@@ -105,6 +112,8 @@ services:
         condition: service_healthy
       local-init:
         condition: service_completed_successfully
+      migrations:
+        condition: service_completed_successfully
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -112,7 +121,7 @@ services:
       - POSTGRES_PORT=${POSTGRES_PORT}
       - LEGISCAN_API_DB_NAME=${LEGISCAN_API_DB_NAME}
       - REFERENDUM_DB_NAME=${REFERENDUM_DB_NAME}
-    profiles: ["local"]
+    profiles: ["local-data"]
 
   test:
     container_name: test
