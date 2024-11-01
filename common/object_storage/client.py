@@ -230,15 +230,18 @@ class ObjectStorageClient:
             return False
 
 
-def create_storage_client(storage_type: str = "local") -> ObjectStorageClient:
+def create_storage_client() -> ObjectStorageClient:
     """Factory function to create a storage client.
-
-    Args:
-        storage_type: Either "s3" or "local"
 
     Returns:
         ObjectStorageClient instance
     """
+    environment = os.getenv("ENVIRONMENT")
+    if environment == "local":
+        storage_type = "local"
+    else:
+        storage_type = "s3"
+
     try:
         client = ObjectStorageClient(storage_type)
         logger.info(f"Successfully created {storage_type} storage client")

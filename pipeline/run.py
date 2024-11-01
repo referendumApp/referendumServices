@@ -1,7 +1,6 @@
 import logging
 import json
 import os
-import boto3
 import requests
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -10,10 +9,13 @@ import hashlib
 
 from common.database.referendum import connection as referendum_connection
 from common.database.legiscan_api import connection as legiscan_api_connection
-from pipeline.etl_config import ETLConfig, TransformationFunction
+from common.object_storage.client import ObjectStorageClient, create_storage_client
+from pipeline.etl_config import ETLConfig
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+TEXT_BUCKET_NAME = os.getenv("BILL_TEXT_BUCKET", "bill-texts")
 
 
 def get_legiscan_api_db():
@@ -99,48 +101,37 @@ def get_url_hash(url: str) -> str:
     return hashlib.sha256(url.encode()).hexdigest()
 
 
-def get_s3_bill_texts() -> Set[str]:
-    """Retrieve list of bill text hashes already stored in S3."""
-    # TODO - renable this with local storage
-    return []
-    # try:
-    #     s3_client = boto3.client('s3')
-    #     bucket_name = os.getenv('BILL_TEXT_BUCKET', 'bill-texts')
-    #
-    #     # List all objects in the bucket
-    #     paginator = s3_client.get_paginator('list_objects_v2')
-    #     existing_hashes = set()
-    #
-    #     for page in paginator.paginate(Bucket=bucket_name):
-    #         if 'Contents' in page:
-    #             for obj in page['Contents']:
-    #                 # Remove .txt extension to get hash
-    #                 file_hash = os.path.splitext(obj['Key'])[0]
-    #                 existing_hashes.add(file_hash)
-    #
-    #     return existing_hashes
-    # except Exception as e:
-    #     logger.error(f"Error getting S3 bill texts: {str(e)}")
-    #     return set()
+def get_s3_bill_texts(storage_client: ObjectStorageClient) -> Set[str]:
+    """Retrieve list of bill text hashes already stored"""
+    try:
+        existing_hashes = storage_client.list_files(TEXT_BUCKET_NAME)
+
+        return set(existing_hashes)
+    except Exception as e:
+        logger.error(f"Error getting bill texts from object storage: {str(e)}")
+        return set()
 
 
-def extract_bill_text(url: str):
-    """Extract bill text from URL and store in S3."""
+def extract_bill_text(storage_client: ObjectStorageClient, url: str):
+    """Extract bill text from URL and store in object storage"""
     try:
         url_hash = get_url_hash(url)
 
-        # # TODO implement local storage
-        # bucket_name = os.getenv('BILL_TEXT_BUCKET', 'bill-texts')
-        # s3_client = boto3.client('s3')
-        #
         # # Download bill text
         # response = requests.get(url, timeout=30)
         # response.raise_for_status()
         # bill_text = response.text
-        #
+        bill_text = "lorem ipsum"
+
+        storage_client.upload_file(
+            bucket=TEXT_BUCKET_NAME,
+            key=f"{url_hash}.txt",
+            file_obj=bill_text,
+        )
+
         # # Upload to S3
         # s3_client.put_object(
-        #     Bucket=bucket_name,
+        #     Bucket=TEXT_BUCKET_NAME,
         #     Key=f"{url_hash}.txt",
         #     Body=bill_text.encode('utf-8')
         # )
@@ -159,6 +150,8 @@ def run_text_extraction():
     """Run the text extraction process for all missing bill texts."""
     logger.info("Starting bill text extraction process")
 
+    storage_client = create_storage_client()
+
     # Get all URLs from database
     referendum_db = next(get_referendum_db())
     try:
@@ -172,7 +165,7 @@ def run_text_extraction():
         return
 
     # Get existing hashes from S3
-    existing_hashes = get_s3_bill_texts()
+    existing_hashes = get_s3_bill_texts(storage_client=storage_client)
     logger.info(f"Found {len(existing_hashes)} existing bill texts in S3")
 
     # Find missing texts
@@ -182,7 +175,7 @@ def run_text_extraction():
     # Extract text from missing bills
     success_count = 0
     for url in missing_texts:
-        if extract_bill_text(url):
+        if extract_bill_text(storage_client, url):
             success_count += 1
 
     logger.info(
