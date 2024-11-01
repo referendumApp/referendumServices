@@ -1,7 +1,7 @@
 """Add url to bill versions
 
 Revision ID: a8b4f2c91d3e
-Revises: f645dde3ae91
+Revises: ba4e2efa2c76
 Create Date: 2024-10-30 10:00:00.000000
 
 """
@@ -12,7 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision: str = "a8b4f2c91d3e"
-down_revision: Union[str, None] = "f645dde3ae91"
+down_revision: Union[str, None] = "ba4e2efa2c76"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
