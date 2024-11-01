@@ -120,7 +120,8 @@
       "people_id",
       "name",
       "party_id",
-      "district"
+      "district",
+      "state_id"
     ],
     "destination": "legislators",
     "transformations": [
