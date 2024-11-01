@@ -164,5 +164,48 @@
       }
     ],
     "dataframe": null
+  },
+  {
+    "source": "ls_bill_text",
+    "source_columns": [
+      "text_id",
+      "bill_id",
+      "bill_text_type_id",
+      "state_url"
+    ],
+    "destination": "bill_versions",
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "bill_text_type_id": "bill_version_type_id",
+            "state_url": "url",
+            "text_id": "id"
+          }
+        }
+      }
+    ],
+    "dataframe": null
+  },
+  {
+    "source": "ls_text_type",
+    "source_columns": [
+      "bill_text_type_id",
+      "bill_text_name"
+    ],
+    "destination": "version_types",
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "bill_text_type_id": "id",
+            "bill_text_name": "name"
+          }
+        }
+      }
+    ],
+    "dataframe": null
   }
 ]
