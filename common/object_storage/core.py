@@ -1,5 +1,6 @@
 import os
 import logging
+from typing import Optional, Union, BinaryIO, List
 from pathlib import Path
 import boto3
 from botocore.exceptions import ClientError
