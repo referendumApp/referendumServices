@@ -1,17 +1,17 @@
 import os
 import logging
-from typing import Optional, Union, BinaryIO
 from pathlib import Path
 import boto3
 from botocore.exceptions import ClientError
 from botocore.client import Config
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 class ObjectStorageClient:
-    def __init__(self, storage_type: str = "local"):
+    def __init__(self, storage_type: str = "local") -> None:
         """Initialize storage client
 
         Args:
@@ -25,7 +25,7 @@ class ObjectStorageClient:
         else:
             raise ValueError("Storage type must be either 's3' or 'local'")
 
-    def _init_s3_client(self):
+    def _init_s3_client(self) -> None:
         """Initialize S3 client with credentials from environment variables."""
         aws_access_key = os.getenv("AWS_ACCESS_KEY_ID")
         aws_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
@@ -45,11 +45,64 @@ class ObjectStorageClient:
         )
         logger.info(f"Successfully initialized S3 client in region {aws_region}")
 
-    def _init_local_storage(self):
+    def _init_local_storage(self) -> None:
         """Initialize local storage with base directory from environment variable."""
         self.base_dir = os.getenv("LOCAL_STORAGE_PATH", "storage")
         os.makedirs(self.base_dir, exist_ok=True)
         logger.info(f"Initialized local storage at {self.base_dir}")
+
+    def list_files(self, bucket: str, prefix: str = "", recursive: bool = True) -> List[str]:
+        """List files in a bucket or directory.
+
+        Args:
+            bucket: Bucket name for S3 or subdirectory for local storage
+            prefix: Optional prefix to filter results
+            recursive: If True, list files in subdirectories as well
+
+        Returns:
+            List of filenames
+        """
+        try:
+            if self.storage_type == "s3":
+                objects = []
+                paginator = self.s3_client.get_paginator("list_objects_v2")
+                params = {"Bucket": bucket, "Prefix": prefix}
+
+                if not recursive:
+                    params["Delimiter"] = "/"
+
+                for page in paginator.paginate(**params):
+                    if "Contents" in page:
+                        for obj in page["Contents"]:
+                            # Skip directories in non-recursive mode
+                            if not recursive and obj["Key"].count("/") > prefix.count("/"):
+                                continue
+                            objects.append(obj["Key"])
+                return objects
+
+            else:
+                objects = []
+                base_path = Path(self.base_dir) / bucket
+                if not base_path.exists():
+                    return objects
+
+                prefix_path = base_path / prefix if prefix else base_path
+                if recursive:
+                    pattern = "**/*"
+                else:
+                    pattern = "*"
+
+                for file_path in prefix_path.glob(pattern):
+                    if file_path.is_file():
+                        rel_path = str(file_path.relative_to(base_path))
+                        if prefix and not rel_path.startswith(prefix):
+                            continue
+                        objects.append(rel_path)
+                return objects
+
+        except (ClientError, IOError) as e:
+            logger.error(f"Failed to list files: {str(e)}")
+            return []
 
     def upload_file(
         self,
@@ -78,7 +131,6 @@ class ObjectStorageClient:
                 else:
                     self.s3_client.upload_fileobj(file_obj, bucket, key, ExtraArgs=extra_args)
             else:
-                # For local storage, create bucket (directory) if it doesn't exist
                 bucket_path = Path(self.base_dir) / bucket
                 os.makedirs(bucket_path, exist_ok=True)
 
@@ -146,8 +198,6 @@ class ObjectStorageClient:
                 else:
                     with open(file_path, "rb") as f:
                         return f.read()
-
-            logger.info(f"Successfully downloaded {key} from {bucket}")
 
         except (ClientError, IOError) as e:
             logger.error(f"Failed to download file: {str(e)}")
