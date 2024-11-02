@@ -30,19 +30,25 @@ COPY common /code/common
 CMD ["python", "-m", "pipeline.run"]
 
 # Local init stage
-FROM base AS local-init
+FROM base AS local-db-init
 
-RUN apt-get update && apt-get install -y postgresql-client
+RUN apt-get update && apt-get install -y postgresql-client curl unzip
+
+# Install AWS CLI
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
+    && unzip awscliv2.zip \
+    && ./aws/install \
+    && rm -rf aws awscliv2.zip
 
 COPY api /code/api
 COPY common /code/common
 COPY alembic.ini /code/alembic.ini
 COPY alembic /code/alembic
 COPY data /code/data
-COPY scripts/local_init.sh /code/local_init.sh
+COPY scripts/local_db_init.sh /code/local_db_init.sh
 COPY scripts/load_database.py /code/load_database.py
 
-RUN chmod +x /code/local_init.sh
+RUN chmod +x /code/local_db_init.sh
 
 # API Local stage
 FROM base AS api-local

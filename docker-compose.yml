@@ -9,6 +9,11 @@ services:
       - POSTGRES_HOST=${POSTGRES_HOST}
       - POSTGRES_PORT=${POSTGRES_PORT}
       - REFERENDUM_DB_NAME=${REFERENDUM_DB_NAME}
+      - STORAGE_TYPE=s3
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_REGION=us-east-1
+      - S3_ENDPOINT_URL=http://minio:9000
     ports:
       - "80:80"
     profiles: ["base"]
@@ -35,7 +40,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      local-init:
+      local-db-init:
         condition: service_completed_successfully
       migrations:
         condition: service_completed_successfully
@@ -63,11 +68,42 @@ services:
       retries: 5
     profiles: ["local-data", "local-empty", "test"]
 
-  local-init:
-    container_name: local_init
+  minio:
+    container_name: minio
+    image: minio/minio
+    environment:
+      - MINIO_ROOT_USER=miniouser
+      - MINIO_ROOT_PASSWORD=miniopassword
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"  # API
+      - "9001:9001"  # Console
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 5s
+      timeout: 20s
+      retries: 3
+    profiles: [ "local-data", "local-empty" ]
+
+  minio-init:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc config host add localminio http://minio:9000 miniouser miniopassword;
+      mc mb localminio/bill-texts --ignore-existing;
+      mc policy set public localminio/bill-texts;
+      exit 0;
+      "
+    profiles: [ "local-data", "local-empty" ]
+
+  local-db-init:
+    container_name: local_db_init
     build:
       context: .
-      target: local-init
+      target: local-db-init
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -78,7 +114,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    command: ["/code/local_init.sh"]
+      minio-init:
+        condition: service_completed_successfully
+    command: ["/code/local_db_init.sh"]
     profiles: ["local-data", "local-empty", "test"]
 
   migrations:
@@ -96,7 +134,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      local-init:
+      local-db-init:
         condition: service_completed_successfully
     profiles: ["local-data", "local-empty", "test"]
 
@@ -108,7 +146,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      local-init:
+      minio:
+        condition: service_healthy
+      local-db-init:
         condition: service_completed_successfully
       migrations:
         condition: service_completed_successfully
@@ -130,7 +170,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      local-init:
+      minio:
+        condition: service_healthy
+      local-db-init:
         condition: service_completed_successfully
       migrations:
         condition: service_completed_successfully
