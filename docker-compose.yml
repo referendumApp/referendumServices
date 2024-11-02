@@ -72,8 +72,8 @@ services:
     container_name: minio
     image: minio/minio
     environment:
-      - MINIO_ROOT_USER=miniouser
-      - MINIO_ROOT_PASSWORD=miniopassword
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
     command: server /data --console-address ":9001"
     ports:
       - "9000:9000"  # API
@@ -92,7 +92,7 @@ services:
         condition: service_healthy
     entrypoint: >
       /bin/sh -c "
-      mc config host add localminio http://minio:9000 miniouser miniopassword;
+      mc config host add localminio http://minio:9000 minioadmin minioadmin;
       mc mb localminio/bill-texts --ignore-existing;
       mc policy set public localminio/bill-texts;
       exit 0;
@@ -160,6 +160,10 @@ services:
       - POSTGRES_PORT=${POSTGRES_PORT}
       - LEGISCAN_API_DB_NAME=${LEGISCAN_API_DB_NAME}
       - REFERENDUM_DB_NAME=${REFERENDUM_DB_NAME}
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_REGION=us-east-1
+      - S3_ENDPOINT_URL=http://minio:9000
     profiles: ["local-data"]
 
   test:

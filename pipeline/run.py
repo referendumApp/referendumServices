@@ -122,19 +122,13 @@ def extract_bill_text(storage_client: ObjectStorageClient, url: str):
         # response.raise_for_status()
         # bill_text = response.text
         bill_text = "lorem ipsum"
+        bill_text_bytes = bill_text.encode("utf-8")
 
         storage_client.upload_file(
             bucket=TEXT_BUCKET_NAME,
             key=f"{url_hash}.txt",
-            file_obj=bill_text,
+            file_obj=bill_text_bytes,
         )
-
-        # # Upload to S3
-        # s3_client.put_object(
-        #     Bucket=TEXT_BUCKET_NAME,
-        #     Key=f"{url_hash}.txt",
-        #     Body=bill_text.encode('utf-8')
-        # )
 
         logger.info(f"Successfully extracted and stored text for URL {url} at hash {url_hash}")
         return True
