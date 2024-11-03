@@ -159,7 +159,7 @@ def run_text_extraction():
         return
 
     # Get existing hashes from S3
-    existing_hashes = get_s3_bill_texts(storage_client=storage_client)
+    existing_hashes = get_s3_bill_texts(storage_client)
     logger.info(f"Found {len(existing_hashes)} existing bill texts in S3")
 
     # Find missing texts
