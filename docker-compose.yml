@@ -3,12 +3,7 @@ services:
     build:
       context: .
       target: api
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - REFERENDUM_DB_NAME=${REFERENDUM_DB_NAME}
+    env_file: .env
     ports:
       - "80:80"
     profiles: ["base"]
@@ -27,11 +22,6 @@ services:
     build:
       context: .
       target: api-local
-    environment:
-      - ENVIRONMENT=local
-      - API_ACCESS_TOKEN=${API_ACCESS_TOKEN}
-      - SECRET_KEY=${API_ACCESS_TOKEN}
-      - ENABLE_DEBUGGER=${ENABLE_DEBUGGER}
     depends_on:
       db:
         condition: service_healthy
@@ -51,14 +41,12 @@ services:
   db:
     container_name: db
     image: postgres:13
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    env_file: .env
     ports:
       - "${POSTGRES_PORT}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user"]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
       timeout: 5s
       retries: 5
     profiles: ["local-data", "local-empty", "test"]
@@ -68,13 +56,7 @@ services:
     build:
       context: .
       target: local-init
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - LEGISCAN_API_DB_NAME=${LEGISCAN_API_DB_NAME}
-      - REFERENDUM_DB_NAME=${REFERENDUM_DB_NAME}
+    env_file: .env
     depends_on:
       db:
         condition: service_healthy
@@ -85,13 +67,7 @@ services:
     build:
       context: .
       target: migrations
-    environment:
-      - ENVIRONMENT=local
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_HOST=db
-      - POSTGRES_PORT=5432
-      - REFERENDUM_DB_NAME=referendum
+    env_file: .env
     command: ["alembic", "upgrade", "head"]
     depends_on:
       db:
@@ -112,13 +88,7 @@ services:
         condition: service_completed_successfully
       migrations:
         condition: service_completed_successfully
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - LEGISCAN_API_DB_NAME=${LEGISCAN_API_DB_NAME}
-      - REFERENDUM_DB_NAME=${REFERENDUM_DB_NAME}
+    env_file: .env
     profiles: ["local-data"]
 
   test:
@@ -133,14 +103,5 @@ services:
         condition: service_completed_successfully
       migrations:
         condition: service_completed_successfully
-    environment:
-      - ENVIRONMENT=test
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - LEGISCAN_API_DB_NAME=${LEGISCAN_API_DB_NAME}
-      - REFERENDUM_DB_NAME=${REFERENDUM_DB_NAME}
-      - API_ACCESS_TOKEN=${API_ACCESS_TOKEN}
-      - SECRET_KEY=${API_ACCESS_TOKEN}
+    env_file: .env
     profiles: ["test"]
