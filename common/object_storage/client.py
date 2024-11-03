@@ -1,6 +1,7 @@
 import os
 import logging
-from typing import Optional, Union, BinaryIO
+from dataclasses import dataclass
+from typing import Optional, Dict, Any
 from io import BytesIO
 import boto3
 from botocore.exceptions import ClientError
@@ -10,118 +11,70 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class ObjectStorageClient:
-    def __init__(self) -> None:
-        """Initialize storage client"""
-        aws_access_key = os.getenv("AWS_ACCESS_KEY_ID")
-        aws_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
-        aws_region = os.getenv("AWS_REGION", "us-east-1")
-        endpoint_url = os.getenv("S3_ENDPOINT_URL")
+@dataclass
+class StorageConfig:
+    access_key: str
+    secret_key: str
+    region: str = "us-east-1"
+    endpoint_url: Optional[str] = None
+    timeout: int = 30
+    max_retries: int = 3
 
-        if not aws_access_key:
-            raise ValueError("AWS_ACCESS_KEY_ID environment variable is not set")
-        if not aws_secret_key:
-            raise ValueError("AWS_SECRET_ACCESS_KEY environment variable is not set")
+    @classmethod
+    def from_env(cls) -> "StorageConfig":
+        access_key = os.getenv("AWS_ACCESS_KEY_ID")
+        secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
 
-        # Configure S3 client
-        config = Config(
-            connect_timeout=30,
-            read_timeout=30,
-            retries={"max_attempts": 3},
-            # Required for MinIO compatibility
-            s3={"addressing_style": "path"},
+        if not access_key or not secret_key:
+            raise ValueError("AWS credentials not found in environment variables")
+
+        return cls(
+            access_key=access_key,
+            secret_key=secret_key,
+            region=os.getenv("AWS_REGION", "us-east-1"),
+            endpoint_url=os.getenv("S3_ENDPOINT_URL"),
         )
 
-        client_kwargs = {
-            "aws_access_key_id": aws_access_key,
-            "aws_secret_access_key": aws_secret_key,
-            "region_name": aws_region,
-            "config": config,
+
+class ObjectStorageClient:
+    def __init__(self, config: StorageConfig) -> None:
+        self.config = config
+        self.s3_client = self._create_client()
+
+    def _create_client(self) -> Any:
+        boto_config = Config(
+            connect_timeout=self.config.timeout,
+            read_timeout=self.config.timeout,
+            retries={"max_attempts": self.config.max_retries},
+            s3={"addressing_style": "path"},  # Required for MinIO
+        )
+
+        client_kwargs: Dict[str, Any] = {
+            "aws_access_key_id": self.config.access_key,
+            "aws_secret_access_key": self.config.secret_key,
+            "region_name": self.config.region,
+            "config": boto_config,
         }
 
-        # Add endpoint_url for MinIO
-        if endpoint_url:
-            client_kwargs["endpoint_url"] = endpoint_url
-            client_kwargs["verify"] = False
+        if self.config.endpoint_url:
+            client_kwargs.update({"endpoint_url": self.config.endpoint_url, "verify": False})
 
-        self.s3_client = boto3.client("s3", **client_kwargs)
-
-        storage_type = "MinIO" if endpoint_url else "S3"
-        logger.info(f"Successfully initialized {storage_type} client")
-        if endpoint_url:
-            logger.info(f"Using endpoint: {endpoint_url}")
+        return boto3.client("s3", **client_kwargs)
 
     def upload_file(
-        self,
-        bucket: str,
-        key: str,
-        file_obj: bytes,
-        content_type: Optional[str] = None,
+        self, bucket: str, key: str, file_obj: bytes, content_type: Optional[str] = None
     ):
-        """Upload a file to storage.
+        extra_args = {"ContentType": content_type} if content_type else {}
+        self.s3_client.upload_fileobj(BytesIO(file_obj), bucket, key, ExtraArgs=extra_args)
 
-        Args:
-            bucket: Bucket name
-            key: Object key/path
-            file_obj: Bytes to upload
-            content_type: Optional MIME type of the file
-        """
-        try:
-            extra_args = {"ContentType": content_type} if content_type else {}
-            buffer = BytesIO(file_obj)
-            self.s3_client.upload_fileobj(buffer, bucket, key, ExtraArgs=extra_args)
-            logger.info(f"Successfully uploaded {key} to {bucket}")
-        except (ClientError, IOError) as e:
-            logger.error(f"Failed to upload file: {str(e)}")
-            raise
+    def download_file(self, bucket: str, key: str) -> bytes:
+        buffer = BytesIO()
+        self.s3_client.download_fileobj(bucket, key, buffer)
+        return buffer.getvalue()
 
-    def download_file(self, bucket: str, key: str) -> Optional[bytes]:
-        """Download a file from storage.
-
-        Args:
-            bucket: Bucket name
-            key: Object key/path
-
-        Returns:
-            bytes containing the file content
-        """
-        try:
-            buffer = BytesIO()
-            self.s3_client.download_fileobj(bucket, key, buffer)
-            return buffer.getvalue()
-        except (ClientError, IOError) as e:
-            logger.error(f"Failed to download file: {str(e)}")
-            return None
-
-    def delete_file(self, bucket: str, key: str) -> bool:
-        """Delete a file from storage.
-
-        Args:
-            bucket: Bucket name
-            key: Object key/path
-
-        Returns:
-            bool: True if deletion was successful
-        """
-        try:
-            self.s3_client.delete_object(Bucket=bucket, Key=key)
-            logger.info(f"Successfully deleted {key} from {bucket}")
-            return True
-        except (ClientError, IOError) as e:
-            logger.error(f"Failed to delete file: {str(e)}")
-            return False
+    def delete_file(self, bucket: str, key: str):
+        self.s3_client.delete_object(Bucket=bucket, Key=key)
 
 
 def create_storage_client() -> ObjectStorageClient:
-    """Factory function to create a storage client.
-
-    Returns:
-        ObjectStorageClient instance
-    """
-    try:
-        client = ObjectStorageClient()
-        logger.info(f"Successfully created storage client")
-        return client
-    except Exception as e:
-        logger.error(f"Failed to create storage client: {str(e)}")
-        raise
+    return ObjectStorageClient(StorageConfig.from_env())
