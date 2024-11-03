@@ -140,14 +140,5 @@ services:
         condition: service_completed_successfully
       migrations:
         condition: service_completed_successfully
-    environment:
-      - ENVIRONMENT=local
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - LEGISCAN_API_DB_NAME=${LEGISCAN_API_DB_NAME}
-      - REFERENDUM_DB_NAME=${REFERENDUM_DB_NAME}
-      - API_ACCESS_TOKEN=${API_ACCESS_TOKEN}
-      - SECRET_KEY=${API_ACCESS_TOKEN}
+    env_file: .env
     profiles: ["test"]
