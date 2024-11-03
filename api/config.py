@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 
 
-def setup_logging(settings: Settings) -> None:
+def setup_logging() -> None:
     try:
         logs_client = boto3.client("logs", region_name=settings.AWS_REGION)
         log_group_name = "referendum-api-logs"
@@ -61,4 +61,4 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
-setup_logging(settings)
+setup_logging()
