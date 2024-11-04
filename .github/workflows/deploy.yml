@@ -175,7 +175,7 @@ jobs:
               "fi",
               "echo \"Database migrations completed successfully.\"",
               "echo \"Starting application...\"",
-              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e ENVIRONMENT=${{ env.DEPLOY_ENV }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e API_SECRET_KEY=\"$API_SECRET_KEY\" -e AWS_REGION=\"${{ env.AWS_REGION }}\" -e AWS_ACCESS_KEY_ID=\"S3_ACCESS_KEY\" -e AWS_SECRET_ACCESS_KEY=\"S3_SECRET_KEY\" -e BILL_TEXT_BUCKET_NAME=\"${{ env.BILL_TEXT_BUCKET_NAME }}\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.IMAGE_TAG }}",
+              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e ENVIRONMENT=${{ env.DEPLOY_ENV }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"$SECRET_KEY\" -e AWS_REGION=\"${{ env.AWS_REGION }}\" -e AWS_ACCESS_KEY_ID=\"S3_ACCESS_KEY\" -e AWS_SECRET_ACCESS_KEY=\"S3_SECRET_KEY\" -e BILL_TEXT_BUCKET_NAME=\"${{ env.BILL_TEXT_BUCKET_NAME }}\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.IMAGE_TAG }}",
               "docker container prune -f",
               "docker image prune -af",
               "docker network prune -f",
