@@ -15,7 +15,7 @@ from pipeline.etl_config import ETLConfig
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-TEXT_BUCKET_NAME = os.getenv("BILL_TEXT_BUCKET", "bill-texts")
+BILL_TEXT_BUCKET_NAME = os.getenv("BILL_TEXT_BUCKET_NAME")
 
 
 def get_legiscan_api_db():
@@ -104,7 +104,7 @@ def get_url_hash(url: str) -> str:
 def get_s3_bill_texts(storage_client: ObjectStorageClient) -> Set[str]:
     """Retrieve list of bill text hashes already stored"""
     try:
-        existing_hashes = storage_client.list_files(TEXT_BUCKET_NAME)
+        existing_hashes = storage_client.list_filenames(TEXT_BUCKET_NAME)
 
         return set(existing_hashes)
     except Exception as e:
@@ -125,7 +125,7 @@ def extract_bill_text(storage_client: ObjectStorageClient, url: str):
         bill_text_bytes = bill_text.encode("utf-8")
 
         storage_client.upload_file(
-            bucket=TEXT_BUCKET_NAME,
+            bucket=BILL_TEXT_BUCKET_NAME,
             key=f"{url_hash}.txt",
             file_obj=bill_text_bytes,
         )

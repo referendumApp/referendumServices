@@ -1,3 +1,6 @@
+from api.tests.test_utils import assert_status_code
+
+
 async def test_health(client):
     response = await client.get("/health")
-    assert response.status_code == 200
+    assert_status_code(response, 200)

@@ -1,9 +1,8 @@
 import os
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from io import BytesIO
 import boto3
-from botocore.exceptions import ClientError
 from botocore.client import Config
 
 logging.basicConfig(level=logging.INFO)
@@ -45,6 +44,9 @@ class ObjectStorageClient:
 
         return boto3.client("s3", **client_kwargs)
 
+    def check_connection(self, bucket: str):
+        self.s3_client.head_bucket(Bucket=bucket)
+
     def upload_file(
         self, bucket: str, key: str, file_obj: bytes, content_type: Optional[str] = None
     ):
@@ -58,6 +60,19 @@ class ObjectStorageClient:
 
     def delete_file(self, bucket: str, key: str):
         self.s3_client.delete_object(Bucket=bucket, Key=key)
+
+    def list_filenames(self, bucket: str, prefix: Optional[str] = None) -> List[str]:
+        params = {"Bucket": bucket}
+        if prefix:
+            params["Prefix"] = prefix
+
+        filenames = []
+        paginator = self.s3_client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(**params):
+            if "Contents" in page:
+                filenames.extend(obj["Key"] for obj in page["Contents"])
+
+        return filenames
 
 
 def create_storage_client() -> ObjectStorageClient:
