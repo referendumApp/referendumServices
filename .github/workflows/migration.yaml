@@ -14,7 +14,7 @@ on:
       version:
         description: 'Migration version (e.g., head, base, or specific revision)'
         required: true
-        default: 'head
+        default: 'head'
       image_tag:
         description: 'ECR image tag to use (e.g., dev-stable, prod-stable)'
         required: true
