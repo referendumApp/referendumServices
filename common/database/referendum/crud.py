@@ -128,33 +128,6 @@ class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             db.rollback()
             raise DatabaseException(f"Database error: {str(e)}")
 
-    def bulk_update(
-        self,
-        db: Session,
-        *,
-        db_obj: ModelType,
-        obj_in_list: Union[List[UpdateSchemaType], List[Dict[str, Any]]],
-    ) -> ModelType:
-        if db_obj is None:
-            raise ObjectNotFoundException("Object not found")
-        try:
-            for obj_in in obj_in_list:
-                obj_data = obj_in.model_dump(exclude_unset=True)
-                if isinstance(obj_in, dict):
-                    update_data = obj_in
-                else:
-                    update_data = obj_in.model_dump(exclude_unset=True)
-                for field in obj_data:
-                    if field in update_data:
-                        setattr(db_obj, field, update_data[field])
-                db.add(db_obj)
-                db.commit()
-                db.refresh(db_obj)
-                return db_obj
-        except SQLAlchemyError as e:
-            db.rollback()
-            raise DatabaseException(f"Database error: {str(e)}")
-
     def delete(self, db: Session, obj_id: int) -> None:
         obj = db.get(self.model, obj_id)
         if obj is None:
