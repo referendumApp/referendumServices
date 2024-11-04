@@ -1,0 +1,84 @@
+name: Manual Database Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to run migration on (prod/dev)'
+        required: true
+        default: 'dev'
+      operation:
+        description: 'Migration operation (upgrade/downgrade)'
+        required: true
+        default: 'upgrade'
+      version:
+        description: 'Migration version (e.g., head, base, or specific revision)'
+        required: true
+        default: 'head'
+
+env:
+  AWS_REGION: us-east-2
+  ECR_REPOSITORY_API: referendum/api
+  POSTGRES_PASSWORD_SECRET_NAME: rds!db-a5c629ff-4d6e-4d68-9680-6cdab848369c
+
+jobs:
+  run-migration:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Build Alembic migration image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      run: |
+        docker build --target migrations -t migrations-runner .
+
+    - name: Run Migration
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      run: |
+        set -e
+        
+        # Get environment variables from SSM Parameter Store
+        SSM_PARAMS_JSON=$(aws ssm get-parameters-by-path \
+          --path /${{ github.event.inputs.environment }}/ \
+          --with-decryption \
+          --query "Parameters[*].{Name:Name,Value:Value}" \
+          --output json)
+        
+        # Format environment variables for docker run command
+        ENV_VARS=$(echo "$SSM_PARAMS_JSON" | jq -r '.[] | " -e " + (.Name | split("/")[-1]) + "=" + .Value' | tr "\n" " ")
+        
+        # Get secrets from AWS Secrets Manager
+        POSTGRES_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.POSTGRES_PASSWORD_SECRET_NAME }} --query SecretString --output text)
+        POSTGRES_PASSWORD=$(echo $POSTGRES_SECRET | jq -r '.password')
+        
+        # Run migration command
+        echo "Running ${{ github.event.inputs.operation }} to version ${{ github.event.inputs.version }}..."
+        if ! docker run --rm \
+          -e ENVIRONMENT=${{ github.event.inputs.environment }} \
+          -e POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
+          $ENV_VARS \
+          migrations-runner \
+          alembic ${{ github.event.inputs.operation }} ${{ github.event.inputs.version }}; then
+          echo "Migration failed"
+          exit 1
+        fi
+        
+        echo "Migration completed successfully"
+
+    - name: Cleanup
+      run: |
+        docker system prune -af
