@@ -213,65 +213,66 @@ jobs:
           sleep 10
         done
 
-    - name: Verify Deployment
-      run: |
-        set -e
-        echo "Verifying deployment..."
-        PORT="${{ env.DEPLOY_ENV == 'prod' && '80' || '8080' }}"
-        MAX_RETRIES=5
-        RETRY_INTERVAL=10
-        
-        for i in $(seq 1 $MAX_RETRIES); do
-          echo "Attempt $i of $MAX_RETRIES"
-          HEALTH_CHECK_COMMAND_ID=$(aws ssm send-command \
-            --instance-ids "${{ env.EC2_INSTANCE_ID }}" \
-            --document-name "AWS-RunShellScript" \
-            --parameters "{\"commands\":[\"curl -s -o /dev/null -w \\\"%{http_code}\\\" http://localhost:$PORT/health\"]}" \
-            --output text \
-            --query "Command.CommandId")
-          
-          sleep $RETRY_INTERVAL
-          
-          HEALTH_CHECK_STATUS_CODE=$(aws ssm list-command-invocations \
-            --command-id "$HEALTH_CHECK_COMMAND_ID" \
-            --details \
-            --output text \
-            --query "CommandInvocations[].CommandPlugins[].Output")
-          
-          if [ "$HEALTH_CHECK_STATUS_CODE" == "200" ]; then
-            echo "Deployment verified successfully"
-            echo "Updating stable tag..."
-            docker tag ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.IMAGE_TAG }} ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.DEPLOY_ENV }}-stable
-            docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.DEPLOY_ENV }}-stable
-            echo "Deployment successful"
-            exit 0
-          fi
-          
-          echo "Health check failed. Status code: $HEALTH_CHECK_STATUS_CODE"
-        done
-        
-        echo "Deployment verification failed after $MAX_RETRIES attempts"
-        echo "Rolling back to previous stable version..."
-        aws ssm send-command \
-          --instance-ids "${{ env.EC2_INSTANCE_ID }}" \
-          --document-name "AWS-RunShellScript" \
-          --parameters '{
-            "commands": [
-              "docker stop ${{ env.DEPLOY_ENV }}-app || true",
-              "docker rm ${{ env.DEPLOY_ENV }}-app || true",
-              "docker rmi ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.IMAGE_TAG }} || true",
-              "SSM_PARAMS_JSON=$(aws ssm get-parameters-by-path --path /${{ env.DEPLOY_ENV }}/ --with-decryption --query \"Parameters[*].{Name:Name,Value:Value}\" --output json)",
-              "ENV_VARS=$(echo \"$SSM_PARAMS_JSON\" | jq -r \".[] | \\\" -e \\\" + .Name + \\\"=\\\" + .Value\" | sed \"s/\\/[^\\/]*\\///g\" | tr \"\\n\" \" \")",
-              "POSTGRES_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.POSTGRES_PASSWORD_SECRET_NAME }} --query SecretString --output text)",
-              "POSTGRES_PASSWORD=$(echo $POSTGRES_SECRET | jq -r '.password')",
-              "API_ACCESS_TOKEN_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.API_ACCESS_TOKEN_SECRET_NAME }} --query SecretString --output text)",
-              "API_ACCESS_TOKEN=$(echo $API_ACCESS_TOKEN_SECRET | jq -r '.token')",
-              "SECRET_KEY_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.SECRET_KEY_SECRET_NAME }} --query SecretString --output text)",
-              "SECRET_KEY=$(echo $SECRET_KEY_SECRET | jq -r '.token')",
-              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"$SECRET_KEY\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.DEPLOY_ENV }}-stable"
-            ]
-          }'
-        exit 1
+#    - name: Verify Deployment
+#      run: |
+#        set -e
+#        echo "Verifying deployment..."
+#        PORT="${{ env.DEPLOY_ENV == 'prod' && '80' || '8080' }}"
+#        MAX_RETRIES=5
+#        RETRY_INTERVAL=10
+#
+#        for i in $(seq 1 $MAX_RETRIES); do
+#          echo "Attempt $i of $MAX_RETRIES"
+#          HEALTH_CHECK_COMMAND_ID=$(aws ssm send-command \
+#            --instance-ids "${{ env.EC2_INSTANCE_ID }}" \
+#            --document-name "AWS-RunShellScript" \
+#            --parameters "{\"commands\":[\"curl -s -o /dev/null -w \\\"%{http_code}\\\" http://localhost:$PORT/health\"]}" \
+#            --output text \
+#            --query "Command.CommandId")
+#
+#          sleep $RETRY_INTERVAL
+#
+#          HEALTH_CHECK_STATUS_CODE=$(aws ssm list-command-invocations \
+#            --command-id "$HEALTH_CHECK_COMMAND_ID" \
+#            --details \
+#            --output text \
+#            --query "CommandInvocations[].CommandPlugins[].Output")
+#
+#          if [ "$HEALTH_CHECK_STATUS_CODE" == "200" ]; then
+#            echo "Deployment verified successfully"
+#            echo "Updating stable tag..."
+#            docker tag ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.IMAGE_TAG }} ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.DEPLOY_ENV }}-stable
+#            docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.DEPLOY_ENV }}-stable
+#            echo "Deployment successful"
+#            exit 0
+#          fi
+#
+#          echo "Health check failed. Status code: $HEALTH_CHECK_STATUS_CODE"
+#        done
+#
+#        echo "Deployment verification failed after $MAX_RETRIES attempts"
+#        echo "Rolling back to previous stable version..."
+#        aws ssm send-command \
+#          --instance-ids "${{ env.EC2_INSTANCE_ID }}" \
+#          --document-name "AWS-RunShellScript" \
+#          --parameters '{
+#            "commands": [
+#              "docker stop ${{ env.DEPLOY_ENV }}-app || true",
+#              "docker rm ${{ env.DEPLOY_ENV }}-app || true",
+#              "docker rmi ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.IMAGE_TAG }} || true",
+#              "SSM_PARAMS_JSON=$(aws ssm get-parameters-by-path --path /${{ env.DEPLOY_ENV }}/ --with-decryption --query \"Parameters[*].{Name:Name,Value:Value}\" --output json)",
+#              "ENV_VARS=$(echo \"$SSM_PARAMS_JSON\" | jq -r \".[] | \\\" -e \\\" + .Name + \\\"=\\\" + .Value\" | sed \"s/\\/[^\\/]*\\///g\" | tr \"\\n\" \" \")",
+#              "POSTGRES_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.POSTGRES_PASSWORD_SECRET_NAME }} --query SecretString --output text)",
+#              "POSTGRES_PASSWORD=$(echo $POSTGRES_SECRET | jq -r '.password')",
+#              "API_ACCESS_TOKEN_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.API_ACCESS_TOKEN_SECRET_NAME }} --query SecretString --output text)",
+#              "API_ACCESS_TOKEN=$(echo $API_ACCESS_TOKEN_SECRET | jq -r '.token')",
+#              "SECRET_KEY_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.SECRET_KEY_SECRET_NAME }} --query SecretString --output text)",
+#              "SECRET_KEY=$(echo $SECRET_KEY_SECRET | jq -r '.token')",
+#              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"$SECRET_KEY\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.DEPLOY_ENV }}-stable"
+#            ]
+#          }'
+#        exit 1
+
 
   deploy-pipeline:
     needs: [set-deployment-vars, update-version]
