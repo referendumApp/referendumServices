@@ -1,0 +1,107 @@
+name: Manual Database Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to run migration on (prod/dev)'
+        required: true
+        default: 'dev'
+      operation:
+        description: 'Migration operation (upgrade/downgrade)'
+        required: true
+        default: 'upgrade'
+      version:
+        description: 'Migration version (e.g., head, base, or specific revision)'
+        required: true
+        default: 'head'
+      image_tag:
+        description: 'ECR image tag to use (e.g., dev-stable, prod-stable)'
+        required: true
+        default: 'dev-stable'
+
+env:
+  AWS_REGION: us-east-2
+  ECR_REPOSITORY_API: referendum/api
+  POSTGRES_PASSWORD_SECRET_NAME: rds!db-a5c629ff-4d6e-4d68-9680-6cdab848369c
+
+jobs:
+  run-migration:
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Get EC2 Instance ID
+      run: |
+        EC2_INSTANCE_ID_PARAM="/$(echo ${{ github.event.inputs.environment }} | tr '[:upper:]' '[:lower:]')/API_EC2_INSTANCE_ID"
+        EC2_INSTANCE_ID=$(aws ssm get-parameter --name $EC2_INSTANCE_ID_PARAM --query "Parameter.Value" --output text)
+        echo "EC2_INSTANCE_ID=$EC2_INSTANCE_ID" >> $GITHUB_ENV
+
+    - name: Run Migration via SSM
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      run: |
+        set -e
+        
+        echo "Running migration command on EC2 instance..."
+        MIGRATION_COMMAND_OUTPUT=$(aws ssm send-command \
+          --instance-ids "${{ env.EC2_INSTANCE_ID }}" \
+          --document-name "AWS-RunShellScript" \
+          --parameters '{
+            "commands": [
+              "set -e",
+              "aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}",
+              "docker pull ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:migrations-${{ github.event.inputs.image_tag }}",
+              "SSM_PARAMS_JSON=$(aws ssm get-parameters-by-path --path /${{ github.event.inputs.environment }}/ --with-decryption --query \"Parameters[*].{Name:Name,Value:Value}\" --output json)",
+              "ENV_VARS=$(echo \"$SSM_PARAMS_JSON\" | jq -r \".[] | \\\" -e \\\" + .Name + \\\"=\\\" + .Value\" | sed \"s/\\/[^\\/]*\\///g\" | tr \"\\n\" \" \")",
+              "POSTGRES_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.POSTGRES_PASSWORD_SECRET_NAME }} --query SecretString --output text)",
+              "POSTGRES_PASSWORD=$(echo $POSTGRES_SECRET | jq -r .password)",
+              "echo \"Running ${{ github.event.inputs.operation }} to version ${{ github.event.inputs.version }}...\"",
+              "docker run --rm -e ENVIRONMENT=${{ github.event.inputs.environment }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"$SECRET_KEY\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:migrations-${{ github.event.inputs.image_tag }} alembic ${{ github.event.inputs.operation }} ${{ github.event.inputs.version }}",
+              "docker image prune -af"
+            ]
+          }' \
+          --output json)
+        
+        COMMAND_ID=$(echo "$MIGRATION_COMMAND_OUTPUT" | jq -r '.Command.CommandId')
+        echo "Migration command ID: $COMMAND_ID"
+        
+        # Wait for the command to complete and check its status
+        while true; do
+          COMMAND_RESULT=$(aws ssm list-command-invocations \
+            --command-id "$COMMAND_ID" \
+            --details \
+            --output json)
+          
+          STATUS=$(echo "$COMMAND_RESULT" | jq -r '.CommandInvocations[0].Status')
+          
+          if [ "$STATUS" = "Success" ]; then
+            echo "Migration command executed successfully"
+            echo "Command output:"
+            echo "$COMMAND_RESULT" | jq -r '.CommandInvocations[0].CommandPlugins[0].Output'
+            break
+          elif [ "$STATUS" = "Failed" ]; then
+            echo "Migration command failed"
+            echo "Command output:"
+            echo "$COMMAND_RESULT" | jq -r '.CommandInvocations[0].CommandPlugins[0].Output'
+            exit 1
+          elif [ "$STATUS" = "TimedOut" ]; then
+            echo "Migration command timed out"
+            echo "Command output:"
+            echo "$COMMAND_RESULT" | jq -r '.CommandInvocations[0].CommandPlugins[0].Output'
+            exit 1
+          fi
+          
+          echo "Waiting for migration command to complete... Current status: $STATUS"
+          sleep 10
+        done

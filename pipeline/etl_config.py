@@ -12,6 +12,7 @@ class TransformationFunction(str, Enum):
     KEEP_COLUMNS = "keep_columns"
     RENAME = "rename"
     DUPLICATE = "duplicate"
+    ADD_URL = "add_url"
 
 
 class Transformation(BaseModel):
@@ -21,7 +22,6 @@ class Transformation(BaseModel):
     def apply(self, df: pd.DataFrame) -> pd.DataFrame:
         try:
             match self.function:
-
                 case TransformationFunction.KEEP_COLUMNS:
                     columns = self.parameters.get("columns", [])
                     missing_cols = set(columns) - set(df.columns)
@@ -45,6 +45,18 @@ class Transformation(BaseModel):
 
                     return df
 
+                case TransformationFunction.ADD_URL:
+                    source_name = self.parameters.get("source_name")
+                    destination_name = self.parameters.get("destination_name")
+                    base_url = "https://s3.amazonaws.com/ballotpedia-api4/files/thumbs/200/300/"
+                    if source_name not in df.columns:
+                        raise ValueError(f"Source column '{source_name}' not found")
+
+                    df = df.copy()
+                    df[destination_name] = base_url + df[source_name] + ".jpg"
+
+                    return df
+
                 case _:
                     raise ValueError(f"Unsupported transformation: {self.function}")
 
@@ -54,9 +66,10 @@ class Transformation(BaseModel):
 
 
 class ETLConfig(BaseModel):
-    source: str  # SQL table name
-    source_columns: Set[str]  # Columns to extract from source table
-    destination: str  # Destination table name
+    source: str
+    source_columns: Set[str]
+    destination: str
+    destination_columns: List[str]
     transformations: List[Transformation]
     dataframe: Optional[pd.DataFrame] = None
 
@@ -94,7 +107,7 @@ class ETLConfig(BaseModel):
     def load(self, conn: Session):
         try:
             logger.info(f"Loading data into {self.destination}")
-            self.dataframe.to_sql(
+            self.dataframe[self.destination_columns].to_sql(
                 self.destination,
                 con=conn,
                 if_exists="append",
