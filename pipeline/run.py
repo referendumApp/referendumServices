@@ -145,8 +145,6 @@ def run_text_extraction():
     logger.info("Starting bill text extraction process")
 
     storage_client = create_storage_client()
-
-    # Get all URLs from database
     referendum_db = next(get_referendum_db())
     try:
         result = referendum_db.execute(
@@ -158,15 +156,12 @@ def run_text_extraction():
         logger.error(f"Failed to retrieve URLs from database: {str(e)}")
         return
 
-    # Get existing hashes from S3
     existing_hashes = get_s3_bill_texts(storage_client)
     logger.info(f"Found {len(existing_hashes)} existing bill texts in S3")
 
-    # Find missing texts
     missing_texts = [url for url in urls if get_url_hash(url) not in existing_hashes]
     logger.info(f"Found {len(missing_texts)} missing bill texts to process")
 
-    # Extract text from missing bills
     success_count = 0
     for url in missing_texts:
         if extract_bill_text(storage_client, url):
@@ -182,8 +177,9 @@ def orchestrate():
     try:
         logger.info("ETL process starting")
         run_etl()
-        logger.info("Text extraction starting")
-        run_text_extraction()
+        logger.info("Skipping text extraction")
+        # logger.info("Text extraction starting")
+        # run_text_extraction()
         logger.info("ETL orchestration completed")
     except Exception as e:
         logger.error(f"ETL orchestration failed: {str(e)}")
