@@ -12,6 +12,7 @@ class TransformationFunction(str, Enum):
     KEEP_COLUMNS = "keep_columns"
     RENAME = "rename"
     DUPLICATE = "duplicate"
+    ADD_URL = "add_url"
 
 
 class Transformation(BaseModel):
