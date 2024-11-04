@@ -1,27 +1,16 @@
 import pytest
 import subprocess
 import os
+
+from pipeline import run
 from sqlalchemy import text
 
 from common.database.referendum import connection as referendum_connection
 from common.database.legiscan_api import connection as legiscan_api_connection
 
 
-def is_running_in_docker():
-    return os.path.exists("/.dockerenv")
-
-
 def test_pipeline_execution():
-    if not is_running_in_docker():
-        pytest.skip("This test should only run inside a Docker container")
-
-    result = subprocess.run(
-        ["python", "-m", "pipeline.run"], capture_output=True, text=True, check=True
-    )
-    full_output = result.stdout + result.stderr
-    assert (
-        "ETL process completed successfully" in full_output
-    ), f"Success message not found in pipeline output: {full_output}"
+    run.orchestrate()
 
     referendum_db = referendum_connection.SessionLocal()
     legiscan_db = legiscan_api_connection.SessionLocal()
@@ -62,8 +51,6 @@ def test_pipeline_execution():
         assert legiscan_count == referendum_count, (
             f"Row count mismatch for tables {legiscan_table} and {referendum_table}: "
             f"{legiscan_count} vs {referendum_count}\n"
-            f"Full Output\n"
-            f"{full_output}"
         )
 
     referendum_db.close()

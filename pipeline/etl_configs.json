@@ -6,6 +6,10 @@
       "state_name"
     ],
     "destination": "states",
+    "destination_columns": [
+      "id",
+      "name"
+    ],
     "transformations": [
       {
         "function": "rename",
@@ -26,6 +30,10 @@
       "role_name"
     ],
     "destination": "roles",
+    "destination_columns": [
+      "id",
+      "name"
+    ],
     "transformations": [
       {
         "function": "rename",
@@ -47,6 +55,11 @@
       "role_id"
     ],
     "destination": "legislative_bodys",
+    "destination_columns": [
+      "id",
+      "state_id",
+      "role_id"
+    ],
     "transformations": [
       {
         "function": "rename",
@@ -66,6 +79,10 @@
       "party_name"
     ],
     "destination": "partys",
+    "destination_columns": [
+      "id",
+      "name"
+    ],
     "transformations": [
       {
         "function": "rename",
@@ -93,6 +110,17 @@
       "status_date"
     ],
     "destination": "bills",
+    "destination_columns": [
+      "id",
+      "title",
+      "description",
+      "state_id",
+      "legislative_body_id",
+      "identifier",
+      "session_id",
+      "status_id",
+      "status_date"
+    ],
     "transformations": [
       {
         "function": "rename",
@@ -121,10 +149,19 @@
       "name",
       "party_id",
       "district",
-      "ballotpedia"
+      "ballotpedia",
       "state_id"
     ],
     "destination": "legislators",
+    "destination_columns": [
+      "id",
+      "legiscan_id",
+      "name",
+      "party_id",
+      "district",
+      "state_id",
+      "image_url"
+    ],
     "transformations": [
       {
         "function": "rename",
@@ -159,6 +196,11 @@
       "committee_name"
     ],
     "destination": "committees",
+    "destination_columns": [
+      "id",
+      "legislative_body_id",
+      "name"
+    ],
     "transformations": [
       {
         "function": "rename",
@@ -182,6 +224,12 @@
       "state_url"
     ],
     "destination": "bill_versions",
+    "destination_columns": [
+      "id",
+      "bill_id",
+      "bill_version_type_id",
+      "url"
+    ],
     "transformations": [
       {
         "function": "rename",
@@ -203,6 +251,10 @@
       "bill_text_name"
     ],
     "destination": "version_types",
+    "destination_columns": [
+      "id",
+      "name"
+    ],
     "transformations": [
       {
         "function": "rename",

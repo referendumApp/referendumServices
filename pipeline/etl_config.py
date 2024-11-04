@@ -22,7 +22,6 @@ class Transformation(BaseModel):
     def apply(self, df: pd.DataFrame) -> pd.DataFrame:
         try:
             match self.function:
-
                 case TransformationFunction.KEEP_COLUMNS:
                     columns = self.parameters.get("columns", [])
                     missing_cols = set(columns) - set(df.columns)
@@ -67,9 +66,10 @@ class Transformation(BaseModel):
 
 
 class ETLConfig(BaseModel):
-    source: str  # SQL table name
-    source_columns: Set[str]  # Columns to extract from source table
-    destination: str  # Destination table name
+    source: str
+    source_columns: Set[str]
+    destination: str
+    destination_columns: List[str]
     transformations: List[Transformation]
     dataframe: Optional[pd.DataFrame] = None
 
@@ -107,7 +107,7 @@ class ETLConfig(BaseModel):
     def load(self, conn: Session):
         try:
             logger.info(f"Loading data into {self.destination}")
-            self.dataframe.to_sql(
+            self.dataframe[self.destination_columns].to_sql(
                 self.destination,
                 con=conn,
                 if_exists="append",
