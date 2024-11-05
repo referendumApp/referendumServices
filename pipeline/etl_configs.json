@@ -150,7 +150,8 @@
       "party_id",
       "district",
       "ballotpedia",
-      "state_id"
+      "state_id",
+      "role_id"
     ],
     "destination": "legislators",
     "destination_columns": [
@@ -160,7 +161,8 @@
       "party_id",
       "district",
       "state_id",
-      "image_url"
+      "image_url",
+      "role_id"
     ],
     "transformations": [
       {

@@ -162,7 +162,9 @@ async def test_bill_action(
 
 
 @pytest_asyncio.fixture(scope="function")
-async def test_legislator(create_test_entity, delete_test_entity, test_party, test_state):
+async def test_legislator(
+    create_test_entity, delete_test_entity, test_party, test_state, test_role
+):
     legislator_data = {
         "legiscanId": f"{random.randint(100,999)}",
         "name": f"John Doe {generate_random_string()}",
@@ -173,6 +175,7 @@ async def test_legislator(create_test_entity, delete_test_entity, test_party, te
         "phone": f"(202) {random.randint(100,999)}-{random.randint(1000,9999)}",
         "partyId": test_party["id"],
         "stateId": test_state["id"],
+        "roleId": test_role["id"],
     }
     legislator = await create_test_entity("/legislators/", legislator_data)
     yield legislator
