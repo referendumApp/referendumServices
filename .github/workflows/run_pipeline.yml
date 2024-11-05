@@ -32,7 +32,7 @@ jobs:
         run: |
           aws ecs run-task \
             --cluster ${{ env.PIPELINE_CLUSTER }} \
-            --task-definition ${{ env.PIPELINE_TASK_DEFINITION }} \
+            --task-definition ${{ env.PIPELINE_TASK_DEFINITION }}-${{ github.event.inputs.environment }} \
             --launch-type FARGATE \
             --network-configuration "awsvpcConfiguration={
               subnets=[subnet-030216eccd9d8d317],
