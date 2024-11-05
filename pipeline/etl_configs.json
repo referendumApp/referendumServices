@@ -252,7 +252,7 @@
       "bill_text_type_id",
       "bill_text_name"
     ],
-    "destination": "version_types",
+    "destination": "bill_version_types",
     "destination_columns": [
       "id",
       "name"
