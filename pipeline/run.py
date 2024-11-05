@@ -104,7 +104,7 @@ def get_url_hash(url: str) -> str:
 def get_s3_bill_texts(storage_client: ObjectStorageClient) -> Set[str]:
     """Retrieve list of bill text hashes already stored"""
     try:
-        existing_hashes = storage_client.list_filenames(TEXT_BUCKET_NAME)
+        existing_hashes = storage_client.list_filenames(BILL_TEXT_BUCKET_NAME)
 
         return set(existing_hashes)
     except Exception as e:
