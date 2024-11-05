@@ -2,10 +2,12 @@ import logging
 import json
 import os
 import requests
+import io
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from typing import List, Set
 import hashlib
+import pdfplumber
 
 from common.database.referendum import connection as referendum_connection
 from common.database.legiscan_api import connection as legiscan_api_connection
@@ -105,38 +107,57 @@ def get_s3_bill_texts(storage_client: ObjectStorageClient) -> Set[str]:
     """Retrieve list of bill text hashes already stored"""
     try:
         existing_hashes = storage_client.list_filenames(BILL_TEXT_BUCKET_NAME)
-
         return set(existing_hashes)
     except Exception as e:
         logger.error(f"Error getting bill texts from object storage: {str(e)}")
         return set()
 
 
+def extract_text_from_pdf(pdf_content: bytes) -> str:
+    """Extract text content from a PDF file."""
+    try:
+        text_content = []
+        with pdfplumber.open(io.BytesIO(pdf_content)) as pdf:
+            for page in pdf.pages:
+                text = page.extract_text()
+                if text:
+                    text_content.append(text)
+
+        return "\n\n".join(text_content)
+    except Exception as e:
+        logger.error(f"Failed to extract text from PDF: {str(e)}")
+        raise
+
+
 def extract_bill_text(storage_client: ObjectStorageClient, url: str):
-    """Extract bill text from URL and store in object storage"""
+    """Extract bill text from PDF URL and store in object storage"""
     try:
         url_hash = get_url_hash(url)
 
-        # # Download bill text
-        # response = requests.get(url, timeout=30)
-        # response.raise_for_status()
-        # bill_text = response.text
-        bill_text = "lorem ipsum"
-        bill_text_bytes = bill_text.encode("utf-8")
+        # Download PDF content
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        pdf_content = response.content
+
+        # Extract text from PDF
+        text_content = extract_text_from_pdf(pdf_content)
+
+        # Store the extracted text
+        text_content_bytes = text_content.encode("utf-8")
 
         storage_client.upload_file(
             bucket=BILL_TEXT_BUCKET_NAME,
             key=f"{url_hash}.txt",
-            file_obj=bill_text_bytes,
+            file_obj=text_content_bytes,
         )
 
-        logger.info(f"Successfully extracted and stored text for URL {url} at hash {url_hash}")
+        logger.info(f"Successfully extracted and stored text for PDF URL {url} at hash {url_hash}")
         return True
     except requests.RequestException as e:
-        logger.error(f"Failed to download bill text from URL {url}: {str(e)}")
+        logger.error(f"Failed to download PDF from URL {url}: {str(e)}")
         return False
     except Exception as e:
-        logger.error(f"Failed to process bill text for URL {url}: {str(e)}")
+        logger.error(f"Failed to process PDF for URL {url}: {str(e)}")
         return False
 
 
@@ -177,9 +198,8 @@ def orchestrate():
     try:
         logger.info("ETL process starting")
         run_etl()
-        logger.info("Skipping text extraction")
-        # logger.info("Text extraction starting")
-        # run_text_extraction()
+        logger.info("Text extraction starting")
+        run_text_extraction()
         logger.info("ETL orchestration completed")
     except Exception as e:
         logger.error(f"ETL orchestration failed: {str(e)}")

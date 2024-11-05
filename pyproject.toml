@@ -19,6 +19,7 @@ dependencies = [
     "sqlalchemy",
     "pandas",
     "passlib",
+    "pdfplumber",
     "psycopg2-binary",
     "pydantic",
     "pydantic-settings",
