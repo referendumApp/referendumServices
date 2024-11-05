@@ -47,6 +47,7 @@ async def test_update_legislator_not_found(client, system_headers):
         "phone": "(202) 111-1112",
         "partyId": 1,
         "stateId": 1,
+        "roleId": 1,
     }
     response = await client.put(
         "/legislators/", json=non_existent_legislator, headers=system_headers
