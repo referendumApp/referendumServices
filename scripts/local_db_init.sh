@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-echo "Starting local-init.sh"
+echo "Starting local_db_init.sh"
 
 echo "Waiting for PostgreSQL to be ready..."
 until PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "postgres" -c '\l' >/dev/null 2>&1; do
@@ -24,7 +24,6 @@ create_database_if_not_exists $LEGISCAN_API_DB_NAME
 create_database_if_not_exists $REFERENDUM_DB_NAME
 
 # SQL commands to create the legiscan_api user and grant privileges
-
 CREATE_LEGISCAN_USER="
 DO \$\$
 BEGIN

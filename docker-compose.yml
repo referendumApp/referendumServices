@@ -25,7 +25,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      local-init:
+      local-db-init:
         condition: service_completed_successfully
       migrations:
         condition: service_completed_successfully
@@ -51,16 +51,49 @@ services:
       retries: 5
     profiles: ["local-data", "local-empty", "test"]
 
-  local-init:
-    container_name: local_init
+  minio:
+    container_name: minio
+    image: minio/minio
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"  # API
+      - "9001:9001"  # Console
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 2s
+      timeout: 5s
+      retries: 3
+    profiles: [ "local-data", "local-empty", "test" ]
+
+  minio-init:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc config host add localminio http://minio:9000 minioadmin minioadmin;
+      mc mb localminio/bill-texts --ignore-existing;
+      mc policy set public localminio/bill-texts;
+      exit 0;
+      "
+    profiles: [ "local-data", "local-empty", "test" ]
+
+  local-db-init:
+    container_name: local_db_init
     build:
       context: .
-      target: local-init
+      target: local-db-init
     env_file: .env
     depends_on:
       db:
         condition: service_healthy
-    command: ["/code/local_init.sh"]
+      minio-init:
+        condition: service_completed_successfully
+    command: ["/code/local_db_init.sh"]
     profiles: ["local-data", "local-empty", "test"]
 
   migrations:
@@ -72,7 +105,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      local-init:
+      local-db-init:
         condition: service_completed_successfully
     profiles: ["local-data", "local-empty", "test"]
 
@@ -84,7 +117,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      local-init:
+      minio:
+        condition: service_healthy
+      local-db-init:
         condition: service_completed_successfully
       migrations:
         condition: service_completed_successfully
@@ -99,7 +134,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      local-init:
+      minio:
+        condition: service_healthy
+      local-db-init:
         condition: service_completed_successfully
       migrations:
         condition: service_completed_successfully
