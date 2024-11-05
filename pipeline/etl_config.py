@@ -109,6 +109,12 @@ class ETLConfig(BaseModel):
         try:
             logger.info(f"Loading data into {self.destination} with unique_constraints on 'id'")
 
+            # Check if destination table exists
+            query = text("SELECT 1 FROM information_schema.tables WHERE table_name = :table_name")
+            exists = conn.execute(query, {"table_name": self.destination}).scalar() is not None
+            if not exists:
+                raise ValueError(f"Table '{self.destination}' does not exist")
+
             # Create temporary table
             temp_table = f"temp_{self.destination}"
             self.dataframe[self.destination_columns].to_sql(
