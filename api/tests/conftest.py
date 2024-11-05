@@ -1,4 +1,4 @@
-import asyncio
+import os
 import random
 from typing import AsyncGenerator, Dict
 
@@ -11,6 +11,15 @@ from api.main import app
 from api.security import create_access_token
 from api.tests.test_utils import assert_status_code, generate_random_string
 from common.database.referendum.models import VoteChoice
+
+ENV = os.environ.get("ENVIRONMENT")
+DEBUGGER = os.environ.get("ENABLE_DEBUGGER")
+if ENV == "local" and DEBUGGER is not None and DEBUGGER.lower() == "true":
+    import debugpy
+
+    debugpy.listen(("0.0.0.0", 6000))
+    debugpy.wait_for_client()
+
 
 transport = ASGITransport(app=app)
 base_url = "http://localhost"
@@ -77,7 +86,7 @@ async def test_user_session(create_test_entity, delete_test_entity):
     token = create_access_token(data={"sub": user["email"]})
     headers = {"Authorization": f"Bearer {token}"}
     yield user, headers
-    await delete_test_entity("users", user["id"])
+    await delete_test_entity("users/admin", user["id"])
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -184,17 +193,18 @@ async def test_vote(
     test_user_session: Dict,
     test_bill_action: Dict,
 ):
-    user, headers = test_user_session
+    _, headers = test_user_session
     vote_data = {
         "billId": test_bill_action["billId"],
         "bill_actionId": test_bill_action["id"],
         "vote_choice": VoteChoice.YES.value,
     }
-    response = await client.put(f"/users/{user['id']}/votes/", json=vote_data, headers=headers)
+    response = await client.put("/users/votes/", json=vote_data, headers=headers)
     assert_status_code(response, 200)
     user_vote = response.json()
     yield user_vote
     response = await client.delete(
-        f"/users/{user['id']}/votes?bill_id={user_vote['billId']}", headers=system_headers
+        f"/users/votes?bill_id={user_vote['billId']}",
+        headers=headers,
     )
     assert_status_code(response, 204)

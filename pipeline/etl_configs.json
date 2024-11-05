@@ -6,6 +6,10 @@
       "state_name"
     ],
     "destination": "states",
+    "destination_columns": [
+      "id",
+      "name"
+    ],
     "transformations": [
       {
         "function": "rename",
@@ -26,6 +30,10 @@
       "role_name"
     ],
     "destination": "roles",
+    "destination_columns": [
+      "id",
+      "name"
+    ],
     "transformations": [
       {
         "function": "rename",
@@ -47,6 +55,11 @@
       "role_id"
     ],
     "destination": "legislative_bodys",
+    "destination_columns": [
+      "id",
+      "state_id",
+      "role_id"
+    ],
     "transformations": [
       {
         "function": "rename",
@@ -66,6 +79,10 @@
       "party_name"
     ],
     "destination": "partys",
+    "destination_columns": [
+      "id",
+      "name"
+    ],
     "transformations": [
       {
         "function": "rename",
@@ -93,6 +110,17 @@
       "status_date"
     ],
     "destination": "bills",
+    "destination_columns": [
+      "id",
+      "title",
+      "description",
+      "state_id",
+      "legislative_body_id",
+      "identifier",
+      "session_id",
+      "status_id",
+      "status_date"
+    ],
     "transformations": [
       {
         "function": "rename",
@@ -120,9 +148,20 @@
       "people_id",
       "name",
       "party_id",
-      "district"
+      "district",
+      "ballotpedia",
+      "state_id"
     ],
     "destination": "legislators",
+    "destination_columns": [
+      "id",
+      "legiscan_id",
+      "name",
+      "party_id",
+      "district",
+      "state_id",
+      "image_url"
+    ],
     "transformations": [
       {
         "function": "rename",
@@ -138,6 +177,13 @@
           "source_name": "id",
           "destination_name": "legiscan_id"
         }
+      },
+      {
+        "function": "add_url",
+        "parameters": {
+          "source_name": "ballotpedia",
+          "destination_name": "image_url"
+        }
       }
     ],
     "dataframe": null
@@ -150,6 +196,11 @@
       "committee_name"
     ],
     "destination": "committees",
+    "destination_columns": [
+      "id",
+      "legislative_body_id",
+      "name"
+    ],
     "transformations": [
       {
         "function": "rename",
@@ -158,6 +209,59 @@
             "committee_id": "id",
             "committee_body_id": "legislative_body_id",
             "committee_name": "name"
+          }
+        }
+      }
+    ],
+    "dataframe": null
+  },
+  {
+    "source": "ls_bill_text",
+    "source_columns": [
+      "text_id",
+      "bill_id",
+      "bill_text_type_id",
+      "state_url"
+    ],
+    "destination": "bill_versions",
+    "destination_columns": [
+      "id",
+      "bill_id",
+      "bill_version_type_id",
+      "url"
+    ],
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "bill_text_type_id": "bill_version_type_id",
+            "state_url": "url",
+            "text_id": "id"
+          }
+        }
+      }
+    ],
+    "dataframe": null
+  },
+  {
+    "source": "ls_text_type",
+    "source_columns": [
+      "bill_text_type_id",
+      "bill_text_name"
+    ],
+    "destination": "version_types",
+    "destination_columns": [
+      "id",
+      "name"
+    ],
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "bill_text_type_id": "id",
+            "bill_text_name": "name"
           }
         }
       }

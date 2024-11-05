@@ -3,12 +3,7 @@ services:
     build:
       context: .
       target: api
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - REFERENDUM_DB_NAME=${REFERENDUM_DB_NAME}
+    env_file: .env
     ports:
       - "80:80"
     profiles: ["base"]
@@ -24,74 +19,95 @@ services:
     container_name: api-local
     extends:
       service: api-base
-    environment:
-      - ENVIRONMENT=local
-      - API_ACCESS_TOKEN=${API_ACCESS_TOKEN}
-      - SECRET_KEY=${API_ACCESS_TOKEN}
+    build:
+      context: .
+      target: api-local
     depends_on:
       db:
         condition: service_healthy
-      local-init:
+      local-db-init:
+        condition: service_completed_successfully
+      migrations:
         condition: service_completed_successfully
     ports:
       - "5678:5678"  # debugger port
+      - "6000:6000"  # pytest debugger port
     volumes:
       - ./api:/code/api  # mount the api and common directory
       - ./common:/code/common
     command: ["python", "-m", "debugpy", "--listen", "0.0.0.0:5678", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
-    profiles: ["local"]
+    profiles: ["local-data", "local-empty"]
 
   db:
     container_name: db
     image: postgres:13
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    env_file: .env
     ports:
       - "${POSTGRES_PORT}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user"]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
       timeout: 5s
       retries: 5
-    profiles: ["local", "test"]
+    profiles: ["local-data", "local-empty", "test"]
 
-  local-init:
-    container_name: local_init
+  minio:
+    container_name: minio
+    image: minio/minio
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"  # API
+      - "9001:9001"  # Console
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 2s
+      timeout: 5s
+      retries: 3
+    profiles: [ "local-data", "local-empty", "test" ]
+
+  minio-init:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc config host add localminio http://minio:9000 minioadmin minioadmin;
+      mc mb localminio/bill-texts --ignore-existing;
+      mc policy set public localminio/bill-texts;
+      exit 0;
+      "
+    profiles: [ "local-data", "local-empty", "test" ]
+
+  local-db-init:
+    container_name: local_db_init
     build:
       context: .
-      target: local-init
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - LEGISCAN_API_DB_NAME=${LEGISCAN_API_DB_NAME}
-      - REFERENDUM_DB_NAME=${REFERENDUM_DB_NAME}
+      target: local-db-init
+    env_file: .env
     depends_on:
       db:
         condition: service_healthy
-    command: ["/code/local_init.sh"]
-    profiles: ["local", "test"]
+      minio-init:
+        condition: service_completed_successfully
+    command: ["/code/local_db_init.sh"]
+    profiles: ["local-data", "local-empty", "test"]
 
   migrations:
     build:
       context: .
       target: migrations
-    environment:
-      - ENVIRONMENT=local
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_HOST=db
-      - POSTGRES_PORT=5432
-      - REFERENDUM_DB_NAME=referendum
+    env_file: .env
     command: ["alembic", "upgrade", "head"]
     depends_on:
       db:
         condition: service_healthy
-      local-init:
+      local-db-init:
         condition: service_completed_successfully
-    profiles: ["local", "test"]
+    profiles: ["local-data", "local-empty", "test"]
 
   pipeline:
     container_name: pipeline
@@ -101,16 +117,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      local-init:
+      minio:
+        condition: service_healthy
+      local-db-init:
         condition: service_completed_successfully
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - LEGISCAN_API_DB_NAME=${LEGISCAN_API_DB_NAME}
-      - REFERENDUM_DB_NAME=${REFERENDUM_DB_NAME}
-    profiles: ["local"]
+      migrations:
+        condition: service_completed_successfully
+    env_file: .env
+    profiles: ["local-data"]
 
   test:
     container_name: test
@@ -120,18 +134,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      local-init:
+      minio:
+        condition: service_healthy
+      local-db-init:
         condition: service_completed_successfully
       migrations:
         condition: service_completed_successfully
-    environment:
-      - ENVIRONMENT=test
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - LEGISCAN_API_DB_NAME=${LEGISCAN_API_DB_NAME}
-      - REFERENDUM_DB_NAME=${REFERENDUM_DB_NAME}
-      - API_ACCESS_TOKEN=${API_ACCESS_TOKEN}
-      - SECRET_KEY=${API_ACCESS_TOKEN}
+    env_file: .env
     profiles: ["test"]

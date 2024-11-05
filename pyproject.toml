@@ -23,6 +23,7 @@ dependencies = [
     "pydantic",
     "pydantic-settings",
     "python-jose",
+    "requests",
     "watchtower"
 ]
 
@@ -30,7 +31,7 @@ dependencies = [
 test = ["httpx", "pytest", "pytest-asyncio", "flake8"]
 
 [tool.black]
-line-length = 88
+line-length = 100
 target-version = ['py311']
 include = '\.pyi?$'
 extend-exclude = '''
