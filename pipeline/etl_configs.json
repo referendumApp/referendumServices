@@ -112,6 +112,7 @@
     "destination": "bills",
     "destination_columns": [
       "id",
+      "legiscan_id",
       "title",
       "description",
       "state_id",
