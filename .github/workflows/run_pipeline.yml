@@ -36,7 +36,7 @@ jobs:
             --launch-type FARGATE \
             --network-configuration "awsvpcConfiguration={
               subnets=[subnet-030216eccd9d8d317],
-              securityGroups=[sg-0ddba9c80c77125c2,sg-0d65a5b9089171007],
+              securityGroups=[sg-0ddba9c80c77125c2,sg-0d65a5b9089171007,sg-01d5891e4bb9f564a],
               assignPublicIp=DISABLED
             }" \
             --tags key=Environment,value=${{ github.event.inputs.environment }}

@@ -394,7 +394,7 @@ jobs:
               \"NetworkConfiguration\": {
                 \"awsvpcConfiguration\": {
                   \"Subnets\": [\"subnet-030216eccd9d8d317\"],
-                  \"SecurityGroups\": [\"sg-0ddba9c80c77125c2\",\"sg-0d65a5b9089171007\"],
+                  \"SecurityGroups\": [\"sg-0ddba9c80c77125c2\",\"sg-0d65a5b9089171007\",\"sg-01d5891e4bb9f564a\"],
                   \"AssignPublicIp\": \"DISABLED\"
                 }
               }
