@@ -349,6 +349,7 @@ jobs:
             --arg IMAGE "${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_PIPELINE }}:${{ env.IMAGE_TAG }}" \
             --argjson ENV_VARS "$ENV_VARS" \
             --arg SECRET_ARN "arn:aws:secretsmanager:${{ env.AWS_REGION }}:${{ env.AWS_ACCOUNT_ID }}:secret:${{ env.POSTGRES_PASSWORD_SECRET_NAME }}" \
+            --arg S3_SECRET_ARN "arn:aws:secretsmanager:${{ env.AWS_REGION }}:${{ env.AWS_ACCOUNT_ID }}:secret:${{ env.S3_ACCESS_CREDENTIALS_SECRET_NAME }}" \
             '
               del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy) |
               .containerDefinitions[0].image = $IMAGE |
@@ -357,6 +358,14 @@ jobs:
                 {
                   "name": "POSTGRES_PASSWORD",
                   "valueFrom": ($SECRET_ARN + ":password::")
+                },
+                {
+                  "name": "S3_ACCESS_KEY",
+                  "valueFrom": ($S3_SECRET_ARN + ":access_key::")
+                },
+                {
+                  "name": "S3_SECRET_KEY",
+                  "valueFrom": ($S3_SECRET_ARN + ":secret_key::")
                 }
               ] |
               .cpu = "1024" |
