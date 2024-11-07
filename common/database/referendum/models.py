@@ -159,6 +159,8 @@ class BillVersion(Base):
 
     bill_id = Column(Integer, ForeignKey("bills.id"), primary_key=True)
     version = Column(Integer, primary_key=True)
+    url = Column(String, nullable=True)
+    hash = Column(String, nullable=True)
 
     bill = relationship("Bill")
 
