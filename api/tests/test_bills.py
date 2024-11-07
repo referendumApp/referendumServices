@@ -158,3 +158,13 @@ async def test_add_remove_bill_sponsor(client, system_headers, test_bill, test_l
     assert_status_code(response, 200)
     sponsors = response.json()["sponsors"]
     assert len(sponsors) == 0
+
+
+async def test_bulk_update_success(client, system_headers, test_bill):
+    # Test successful bulk update
+    update_data = [{**test_bill, "title": f"Updated {test_bill['title']}"}]
+    response = await client.put("/bills/bulk", json=update_data, headers=system_headers)
+    assert_status_code(response, 200)
+    updated_items = response.json()
+    for i, item in enumerate(updated_items):
+        assert item["title"] == update_data[i]["title"]
