@@ -187,13 +187,15 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
             db: Session = Depends(get_db),
             _: Dict[str, Any] = Depends(permissions.update),
         ):
-            logger.info(f"Attempting to update {resource_name} with ID: {item.id}")
             try:
+                updated_item_list = []
                 for item in item_list:
+                    logger.info(f"Attempting to update {resource_name} with ID: {item.id}")
                     db_item = crud_model.read(db=db, obj_id=item.id)
                     updated_item = crud_model.update(db=db, db_obj=db_item, obj_in=item)
+                    updated_item_list.append(updated_item)
                     logger.info(f"Successfully updated {resource_name} with ID: {item.id}")
-                    return updated_item
+                return updated_item_list
             except DatabaseException as e:
                 logger.error(f"Database error while updating {resource_name}: {str(e)}")
                 raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
