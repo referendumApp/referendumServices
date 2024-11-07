@@ -180,6 +180,7 @@ class Legislator(Base):
     name = Column(String, nullable=False)
     image_url = Column(String)
     party_id = Column(Integer, ForeignKey("partys.id"))
+    role_id = Column(Integer, ForeignKey("roles.id"))
     state_id = Column(Integer, ForeignKey("states.id"))
     district = Column(String, nullable=False)
     address = Column(String)
@@ -190,6 +191,7 @@ class Legislator(Base):
 
     party = relationship("Party")
     state = relationship("State")
+    role = relationship("Role")
     committees = relationship(
         "Committee", secondary=committee_membership, back_populates="legislators"
     )

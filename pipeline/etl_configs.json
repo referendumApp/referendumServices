@@ -112,6 +112,7 @@
     "destination": "bills",
     "destination_columns": [
       "id",
+      "legiscan_id",
       "title",
       "description",
       "state_id",
@@ -150,7 +151,8 @@
       "party_id",
       "district",
       "ballotpedia",
-      "state_id"
+      "state_id",
+      "role_id"
     ],
     "destination": "legislators",
     "destination_columns": [
@@ -160,7 +162,8 @@
       "party_id",
       "district",
       "state_id",
-      "image_url"
+      "image_url",
+      "role_id"
     ],
     "transformations": [
       {
@@ -250,7 +253,7 @@
       "bill_text_type_id",
       "bill_text_name"
     ],
-    "destination": "version_types",
+    "destination": "bill_version_types",
     "destination_columns": [
       "id",
       "name"

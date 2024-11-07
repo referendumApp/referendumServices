@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm.session import Session
 import pandas as pd
 import logging
+from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
@@ -106,14 +107,44 @@ class ETLConfig(BaseModel):
 
     def load(self, conn: Session):
         try:
-            logger.info(f"Loading data into {self.destination}")
+            logger.info(f"Loading data into {self.destination} with unique_constraints on 'id'")
+
+            # Check if destination table exists
+            query = text("SELECT 1 FROM information_schema.tables WHERE table_name = :table_name")
+            exists = conn.execute(query, {"table_name": self.destination}).scalar() is not None
+            if not exists:
+                raise ValueError(f"Table '{self.destination}' does not exist")
+
+            # Create temporary table
+            temp_table = f"temp_{self.destination}"
             self.dataframe[self.destination_columns].to_sql(
-                self.destination,
+                temp_table,
                 con=conn,
-                if_exists="append",
+                if_exists="replace",
                 index=False,
             )
+
+            # Perform UPSERT from temporary table
+            unique_constraint_columns = ["id"]
+            conflict_targets = ", ".join(unique_constraint_columns)
+            update_sets = ", ".join(
+                f"{col} = EXCLUDED.{col}"
+                for col in self.destination_columns
+                if col not in unique_constraint_columns
+            )
+            upsert_query = f"""
+                INSERT INTO {self.destination} ({', '.join(self.destination_columns)})
+                SELECT {', '.join(self.destination_columns)}
+                FROM {temp_table}
+                ON CONFLICT ({conflict_targets})
+                DO UPDATE SET {update_sets}
+            """
+            conn.execute(text(upsert_query))
+
+            conn.execute(text(f"DROP TABLE {temp_table}"))
             conn.commit()
+
         except Exception as e:
-            logger.error(f"Error inserting data into '{self.destination}': {e}")
+            logger.error(f"Error upserting data into '{self.destination}': {e}")
+            conn.rollback()
             raise
