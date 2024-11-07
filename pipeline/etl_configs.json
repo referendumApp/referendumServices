@@ -231,7 +231,8 @@
       "id",
       "bill_id",
       "bill_version_type_id",
-      "url"
+      "url",
+      "hash"
     ],
     "transformations": [
       {
@@ -242,6 +243,13 @@
             "state_url": "url",
             "text_id": "id"
           }
+        }
+      },
+      {
+        "function": "hash",
+        "parameters": {
+          "source_name": "url",
+          "destination_name": "hash"
         }
       }
     ],

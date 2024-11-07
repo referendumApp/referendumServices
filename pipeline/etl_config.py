@@ -2,6 +2,7 @@ from enum import Enum
 from typing import Dict, List, Optional, Set
 from pydantic import BaseModel
 from sqlalchemy.orm.session import Session
+import hashlib
 import pandas as pd
 import logging
 from sqlalchemy import text
@@ -14,6 +15,7 @@ class TransformationFunction(str, Enum):
     RENAME = "rename"
     DUPLICATE = "duplicate"
     ADD_URL = "add_url"
+    HASH = "hash"
 
 
 class Transformation(BaseModel):
@@ -56,6 +58,18 @@ class Transformation(BaseModel):
                     df = df.copy()
                     df[destination_name] = base_url + df[source_name] + ".jpg"
 
+                    return df
+
+                case TransformationFunction.HASH:
+                    source_name = self.parameters.get("source_name")
+                    destination_name = self.parameters.get("destination_name")
+                    if source_name not in df.columns:
+                        raise ValueError(f"Source column '{source_name}' not found")
+
+                    df = df.copy()
+                    df[destination_name] = df[source_name].apply(
+                        lambda x: hashlib.sha256(str(x).encode()).hexdigest()
+                    )
                     return df
 
                 case _:

@@ -2,14 +2,17 @@ import logging
 import json
 import os
 import requests
+import io
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from typing import List, Set
 import hashlib
+import pdfplumber
 
 from common.database.referendum import connection as referendum_connection
 from common.database.legiscan_api import connection as legiscan_api_connection
-from common.object_storage.client import ObjectStorageClient, create_storage_client
+from common.object_storage.client import ObjectStorageClient
+from pipeline.bill_text_extraction import BillTextExtractor
 from pipeline.etl_config import ETLConfig
 
 logging.basicConfig(level=logging.INFO)
@@ -96,80 +99,40 @@ def run_etl():
         logger.error(f"ETL process failed with unexpected error: {str(e)}")
 
 
-def get_url_hash(url: str) -> str:
-    """Generate a consistent hash for a URL."""
-    return hashlib.sha256(url.encode()).hexdigest()
-
-
-def get_s3_bill_texts(storage_client: ObjectStorageClient) -> Set[str]:
-    """Retrieve list of bill text hashes already stored"""
-    try:
-        existing_hashes = storage_client.list_filenames(BILL_TEXT_BUCKET_NAME)
-
-        return set(existing_hashes)
-    except Exception as e:
-        logger.error(f"Error getting bill texts from object storage: {str(e)}")
-        return set()
-
-
-def extract_bill_text(storage_client: ObjectStorageClient, url: str):
-    """Extract bill text from URL and store in object storage"""
-    try:
-        url_hash = get_url_hash(url)
-
-        # # Download bill text
-        # response = requests.get(url, timeout=30)
-        # response.raise_for_status()
-        # bill_text = response.text
-        bill_text = "lorem ipsum"
-        bill_text_bytes = bill_text.encode("utf-8")
-
-        storage_client.upload_file(
-            bucket=BILL_TEXT_BUCKET_NAME,
-            key=f"{url_hash}.txt",
-            file_obj=bill_text_bytes,
-        )
-
-        logger.info(f"Successfully extracted and stored text for URL {url} at hash {url_hash}")
-        return True
-    except requests.RequestException as e:
-        logger.error(f"Failed to download bill text from URL {url}: {str(e)}")
-        return False
-    except Exception as e:
-        logger.error(f"Failed to process bill text for URL {url}: {str(e)}")
-        return False
-
-
 def run_text_extraction():
-    """Run the text extraction process for all missing bill texts."""
-    logger.info("Starting bill text extraction process")
-
-    storage_client = create_storage_client()
+    storage_client = ObjectStorageClient()
     referendum_db = next(get_referendum_db())
-    try:
-        result = referendum_db.execute(
-            text("SELECT DISTINCT url FROM bill_versions WHERE url IS NOT NULL;")
-        )
-        urls = [row[0] for row in result]
-        logger.info(f"Found {len(urls)} unique bill URLs in database")
-    except Exception as e:
-        logger.error(f"Failed to retrieve URLs from database: {str(e)}")
-        return
-
-    existing_hashes = get_s3_bill_texts(storage_client)
-    logger.info(f"Found {len(existing_hashes)} existing bill texts in S3")
-
-    missing_texts = [url for url in urls if get_url_hash(url) not in existing_hashes]
-    logger.info(f"Found {len(missing_texts)} missing bill texts to process")
-
-    success_count = 0
-    for url in missing_texts:
-        if extract_bill_text(storage_client, url):
-            success_count += 1
-
-    logger.info(
-        f"Text extraction completed. Successfully processed {success_count} out of {len(missing_texts)} bills"
+    extractor = BillTextExtractor(
+        storage_client=storage_client, db_session=referendum_db, bucket_name=BILL_TEXT_BUCKET_NAME
     )
+
+    # Get bills to process
+    required_text_hash_map = extractor.get_required_bill_text_hash_map()
+    logger.info(f"Found {len(required_text_hash_map)} required bill texts in database")
+
+    # Get already processed bills
+    existing_hashes = extractor.get_stored_hashes()
+    logger.info(f"Found {len(existing_hashes)} existing bill texts")
+
+    # Process missing bills
+    missing_text_hash_map = {
+        url_hash: url
+        for url_hash, url in required_text_hash_map.items()
+        if url_hash not in existing_hashes
+    }
+    logger.info(f"Processing {len(missing_text_hash_map)} missing bills")
+
+    succeeded = 0
+    failed = 0
+    for url_hash, url in missing_text_hash_map.items():
+        try:
+            extractor.process_bill(url_hash, url)
+            succeeded += 1
+        except Exception as e:
+            logger.error(f"Failed to process bill text for url {url}: {str(e)}")
+            failed += 1
+
+    logger.info(f"Text extraction completed. " f"Succeeded: {succeeded}, " f"Failed: {failed}, ")
 
 
 def orchestrate():
@@ -177,9 +140,8 @@ def orchestrate():
     try:
         logger.info("ETL process starting")
         run_etl()
-        logger.info("Skipping text extraction")
-        # logger.info("Text extraction starting")
-        # run_text_extraction()
+        logger.info("Text extraction starting")
+        run_text_extraction()
         logger.info("ETL orchestration completed")
     except Exception as e:
         logger.error(f"ETL orchestration failed: {str(e)}")

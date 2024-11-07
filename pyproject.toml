@@ -19,11 +19,13 @@ dependencies = [
     "sqlalchemy",
     "pandas",
     "passlib",
+    "pdfplumber",
     "psycopg2-binary",
     "pydantic",
     "pydantic-settings",
     "python-jose",
     "requests",
+    "tenacity",
     "watchtower"
 ]
 
