@@ -99,69 +99,6 @@ def run_etl():
         logger.error(f"ETL process failed with unexpected error: {str(e)}")
 
 
-def get_url_hash(url: str) -> str:
-    """Generate a consistent hash for a URL."""
-    return hashlib.sha256(url.encode()).hexdigest()
-
-
-def get_s3_bill_text_hashes(storage_client: ObjectStorageClient) -> Set[str]:
-    """Retrieve list of bill text hashes already stored"""
-    try:
-        existing_filenames = storage_client.list_filenames(BILL_TEXT_BUCKET_NAME)
-        return set(filename.split() for filename in existing_filenames)
-    except Exception as e:
-        logger.error(f"Error getting bill texts from object storage: {str(e)}")
-        return set()
-
-
-def extract_text_from_pdf(pdf_content: bytes) -> str:
-    """Extract text content from a PDF file."""
-    try:
-        text_content = []
-        with pdfplumber.open(io.BytesIO(pdf_content)) as pdf:
-            for page in pdf.pages:
-                text = page.extract_text()
-                if text:
-                    text_content.append(text)
-
-        return "\n\n".join(text_content)
-    except Exception as e:
-        logger.error(f"Failed to extract text from PDF: {str(e)}")
-        raise
-
-
-def extract_bill_text(storage_client: ObjectStorageClient, url: str):
-    """Extract bill text from PDF URL and store in object storage"""
-    try:
-        url_hash = get_url_hash(url)
-
-        # Download PDF content
-        response = requests.get(url, timeout=30)
-        response.raise_for_status()
-        pdf_content = response.content
-
-        # Extract text from PDF
-        text_content = extract_text_from_pdf(pdf_content)
-
-        # Store the extracted text
-        text_content_bytes = text_content.encode("utf-8")
-
-        storage_client.upload_file(
-            bucket=BILL_TEXT_BUCKET_NAME,
-            key=f"{url_hash}.txt",
-            file_obj=text_content_bytes,
-        )
-
-        logger.info(f"Successfully extracted and stored text for PDF URL {url} at hash {url_hash}")
-        return True
-    except requests.RequestException as e:
-        logger.error(f"Failed to download PDF from URL {url}: {str(e)}")
-        return False
-    except Exception as e:
-        logger.error(f"Failed to process PDF for URL {url}: {str(e)}")
-        return False
-
-
 def run_text_extraction():
     storage_client = ObjectStorageClient()
     referendum_db = next(get_referendum_db())
