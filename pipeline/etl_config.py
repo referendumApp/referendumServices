@@ -98,8 +98,10 @@ class ETLConfig(BaseModel):
 
     def extract(self, conn: Session):
         query = self._get_source_query()
+        logger.info(query)
         try:
             self.dataframe = pd.read_sql(query, con=conn)
+            logger.info(self.dataframe)
         except Exception as e:
             logger.error(f"Error reading data with query '{query}': {e}")
             raise
@@ -122,6 +124,11 @@ class ETLConfig(BaseModel):
     def load(self, conn: Session):
         try:
             logger.info(f"Loading data into {self.destination} with unique_constraints on 'id'")
+
+            # Check if any data exists
+            if self.dataframe.empty:
+                logger.warning(f"Skipping; no data to write")
+                return
 
             # Check if destination table exists
             query = text("SELECT 1 FROM information_schema.tables WHERE table_name = :table_name")

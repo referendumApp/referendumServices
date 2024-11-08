@@ -3,7 +3,7 @@ from pydantic import BaseModel, EmailStr, Field, ConfigDict, create_model
 from pydantic.alias_generators import to_camel
 from typing import TypeVar, Generic, List, Type, Dict, Any, Optional
 
-from .models import VoteChoice, BillActionType
+from .models import VoteChoice
 
 
 T = TypeVar("T")
@@ -164,8 +164,9 @@ BillAction = create_schema_container(
     base_fields={
         "id": (int, ...),
         "bill_id": (int, ...),
+        "legislative_body_id": (int, ...),
         "date": (date, ...),
-        "type": (BillActionType, ...),
+        "description": (str, ...),
     },
 )
 

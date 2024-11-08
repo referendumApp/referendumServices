@@ -278,5 +278,37 @@
       }
     ],
     "dataframe": null
+  },
+  {
+    "source": "ls_bill_vote",
+    "source_columns": [
+      "roll_call_id",
+      "bill_id",
+      "roll_call_body_id",
+      "roll_call_date",
+      "roll_call_desc"
+    ],
+    "destination": "bill_actions",
+    "destination_columns": [
+      "id",
+      "bill_id",
+      "legislative_body_id",
+      "date",
+      "description"
+    ],
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "roll_call_id": "id",
+            "roll_call_body_id": "legislative_body_id",
+            "roll_call_date": "date",
+            "roll_call_desc": "description"
+          }
+        }
+      }
+    ],
+    "dataframe": null
   }
 ]
