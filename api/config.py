@@ -20,27 +20,10 @@ class Settings(BaseSettings):
     # AWS
     AWS_REGION: Optional[str] = "us-east-2"
     ALPHA_BUCKET_NAME: str = "referendum-app-alpha"
+    BILL_TEXT_BUCKET_NAME: str
     FEEDBACK_FILE_NAME: str = "feedback.json"
 
-    # Storage
-    BILL_TEXT_BUCKET_NAME: str
-
-    # Database
-    POSTGRES_USER: str
-    POSTGRES_PASSWORD: str
-    POSTGRES_HOST: str
-    POSTGRES_PORT: int = 5432
-
-    # Debug
-    ENABLE_DEBUGGER: bool = False
-
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
-
-    def get_connection_string(self, db_name: str) -> str:
-        """Generate PostgreSQL connection string."""
-        if not db_name:
-            raise ValueError("Missing db_name")
-        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{db_name}"
 
 
 def setup_logging() -> None:
