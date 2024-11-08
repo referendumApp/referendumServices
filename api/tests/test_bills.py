@@ -94,16 +94,6 @@ async def test_delete_bill_unauthorized(client, test_bill):
     assert_status_code(response, 403)
 
 
-async def test_get_bill_text_success(client, system_headers, test_bill):
-    response = await client.get(f"/bills/{test_bill['id']}/version/1/text", headers=system_headers)
-    assert_status_code(response, 200)
-    bill_text = response.json()
-    assert "billId" in bill_text
-    assert "version" in bill_text
-    assert "text" in bill_text
-    assert bill_text["text"] == "Lorem ipsum dolor sit amet"
-
-
 async def test_add_remove_bill_topic(client, system_headers, test_bill, test_topic):
     # Add topic to bill
     response = await client.post(

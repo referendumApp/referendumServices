@@ -131,10 +131,7 @@ Legislator = create_schema_container(
 
 BillVersion = create_schema_container(
     name="BillVersion",
-    base_fields={
-        "bill_id": (int, ...),
-        "version": (int, ...),
-    },
+    base_fields={"id": (int, ...), "bill_id": (int, ...), "url": (str, ...), "hash": (str, ...)},
 )
 
 

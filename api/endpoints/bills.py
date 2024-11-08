@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import Dict, Any
+from typing import Dict, Any, List
 import logging
 
 from common.database.referendum import crud, schemas
@@ -27,27 +27,26 @@ EndpointGenerator.add_crud_routes(
 
 
 @router.get(
-    "/{bill_id}/version/{version}/text",
-    response_model=Dict[str, str | int],
-    summary="Get bill text",
+    "/{bill_id}/bill_versions",
+    response_model=List[schemas.BillVersion.Record],
+    summary="Get bill versions",
     responses={
         200: {
             "model": Dict[str, str | int],
-            "description": "Bill text successfully retrieved",
+            "description": "Bill versions successfully retrieved",
         },
         401: {"model": ErrorResponse, "description": "Not authorized"},
         404: {"model": ErrorResponse, "description": "Bill not found"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
-async def get_bill_text(
+async def get_bill_versions(
     bill_id: int,
-    version: int,
+    db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> dict:
-    lorem_ipsum = "Lorem ipsum dolor sit amet"
-    logger.info(f"Fetched bill text for bill {bill_id}, version {version}")
-    return {"billId": bill_id, "version": version, "text": lorem_ipsum}
+    bill = crud.bill.read(db=db, obj_id=bill_id)
+    return bill.bill_versions
 
 
 @router.post(

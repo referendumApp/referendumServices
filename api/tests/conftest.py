@@ -162,6 +162,23 @@ async def test_bill_action(
 
 
 @pytest_asyncio.fixture(scope="function")
+async def test_bill_version(
+    create_test_entity,
+    delete_test_entity,
+    test_bill: Dict,
+):
+    bill_version_data = {
+        "id": random.randint(100000, 999999),
+        "billId": test_bill["id"],
+        "url": "http://bill_text.com/1.pdf",
+        "hash": "12345",
+    }
+    bill_version = await create_test_entity("/bill_versions/", bill_version_data)
+    yield bill_version
+    await delete_test_entity("bill_versions", bill_version["id"])
+
+
+@pytest_asyncio.fixture(scope="function")
 async def test_legislator(
     create_test_entity, delete_test_entity, test_party, test_state, test_role
 ):
