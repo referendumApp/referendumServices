@@ -79,7 +79,6 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
             _: Dict[str, Any] = Depends(permissions.create),
         ):
             logger.info(f"Attempting to create new {resource_name}")
-            logger.error(item)
             try:
                 created_item = crud_model.create(db=db, obj_in=item)
                 logger.info(f"Successfully created {resource_name} with ID: {created_item.id}")
