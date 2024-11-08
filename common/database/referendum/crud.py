@@ -221,6 +221,12 @@ class BillActionCRUD(
     pass
 
 
+class BillVersionCRUD(
+    BaseCRUD[models.BillVersion, schemas.BillVersion.Base, schemas.BillVersion.Record]
+):
+    pass
+
+
 class CommitteeCRUD(BaseCRUD[models.Committee, schemas.Committee.Base, schemas.Committee.Record]):
     def add_legislator_membership(self, db: Session, committee_id: int, legislator_id: int):
         db_committee = self.read(db=db, obj_id=committee_id)
@@ -534,6 +540,7 @@ class UserVoteCRUD(BaseCRUD[models.UserVote, schemas.UserVoteCreate, schemas.Use
 
 bill = BillCRUD(models.Bill)
 bill_action = BillActionCRUD(models.BillAction)
+bill_version = BillVersionCRUD(models.BillVersion)
 comment = CommentCRUD(models.Comment)
 committee = CommitteeCRUD(models.Committee)
 legislator = LegislatorCRUD(models.Legislator)

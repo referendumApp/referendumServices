@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     # AWS
     AWS_REGION: Optional[str] = "us-east-2"
     ALPHA_BUCKET_NAME: str = "referendum-app-alpha"
+    BILL_TEXT_BUCKET_NAME: str
     FEEDBACK_FILE_NAME: str = "feedback.json"
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
