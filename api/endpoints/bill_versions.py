@@ -2,21 +2,17 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Dict, Any
 import logging
-import os
 
 from common.database.referendum import crud, schemas
 from common.object_storage.client import ObjectStorageClient
-
+from ..config import settings
 from ..database import get_db
 from ..schemas import ErrorResponse
 from ..security import get_current_user_or_verify_system_token
 from .endpoint_generator import EndpointGenerator
 
 logger = logging.getLogger(__name__)
-
 router = APIRouter()
-
-BILL_TEXT_BUCKET_NAME = os.getenv("BILL_TEXT_BUCKET_NAME")
 
 EndpointGenerator.add_crud_routes(
     router=router,
@@ -33,10 +29,7 @@ EndpointGenerator.add_crud_routes(
     response_model=Dict[str, str | int],
     summary="Get bill text",
     responses={
-        200: {
-            "model": Dict[str, str | int],
-            "description": "Bill text successfully retrieved",
-        },
+        200: {"model": Dict[str, str | int], "description": "Bill text successfully retrieved"},
         401: {"model": ErrorResponse, "description": "Not authorized"},
         404: {"model": ErrorResponse, "description": "Bill not found"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
@@ -52,7 +45,7 @@ async def get_bill_text(
     try:
         s3_client = ObjectStorageClient()
         text = s3_client.download_file(
-            bucket=BILL_TEXT_BUCKET_NAME, key=f"{bill_version.hash}.txt"
+            bucket=settings.BILL_TEXT_BUCKET_NAME, key=f"{bill_version.hash}.txt"
         ).decode("utf-8")
 
         return {"bill_version_id": bill_version_id, "hash": bill_version.hash, "text": text}
