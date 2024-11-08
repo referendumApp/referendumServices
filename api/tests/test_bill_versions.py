@@ -15,4 +15,4 @@ async def test_get_bill_text_success(client, system_headers, test_bill_version):
     )
     assert_status_code(response, 200)
     body = response.json()
-    assert body["text"] == "12345"
+    assert body["text"] == "A BILL"

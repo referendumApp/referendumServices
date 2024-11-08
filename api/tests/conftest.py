@@ -11,9 +11,11 @@ from api.main import app
 from api.security import create_access_token
 from api.tests.test_utils import assert_status_code, generate_random_string
 from common.database.referendum.models import VoteChoice
+from common.object_storage.client import ObjectStorageClient
 
 ENV = os.environ.get("ENVIRONMENT")
 DEBUGGER = os.environ.get("ENABLE_DEBUGGER")
+BILL_TEXT_BUCKET_NAME = os.environ.get("BILL_TEXT_BUCKET_NAME")
 if ENV == "local" and DEBUGGER is not None and DEBUGGER.lower() == "true":
     import debugpy
 
@@ -167,15 +169,40 @@ async def test_bill_version(
     delete_test_entity,
     test_bill: Dict,
 ):
-    bill_version_data = {
-        "id": random.randint(100000, 999999),
-        "billId": test_bill["id"],
-        "url": "http://bill_text.com/1.pdf",
-        "hash": "12345",
-    }
-    bill_version = await create_test_entity("/bill_versions/", bill_version_data)
-    yield bill_version
-    await delete_test_entity("bill_versions", bill_version["id"])
+    bill_text = "A BILL"
+
+    hash_value = generate_random_string()
+    storage_client = ObjectStorageClient()
+
+    try:
+        # Upload bill text to MinIO
+        storage_client.upload_file(
+            bucket=BILL_TEXT_BUCKET_NAME,
+            key=f"{hash_value}.txt",
+            file_obj=bill_text.encode("utf-8"),
+            content_type="text/plain",
+        )
+
+        # Create bill version record
+        bill_version_data = {
+            "id": random.randint(100000, 999999),
+            "billId": test_bill["id"],
+            "url": "http://bill_text.com/1.pdf",
+            "hash": hash_value,
+        }
+
+        bill_version = await create_test_entity("/bill_versions/", bill_version_data)
+        yield bill_version
+
+    finally:
+        # Cleanup: First delete the database record
+        await delete_test_entity("bill_versions", bill_version["id"])
+
+        # Then delete the file from MinIO
+        try:
+            storage_client.delete_file(bucket=BILL_TEXT_BUCKET_NAME, key=f"{hash_value}.txt")
+        except Exception as e:
+            logger.warning(f"Failed to delete test bill text from MinIO: {str(e)}")
 
 
 @pytest_asyncio.fixture(scope="function")

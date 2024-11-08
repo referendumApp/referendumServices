@@ -1,13 +1,9 @@
 import logging
 import json
 import os
-import requests
-import io
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
-from typing import List, Set
-import hashlib
-import pdfplumber
+from typing import List
 
 from common.database.referendum import connection as referendum_connection
 from common.database.legiscan_api import connection as legiscan_api_connection

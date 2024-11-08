@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Dict, Any
 import logging
+import os
 
 from common.database.referendum import crud, schemas
+from common.object_storage.client import ObjectStorageClient
 
 from ..database import get_db
 from ..schemas import ErrorResponse
@@ -14,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+BILL_TEXT_BUCKET_NAME = os.getenv("BILL_TEXT_BUCKET_NAME")
 
 EndpointGenerator.add_crud_routes(
     router=router,
@@ -27,7 +30,7 @@ EndpointGenerator.add_crud_routes(
 
 @router.get(
     "/{bill_version_id}/text",
-    response_model=Dict[str, str],
+    response_model=Dict[str, str | int],
     summary="Get bill text",
     responses={
         200: {
@@ -45,8 +48,15 @@ async def get_bill_text(
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> dict:
     bill_version = crud.bill_version.read(db=db, obj_id=bill_version_id)
-    hash = bill_version.hash
 
-    # TODO - extract full text from hash
+    try:
+        s3_client = ObjectStorageClient()
+        text = s3_client.download_file(
+            bucket=BILL_TEXT_BUCKET_NAME, key=f"{bill_version.hash}.txt"
+        ).decode("utf-8")
 
-    return {"text": hash}
+        return {"bill_version_id": bill_version_id, "hash": bill_version.hash, "text": text}
+
+    except Exception as e:
+        logger.error(f"Error downloading bill text: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving bill text: {str(e)}")
