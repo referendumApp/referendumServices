@@ -61,6 +61,14 @@ async def delete_test_entity(client: AsyncClient, system_headers: Dict):
 
 
 @pytest_asyncio.fixture(scope="function")
+async def test_vote_choice(create_test_entity, delete_test_entity):
+    vote_choice_data = {"name": "Yea"}
+    vote_choice = await create_test_entity("/vote_choices/", vote_choice_data)
+    yield vote_choice
+    await delete_test_entity("vote_choices", vote_choice["id"])
+
+
+@pytest_asyncio.fixture(scope="function")
 async def test_vote_choices(create_test_entity, delete_test_entity):
     # We create the original and an alternative
     vote_choice_data = {"name": "Yea"}

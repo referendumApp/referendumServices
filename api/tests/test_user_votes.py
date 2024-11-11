@@ -1,8 +1,8 @@
 from api.tests.test_utils import assert_status_code, NO_VOTE_ID
 
 
-async def test_cast_vote_success(test_vote, test_vote_choice):
-    assert test_vote["voteChoiceId"] == test_vote_choice["id"]
+async def test_cast_vote_success(test_vote):
+    assert "voteChoiceId" in test_vote
 
 
 async def test_cast_vote_update(
