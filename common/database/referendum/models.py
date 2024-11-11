@@ -152,15 +152,18 @@ class Bill(Base):
     legislative_body = relationship("LegislativeBody")
     topics = relationship("Topic", secondary=bill_topics)
     sponsors = relationship("Legislator", secondary=bill_sponsors, back_populates="sponsored_bills")
+    bill_versions = relationship("BillVersion", back_populates="bill")
 
 
 class BillVersion(Base):
     __tablename__ = "bill_versions"
 
-    bill_id = Column(Integer, ForeignKey("bills.id"), primary_key=True)
-    version = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True)
+    bill_id = Column(Integer, ForeignKey("bills.id"))
+    url = Column(String, nullable=True)
+    hash = Column(String, nullable=True)
 
-    bill = relationship("Bill")
+    bill = relationship("Bill", back_populates="bill_versions")
 
 
 class BillAction(Base):

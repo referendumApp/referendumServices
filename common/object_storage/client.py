@@ -73,7 +73,3 @@ class ObjectStorageClient:
                 filenames.extend(obj["Key"] for obj in page["Contents"])
 
         return filenames
-
-
-def create_storage_client() -> ObjectStorageClient:
-    return ObjectStorageClient()

@@ -6,7 +6,7 @@ from botocore.exceptions import ClientError
 import boto3
 import os
 
-from common.object_storage.client import create_storage_client
+from common.object_storage.client import ObjectStorageClient
 
 from ..database import get_db
 from ..schemas import ErrorResponse, HealthResponse
@@ -54,7 +54,7 @@ async def healthcheck(
 
     # Check S3 access
     try:
-        s3_client = create_storage_client()
+        s3_client = ObjectStorageClient()
         s3_client.check_connection(BILL_TEXT_BUCKET_NAME)
     except Exception as e:
         raise HTTPException(

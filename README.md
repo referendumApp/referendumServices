@@ -1,120 +1,161 @@
 # Referendum Services
 
+This repository provides the backend infrastructure for the Referendum mobile app
+
 ## Architecture
 
-The Referendum system consists of the following services:
-- **api**: The main FastAPI application service that handles HTTP requests
-- **pipeline**: ETL service for processing legislative data
-- **db**: PostgreSQL database service for local development
-- **local-init**: Service that runs initialization scripts for local development
-- **migrations**: Handles database schema updates using Alembic
-- **test**: Runs the test suite in an isolated environment
+The system consists of three main components:
 
-## Prerequisites
+1. **API Service**
+   - FastAPI application handling all client requests
+   - User authentication and authorization
+   - Data access and manipulation
+   - Real-time engagement features
 
-- Python 3.11 or later
+2. **ETL Pipeline**
+   - Weekly data synchronization from Legiscan
+   - Bill text extraction and processing
+   - Content storage management
+
+3. **Infrastructure**
+   - PostgreSQL database
+   - S3 storage for bill texts
+   - AWS deployment (EC2, ECR, ECS)
+
+## Getting Started
+
+### Prerequisites
+
 - Docker and Docker Compose
-- AWS CLI configured with appropriate permissions
+- Python 3.11+
+- Referendum AWS account & AWS CLI
+  - AWS SSO Login: https://d-9a677b7194.awsapps.com/start
 
-## Local Development
+### Environment Variables
 
-### Building the Docker Images
-
-```bash
-make build
-```
-
-### Running the API Locally
+The following environment variables are required:
 
 ```bash
-make local
+# Database Configuration
+POSTGRES_HOST=
+POSTGRES_PORT=
+POSTGRES_USER=
+POSTGRES_PASSWORD=
+REFERENDUM_DB_NAME=
+LEGISCAN_API_DB_NAME=
+
+# Authentication
+SECRET_KEY=
+API_ACCESS_TOKEN=
+
+# AWS/S3 Configuration
+AWS_REGION=
+S3_ACCESS_KEY=
+S3_SECRET_KEY=
+BILL_TEXT_BUCKET_NAME=
+
+# Application Settings
+ENVIRONMENT=  # (local/dev/prod)
+LOG_LEVEL=
 ```
 
-The API will be available at:
-- Main API: `http://localhost:80`
-- API documentation: `http://localhost:80/docs`
+### Local Development
+
+1. **Clone the Repository**
+   ```bash
+   git clone [repository-url]
+   cd referendum-services
+   ```
+
+2. **Configure Environment**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+3. **Start Local Services**
+   ```bash
+   # Start with sample data
+   make local
+   
+   # Or start services without
+   make empty
+   ```
+
+4. **Access Local Environment**
+   - API: http://localhost:80
+   - API Documentation:
+     - Swagger: http://localhost:80/docs
+     - Redoc: http://localhost:80/redoc
+   - MinIO Console: http://localhost:9001
 
 ### Running Tests
 
 ```bash
+# Run all tests
 make test
+
+# Clean up after testing
+make clean
 ```
 
-### Stopping the Application and Cleaning the Environment
+## Data Pipeline
+
+The ETL pipeline runs weekly to synchronize data from Legiscan and process legislative documents.
+
+### Manual Pipeline Execution
 
 ```bash
-make clean
+# Run pipeline locally
+make pipeline
+
+# Trigger pipeline in AWS
+gh workflow run run_pipeline.yml -f environment=<environment>
 ```
 
 ## Deployment
 
-### Environment Variables
+The service supports two deployment environments:
 
-Both applications require the following parameters for each environment:
-- `POSTGRES_HOST`
-- `POSTGRES_PORT`
-- `POSTGRES_USER`
-- `POSTGRES_PASSWORD`
-- `REFERENDUM_DB_NAME`
+### Development
+- Endpoint: Port 8080
+- Configuration: `/dev/` in SSM Parameter Store
+- Image tags: `dev-${SHA}` and `dev-stable`
 
-The pipeline requires:
-- `LEGISCAN_API_DB_NAME`
+### Production
+- Endpoint: Port 80
+- Configuration: `/prod/` in SSM Parameter Store
+- Image tags: `prod-${SHA}` and `prod-stable`
 
-The API requires:
-- `SECRET_KEY`
-- `API_ACCESS_TOKEN`
+### Deployment Process
 
-#### Variable Storage
+1. **Automated Deployment**
+   ```bash
+   # Triggered automatically on push to main (prod)
+   # Or manually via GitHub Actions
+   gh workflow run deploy.yml -f environment=dev
+   ```
 
-- Environment-specific variables are stored in AWS Systems Manager Parameter Store:
-  - Production: `/prod/`
-  - Test: `/dev/`
-- Secrets are stored in AWS Secrets Manager and are integrated into the deployed images as part of the deployment pipeline.
+2. **Manual Database Migration**
+   ```bash
+   gh workflow run migration.yml \
+     -f environment=dev \
+     -f operation=upgrade \
+     -f version=head
+   ```
 
-### Deployment Workflow
+## Development
 
-#### Deploy API to AWS
-Triggered on push to main or manually via workflow dispatch.
+### Contribution Guidelines
 
-1. Builds the API Docker image using environment variables from SSM Parameter Store
-2. Pushes the image to Amazon ECR at `referendum/api`
-3. Uses AWS Systems Manager to pull image to EC2 instance
-4. Runs database migrations using Alembic
-5. Replaces running image with new build
-6. Validates using health check
-7. Updates stable tag if successful, rolls back if failed
+1. Branch naming: `<author>/`
+2. Testing: Ensure all tests pass before submitting PR
+3. Linting: Code must pass black formatting checks
 
-For detailed information about the CI/CD process, refer to the `.github/workflows/deploy.yml` file in the repository.
+## 📝 Version Management
 
-#### Deploy Pipeline to AWS
-1. Builds and pushes pipeline image to ECR
-2. Updates ECS task definition
-3. Configures EventBridge rule for weekly execution
-
-### Environments
-
-Both environments run on the same EC2 instance, with different tags and ports:
-
-- **Production**: 
-  - Deployed automatically on pushes to the main branch
-  - Runs on port 80
-  - Uses parameters from `/prod/` in SSM Parameter Store
-  - Image tagged as `prod-${SHA}` and `prod-stable`
-
-- **Dev**: 
-  - Can be deployed manually using Github Actions workflow dispatch
-  - Runs on port 8080
-  - Uses parameters from `/dev/` in SSM Parameter Store
-  - Image tagged as `dev-${SHA}` and `dev-stable`
-
-### Version Management
-
-- Version numbers are maintained in `version.txt`
-- Automatically incremented on main branch pushes
-- Commit messages can include:
-  - `#major`: Bumps major version (x.0.0)
-  - `#minor`: Bumps minor version (0.x.0)
-  - Default: Bumps patch version (0.0.x)
-
-### Monitoring and Troubleshooting
-- AWS SSO Login: https://d-9a677b7194.awsapps.com/start
+- Version numbers: MAJOR.MINOR.PATCH
+- Automatic versioning based on commit messages
+  - `#major`: Breaking changes
+  - `#minor`: New features
+  - Default: Patch updates

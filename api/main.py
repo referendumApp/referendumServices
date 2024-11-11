@@ -1,4 +1,3 @@
-import os
 import boto3
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,6 +20,7 @@ from .endpoints import (
     bill_actions,
     legislator_votes,
     comments,
+    bill_versions,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -41,6 +41,7 @@ app.include_router(health.router, tags=["health"])
 app.include_router(authentication.router, tags=["authentication"], prefix="/auth")
 app.include_router(bills.router, tags=["bills"], prefix="/bills")
 app.include_router(bill_actions.router, tags=["bill_actions"], prefix="/bill_actions")
+app.include_router(bill_versions.router, tags=["bill_versions"], prefix="/bill_versions")
 app.include_router(comments.router, tags=["comments"], prefix="/comments")
 app.include_router(committees.router, tags=["committees"], prefix="/committees")
 app.include_router(legislators.router, tags=["legislators"], prefix="/legislators")
