@@ -67,12 +67,9 @@ async def test_vote_choices(create_test_entity, delete_test_entity):
     vote_choice = await create_test_entity("/vote_choices/", vote_choice_data)
     alt_choice_data = {"id": NO_VOTE_ID, "name": "Nay"}
     alt_choice = await create_test_entity("/vote_choices/", alt_choice_data)
-    print(vote_choice, alt_choice)
     yield vote_choice, alt_choice
-    print("Deleting")
     await delete_test_entity("vote_choices", alt_choice["id"])
     await delete_test_entity("vote_choices", vote_choice["id"])
-    print("Done")
 
 
 @pytest_asyncio.fixture(scope="function")
