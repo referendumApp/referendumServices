@@ -15,7 +15,7 @@ empty:
 	docker compose --profile local-empty up
 
 # Run the tests
-test:
+pytest:
 	docker compose --profile test build
 	docker compose --profile test run --rm test
 
@@ -35,3 +35,6 @@ logs:
 
 # Rebuild and restart the app in local development mode
 restart: clean local
+
+# Run tests and cleanup
+test: clean pytest clean

@@ -1,11 +1,11 @@
 [
   {
     "source": "ls_state",
+    "destination": "states",
     "source_columns": [
       "state_id",
       "state_name"
     ],
-    "destination": "states",
     "destination_columns": [
       "id",
       "name"
@@ -25,11 +25,11 @@
   },
   {
     "source": "ls_role",
+    "destination": "roles",
     "source_columns": [
       "role_id",
       "role_name"
     ],
-    "destination": "roles",
     "destination_columns": [
       "id",
       "name"
@@ -49,12 +49,12 @@
   },
   {
     "source": "ls_body",
+    "destination": "legislative_bodys",
     "source_columns": [
       "body_id",
       "state_id",
       "role_id"
     ],
-    "destination": "legislative_bodys",
     "destination_columns": [
       "id",
       "state_id",
@@ -74,11 +74,11 @@
   },
   {
     "source": "ls_party",
+    "destination": "partys",
     "source_columns": [
       "party_id",
       "party_name"
     ],
-    "destination": "partys",
     "destination_columns": [
       "id",
       "name"
@@ -98,6 +98,7 @@
   },
   {
     "source": "ls_bill",
+    "destination": "bills",
     "source_columns": [
       "bill_id",
       "title",
@@ -109,7 +110,6 @@
       "status_id",
       "status_date"
     ],
-    "destination": "bills",
     "destination_columns": [
       "id",
       "legiscan_id",
@@ -145,6 +145,7 @@
   },
   {
     "source": "ls_people",
+    "destination": "legislators",
     "source_columns": [
       "people_id",
       "name",
@@ -154,7 +155,6 @@
       "state_id",
       "role_id"
     ],
-    "destination": "legislators",
     "destination_columns": [
       "id",
       "legiscan_id",
@@ -193,12 +193,12 @@
   },
   {
     "source": "ls_committee",
+    "destination": "committees",
     "source_columns": [
       "committee_id",
       "committee_body_id",
       "committee_name"
     ],
-    "destination": "committees",
     "destination_columns": [
       "id",
       "legislative_body_id",
@@ -220,13 +220,13 @@
   },
   {
     "source": "ls_bill_text",
+    "destination": "bill_versions",
     "source_columns": [
       "text_id",
       "bill_id",
       "bill_text_type_id",
       "state_url"
     ],
-    "destination": "bill_versions",
     "destination_columns": [
       "id",
       "bill_id",
@@ -257,11 +257,11 @@
   },
   {
     "source": "ls_text_type",
+    "destination": "bill_version_types",
     "source_columns": [
       "bill_text_type_id",
       "bill_text_name"
     ],
-    "destination": "bill_version_types",
     "destination_columns": [
       "id",
       "name"
@@ -281,6 +281,7 @@
   },
   {
     "source": "ls_bill_vote",
+    "destination": "bill_actions",
     "source_columns": [
       "roll_call_id",
       "bill_id",
@@ -288,7 +289,6 @@
       "roll_call_date",
       "roll_call_desc"
     ],
-    "destination": "bill_actions",
     "destination_columns": [
       "id",
       "bill_id",
@@ -305,6 +305,57 @@
             "roll_call_body_id": "legislative_body_id",
             "roll_call_date": "date",
             "roll_call_desc": "description"
+          }
+        }
+      }
+    ],
+    "dataframe": null
+  },
+  {
+    "source": "ls_vote",
+    "destination": "vote_choices",
+    "source_columns": [
+      "vote_id",
+      "vote_desc"
+    ],
+    "destination_columns": [
+      "id",
+      "name"
+    ],
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "vote_id": "id",
+            "vote_desc": "name"
+          }
+        }
+      }
+    ],
+    "dataframe": null
+  },
+  {
+    "source": "ls_bill_vote_detail",
+    "destination": "legislator_votes",
+    "source_columns": [
+      "roll_call_id",
+      "people_id",
+      "vote_id"
+    ],
+    "destination_columns": [
+      "bill_action_id",
+      "legislator_id",
+      "vote_choice_id"
+    ],
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "roll_call_id": "bill_action_id",
+            "people_id": "legislator_id",
+            "vote_id": "vote_choice_id"
           }
         }
       }
