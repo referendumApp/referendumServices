@@ -1,6 +1,8 @@
 import random
 import string
 
+NO_VOTE_ID = 900000
+
 
 # Shared utility functions
 def assert_status_code(response, expected_status_code: int):

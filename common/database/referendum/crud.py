@@ -538,6 +538,12 @@ class UserVoteCRUD(BaseCRUD[models.UserVote, schemas.UserVoteCreate, schemas.Use
         return self.read_filtered(db=db, filters=filters)
 
 
+class VoteChoiceCRUD(
+    BaseCRUD[models.VoteChoice, schemas.VoteChoice.Base, schemas.VoteChoice.Record]
+):
+    pass
+
+
 bill = BillCRUD(models.Bill)
 bill_action = BillActionCRUD(models.BillAction)
 bill_version = BillVersionCRUD(models.BillVersion)
@@ -552,3 +558,4 @@ state = StateCRUD(models.State)
 topic = TopicCRUD(models.Topic)
 user = UserCRUD(models.User)
 user_vote = UserVoteCRUD(models.UserVote)
+vote_choice = VoteChoiceCRUD(models.VoteChoice)
