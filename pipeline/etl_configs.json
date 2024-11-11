@@ -313,7 +313,7 @@
   },
   {
     "source": "ls_vote",
-    "destination": "vote_selection",
+    "destination": "vote_choices",
     "source_columns": [
       "vote_id",
       "vote_desc"
@@ -346,7 +346,7 @@
     "destination_columns": [
       "bill_action_id",
       "legislator_id",
-      "vote_selection_Id"
+      "vote_choice_id"
     ],
     "transformations": [
       {
@@ -355,7 +355,7 @@
           "columns": {
             "roll_call_id": "bill_action_id",
             "people_id": "legislator_id",
-            "vote_id": "vote_selection_Id"
+            "vote_id": "vote_choice_id"
           }
         }
       }
