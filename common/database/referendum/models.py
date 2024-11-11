@@ -56,12 +56,6 @@ bill_topics = Table(
 )
 
 
-# Enum classes
-class BillActionType(enum.Enum):
-    FLOOR_VOTE = 1
-    COMMITTEE_VOTE = 2
-
-
 class VoteChoice(enum.Enum):
     YES = 1
     NO = 2
@@ -171,8 +165,9 @@ class BillAction(Base):
 
     id = Column(Integer, primary_key=True)
     bill_id = Column(Integer, ForeignKey("bills.id"), nullable=False)
+    legislative_body_id = Column(Integer, ForeignKey("legislative_bodys.id"), nullable=False)
     date = Column(Date, nullable=False)
-    type = Column(Enum(BillActionType), nullable=False)
+    description = Column(String, nullable=False)
 
 
 class Legislator(Base):
