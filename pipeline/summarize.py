@@ -1,25 +1,34 @@
-from langchain.llms import Ollama
-from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
+from transformers import pipeline
 
 
-def summarize_text(input_text: str) -> str:
-    # Initialize the Llama 3 model through Ollama
-    llm = Ollama(model="llama3")  # Use the appropriate model name for Llama 3 in Ollama
+def summarize_text(text, max_length=130, min_length=30):
+    """
+    Summarize the given text using a pre-trained model.
+    """
+    # Initialize the summarization pipeline
+    summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
 
-    # Create a prompt template for summarization
-    prompt_template = PromptTemplate(
-        input_variables=["text"], template="Please summarize the following text:\n\n{text}"
-    )
-
-    # Set up the LangChain chain with the LLM and prompt template
-    chain = LLMChain(llm=llm, prompt=prompt_template)
-
-    # Run the chain with the input text to get the summary
-    summary = chain.run({"text": input_text})
-    return summary
+    # Generate summary
+    summary = summarizer(text, max_length=max_length, min_length=min_length, do_sample=False)
+    return summary[0]["summary_text"]
 
 
 # Example usage
-input_text = "Your text goes here to be summarized."
-print(summarize_text(input_text))
+if __name__ == "__main__":
+    text = """
+    The development of artificial intelligence has revolutionized many fields, 
+    from healthcare to transportation. Machine learning algorithms can now recognize 
+    patterns in medical images with high accuracy, potentially detecting diseases 
+    earlier than human doctors. In transportation, AI is enabling the development 
+    of self-driving cars, which promise to make roads safer and reduce traffic 
+    congestion. However, these advances also raise important ethical questions 
+    about privacy, accountability, and the future of human work. As AI continues 
+    to evolve, society must carefully consider how to harness its benefits while 
+    addressing potential risks and challenges.
+    """
+    print("\nSummarizing")
+    result = summarize_text(text)
+    print("\nOriginal text:")
+    print(text)
+    print("\nGenerated summary:")
+    print(result)
