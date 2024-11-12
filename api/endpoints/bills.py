@@ -1,3 +1,4 @@
+from collections import Counter
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List
@@ -7,7 +8,7 @@ from common.database.referendum import crud, schemas
 from common.database.referendum.crud import ObjectNotFoundException, DatabaseException
 
 from ..database import get_db
-from ..schemas import ErrorResponse
+from ..schemas import ErrorResponse, BillVotingHistory
 from ..security import get_current_user_or_verify_system_token, verify_system_token
 from .endpoint_generator import EndpointGenerator
 
@@ -47,6 +48,30 @@ async def get_bill_versions(
 ) -> dict:
     bill = crud.bill.read(db=db, obj_id=bill_id)
     return bill.bill_versions
+
+
+@router.get(
+    "/{bill_id}/voting_history",
+    response_model=BillVotingHistory,
+    summary="Get bill voting history",
+    responses={
+        200: {
+            "model": BillVotingHistory,
+            "description": "Bill voting history successfully retrieved",
+        },
+        401: {"model": ErrorResponse, "description": "Not authorized"},
+        404: {"model": ErrorResponse, "description": "Bill not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def get_bill_voting_history(
+    bill_id: int,
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+) -> dict:
+    legislator_votes = crud.legislator_vote.get_votes_for_bill(db=db, bill_id=bill_id)
+    vote_counts = Counter(vote.vote_choice_id for vote in legislator_votes)
+    return {"bill_id": bill_id, "legislator_votes": legislator_votes, "vote_counts": vote_counts}
 
 
 @router.post(
