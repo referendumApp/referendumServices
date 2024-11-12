@@ -30,8 +30,22 @@ def upgrade():
         ["id"],
     )
 
+    op.add_column("user_votes", sa.Column("vote_choice_id", sa.Integer(), nullable=False))
+    op.create_foreign_key(
+        "fk_user_votes_vote_choices",
+        "user_votes",
+        "vote_choices",
+        ["vote_choice_id"],
+        ["id"],
+    )
+    op.drop_column("user_votes", "vote_choice")
+
 
 def downgrade():
+    op.add_column("user_votes", sa.Column("vote_choice", sa.String(), nullable=True))
+    op.drop_constraint("fk_user_votes_vote_choices", "user_votes", type_="foreignkey")
+    op.drop_column("user_votes", "vote_choice_id")
+
     op.drop_constraint("fk_legislator_votes_vote_choices", "legislator_votes", type_="foreignkey")
     op.rename_table("vote_choices", "vote_choice")
     op.create_foreign_key(
