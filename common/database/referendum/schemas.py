@@ -1,4 +1,3 @@
-import logging
 from datetime import date
 from pydantic import BaseModel, EmailStr, Field, ConfigDict, create_model
 from pydantic.alias_generators import to_camel
@@ -21,7 +20,7 @@ class BaseSchema(CamelCaseBaseModel):
 
 
 class RecordSchema(BaseSchema, Generic[T]):
-    pass
+    id: int
 
 
 class RelationshipSchema(RecordSchema[T], Generic[T]):
@@ -40,21 +39,13 @@ def create_schema_container(
     record_fields: Dict[str, Any] = None,
     relationship_fields: Dict[str, Any] = None,
 ) -> SchemaContainer:
-    logging.error(base_fields)
-    logging.error(record_fields)
-    logging.error(relationship_fields)
-
     base_class = create_model(f"{name}Base", __base__=BaseSchema, **base_fields)
-
-    logging.error(base_class.schema_json())
 
     record_class = create_model(
         f"{name}Record",
         __base__=(RecordSchema,),
         **{**base_fields, **(record_fields or {})},
     )
-
-    logging.error(record_class.schema_json())
 
     relationship_class = create_model(
         name,
@@ -183,7 +174,7 @@ BillAction = create_schema_container(
     },
 )
 
-logging.error("==========")
+
 LegislatorVote = create_schema_container(
     name="LegislatorVote",
     base_fields={
@@ -196,9 +187,6 @@ LegislatorVote = create_schema_container(
         "vote_choice": (VoteChoice.Record, ...),
     },
 )
-
-logging.error(LegislatorVote.Base.schema_json())
-logging.error(LegislatorVote.Record.schema_json())
 
 
 class UserBase(BaseSchema):
