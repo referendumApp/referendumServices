@@ -289,14 +289,12 @@ async def test_legislator_vote(
     test_bill_action: Dict,
     test_vote_choice: Dict,
 ):
-    print("ENTERED FIXTURE")
     legislator_vote_data = {
         "billId": test_bill_action["billId"],
         "billActionId": test_bill_action["id"],
         "legislatorId": test_legislator["id"],
         "voteChoiceId": test_vote_choice["id"],
     }
-    print(legislator_vote_data)
     legislator_vote = await create_test_entity("/legislator_votes/", legislator_vote_data)
     yield legislator_vote
     await delete_test_entity("legislator_votes", legislator_vote["id"])
