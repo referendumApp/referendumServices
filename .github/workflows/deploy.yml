@@ -371,6 +371,7 @@ jobs:
               .cpu = "1024" |
               .memory = "3072" |
               .networkMode = "awsvpc" |
+              .requiresCompatibilities = ["FARGATE"] |
               .family = "${{ env.PIPELINE_TASK_DEFINITION }}-${{ env.DEPLOY_ENV }}"
             '
         )
@@ -404,7 +405,7 @@ jobs:
                 \"awsvpcConfiguration\": {
                   \"Subnets\": [\"subnet-030216eccd9d8d317\"],
                   \"SecurityGroups\": [\"sg-0ddba9c80c77125c2\",\"sg-0d65a5b9089171007\",\"sg-01d5891e4bb9f564a\"],
-                  \"AssignPublicIp\": \"DISABLED\"
+                  \"AssignPublicIp\": \"ENABLED\"
                 }
               }
             }
