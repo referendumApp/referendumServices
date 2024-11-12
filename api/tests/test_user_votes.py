@@ -1,17 +1,17 @@
 from api.tests.test_utils import assert_status_code, NO_VOTE_ID
 
 
-async def test_cast_vote_success(test_vote):
-    assert "voteChoiceId" in test_vote
+async def test_cast_vote_success(test_user_vote):
+    assert "voteChoiceId" in test_user_vote
 
 
 async def test_cast_vote_update(
-    client, system_headers, test_vote, test_user_session, test_vote_choices
+    client, system_headers, test_user_vote, test_user_session, test_vote_choices
 ):
     _, user_headers = test_user_session
     yay_vote, nay_vote = test_vote_choices
 
-    updated_vote_data = {"billId": test_vote["billId"], "voteChoiceId": NO_VOTE_ID}
+    updated_vote_data = {"billId": test_user_vote["billId"], "voteChoiceId": NO_VOTE_ID}
     response = await client.put("/users/votes", json=updated_vote_data, headers=user_headers)
     assert_status_code(response, 200)
     updated_vote = response.json()
@@ -44,7 +44,7 @@ async def test_cast_vote_invalid_choice(client, test_user_session, test_bill):
     assert_status_code(response, 422)
 
 
-async def test_get_votes_for_user(client, test_user_session, test_vote):
+async def test_get_votes_for_user(client, test_user_session, test_user_vote):
     user, headers = test_user_session
     response = await client.get("/users/votes", headers=headers)
     assert_status_code(response, 200)
@@ -53,15 +53,15 @@ async def test_get_votes_for_user(client, test_user_session, test_vote):
     assert votes[0]["userId"] == user["id"]
 
 
-async def test_get_votes_for_bill(client, system_headers, test_vote):
+async def test_get_votes_for_bill(client, system_headers, test_user_vote):
     response = await client.get(
-        f"/users/admin/{test_vote['userId']}/votes/?bill_id={test_vote['billId']}",
+        f"/users/admin/{test_user_vote['userId']}/votes/?bill_id={test_user_vote['billId']}",
         headers=system_headers,
     )
     assert_status_code(response, 200)
     votes = response.json()
     assert len(votes) > 0
-    assert votes[0]["billId"] == test_vote["billId"]
+    assert votes[0]["billId"] == test_user_vote["billId"]
 
 
 async def test_get_votes_unauthorized(client):

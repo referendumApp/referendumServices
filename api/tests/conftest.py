@@ -257,19 +257,18 @@ async def test_get_legislators(client, system_headers, test_legislator):
 
 
 @pytest_asyncio.fixture(scope="function")
-async def test_vote(
+async def test_user_vote(
     client: AsyncClient,
     system_headers,
     test_user_session: Dict,
-    test_bill_action: Dict,
     test_vote_choices: Tuple,
+    test_bill: Dict,
 ):
     _, headers = test_user_session
     yay_vote, nay_vote = test_vote_choices
 
     vote_data = {
-        "billId": test_bill_action["billId"],
-        "billActionId": test_bill_action["id"],
+        "billId": test_bill["id"],
         "voteChoiceId": yay_vote["id"],
     }
     response = await client.put("/users/votes/", json=vote_data, headers=headers)
