@@ -269,7 +269,6 @@ async def test_vote(
 
     vote_data = {
         "billId": test_bill_action["billId"],
-        "billActionId": test_bill_action["id"],
         "voteChoiceId": yay_vote["id"],
     }
     response = await client.put("/users/votes/", json=vote_data, headers=headers)
