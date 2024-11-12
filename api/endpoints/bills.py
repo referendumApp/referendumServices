@@ -69,8 +69,15 @@ async def get_bill_voting_history(
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> dict:
-    legislator_votes = crud.legislator_vote.get_votes_for_bill(db=db, bill_id=bill_id)
+    try:
+        legislator_votes = crud.legislator_vote.get_votes_for_bill(db=db, bill_id=bill_id)
+    except Exception as e:
+        message = f"Failed to get legislator_votes for bill {bill_id} with error: {e}"
+        logger.error(message)
+        raise HTTPException(status_code=500, detail=message)
+
     vote_counts = Counter(vote.vote_choice_id for vote in legislator_votes)
+
     return {"bill_id": bill_id, "legislator_votes": legislator_votes, "vote_counts": vote_counts}
 
 
