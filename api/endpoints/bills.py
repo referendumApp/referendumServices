@@ -1,7 +1,7 @@
 from collections import Counter, defaultdict
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import Dict, Any, List
 import logging
 
@@ -68,7 +68,6 @@ async def get_bill_versions(
             "description": "Bill voting history successfully retrieved",
         },
         401: {"model": ErrorResponse, "description": "Not authorized"},
-        404: {"model": ErrorResponse, "description": "Bill not found"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
@@ -78,36 +77,19 @@ async def get_bill_voting_history(
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> BillVotingHistory:
     try:
-        # Get bill details
-        bill = crud.bill.read(db=db, obj_id=bill_id)
-        if not bill:
-            raise HTTPException(status_code=404, detail=f"Bill {bill_id} not found")
-
-        # Build the complex query
         query = (
-            select(
-                models.LegislatorVote,
-                models.BillAction.date,
-                models.BillAction.description,
-                models.BillAction.legislative_body_id,
-                models.VoteChoice.id.label("vote_choice_id"),
-                models.VoteChoice.name.label("vote_choice_name"),
-                models.Legislator.name.label("legislator_name"),
-                models.Party.id.label("party_id"),
-                models.Party.name.label("party_name"),
-                models.Role.name.label("role_name"),
-                models.State.name.label("state_name"),
+            select(models.LegislatorVote)
+            .options(
+                joinedload(models.LegislatorVote.bill_action),
+                joinedload(models.LegislatorVote.vote_choice),
+                joinedload(models.LegislatorVote.legislator).joinedload(models.Legislator.party),
+                joinedload(models.LegislatorVote.legislator).joinedload(models.Legislator.role),
+                joinedload(models.LegislatorVote.legislator).joinedload(models.Legislator.state),
             )
-            .join(models.BillAction, models.LegislatorVote.bill_action_id == models.BillAction.id)
-            .join(models.VoteChoice, models.LegislatorVote.vote_choice_id == models.VoteChoice.id)
-            .join(models.Legislator, models.LegislatorVote.legislator_id == models.Legislator.id)
-            .join(models.Party, models.Legislator.party_id == models.Party.id)
-            .join(models.Role, models.Legislator.role_id == models.Role.id)
-            .join(models.State, models.Legislator.state_id == models.State.id)
             .filter(models.LegislatorVote.bill_id == bill_id)
         )
 
-        results = db.execute(query).fetchall()
+        results = db.execute(query).scalars().all()
 
         all_legislator_votes = []
         vote_summaries_by_action = defaultdict(
@@ -117,47 +99,45 @@ async def get_bill_voting_history(
                 "party_vote_counter": Counter(),
             }
         )
-        for row in results:
+        for vote in results:
             vote_detail = LegislatorVoteDetail(
-                bill_action_id=row.LegislatorVote.bill_action_id,
-                date=row.date,
-                action_description=row.description,
-                legislative_body_id=row.legislative_body_id,
-                legislator_id=row.LegislatorVote.legislator_id,
-                legislator_name=row.legislator_name,
-                party_name=row.party_name,
-                role_name=row.role_name,
-                state_name=row.state_name,
-                vote_choice_name=row.vote_choice_name,
+                bill_action_id=vote.bill_action_id,
+                date=vote.bill_action.date,
+                action_description=vote.bill_action.description,
+                legislative_body_id=vote.bill_action.legislative_body_id,
+                legislator_id=vote.legislator_id,
+                legislator_name=vote.legislator.name,
+                party_name=vote.legislator.party.name,
+                role_name=vote.legislator.role.name,
+                state_name=vote.legislator.state.name,
+                vote_choice_name=vote.vote_choice.name,
             )
             all_legislator_votes.append(vote_detail)
 
-            action_summary = vote_summaries_by_action[row.LegislatorVote.bill_action_id]
-            action_summary["total_votes"] += 1
-            action_summary["vote_choice_counter"][row.vote_choice_id] += 1
-            action_summary["party_vote_counter"][(row.party_id, row.vote_choice_id)] += 1
+            running_summary = vote_summaries_by_action[vote.bill_action_id]
+            running_summary["total_votes"] += 1
+            running_summary["vote_choice_counter"][vote.vote_choice_id] += 1
+            running_summary["party_vote_counter"][
+                (vote.legislator.party_id, vote.vote_choice_id)
+            ] += 1
 
-        # Convert summaries to VoteSummary objects
-        summaries = []
-        for action_id, summary_data in vote_summaries_by_action.items():
-            vote_counts_by_choice = [
-                VoteCountByChoice(vote_choice_id=vote_choice_id, count=count)
-                for vote_choice_id, count in summary_data["vote_choice_counter"].items()
-            ]
-
-            vote_counts_by_party = [
-                VoteCountByParty(vote_choice_id=vote_choice_id, party_id=party_id, count=count)
-                for (party_id, vote_choice_id), count in summary_data["party_vote_counter"].items()
-            ]
-
-            summaries.append(
-                VoteSummary(
-                    bill_action_id=action_id,
-                    total_votes=summary_data["total_votes"],
-                    vote_counts_by_choice=vote_counts_by_choice,
-                    vote_counts_by_party=vote_counts_by_party,
-                )
+        summaries = [
+            VoteSummary(
+                bill_action_id=action_id,
+                total_votes=summary_data["total_votes"],
+                vote_counts_by_choice=[
+                    VoteCountByChoice(vote_choice_id=choice_id, count=count)
+                    for choice_id, count in summary_data["vote_choice_counter"].items()
+                ],
+                vote_counts_by_party=[
+                    VoteCountByParty(vote_choice_id=vote_choice_id, party_id=party_id, count=count)
+                    for (party_id, vote_choice_id), count in summary_data[
+                        "party_vote_counter"
+                    ].items()
+                ],
             )
+            for action_id, summary_data in vote_summaries_by_action.items()
+        ]
 
         return BillVotingHistory(bill_id=bill_id, votes=all_legislator_votes, summaries=summaries)
     except Exception as e:
