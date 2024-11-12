@@ -56,9 +56,11 @@ bill_topics = Table(
 )
 
 
-class VoteChoice(enum.Enum):
-    YES = 1
-    NO = 2
+class VoteChoice(Base):
+    __tablename__ = "vote_choices"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False, unique=True)
 
 
 # Core models
@@ -201,7 +203,7 @@ class UserVote(Base):
 
     user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
     bill_id = Column(Integer, ForeignKey("bills.id"), primary_key=True)
-    vote_choice = Column(Enum(VoteChoice), nullable=False)
+    vote_choice_id = Column(Integer, ForeignKey("vote_choices.id"), nullable=False)
 
 
 class LegislatorVote(Base):
@@ -210,7 +212,7 @@ class LegislatorVote(Base):
     legislator_id = Column(Integer, ForeignKey("legislators.id"), primary_key=True)
     bill_id = Column(Integer, ForeignKey("bills.id"), primary_key=True)
     bill_action_id = Column(Integer, ForeignKey("bill_actions.id"), primary_key=True)
-    vote_choice = Column(Enum(VoteChoice), nullable=False)
+    vote_choice_id = Column(Integer, ForeignKey("vote_choices.id"), nullable=False)
 
 
 class Comment(Base):

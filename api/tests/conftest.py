@@ -1,6 +1,6 @@
 import os
 import random
-from typing import AsyncGenerator, Dict
+from typing import AsyncGenerator, Dict, Tuple
 
 import pytest
 import pytest_asyncio
@@ -9,8 +9,7 @@ from httpx import ASGITransport, AsyncClient
 from api.config import settings
 from api.main import app
 from api.security import create_access_token
-from api.tests.test_utils import assert_status_code, generate_random_string
-from common.database.referendum.models import VoteChoice
+from api.tests.test_utils import assert_status_code, generate_random_string, NO_VOTE_ID
 from common.object_storage.client import ObjectStorageClient
 
 ENV = os.environ.get("ENVIRONMENT")
@@ -59,6 +58,26 @@ async def delete_test_entity(client: AsyncClient, system_headers: Dict):
             assert_status_code(response, 204)
 
     return delete_entity
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_vote_choice(create_test_entity, delete_test_entity):
+    vote_choice_data = {"name": "Yea"}
+    vote_choice = await create_test_entity("/vote_choices/", vote_choice_data)
+    yield vote_choice
+    await delete_test_entity("vote_choices", vote_choice["id"])
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_vote_choices(create_test_entity, delete_test_entity):
+    # We create the original and an alternative
+    vote_choice_data = {"name": "Yea"}
+    vote_choice = await create_test_entity("/vote_choices/", vote_choice_data)
+    alt_choice_data = {"id": NO_VOTE_ID, "name": "Nay"}
+    alt_choice = await create_test_entity("/vote_choices/", alt_choice_data)
+    yield vote_choice, alt_choice
+    await delete_test_entity("vote_choices", alt_choice["id"])
+    await delete_test_entity("vote_choices", vote_choice["id"])
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -243,12 +262,15 @@ async def test_vote(
     system_headers,
     test_user_session: Dict,
     test_bill_action: Dict,
+    test_vote_choices: Tuple,
 ):
     _, headers = test_user_session
+    yay_vote, nay_vote = test_vote_choices
+
     vote_data = {
         "billId": test_bill_action["billId"],
-        "bill_actionId": test_bill_action["id"],
-        "vote_choice": VoteChoice.YES.value,
+        "billActionId": test_bill_action["id"],
+        "voteChoiceId": yay_vote["id"],
     }
     response = await client.put("/users/votes/", json=vote_data, headers=headers)
     assert_status_code(response, 200)
