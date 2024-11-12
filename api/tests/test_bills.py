@@ -158,3 +158,22 @@ async def test_bulk_update_success(client, system_headers, test_bill):
     updated_items = response.json()
     for i, item in enumerate(updated_items):
         assert item["title"] == update_data[i]["title"]
+
+
+async def test_voting_history(client, system_headers, test_legislator_vote):
+    expected_result = {
+        "billId": test_legislator_vote["billId"],
+        "legislatorVotes": [
+            {
+                "billId": test_legislator_vote["billId"],
+                "billActionId": test_legislator_vote["billActionId"],
+                "legislatorId": test_legislator_vote["legislatorId"],
+                "voteChoiceId": test_legislator_vote["voteChoiceId"],
+            }
+        ],
+        "voteCounts": [{"voteChoiceId": test_legislator_vote["voteChoiceId"], "count": 1}],
+    }
+
+    response = await client.get(f"/bills/{test_legislator_vote['billId']}/voting_history")
+    assert_status_code(response, 200)
+    assert response.json() == expected_result

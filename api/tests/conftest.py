@@ -261,14 +261,14 @@ async def test_user_vote(
     client: AsyncClient,
     system_headers,
     test_user_session: Dict,
-    test_bill_action: Dict,
     test_vote_choices: Tuple,
+    test_bill: Dict,
 ):
     _, headers = test_user_session
     yay_vote, nay_vote = test_vote_choices
 
     vote_data = {
-        "billId": test_bill_action["billId"],
+        "billId": test_bill["id"],
         "voteChoiceId": yay_vote["id"],
     }
     response = await client.put("/users/votes/", json=vote_data, headers=headers)
@@ -284,26 +284,19 @@ async def test_user_vote(
 
 @pytest_asyncio.fixture(scope="function")
 async def test_legislator_vote(
-    client: AsyncClient,
-    system_headers,
-    test_user_session: Dict,
+    create_test_entity,
+    test_legislator: Dict,
     test_bill_action: Dict,
-    test_vote_choices: Tuple,
+    test_vote_choice: Dict,
 ):
-    _, headers = test_user_session
-    yay_vote, nay_vote = test_vote_choices
-
-    vote_data = {
+    print("ENTERED FIXTURE")
+    legislator_vote_data = {
         "billId": test_bill_action["billId"],
         "billActionId": test_bill_action["id"],
-        "voteChoiceId": yay_vote["id"],
+        "legislatorId": test_legislator["id"],
+        "voteChoiceId": test_vote_choice["id"],
     }
-    response = await client.put("/legislator_votes/votes/", json=vote_data, headers=headers)
-    assert_status_code(response, 200)
-    user_vote = response.json()
-    yield user_vote
-    response = await client.delete(
-        f"/users/votes?bill_id={user_vote['billId']}",
-        headers=headers,
-    )
-    assert_status_code(response, 204)
+    print(legislator_vote_data)
+    legislator_vote = await create_test_entity("/legislator_votes/", legislator_vote_data)
+    yield legislator_vote
+    await delete_test_entity("legislator_votes", legislator_vote["id"])
