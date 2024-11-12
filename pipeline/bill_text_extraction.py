@@ -1,6 +1,7 @@
-from typing import Optional, Set, List, Dict
+from typing import Set, Dict
 import logging
 import requests
+import re
 import io
 import pdfplumber
 from sqlalchemy import text
@@ -39,14 +40,52 @@ class BillTextExtractor:
         response.raise_for_status()
         return response.content
 
+    @staticmethod
+    def _is_single_token_no_punctuation(line: str) -> bool:
+        """Check if line is a single token without any punctuation"""
+        punctuation = ".,:;?!-()[]{}'/\"$%"
+        tokens = [t for t in line.split() if t]
+
+        return len(tokens) == 1 and not any(p in tokens[0] for p in punctuation)
+
+    def _is_artifact(self, line: str) -> bool:
+        if self._is_single_token_no_punctuation(line):
+            return True
+        artifacts = [
+            r"Fmt \d+",  # Format markers
+            r"Frm \d+",  # Frame markers
+            r"Sfmt \d+",  # Section format markers
+            r"VerDate.*",  # Version date lines
+            r"HR \d+ .*",  # House resolution marker
+        ]
+        return any(re.search(pattern, line) for pattern in artifacts)
+
+    def clean_text(self, text: str) -> str:
+        """Clean extracted text by removing artifacts and normalizing whitespace"""
+        lines = text.split("\n")
+        cleaned_lines = [
+            line.strip() for line in lines if line.strip() and not self._is_artifact(line)
+        ]
+
+        # Remove line numbers at the start of any remaining lines
+        cleaned_lines = [re.sub(r"^\d+ ", "", line) for line in cleaned_lines]
+
+        # Rejoin with single newlines
+        return "\n".join(cleaned_lines)
+
     def extract_text(self, pdf_content: bytes) -> str:
         """Extract text from PDF content"""
         text_parts = []
         with pdfplumber.open(io.BytesIO(pdf_content)) as pdf:
             for page in pdf.pages:
                 text = page.extract_text()
-                if text:
-                    text_parts.append(text)
+
+                # Clean the text before adding
+                cleaned_text = self.clean_text(text)
+
+                # Add to text parts if not empty
+                if text.strip():
+                    text_parts.append(cleaned_text)
 
         if not text_parts:
             logger.error("No text extracted from pdf content")
