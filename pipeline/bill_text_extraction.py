@@ -41,12 +41,15 @@ class BillTextExtractor:
         return response.content
 
     @staticmethod
-    def _is_single_token(line: str) -> bool:
+    def _is_single_token_no_punctuation(line: str) -> bool:
+        """Check if line is a single token without any punctuation"""
+        punctuation = ".,:;?!-()[]{}'/\"$%"
         tokens = [t for t in line.split() if t]
-        return len(tokens) == 1
+
+        return len(tokens) == 1 and not any(p in tokens[0] for p in punctuation)
 
     def _is_artifact(self, line: str) -> bool:
-        if self._is_single_token(line):
+        if self._is_single_token_no_punctuation(line):
             return True
         artifacts = [
             r"Fmt \d+",  # Format markers
