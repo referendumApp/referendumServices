@@ -59,7 +59,6 @@ class BillTextExtractor:
 
     def clean_text(self, text: str) -> str:
         """Clean extracted text by removing artifacts and normalizing whitespace"""
-        # Split into lines and filter out artifacts
         lines = text.split("\n")
         cleaned_lines = [
             line.strip() for line in lines if line.strip() and not self._is_artifact(line)
