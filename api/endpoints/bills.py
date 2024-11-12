@@ -1,14 +1,22 @@
-from collections import Counter
+from collections import Counter, defaultdict
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List
 import logging
 
-from common.database.referendum import crud, schemas
+from common.database.referendum import crud, schemas, models
 from common.database.referendum.crud import ObjectNotFoundException, DatabaseException
 
 from ..database import get_db
-from ..schemas import ErrorResponse, BillVotingHistory
+from ..schemas import (
+    ErrorResponse,
+    BillVotingHistory,
+    LegislatorVoteDetail,
+    VoteSummary,
+    VoteCountByParty,
+    VoteCountByChoice,
+)
 from ..security import get_current_user_or_verify_system_token, verify_system_token
 from .endpoint_generator import EndpointGenerator
 
@@ -68,21 +76,94 @@ async def get_bill_voting_history(
     bill_id: int,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
-) -> dict:
+) -> BillVotingHistory:
     try:
-        legislator_votes = crud.legislator_vote.get_votes_for_bill(db=db, bill_id=bill_id)
+        # Get bill details
+        bill = crud.bill.read(db=db, obj_id=bill_id)
+        if not bill:
+            raise HTTPException(status_code=404, detail=f"Bill {bill_id} not found")
+
+        # Build the complex query
+        query = (
+            select(
+                models.LegislatorVote,
+                models.BillAction.date,
+                models.BillAction.description,
+                models.BillAction.legislative_body_id,
+                models.VoteChoice.id.label("vote_choice_id"),
+                models.VoteChoice.name.label("vote_choice_name"),
+                models.Legislator.name.label("legislator_name"),
+                models.Party.id.label("party_id"),
+                models.Party.name.label("party_name"),
+                models.Role.name.label("role_name"),
+                models.State.name.label("state_name"),
+            )
+            .join(models.BillAction, models.LegislatorVote.bill_action_id == models.BillAction.id)
+            .join(models.VoteChoice, models.LegislatorVote.vote_choice_id == models.VoteChoice.id)
+            .join(models.Legislator, models.LegislatorVote.legislator_id == models.Legislator.id)
+            .join(models.Party, models.Legislator.party_id == models.Party.id)
+            .join(models.Role, models.Legislator.role_id == models.Role.id)
+            .join(models.State, models.Legislator.state_id == models.State.id)
+            .filter(models.LegislatorVote.bill_id == bill_id)
+        )
+
+        results = db.execute(query).fetchall()
+
+        all_legislator_votes = []
+        vote_summaries_by_action = defaultdict(
+            lambda: {
+                "total_votes": 0,
+                "vote_choice_counter": Counter(),
+                "party_vote_counter": Counter(),
+            }
+        )
+        for row in results:
+            vote_detail = LegislatorVoteDetail(
+                bill_action_id=row.LegislatorVote.bill_action_id,
+                date=row.date,
+                action_description=row.description,
+                legislative_body_id=row.legislative_body_id,
+                legislator_id=row.LegislatorVote.legislator_id,
+                legislator_name=row.legislator_name,
+                party_name=row.party_name,
+                role_name=row.role_name,
+                state_name=row.state_name,
+                vote_choice_name=row.vote_choice_name,
+            )
+            all_legislator_votes.append(vote_detail)
+
+            action_summary = vote_summaries_by_action[row.LegislatorVote.bill_action_id]
+            action_summary["total_votes"] += 1
+            action_summary["vote_choice_counter"][row.vote_choice_id] += 1
+            action_summary["party_vote_counter"][(row.party_id, row.vote_choice_id)] += 1
+
+        # Convert summaries to VoteSummary objects
+        summaries = []
+        for action_id, summary_data in vote_summaries_by_action.items():
+            vote_counts_by_choice = [
+                VoteCountByChoice(vote_choice_id=vote_choice_id, count=count)
+                for vote_choice_id, count in summary_data["vote_choice_counter"].items()
+            ]
+
+            vote_counts_by_party = [
+                VoteCountByParty(vote_choice_id=vote_choice_id, party_id=party_id, count=count)
+                for (party_id, vote_choice_id), count in summary_data["party_vote_counter"].items()
+            ]
+
+            summaries.append(
+                VoteSummary(
+                    bill_action_id=action_id,
+                    total_votes=summary_data["total_votes"],
+                    vote_counts_by_choice=vote_counts_by_choice,
+                    vote_counts_by_party=vote_counts_by_party,
+                )
+            )
+
+        return BillVotingHistory(bill_id=bill_id, votes=all_legislator_votes, summaries=summaries)
     except Exception as e:
-        message = f"Failed to get legislator_votes for bill {bill_id} with error: {e}"
+        message = f"Failed to get voting history for bill {bill_id} with error: {str(e)}"
         logger.error(message)
         raise HTTPException(status_code=500, detail=message)
-
-    vote_counter = Counter(vote.vote_choice_id for vote in legislator_votes)
-    vote_counts = [
-        {"vote_choice_id": vote_choice_id, "count": count}
-        for vote_choice_id, count in vote_counter.items()
-    ]
-
-    return {"bill_id": bill_id, "legislator_votes": legislator_votes, "vote_counts": vote_counts}
 
 
 @router.post(
