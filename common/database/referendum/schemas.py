@@ -20,7 +20,7 @@ class BaseSchema(CamelCaseBaseModel):
 
 
 class RecordSchema(BaseSchema, Generic[T]):
-    id: int
+    pass
 
 
 class RelationshipSchema(RecordSchema[T], Generic[T]):
