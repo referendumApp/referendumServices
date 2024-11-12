@@ -284,7 +284,8 @@ async def test_user_vote(
 
 @pytest_asyncio.fixture(scope="function")
 async def test_legislator_vote(
-    create_test_entity,
+    client: AsyncClient,
+    system_headers,
     test_legislator: Dict,
     test_bill_action: Dict,
     test_vote_choice: Dict,
@@ -295,6 +296,12 @@ async def test_legislator_vote(
         "legislatorId": test_legislator["id"],
         "voteChoiceId": test_vote_choice["id"],
     }
-    legislator_vote = await create_test_entity("/legislator_votes/", legislator_vote_data)
+    response = await client.put(
+        "/legislator_votes/", json=legislator_vote_data, headers=system_headers
+    )
+    assert_status_code(response, 200)
+    legislator_vote = response.json()
     yield legislator_vote
-    await delete_test_entity("legislator_votes", legislator_vote["id"])
+    params = {"bill_action_id": test_bill_action["id"], "legislator_id": test_legislator["id"]}
+    response = await client.delete("/legislator_votes/", params=params, headers=system_headers)
+    assert_status_code(response, 204)

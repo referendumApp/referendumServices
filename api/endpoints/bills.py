@@ -76,7 +76,11 @@ async def get_bill_voting_history(
         logger.error(message)
         raise HTTPException(status_code=500, detail=message)
 
-    vote_counts = Counter(vote.vote_choice_id for vote in legislator_votes)
+    vote_counter = Counter(vote.vote_choice_id for vote in legislator_votes)
+    vote_counts = [
+        {"vote_choice_id": vote_choice_id, "count": count}
+        for vote_choice_id, count in vote_counter.items()
+    ]
 
     return {"bill_id": bill_id, "legislator_votes": legislator_votes, "vote_counts": vote_counts}
 

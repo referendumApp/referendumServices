@@ -174,6 +174,8 @@ async def test_voting_history(client, system_headers, test_legislator_vote):
         "voteCounts": [{"voteChoiceId": test_legislator_vote["voteChoiceId"], "count": 1}],
     }
 
-    response = await client.get(f"/bills/{test_legislator_vote['billId']}/voting_history")
+    response = await client.get(
+        f"/bills/{test_legislator_vote['billId']}/voting_history", headers=system_headers
+    )
     assert_status_code(response, 200)
     assert response.json() == expected_result

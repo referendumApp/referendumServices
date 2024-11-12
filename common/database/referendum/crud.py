@@ -468,6 +468,27 @@ class LegislatorVoteCRUD(
             db.rollback()
             raise DatabaseException(f"Database error: {str(e)}")
 
+    def delete_vote(self, db: Session, legislator_id: int, bill_action_id: int):
+        try:
+            db_vote = (
+                db.query(self.model)
+                .filter(
+                    models.LegislatorVote.legislator_id == legislator_id,
+                    models.LegislatorVote.bill_action_id == bill_action_id,
+                )
+                .first()
+            )
+            if db_vote is None:
+                raise ObjectNotFoundException(
+                    f"Vote not found for legislator {legislator_id} for bill action {bill_action_id}"
+                )
+
+            db.delete(db_vote)
+            db.commit()
+        except SQLAlchemyError as e:
+            db.rollback()
+            raise DatabaseException(f"Database error: {str(e)}")
+
     def get_votes_for_bill(self, db: Session, bill_id: int) -> List[models.LegislatorVote]:
         return self.read_filtered(db=db, filters={"bill_id": bill_id})
 
