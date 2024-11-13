@@ -1,6 +1,6 @@
 import os
 import random
-from typing import AsyncGenerator, Dict
+from typing import AsyncGenerator, Dict, Tuple
 
 import pytest
 import pytest_asyncio
@@ -9,8 +9,7 @@ from httpx import ASGITransport, AsyncClient
 from api.config import settings
 from api.main import app
 from api.security import create_access_token
-from api.tests.test_utils import assert_status_code, generate_random_string
-from common.database.referendum.models import VoteChoice
+from api.tests.test_utils import assert_status_code, generate_random_string, NO_VOTE_ID
 from common.object_storage.client import ObjectStorageClient
 
 ENV = os.environ.get("ENVIRONMENT")
@@ -59,6 +58,26 @@ async def delete_test_entity(client: AsyncClient, system_headers: Dict):
             assert_status_code(response, 204)
 
     return delete_entity
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_vote_choice(create_test_entity, delete_test_entity):
+    vote_choice_data = {"name": "Yea"}
+    vote_choice = await create_test_entity("/vote_choices/", vote_choice_data)
+    yield vote_choice
+    await delete_test_entity("vote_choices", vote_choice["id"])
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_vote_choices(create_test_entity, delete_test_entity):
+    # We create the original and an alternative
+    vote_choice_data = {"name": "Yea"}
+    vote_choice = await create_test_entity("/vote_choices/", vote_choice_data)
+    alt_choice_data = {"id": NO_VOTE_ID, "name": "Nay"}
+    alt_choice = await create_test_entity("/vote_choices/", alt_choice_data)
+    yield vote_choice, alt_choice
+    await delete_test_entity("vote_choices", alt_choice["id"])
+    await delete_test_entity("vote_choices", vote_choice["id"])
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -153,11 +172,15 @@ async def test_get_bills(client, system_headers, test_bill):
 
 @pytest_asyncio.fixture(scope="function")
 async def test_bill_action(
-    create_test_entity,
-    delete_test_entity,
-    test_bill: Dict,
+    create_test_entity, delete_test_entity, test_bill: Dict, test_legislative_body: Dict
 ):
-    bill_action_data = {"billId": test_bill["id"], "date": "2024-01-01", "type": 1}
+    bill_action_data = {
+        "id": random.randint(100000, 999999),
+        "billId": test_bill["id"],
+        "legislativeBodyId": test_legislative_body["id"],
+        "date": "2024-01-01",
+        "description": "Test",
+    }
     bill_action = await create_test_entity("/bill_actions/", bill_action_data)
     yield bill_action
     await delete_test_entity("bill_actions", bill_action["id"])
@@ -234,17 +257,19 @@ async def test_get_legislators(client, system_headers, test_legislator):
 
 
 @pytest_asyncio.fixture(scope="function")
-async def test_vote(
+async def test_user_vote(
     client: AsyncClient,
     system_headers,
     test_user_session: Dict,
-    test_bill_action: Dict,
+    test_vote_choices: Tuple,
+    test_bill: Dict,
 ):
     _, headers = test_user_session
+    yay_vote, nay_vote = test_vote_choices
+
     vote_data = {
-        "billId": test_bill_action["billId"],
-        "bill_actionId": test_bill_action["id"],
-        "vote_choice": VoteChoice.YES.value,
+        "billId": test_bill["id"],
+        "voteChoiceId": yay_vote["id"],
     }
     response = await client.put("/users/votes/", json=vote_data, headers=headers)
     assert_status_code(response, 200)

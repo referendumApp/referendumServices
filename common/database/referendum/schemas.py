@@ -3,9 +3,6 @@ from pydantic import BaseModel, EmailStr, Field, ConfigDict, create_model
 from pydantic.alias_generators import to_camel
 from typing import TypeVar, Generic, List, Type, Dict, Any, Optional
 
-from .models import VoteChoice, BillActionType
-
-
 T = TypeVar("T")
 
 
@@ -23,7 +20,7 @@ class BaseSchema(CamelCaseBaseModel):
 
 
 class RecordSchema(BaseSchema, Generic[T]):
-    id: int
+    pass
 
 
 class RelationshipSchema(RecordSchema[T], Generic[T]):
@@ -61,6 +58,13 @@ def create_schema_container(
     )
 
     return SchemaContainer(Base=base_class, Record=record_class, Full=relationship_class)
+
+
+# Create VoteChoice schema
+VoteChoice = create_schema_container(
+    name="VoteChoice",
+    base_fields={"id": (int, ...), "name": (str, ...)},
+)
 
 
 Party = create_schema_container(
@@ -164,8 +168,9 @@ BillAction = create_schema_container(
     base_fields={
         "id": (int, ...),
         "bill_id": (int, ...),
+        "legislative_body_id": (int, ...),
         "date": (date, ...),
-        "type": (BillActionType, ...),
+        "description": (str, ...),
     },
 )
 
@@ -176,7 +181,10 @@ LegislatorVote = create_schema_container(
         "bill_id": (int, ...),
         "bill_action_id": (int, ...),
         "legislator_id": (int, ...),
-        "vote_choice": (VoteChoice, ...),
+        "vote_choice_id": (int, ...),
+    },
+    relationship_fields={
+        "vote_choice": (VoteChoice.Record, ...),
     },
 )
 
@@ -217,7 +225,7 @@ Comment = create_schema_container(
 # UserVote
 class UserVoteBase(BaseSchema):
     bill_id: int
-    vote_choice: VoteChoice
+    vote_choice_id: int
 
 
 class UserVoteCreate(UserVoteBase):
