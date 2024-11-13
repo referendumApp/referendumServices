@@ -437,5 +437,46 @@
       }
     ],
     "dataframe": null
+  },
+  {
+    "source": "ls_sponsor ",
+    "destination": "bill_sponsors",
+    "source_columns": [
+      "bill_id",
+      "people_id",
+      "sponsor_order",
+      "sponsor_type_id"
+    ],
+    "destination_columns": [
+      "bill_id",
+      "legislator_id",
+      "order",
+      "type"
+    ],
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "people_id": "legislator_id",
+            "sponsor_order": "order"
+          }
+        }
+      },
+      {
+        "function": "map",
+        "parameters": {
+          "source": "sponsor_type_id",
+          "destination": "type",
+          "mapping": {
+            "0": "Sponsor",
+            "1": "Primary Sponsor",
+            "2": "Co-Sponsor",
+            "4": "Joint Sponsor"
+          }
+        }
+      }
+    ],
+    "dataframe": null
   }
 ]

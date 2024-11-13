@@ -16,6 +16,7 @@ class TransformationFunction(str, Enum):
     DUPLICATE = "duplicate"
     ADD_URL = "add_url"
     HASH = "hash"
+    MAP = "map"
 
 
 class Transformation(BaseModel):
@@ -70,6 +71,16 @@ class Transformation(BaseModel):
                     df[destination_name] = df[source_name].apply(
                         lambda x: hashlib.sha256(str(x).encode()).hexdigest()
                     )
+                    return df
+
+                case TransformationFunction.MAP:
+                    source_name = self.parameters.get("source_name")
+                    destination_name = self.parameters.get("destination_name")
+                    if source_name not in df.columns:
+                        raise ValueError(f"Source column '{source_name}' not found")
+                    mapping_dict = self.parameters.get("mapping")
+                    df = df.copy()
+                    df[destination_name] = df[source_name].apply(mapping_dict)
                     return df
 
                 case _:
