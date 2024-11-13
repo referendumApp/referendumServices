@@ -361,5 +361,81 @@
       }
     ],
     "dataframe": null
+  },
+  {
+    "source": "ls_session",
+    "destination": "sessions",
+    "source_columns": [
+      "session_id",
+      "session_name",
+      "state_id"
+    ],
+    "destination_columns": [
+      "id",
+      "name",
+      "state_id"
+    ],
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "session_id": "id",
+            "session_name": "name"
+          }
+        }
+      }
+    ],
+    "dataframe": null
+  },
+  {
+    "source": "ls_session",
+    "destination": "sessions",
+    "source_columns": [
+      "session_id",
+      "session_name",
+      "state_id"
+    ],
+    "destination_columns": [
+      "id",
+      "name",
+      "state_id"
+    ],
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "session_id": "id",
+            "session_name": "name"
+          }
+        }
+      }
+    ],
+    "dataframe": null
+  },
+  {
+    "source": "ls_progress",
+    "destination": "bill_statuses",
+    "source_columns": [
+      "progress_event_id",
+      "progress_desc"
+    ],
+    "destination_columns": [
+      "id",
+      "name"
+    ],
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "progress_event_id": "id",
+            "progress_desc": "name"
+          }
+        }
+      }
+    ],
+    "dataframe": null
   }
 ]
