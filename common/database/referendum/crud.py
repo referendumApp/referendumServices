@@ -141,6 +141,13 @@ class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
 
 class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
+    def get_bill_user_votes(self, db: Session, bill_id: int) -> Dict[str, int]:
+        db_bill = self.read(db=db, obj_id=bill_id)
+        return {
+            "yes": sum(1 for vote in db_bill.user_votes if vote.vote_choice == models.VoteChoice.YES),
+            "no": sum(1 for vote in db_bill.user_votes if vote.vote_choice == models.VoteChoice.NO)
+        }
+
     def get_bill_by_legiscan_id(self, db: Session, legiscan_id: int) -> models.Bill:
         try:
             bill = db.query(models.Bill).filter(models.Bill.legiscan_id == legiscan_id).first()
