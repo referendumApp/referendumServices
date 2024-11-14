@@ -138,6 +138,18 @@ BillVersion = create_schema_container(
     base_fields={"id": (int, ...), "bill_id": (int, ...), "url": (str, ...), "hash": (str, ...)},
 )
 
+UserVote = create_schema_container(
+   name="UserVote",
+   base_fields={
+       "bill_id": (int, ...),
+       "vote_choice_id": (int, ...),
+       "user_id": (int, ...),
+   },
+#    relationship_fields={
+#        "bill": (Optional[Bill.Record], None),
+#    }
+)
+
 
 Bill = create_schema_container(
     name="Bill",
@@ -159,6 +171,7 @@ Bill = create_schema_container(
         "topics": (List[Topic.Record], []),
         "sponsors": (List[Legislator.Record], []),
         "versions": (List[BillVersion.Record], []),
+        # "user_votes": (List[UserVote.Record], []),
     },
 )
 
