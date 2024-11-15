@@ -1,70 +1,4 @@
-from langchain_ollama import OllamaLLM
-from langchain_core.output_parsers import StrOutputParser
-
-# Load the Llama3 model with the updated class
-llm = OllamaLLM(model="llama3")
-
-
-# Function to split text into chunks within the model's context window
-def split_text_into_chunks(text, max_token_length):
-    """Split text into chunks, each fitting within the model's token limit."""
-    chunks = []
-    current_chunk = ""
-    for paragraph in text.split("\n\n"):
-        if len(current_chunk) + len(paragraph) < max_token_length:
-            current_chunk += paragraph + "\n\n"
-        else:
-            chunks.append(current_chunk)
-            current_chunk = paragraph + "\n\n"
-    if current_chunk:
-        chunks.append(current_chunk)
-    return chunks
-
-
-# Function to summarize each chunk and combine the results
-def summarize_large_text(text, max_token_length=4096):
-    """Summarize a large text by breaking it into chunks."""
-    # Step 1: Split the text into manageable chunks
-    print("Splitting text into chunks...")
-    chunks = split_text_into_chunks(text, max_token_length)
-
-    # Step 2: Summarize each chunk
-    chunk_summaries = []
-    for i, chunk in enumerate(chunks):
-        summary_prompt = (
-            "Please provide a concise summary of the following text:\n\n" f"{chunk}\n\n" "Summary:"
-        )
-        print(f"Summarizing chunk {i + 1} of {len(chunks)}...")  # Debug message
-        try:
-            summary = llm.invoke(summary_prompt)
-            if summary:
-                chunk_summaries.append(summary.strip())
-            else:
-                print(f"Warning: No summary returned for chunk {i + 1}.")
-        except Exception as e:
-            print(f"An error occurred with chunk {i + 1}: {e}")
-            chunk_summaries.append("[Error in summarizing chunk]")
-
-    # Step 3: Summarize the combined chunk summaries
-    combined_summary_text = "\n\n".join(chunk_summaries)
-    print("Creating final summary of the combined chunk summaries...")
-    final_summary_prompt = (
-        "Please provide a concise summary of the following summarized sections:\n\n"
-        f"{combined_summary_text}\n\n"
-        "Final Summary:"
-    )
-
-    try:
-        final_summary = llm.invoke(final_summary_prompt)
-        return final_summary if final_summary else "[Final summary could not be generated]"
-    except Exception as e:
-        print(f"An error occurred during final summarization: {e}")
-        return "[Error during final summarization]"
-
-
-# Example usage
-input_text = """
-    PHIL-370 Philosophy of Language Professor Welty
+PHIL-370 Philosophy of Language Professor Welty
 ID: 2353896
 5/16/2023
 On the notion of Linguistic Wholes being prior to their parts
@@ -126,6 +60,3 @@ Chomsky, Knowledge of Language
 Chomsky, "Language and Nature"
 Chuang Tzu [350BCE], Tian Xia 4
 Möller, "Zhuangzi's 'Dream of the Butterfly': A Daoist Interpretation"
-    """
-output = summarize_large_text(input_text, max_token_length=4096)
-print(f"\nFinal Summarized Text:\n{output}")
