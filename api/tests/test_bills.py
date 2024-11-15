@@ -1,3 +1,5 @@
+import logging
+
 from api.tests.test_utils import assert_status_code
 
 
@@ -5,8 +7,28 @@ async def test_add_bill_success(test_bill):
     assert "id" in test_bill
 
 
-async def test_list_bills(test_get_bills):
-    assert len(test_get_bills) > 0
+async def test_list_bills(client, system_headers, test_bill_version):
+    response = await client.get("/bills/", headers=system_headers)
+    assert_status_code(response, 200)
+    assert response.json() == [
+        {
+            "id": test_bill_version["billId"],
+            "legiscanId": 963926,  # Need to ignore
+            "identifier": "H.B.841",  # Need to ignore
+            "title": "Test Bill xmzdx",  # Need to ignore
+            "description": "This is a test bill",  # Need to ignore
+            "session": 118,
+            "stateId": 999999,
+            "stateName": "Washington",
+            "status": "Passed",
+            "statusDate": "2024-01-01",
+            "briefing": "yadayadayada",
+            "legislativeBody": "House",
+            "topics": [],
+            "sponsors": [1],
+            "version_ids": [test_bill_version["id"]],
+        }
+    ]
 
 
 async def test_add_bill_already_exists(client, system_headers, test_bill):

@@ -164,13 +164,6 @@ async def test_bill(create_test_entity, delete_test_entity, test_state, test_leg
 
 
 @pytest_asyncio.fixture(scope="function")
-async def test_get_bills(client, system_headers, test_bill):
-    bills = await client.get("/bills/", headers=system_headers)
-    assert_status_code(bills, 200)
-    return bills.json()
-
-
-@pytest_asyncio.fixture(scope="function")
 async def test_bill_action(
     create_test_entity, delete_test_entity, test_bill: Dict, test_legislative_body: Dict
 ):

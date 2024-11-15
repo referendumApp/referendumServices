@@ -7,7 +7,7 @@ from common.database.referendum import crud, schemas
 from common.database.referendum.crud import ObjectNotFoundException, DatabaseException
 
 from ..database import get_db
-from ..schemas import ErrorResponse
+from ..schemas import ErrorResponse, DenormalizedBill
 from ..security import get_current_user_or_verify_system_token, verify_system_token
 from .endpoint_generator import EndpointGenerator
 
@@ -24,6 +24,33 @@ EndpointGenerator.add_crud_routes(
     response_schema=schemas.Bill.Full,
     resource_name="bill",
 )
+
+
+@router.get(
+    "/details",
+    response_model=List[DenormalizedBill],
+    summary=f"Get all bill details",
+    responses={
+        200: {
+            "model": List[DenormalizedBill],
+            "description": f"Bill details successfully retrieved",
+        },
+        401: {"model": ErrorResponse, "description": "Not authorized"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def read_items(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+):
+    try:
+        items = crud.bill.read_all(db=db, skip=skip, limit=limit)
+        ...
+        return items
+    except DatabaseException as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @router.get(

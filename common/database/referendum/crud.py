@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session, noload
+from sqlalchemy.orm import Session, noload, joinedload
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from pydantic import BaseModel
 from typing import Any, Dict, Generic, List, TypeVar, Type, Union, Optional
@@ -141,6 +141,23 @@ class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
 
 class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
+    def read_all_denormalized(
+        self, db: Session, skip: int = 0, limit: int = 100
+    ) -> List[models.Bill]:
+        return (
+            db.query(models.Bill)
+            .options(
+                joinedload(models.Bill.state),
+                joinedload(models.Bill.legislative_body).joinedload(models.LegislativeBody.role),
+                joinedload(models.Bill.sponsors).joinedload(models.Legislator.party),
+                joinedload(models.Bill.topics),
+                joinedload(models.Bill.bill_versions),
+            )
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+
     def get_bill_by_legiscan_id(self, db: Session, legiscan_id: int) -> models.Bill:
         try:
             bill = db.query(models.Bill).filter(models.Bill.legiscan_id == legiscan_id).first()
