@@ -205,7 +205,7 @@ class UserVote(Base):
     user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
     bill_id = Column(Integer, ForeignKey("bills.id"), primary_key=True)
     vote_choice_id = Column(Integer, ForeignKey("vote_choices.id"), nullable=False)
-    
+
     bill = relationship("Bill", back_populates="user_votes")
 
 

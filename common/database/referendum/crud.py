@@ -145,7 +145,7 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
         db_bill = self.read(db=db, obj_id=bill_id)
         return {
             "yay": sum(1 for vote in db_bill.user_votes if vote.vote_choice_id == 1),
-            "nay": sum(1 for vote in db_bill.user_votes if vote.vote_choice_id == 0)
+            "nay": sum(1 for vote in db_bill.user_votes if vote.vote_choice_id == 0),
         }
 
     def get_bill_by_legiscan_id(self, db: Session, legiscan_id: int) -> models.Bill:
