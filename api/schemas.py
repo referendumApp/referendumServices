@@ -2,7 +2,7 @@ from datetime import date
 from typing import Optional, List
 from pydantic import field_validator, Field
 
-from common.database.referendum.schemas import CamelCaseBaseModel, UserBase
+from common.database.referendum.schemas import CamelCaseBaseModel, UserBase, Sponsor
 
 
 class ErrorResponse(CamelCaseBaseModel):
@@ -35,11 +35,6 @@ class UserCreateInput(UserBase):
         return v
 
 
-class Sponsor(CamelCaseBaseModel):
-    legislator_id: int
-    type: str
-
-
 class DenormalizedBill(CamelCaseBaseModel):
     """Represents a denormalized view of a bill with all related information."""
 
@@ -56,7 +51,9 @@ class DenormalizedBill(CamelCaseBaseModel):
     state_name: str = Field(description="Name of the state")
     legislative_body_id: int = Field(description="Legislative body identifier")
     legislative_body_role: str = Field(description="Role name of the legislative body")
-    sponsors: List[Sponsor] = Field(default_factory=list, description="List of all bill sponsors")
+    sponsors: List[Sponsor.record] = Field(
+        default_factory=list, description="List of all bill sponsors"
+    )
 
     model_config = {
         "from_attributes": True,
