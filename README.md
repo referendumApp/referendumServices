@@ -1,6 +1,6 @@
 # Referendum Services
 
-Backend infrastructure for the Referendum mobile app, providing APIs and data pipelines for legislative data management and user engagement.
+Backend infrastructure for the Referendum mobile app
 
 ## 🚀 Quick Start
 
@@ -36,58 +36,45 @@ Backend infrastructure for the Referendum mobile app, providing APIs and data pi
 
 ## 🏗 Architecture
 
-The system follows a microservices architecture with three main components:
-
 ### 1. API Service
 - FastAPI application handling all client requests
 - Features:
   - JWT-based user authentication and role-based authorization
-  - RESTful endpoints for bill data and user interactions
-  - WebSocket support for real-time updates
-  - Rate limiting and request validation
-  - Comprehensive logging and monitoring
+  - RESTful endpoints for legislative data and user interactions
   - Swagger/OpenAPI documentation
 
 ### 2. ETL Pipeline
 - Weekly automated data synchronization from Legiscan
-  - Bill metadata and status updates
-  - Legislator information
-  - Committee data
-  - Voting records
-- Text processing pipeline:
-  - PDF extraction and parsing
-  - Full-text search indexing
-  - Content categorization
-  - Storage optimization
-- Monitoring and alerting for pipeline failures
+- Text processing pipeline
 
 ### 3. Infrastructure
 - **Database Layer**:
   - PostgreSQL 14+ for structured data
-  - Materialized views for complex queries
-  - Automatic backups and point-in-time recovery
+  - RDS for deployed system
 - **Storage Layer**:
   - S3 buckets for bill texts and attachments
   - MinIO for local development
-  - Lifecycle policies for cost optimization
 - **AWS Deployment**:
   - EC2 for compute resources
   - ECR for container registry
   - ECS for container orchestration
-  - Application Load Balancer for traffic distribution
   - CloudWatch for monitoring and logging
 
 ## ⚙️ Configuration
 
 ### Environment Variables
 ```bash
+# Application Settings
+ENVIRONMENT=                # local/dev/prod
+LOG_LEVEL=                  # DEBUG/INFO/WARNING/ERROR
+
 # Database Configuration
 POSTGRES_HOST=              # Database hostname
 POSTGRES_PORT=              # Database port (default: 5432)
 POSTGRES_USER=              # Database username
 POSTGRES_PASSWORD=          # Database password
 REFERENDUM_DB_NAME=         # Main application database name
-LEGISCAN_API_DB_NAME=      # Legiscan sync database name
+LEGISCAN_API_DB_NAME=       # Legiscan sync database name
 
 # Authentication
 SECRET_KEY=                 # JWT signing key (min 32 chars)
@@ -95,31 +82,21 @@ API_ACCESS_TOKEN=           # API gateway access token
 
 # AWS/S3 Configuration
 AWS_REGION=                 # AWS region (default: us-west-2)
-S3_ACCESS_KEY=             # S3/MinIO access key
-S3_SECRET_KEY=             # S3/MinIO secret key
-BILL_TEXT_BUCKET_NAME=     # S3 bucket for bill texts
-
-# Application Settings
-ENVIRONMENT=                # local/dev/prod
-LOG_LEVEL=                 # DEBUG/INFO/WARNING/ERROR
+S3_ACCESS_KEY=              # S3/MinIO access key
+S3_SECRET_KEY=              # S3/MinIO secret key
+BILL_TEXT_BUCKET_NAME=      # S3 bucket for bill texts
 ```
 
 ## 🛠 Development
 
 ### Code Quality
 ```bash
-# Install development dependencies
-pip install -r requirements-dev.txt
-
 # Install and configure pre-commit hooks
 pip install pre-commit
 pre-commit install
 
 # Manual code formatting
 black .
-ruff check .
-mypy .
-
 # Generate API documentation
 make docs
 ```
@@ -128,33 +105,20 @@ make docs
 ```bash
 # Run all tests
 make test
-
-# Run specific test categories
-make test-unit
-make test-integration
-make test-e2e
-
-# Clean up test artifacts
-make clean
 ```
 
 ### Local Development Tips
-- Use `make logs` to follow service logs
-- `make shell` opens a Python shell with app context
-- `make db-shell` connects to PostgreSQL
-- Hot reload is enabled by default
-- Set `DEBUG=1` for additional logging
+- 
 
 ## 🔄 Data Pipeline
 
-Weekly ETL pipeline for Legiscan data synchronization and processing.
+ETL pipeline for Legiscan data synchronization and processing.
 
 ### Pipeline Stages
 1. **Fetch**: Download updates from Legiscan API
 2. **Transform**: Process and normalize data
-3. **Load**: Update database records
-4. **Process**: Extract and index bill texts
-5. **Verify**: Validate data integrity
+3. **Load**: Update database records to Referendum DB
+4. **Text Processing**: Extract and index bill texts
 
 ### Manual Execution
 ```bash
@@ -163,9 +127,6 @@ make pipeline
 
 # AWS execution with environment selection
 gh workflow run run_pipeline.yml -f environment=<environment>
-
-# Force full refresh
-make pipeline-full-refresh
 ```
 
 ## 📦 Deployment
@@ -206,12 +167,8 @@ make pipeline-full-refresh
    ```
 
 ### Monitoring
-- CloudWatch dashboards for service metrics
-- Automated alerts for:
-  - API error rates
-  - Pipeline failures
-  - Resource utilization
-  - Response time thresholds
+- CloudWatch for logging
+- UptimeRobot monitoring for Prod and Dev APIs
 
 ## 📝 Version Management
 
@@ -226,9 +183,7 @@ make pipeline-full-refresh
 ## 🤝 Contributing
 
 1. **Branch Naming**
-   - Feature: `feature/<description>`
-   - Bugfix: `fix/<description>`
-   - Release: `release/v<version>`
+   -  `<author>/<description>`
 
 2. **Development Process**
    - Create branch from `main`
@@ -236,16 +191,3 @@ make pipeline-full-refresh
    - Ensure all tests pass
    - Update documentation if needed
    - Submit PR for review
-
-3. **Code Standards**
-   - Follow PEP 8 style guide
-   - Include docstrings for all functions
-   - Add type hints
-   - Maintain test coverage
-   - Pass all linting checks
-
-4. **Review Process**
-   - At least one approval required
-   - All CI checks must pass
-   - No merge conflicts
-   - Up-to-date with main branch
