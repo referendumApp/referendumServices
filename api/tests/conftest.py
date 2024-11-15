@@ -9,7 +9,12 @@ from httpx import ASGITransport, AsyncClient
 from api.config import settings
 from api.main import app
 from api.security import create_access_token
-from api.tests.test_utils import assert_status_code, generate_random_string, NO_VOTE_ID
+from api.tests.test_utils import (
+    assert_status_code,
+    generate_random_string,
+    YAY_VOTE_ID,
+    NAY_VOTE_ID,
+)
 from common.object_storage.client import ObjectStorageClient
 
 ENV = os.environ.get("ENVIRONMENT")
@@ -71,9 +76,9 @@ async def test_vote_choice(create_test_entity, delete_test_entity):
 @pytest_asyncio.fixture(scope="function")
 async def test_vote_choices(create_test_entity, delete_test_entity):
     # We create the original and an alternative
-    vote_choice_data = {"name": "Yea"}
+    vote_choice_data = {"id": YAY_VOTE_ID, "name": "Yea"}
     vote_choice = await create_test_entity("/vote_choices/", vote_choice_data)
-    alt_choice_data = {"id": NO_VOTE_ID, "name": "Nay"}
+    alt_choice_data = {"id": NAY_VOTE_ID, "name": "Nay"}
     alt_choice = await create_test_entity("/vote_choices/", alt_choice_data)
     yield vote_choice, alt_choice
     await delete_test_entity("vote_choices", alt_choice["id"])
@@ -222,10 +227,7 @@ async def test_bill_version(
         await delete_test_entity("bill_versions", bill_version["id"])
 
         # Then delete the file from MinIO
-        try:
-            storage_client.delete_file(bucket=BILL_TEXT_BUCKET_NAME, key=f"{hash_value}.txt")
-        except Exception as e:
-            logger.warning(f"Failed to delete test bill text from MinIO: {str(e)}")
+        storage_client.delete_file(bucket=BILL_TEXT_BUCKET_NAME, key=f"{hash_value}.txt")
 
 
 @pytest_asyncio.fixture(scope="function")
