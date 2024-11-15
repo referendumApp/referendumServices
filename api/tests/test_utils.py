@@ -1,7 +1,8 @@
 import random
 import string
 
-NO_VOTE_ID = 900000
+NAY_VOTE_ID = 0
+YAY_VOTE_ID = 1
 
 
 # Shared utility functions

@@ -1,4 +1,4 @@
-from api.tests.test_utils import assert_status_code, NO_VOTE_ID
+from api.tests.test_utils import assert_status_code, YAY_VOTE_ID, NAY_VOTE_ID
 
 
 async def test_cast_vote_success(test_user_vote):
@@ -11,7 +11,7 @@ async def test_cast_vote_update(
     _, user_headers = test_user_session
     yay_vote, nay_vote = test_vote_choices
 
-    updated_vote_data = {"billId": test_user_vote["billId"], "voteChoiceId": NO_VOTE_ID}
+    updated_vote_data = {"billId": test_user_vote["billId"], "voteChoiceId": NAY_VOTE_ID}
     response = await client.put("/users/votes", json=updated_vote_data, headers=user_headers)
     assert_status_code(response, 200)
     updated_vote = response.json()
