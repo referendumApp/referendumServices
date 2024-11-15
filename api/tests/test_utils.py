@@ -1,8 +1,8 @@
 import random
 import string
 
-YAY_VOTE_ID = 0
-NAY_VOTE_ID = 1
+NAY_VOTE_ID = 0
+YAY_VOTE_ID = 1
 
 
 # Shared utility functions
