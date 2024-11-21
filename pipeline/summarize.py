@@ -1,67 +1,120 @@
+import os
+import time
+import hashlib
+import json
+from concurrent.futures import ThreadPoolExecutor
 from langchain_ollama import OllamaLLM
 
-llm = OllamaLLM(model="llama3")
+llm = OllamaLLM(model="llama3.1", max_tokens=300)  # Adjust max_tokens for faster processing
+
+CACHE_DIR = "cache"
 
 
-def split_text_into_chunks(text, max_token_length):
-    """Split text into chunks efficiently."""
-    print("Splitting text into manageable chunks...")
-    chunks, current_chunk = [], []
-    current_length = 0
-    max_chunk_length = max_token_length - 512
-
-    for paragraph in text.split("\n\n"):
-        paragraph_length = len(paragraph)
-        if current_length + paragraph_length < max_chunk_length:
-            current_chunk.append(paragraph)
-            current_length += paragraph_length
-        else:
-            chunks.append("\n\n".join(current_chunk))
-            current_chunk = [paragraph]
-            current_length = paragraph_length
-
-    if current_chunk:
-        chunks.append("\n\n".join(current_chunk))
-
-    print(f"Total chunks created: {len(chunks)}")
-    return chunks
+def split_text_by_delineator(text, delineator):
+    """Split text into chunks using a specified delineator."""
+    return [
+        delineator + chunk if i > 0 else chunk for i, chunk in enumerate(text.split(delineator))
+    ]
 
 
-def summarize_chunks_with_context(chunks):
-    """Summarize text chunks iteratively with context."""
-    print("Summarizing chunks iteratively to build context...")
-    context = ""
-    final_summary = ""
+def get_cached_summary(chunk):
+    """Retrieve or generate a cached summary for a chunk."""
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    hash_key = hashlib.md5(chunk.encode()).hexdigest()
+    cache_path = os.path.join(CACHE_DIR, f"{hash_key}.json")
 
-    for i, chunk in enumerate(chunks):
-        prompt = f"Previous summary: {context}\n\nSummarize this chunk with the previous context:\n{chunk}"
+    if os.path.exists(cache_path):
+        with open(cache_path, "r") as file:
+            return json.load(file)
+
+    summary = summarize_chunk(chunk)
+    with open(cache_path, "w") as file:
+        json.dump(summary, file)
+    return summary
+
+
+def summarize_chunk(chunk):
+    """Summarize a single chunk."""
+    try:
+        return llm.invoke(f"Summarize:\n{chunk}").strip()
+    except Exception as e:
+        print(f"Error summarizing chunk: {e}")
+        return "[Error in summarizing this chunk]"
+
+
+def batch_chunks(chunks, batch_size=4):
+    """Group chunks into larger batches."""
+    for i in range(0, len(chunks), batch_size):
+        yield "\n\n".join(chunks[i : i + batch_size])
+
+
+def iterative_summarization(chunks, max_workers=16, batch_size=4):
+    """Iteratively summarize chunks until a single summary remains."""
+    from concurrent.futures import ThreadPoolExecutor
+    from math import ceil
+
+    def summarize_pair(pair):
+        """Combine and summarize a pair of summaries."""
+        combined_text = "\n\n".join(pair)
         try:
-            summary = llm.invoke(prompt)
-            context = summary.strip()
-            final_summary += f"\n\n{context}"
+            return llm.invoke(f"Summarize:\n{combined_text}").strip()
         except Exception as e:
-            print(f"Error summarizing chunk {i}: {e}")
-            final_summary += "\n\n[Error in summarizing this chunk]"
+            print(f"Error consolidating summaries: {e}")
+            return combined_text
 
-    return final_summary.strip()
+    # Initial batch summarization
+    print(f"Summarizing {len(chunks)} chunks with caching and batching...")
+    batched_chunks = list(batch_chunks(chunks, batch_size))
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        summaries = list(executor.map(get_cached_summary, batched_chunks))
+
+    # Iterative consolidation
+    while len(summaries) > 1:
+        print(f"Consolidating {len(summaries)} summaries...")
+        pairs = [(summaries[i], summaries[i + 1]) for i in range(0, len(summaries) - 1, 2)]
+
+        # Handle odd number of summaries by carrying over the last one
+        if len(summaries) % 2 == 1:
+            last_summary = summaries[-1]
+        else:
+            last_summary = None
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            consolidated = list(executor.map(summarize_pair, pairs))
+
+        summaries = consolidated
+        if last_summary:
+            summaries.append(last_summary)
+
+    return summaries[0]
 
 
-def summarize_large_text_with_context(file_path, max_token_length=4096):
-    """Summarize large text using iterative summarization with context."""
+def summarize_large_text(file_path, delineator="•S 4361 PCS", max_workers=16, batch_size=16):
+    """Optimized summarization for large text."""
     print("Reading input text...")
     with open(file_path, "r") as file:
         text = file.read()
 
-    chunks = split_text_into_chunks(text, max_token_length)
-    print("Summarizing chunks with context...")
+    chunks = split_text_by_delineator(text, delineator)
 
-    final_summary = summarize_chunks_with_context(chunks)
-    print("Final summary generated.")
+    final_summary = iterative_summarization(chunks, max_workers=max_workers, batch_size=batch_size)
+
     return final_summary
 
 
-file_path = "/Users/henrydalton/Documents/GitHub/referendumApi/pipeline/testmore.txt"
+if __name__ == "__main__":
+    file_path = "file_path"
 
-print("Starting summarization...")
-final_summary = summarize_large_text_with_context(file_path, max_token_length=4096)
-print("\nFinal Summary:\n", final_summary)
+    start_time = time.time()
+
+    print("Starting summarization...")
+    final_summary = summarize_large_text(file_path, max_workers=16, batch_size=16)
+
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+
+    hours, remainder = divmod(elapsed_time, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    print("\nFinal Summary:\n", final_summary)
+    print(f"\nTime taken: {int(hours)} hours, {int(minutes)} minutes, and {int(seconds)} seconds.")
