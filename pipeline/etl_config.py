@@ -1,6 +1,6 @@
 from enum import Enum
 from typing import Dict, List, Optional, Set
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm.session import Session
 import hashlib
 import pandas as pd
@@ -79,8 +79,8 @@ class Transformation(BaseModel):
                     if source_name not in df.columns:
                         raise ValueError(f"Source column '{source_name}' not found")
                     mapping_dict = self.parameters.get("mapping")
-                    df = df.copy()
-                    df[destination_name] = df[source_name].apply(mapping_dict)
+                    mapping_dict = {int(k): v for k, v in mapping_dict.items()}
+                    df[destination_name] = df[source_name].map(mapping_dict)
                     return df
 
                 case _:
@@ -99,8 +99,7 @@ class ETLConfig(BaseModel):
     transformations: List[Transformation]
     dataframe: Optional[pd.DataFrame] = None
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def _get_source_query(self) -> str:
         """Generate SQL query for source data extraction"""

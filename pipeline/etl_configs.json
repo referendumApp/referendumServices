@@ -143,8 +143,8 @@
       {
         "function": "map",
         "parameters": {
-          "source": "status_id",
-          "destination": "status",
+          "source_name": "status_id",
+          "destination_name": "status",
           "mapping": {
             "0": "Prefiled",
             "1": "Introduced",
@@ -435,7 +435,7 @@
     "dataframe": null
   },
   {
-    "source": "ls_sponsor ",
+    "source": "ls_bill_sponsor",
     "destination": "bill_sponsors",
     "source_columns": [
       "bill_id",
@@ -462,8 +462,8 @@
       {
         "function": "map",
         "parameters": {
-          "source": "sponsor_type_id",
-          "destination": "type",
+          "source_name": "sponsor_type_id",
+          "destination_name": "type",
           "mapping": {
             "0": "Sponsor",
             "1": "Primary Sponsor",
