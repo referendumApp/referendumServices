@@ -151,6 +151,7 @@ async def test_committee(create_test_entity, delete_test_entity, test_legislativ
 
 @pytest_asyncio.fixture(scope="function")
 async def test_bill(create_test_entity, delete_test_entity, test_state, test_legislative_body):
+    print(test_legislative_body)
     bill_data = {
         "legiscanId": random.randint(100000, 999999),
         "identifier": f"H.B.{random.randint(1, 999)}",
@@ -164,6 +165,7 @@ async def test_bill(create_test_entity, delete_test_entity, test_state, test_leg
         "status_date": "2024-01-01",
     }
     bill = await create_test_entity("/bills/", bill_data)
+    print(bill)
     yield bill
     await delete_test_entity("bills", bill["id"])
 

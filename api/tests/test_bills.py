@@ -13,14 +13,14 @@ async def test_list_bill_details(client, system_headers, test_bill_version):
     bill = bill_data[0]
 
     expected_fields = {
-        "bill_id": test_bill_version["billId"],
+        "billId": test_bill_version["billId"],
         "description": "This is a test bill",
         "briefing": "yadayadayada",
-        "status": "2024-01-01",
-        "status_date": "2024-01-01",
-        "sessionId": "118",
-        "state_name": "Washington",
-        "legislative_body_role": "House",
+        "status": "Introduced",
+        "statusDate": "2024-01-01",
+        "sessionId": 118,
+        "stateName": "Washington",
+        "legislativeBodyRole": "House",
         "sponsors": [],
     }
 

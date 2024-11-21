@@ -46,7 +46,7 @@ class DenormalizedBill(CamelCaseBaseModel):
     briefing: Optional[str] = Field(None, description="Brief summary of the bill")
     status: str = Field(description="Current status of the bill")
     status_date: date = Field(description="Date of the last status change")
-    session_id: str = Field(description="Legislative session")
+    session_id: int = Field(description="Legislative session")
     state_id: int = Field(description="State identifier")
     state_name: str = Field(description="Name of the state")
     legislative_body_id: int = Field(description="Legislative body identifier")

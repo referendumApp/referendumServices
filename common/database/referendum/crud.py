@@ -149,7 +149,7 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
             .options(
                 joinedload(models.Bill.state),
                 joinedload(models.Bill.legislative_body).joinedload(models.LegislativeBody.role),
-                joinedload(models.Bill.sponsors).joinedload(models.Legislator.party),
+                joinedload(models.Bill.sponsors),
                 joinedload(models.Bill.topics),
                 joinedload(models.Bill.bill_versions),
             )
