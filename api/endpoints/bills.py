@@ -16,16 +16,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-EndpointGenerator.add_crud_routes(
-    router=router,
-    crud_model=crud.bill,
-    create_schema=schemas.Bill.Base,
-    update_schema=schemas.Bill.Record,
-    response_schema=schemas.Bill.Full,
-    resource_name="bill",
-)
-
-
+# Note that this must be defined before adding crud routes to avoid conflicts with the GET /id endpoint
 @router.get(
     "/details",
     response_model=List[DenormalizedBill],
@@ -39,18 +30,46 @@ EndpointGenerator.add_crud_routes(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
-async def read_items(
+async def get_bill_details(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ):
     try:
-        items = crud.bill.read_all(db=db, skip=skip, limit=limit)
-        ...
-        return items
+        bills = crud.bill.read_all_denormalized(db=db, skip=skip, limit=limit)
+        result = []
+        for bill in bills:
+            bill_dict = {
+                "bill_id": bill.id,
+                "legiscan_id": bill.legiscan_id,
+                "identifier": bill.identifier,
+                "title": bill.title,
+                "description": bill.description,
+                "briefing": bill.briefing,
+                "status": bill.status,
+                "status_date": bill.status_date,
+                "session_id": bill.session_id,
+                "state_id": bill.state.id,
+                "state_name": bill.state.name,
+                "legislative_body_id": bill.legislative_body.id,
+                "legislative_body_role": bill.legislative_body.role.name,
+                "sponsors": bill.sponsors,
+            }
+            result.append(bill_dict)
+        return result
     except DatabaseException as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+EndpointGenerator.add_crud_routes(
+    router=router,
+    crud_model=crud.bill,
+    create_schema=schemas.Bill.Base,
+    update_schema=schemas.Bill.Record,
+    response_schema=schemas.Bill.Full,
+    resource_name="bill",
+)
 
 
 @router.get(

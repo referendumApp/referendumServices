@@ -44,44 +44,17 @@ class DenormalizedBill(CamelCaseBaseModel):
     title: str = Field(description="Official title of the bill")
     description: str = Field(description="Full description of the bill")
     briefing: Optional[str] = Field(None, description="Brief summary of the bill")
-    status: date = Field(description="Current status of the bill")
+    status: str = Field(description="Current status of the bill")
     status_date: date = Field(description="Date of the last status change")
-    session: str = Field(description="Legislative session")
+    session_id: str = Field(description="Legislative session")
     state_id: int = Field(description="State identifier")
     state_name: str = Field(description="Name of the state")
     legislative_body_id: int = Field(description="Legislative body identifier")
     legislative_body_role: str = Field(description="Role name of the legislative body")
-    sponsors: List[Sponsor.record] = Field(
+    sponsors: List[Sponsor.Record] = Field(
         default_factory=list, description="List of all bill sponsors"
     )
 
     model_config = {
         "from_attributes": True,
-        "json_schema_extra": {
-            "example": {
-                "bill_id": 1,
-                "legiscan_id": 12345,
-                "identifier": "HB 123",
-                "title": "An Act Related to Education",
-                "description": "A bill to improve educational standards",
-                "briefing": "Reforms education standards",
-                "status": "Passed",
-                "status_date": "2024-01-15",
-                "session": 2024,
-                "state_id": 1,
-                "state_name": "California",
-                "legislative_body_id": 1,
-                "legislative_body_role": "House",
-                "primary_sponsor": {
-                    "id": 1,
-                    "name": "John Smith",
-                    "party": "Democratic",
-                    "district": "District 1",
-                    "state_id": 1,
-                },
-                "all_sponsors": [
-                    {"id": 1, "name": "John Smith", "party": "Democratic", "is_primary": True}
-                ],
-            }
-        },
     }

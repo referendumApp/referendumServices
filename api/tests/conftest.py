@@ -5,7 +5,7 @@ from typing import AsyncGenerator, Dict, Tuple
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-
+from functools import wraps
 from api.config import settings
 from api.main import app
 from api.security import create_access_token
@@ -160,7 +160,7 @@ async def test_bill(create_test_entity, delete_test_entity, test_state, test_leg
         "legislativeBodyId": test_legislative_body["id"],
         "sessionId": 118,
         "briefing": "yadayadayada",
-        "statusId": 1,
+        "status": "Introduced",
         "status_date": "2024-01-01",
     }
     bill = await create_test_entity("/bills/", bill_data)

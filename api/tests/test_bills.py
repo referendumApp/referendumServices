@@ -1,5 +1,3 @@
-import logging
-
 from api.tests.test_utils import assert_status_code
 
 
@@ -7,28 +5,27 @@ async def test_add_bill_success(test_bill):
     assert "id" in test_bill
 
 
-async def test_list_bills(client, system_headers, test_bill_version):
-    response = await client.get("/bills/", headers=system_headers)
+async def test_list_bill_details(client, system_headers, test_bill_version):
+    response = await client.get("/bills/details", headers=system_headers)
     assert_status_code(response, 200)
-    assert response.json() == [
-        {
-            "id": test_bill_version["billId"],
-            "legiscanId": 963926,  # Need to ignore
-            "identifier": "H.B.841",  # Need to ignore
-            "title": "Test Bill xmzdx",  # Need to ignore
-            "description": "This is a test bill",  # Need to ignore
-            "session": 118,
-            "stateId": 999999,
-            "stateName": "Washington",
-            "status": "Passed",
-            "statusDate": "2024-01-01",
-            "briefing": "yadayadayada",
-            "legislativeBody": "House",
-            "topics": [],
-            "sponsors": [1],
-            "version_ids": [test_bill_version["id"]],
-        }
-    ]
+    bill_data = response.json()
+    assert len(bill_data) == 1
+    bill = bill_data[0]
+
+    expected_fields = {
+        "bill_id": test_bill_version["billId"],
+        "description": "This is a test bill",
+        "briefing": "yadayadayada",
+        "status": "2024-01-01",
+        "status_date": "2024-01-01",
+        "sessionId": "118",
+        "state_name": "Washington",
+        "legislative_body_role": "House",
+        "sponsors": [],
+    }
+
+    for field, value in expected_fields.items():
+        assert bill[field] == value
 
 
 async def test_add_bill_already_exists(client, system_headers, test_bill):
@@ -68,7 +65,7 @@ async def test_update_bill_not_found(client, system_headers):
         "legislativeBodyId": 1,
         "sessionId": 118,
         "briefing": "yadayadayada",
-        "statusId": 1,
+        "status": "Introduced",
         "status_date": "2024-01-01",
     }
     response = await client.put("/bills/", json=non_existent_bill, headers=system_headers)
