@@ -115,7 +115,7 @@ jobs:
 
     - name: Set additional deployment variables
       run: |
-        echo "PORT_MAPPING=$([ "$DEPLOY_ENV" == "prod" ] && echo "80:80" || echo "8080:80")" >> $GITHUB_ENV
+        echo "PORT_MAPPING=$([ "$DEPLOY_ENV" == "prod" ] && echo "8000:80" || echo "8001:80")" >> $GITHUB_ENV
         
         # Get EC2 Instance ID from SSM Parameter Store based on environment
         EC2_INSTANCE_ID_PARAM="/$(echo $DEPLOY_ENV | tr '[:upper:]' '[:lower:]')/API_EC2_INSTANCE_ID"
