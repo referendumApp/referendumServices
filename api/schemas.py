@@ -80,7 +80,7 @@ class BillVotingHistory(CamelCaseBaseModel):
     votes: List[LegislatorVoteDetail]
     summaries: List[VoteSummary]
 
-      
+
 class DenormalizedBill(CamelCaseBaseModel):
     """Represents a denormalized view of a bill with all related information."""
 
@@ -104,4 +104,3 @@ class DenormalizedBill(CamelCaseBaseModel):
     model_config = {
         "from_attributes": True,
     }
-
