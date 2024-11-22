@@ -5,8 +5,27 @@ async def test_add_bill_success(test_bill):
     assert "id" in test_bill
 
 
-async def test_list_bills(test_get_bills):
-    assert len(test_get_bills) > 0
+async def test_list_bill_details(client, system_headers, test_bill_version):
+    response = await client.get("/bills/details", headers=system_headers)
+    assert_status_code(response, 200)
+    bill_data = response.json()
+    assert len(bill_data) == 1
+    bill = bill_data[0]
+
+    expected_fields = {
+        "billId": test_bill_version["billId"],
+        "description": "This is a test bill",
+        "briefing": "yadayadayada",
+        "status": "Introduced",
+        "statusDate": "2024-01-01",
+        "sessionId": 118,
+        "stateName": "Washington",
+        "legislativeBodyRole": "House",
+        "sponsors": [],
+    }
+
+    for field, value in expected_fields.items():
+        assert bill[field] == value
 
 
 async def test_add_bill_already_exists(client, system_headers, test_bill):
@@ -46,7 +65,7 @@ async def test_update_bill_not_found(client, system_headers):
         "legislativeBodyId": 1,
         "sessionId": 118,
         "briefing": "yadayadayada",
-        "statusId": 1,
+        "status": "Introduced",
         "status_date": "2024-01-01",
     }
     response = await client.put("/bills/", json=non_existent_bill, headers=system_headers)

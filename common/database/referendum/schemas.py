@@ -149,9 +149,10 @@ Bill = create_schema_container(
         "description": (str, ...),
         "session_id": (int, ...),
         "state_id": (int, ...),
-        "status_id": (int, ...),
+        "status": (str, ...),
         "status_date": (date, ...),
         "briefing": (Optional[str], ...),
+        "legislative_body_id": (int, ...),
     },
     relationship_fields={
         "state": (Optional[State.Record], None),
@@ -159,6 +160,17 @@ Bill = create_schema_container(
         "topics": (List[Topic.Record], []),
         "sponsors": (List[Legislator.Record], []),
         "versions": (List[BillVersion.Record], []),
+    },
+)
+
+
+Sponsor = create_schema_container(
+    name="Sponsor",
+    base_fields={
+        "bill_id": (int, ...),
+        "legislator_id": (int, ...),
+        "order": (int, ...),
+        "type": (str, ...),
     },
 )
 
