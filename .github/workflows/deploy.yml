@@ -141,10 +141,12 @@ jobs:
         docker push $ECR_REGISTRY/$ECR_REPOSITORY_API:migrations-${{ env.IMAGE_TAG }}
 
     - name: Deploy to EC2
+      id: deploy-ec2
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
         set -e
+        echo "deployment_failed=false" >> $GITHUB_OUTPUT
         echo "Deploying to EC2..."
         DEPLOY_COMMAND_OUTPUT=$(aws ssm send-command \
           --instance-ids "${{ env.EC2_INSTANCE_ID }}" \
@@ -201,15 +203,11 @@ jobs:
           if [ "$STATUS" = "Success" ]; then
             echo "Deployment command executed successfully"
             break
-          elif [ "$STATUS" = "Failed" ]; then
-            echo "Deployment command failed"
+          elif [ "$STATUS" = "Failed" ] || [ "$STATUS" = "TimedOut" ]; then
+            echo "Deployment command $STATUS"
             echo "Command output:"
             echo "$COMMAND_RESULT" | jq -r '.CommandInvocations[0].CommandPlugins[0].Output'
-            exit 1
-          elif [ "$STATUS" = "TimedOut" ]; then
-            echo "Deployment command timed out"
-            echo "Command output:"
-            echo "$COMMAND_RESULT" | jq -r '.CommandInvocations[0].CommandPlugins[0].Output'
+            echo "deployment_failed=true" >> $GITHUB_OUTPUT
             exit 1
           fi
           
@@ -218,12 +216,14 @@ jobs:
         done
 
     - name: Verify Deployment
+      if: always()
       run: |
         set -e
         echo "Verifying deployment..."
         PORT="${{ env.DEPLOY_ENV == 'prod' && '80' || '8080' }}"
         MAX_RETRIES=5
         RETRY_INTERVAL=10
+        DEPLOYMENT_FAILED=false
 
         for i in $(seq 1 $MAX_RETRIES); do
           echo "Attempt $i of $MAX_RETRIES"
@@ -254,7 +254,12 @@ jobs:
           echo "Health check failed. Status code: $HEALTH_CHECK_STATUS_CODE"
         done
 
+        DEPLOYMENT_FAILED=true
         echo "Deployment verification failed after $MAX_RETRIES attempts"
+
+    - name: Rollback Deployment
+      if: failure() || steps.deploy-ec2.outputs.deployment_failed == 'true'
+      run: |
         echo "Rolling back to previous stable version..."
         aws ssm send-command \
           --instance-ids "${{ env.EC2_INSTANCE_ID }}" \
