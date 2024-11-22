@@ -177,3 +177,58 @@ async def test_bulk_update_success(client, system_headers, test_bill):
     updated_items = response.json()
     for i, item in enumerate(updated_items):
         assert item["title"] == update_data[i]["title"]
+
+
+async def test_voting_history(client, system_headers, test_legislator_vote):
+    response = await client.get(
+        f"/bills/{test_legislator_vote['billId']}/voting_history", headers=system_headers
+    )
+    assert_status_code(response, 200)
+    result = response.json()
+
+    # Check top level structure
+    assert set(result.keys()) == {"billId", "votes", "summaries"}
+    assert result["billId"] == test_legislator_vote["billId"]
+
+    # Check votes array structure
+    assert isinstance(result["votes"], list)
+    assert len(result["votes"]) == 1
+    vote = result["votes"][0]
+    required_vote_keys = {
+        "billActionId",
+        "date",
+        "actionDescription",
+        "legislativeBodyId",
+        "legislatorId",
+        "legislatorName",
+        "partyName",
+        "roleName",
+        "stateName",
+        "voteChoiceName",
+    }
+    assert set(vote.keys()) == required_vote_keys
+    assert vote["billActionId"] == test_legislator_vote["billActionId"]
+    assert vote["legislatorId"] == test_legislator_vote["legislatorId"]
+
+    assert isinstance(result["summaries"], list)
+    assert len(result["summaries"]) == 1
+    summary = result["summaries"][0]
+    assert set(summary.keys()) == {
+        "billActionId",
+        "totalVotes",
+        "voteCountsByChoice",
+        "voteCountsByParty",
+    }
+
+    assert isinstance(summary["voteCountsByChoice"], list)
+    assert len(summary["voteCountsByChoice"]) == 1
+    vote_choice = summary["voteCountsByChoice"][0]
+    assert set(vote_choice.keys()) == {"voteChoiceId", "count"}
+    assert vote_choice["voteChoiceId"] == test_legislator_vote["voteChoiceId"]
+    assert vote_choice["count"] == 1
+
+    assert isinstance(summary["voteCountsByParty"], list)
+    assert len(summary["voteCountsByParty"]) == 1
+    party_count = summary["voteCountsByParty"][0]
+    assert set(party_count.keys()) == {"voteChoiceId", "partyId", "count"}
+    assert party_count["count"] == 1

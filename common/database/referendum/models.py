@@ -171,6 +171,8 @@ class BillAction(Base):
     date = Column(Date, nullable=False)
     description = Column(String, nullable=False)
 
+    legislator_votes = relationship("LegislatorVote", back_populates="bill_action")
+
 
 class Legislator(Base):
     __tablename__ = "legislators"
@@ -189,6 +191,7 @@ class Legislator(Base):
     phone = Column(String)
     twitter = Column(String)
 
+    legislator_votes = relationship("LegislatorVote", back_populates="legislator")
     party = relationship("Party")
     state = relationship("State")
     role = relationship("Role")
@@ -213,6 +216,10 @@ class LegislatorVote(Base):
     bill_id = Column(Integer, ForeignKey("bills.id"), primary_key=True)
     bill_action_id = Column(Integer, ForeignKey("bill_actions.id"), primary_key=True)
     vote_choice_id = Column(Integer, ForeignKey("vote_choices.id"), nullable=False)
+
+    bill_action = relationship("BillAction", back_populates="legislator_votes")
+    legislator = relationship("Legislator", back_populates="legislator_votes")
+    vote_choice = relationship("VoteChoice")
 
 
 class Comment(Base):
