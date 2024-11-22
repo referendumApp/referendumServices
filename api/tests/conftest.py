@@ -94,6 +94,14 @@ async def test_state(create_test_entity, delete_test_entity):
 
 
 @pytest_asyncio.fixture(scope="function")
+async def test_session(create_test_entity, delete_test_entity, test_state):
+    session_data = {"name": "118th", "stateId": test_state["id"]}
+    session = await create_test_entity("/sessions/", session_data)
+    yield session
+    await delete_test_entity("sessions", session["id"])
+
+
+@pytest_asyncio.fixture(scope="function")
 async def test_party(create_test_entity, delete_test_entity):
     party_data = {"name": "Independent"}
     party = await create_test_entity("/partys/", party_data)
@@ -150,22 +158,20 @@ async def test_committee(create_test_entity, delete_test_entity, test_legislativ
 
 
 @pytest_asyncio.fixture(scope="function")
-async def test_bill(create_test_entity, delete_test_entity, test_state, test_legislative_body):
-    print(test_legislative_body)
+async def test_bill(create_test_entity, delete_test_entity, test_session, test_legislative_body):
     bill_data = {
         "legiscanId": random.randint(100000, 999999),
         "identifier": f"H.B.{random.randint(1, 999)}",
         "title": f"Test Bill {generate_random_string()}",
         "description": "This is a test bill",
-        "stateId": test_state["id"],
+        "stateId": test_session["stateId"],
         "legislativeBodyId": test_legislative_body["id"],
-        "sessionId": 118,
+        "sessionId": test_session["id"],
         "briefing": "yadayadayada",
         "status": "Introduced",
         "status_date": "2024-01-01",
     }
     bill = await create_test_entity("/bills/", bill_data)
-    print(bill)
     yield bill
     await delete_test_entity("bills", bill["id"])
 

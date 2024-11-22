@@ -30,13 +30,23 @@ def upgrade():
             "sessions",
             sa.Column("id", sa.Integer(), nullable=False),
             sa.Column("name", sa.String(length=255), nullable=True),
-            sa.Column("state_id", sa.String(length=255), nullable=True),
+            sa.Column("state_id", sa.Integer(), nullable=True),
             sa.PrimaryKeyConstraint("id"),
-            sa.ForeignKeyConstraint(
-                ["state_id"],
-                ["states.id"],
-            ),
         )
+    op.create_foreign_key(
+        "fk_sessions_state_id",
+        "sessions",
+        "states",
+        ["state_id"],
+        ["id"],
+    )
+    op.create_foreign_key(
+        "fk_bills_session_id",
+        "bills",
+        "sessions",
+        ["session_id"],
+        ["id"],
+    )
 
 
 def downgrade():
