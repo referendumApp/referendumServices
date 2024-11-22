@@ -5,6 +5,7 @@ Revises: 73f2e3783101
 Create Date: 2024-11-21 21:00:39.966488
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -31,6 +32,10 @@ def upgrade():
             sa.Column("name", sa.String(length=255), nullable=True),
             sa.Column("state_id", sa.String(length=255), nullable=True),
             sa.PrimaryKeyConstraint("id"),
+            sa.ForeignKeyConstraint(
+                ["state_id"],
+                ["states.id"],
+            ),
         )
 
 

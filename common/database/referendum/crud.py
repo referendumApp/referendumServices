@@ -582,6 +582,10 @@ class VoteChoiceCRUD(
     pass
 
 
+class SessionCRUD(BaseCRUD[models.Session, schemas.Session.Base, schemas.Session.Record]):
+    pass
+
+
 bill = BillCRUD(models.Bill)
 bill_action = BillActionCRUD(models.BillAction)
 bill_version = BillVersionCRUD(models.BillVersion)
@@ -593,6 +597,7 @@ legislator_vote = LegislatorVoteCRUD(models.LegislatorVote)
 party = PartyCRUD(models.Party)
 role = RoleCRUD(models.Role)
 state = StateCRUD(models.State)
+session = SessionCRUD(models.Session)
 topic = TopicCRUD(models.Topic)
 user = UserCRUD(models.User)
 user_vote = UserVoteCRUD(models.UserVote)

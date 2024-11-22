@@ -149,6 +149,17 @@ class Bill(Base):
     topics = relationship("Topic", secondary=bill_topics)
     sponsors = relationship("Legislator", secondary=bill_sponsors, back_populates="sponsored_bills")
     bill_versions = relationship("BillVersion", back_populates="bill")
+    session = relationship("Session", back_populates="bills")
+
+
+class Session(Base):
+    __tablename__ = "sessions"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)
+    state_id = Column(Integer, ForeignKey("states.id"), index=True)
+
+    state = relationship("State")
 
 
 class BillVersion(Base):
