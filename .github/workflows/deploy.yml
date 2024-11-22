@@ -220,7 +220,7 @@ jobs:
       run: |
         set -e
         echo "Verifying deployment..."
-        PORT="${{ env.DEPLOY_ENV == 'prod' && '80' || '8080' }}"
+        PORT="${{ env.DEPLOY_ENV == 'prod' && '8000' || '8001' }}"
         MAX_RETRIES=5
         RETRY_INTERVAL=10
         DEPLOYMENT_FAILED=false
