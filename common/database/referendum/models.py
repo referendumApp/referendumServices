@@ -141,7 +141,7 @@ class Bill(Base):
     legislative_body_id = Column(Integer, ForeignKey("legislative_bodys.id"), index=True)
     session_id = Column(Integer, index=True)
     briefing = Column(String, nullable=True)
-    status_id = Column(Integer)
+    status = Column(String)
     status_date = Column(Date)
 
     state = relationship("State")

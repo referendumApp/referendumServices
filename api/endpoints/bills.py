@@ -11,6 +11,7 @@ from common.database.referendum.crud import ObjectNotFoundException, DatabaseExc
 from ..database import get_db
 from ..schemas import (
     ErrorResponse,
+    DenormalizedBill,
     BillVotingHistory,
     LegislatorVoteDetail,
     VoteSummary,
@@ -23,6 +24,52 @@ from .endpoint_generator import EndpointGenerator
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+# Note that this must be defined before adding crud routes to avoid conflicts with the GET /id endpoint
+@router.get(
+    "/details",
+    response_model=List[DenormalizedBill],
+    summary=f"Get all bill details",
+    responses={
+        200: {
+            "model": List[DenormalizedBill],
+            "description": f"Bill details successfully retrieved",
+        },
+        401: {"model": ErrorResponse, "description": "Not authorized"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def get_bill_details(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+):
+    try:
+        bills = crud.bill.read_all_denormalized(db=db, skip=skip, limit=limit)
+        result = []
+        for bill in bills:
+            bill_dict = {
+                "bill_id": bill.id,
+                "legiscan_id": bill.legiscan_id,
+                "identifier": bill.identifier,
+                "title": bill.title,
+                "description": bill.description,
+                "briefing": bill.briefing,
+                "status": bill.status,
+                "status_date": bill.status_date,
+                "session_id": bill.session_id,
+                "state_id": bill.state.id,
+                "state_name": bill.state.name,
+                "legislative_body_id": bill.legislative_body.id,
+                "legislative_body_role": bill.legislative_body.role.name,
+                "sponsors": bill.sponsors,
+            }
+            result.append(bill_dict)
+        return result
+    except DatabaseException as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 EndpointGenerator.add_crud_routes(
