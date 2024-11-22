@@ -216,6 +216,7 @@ jobs:
         done
 
     - name: Verify Deployment
+      id: verify-deployment
       if: always()
       run: |
         set -e
@@ -223,8 +224,7 @@ jobs:
         PORT="${{ env.DEPLOY_ENV == 'prod' && '8000' || '8001' }}"
         MAX_RETRIES=5
         RETRY_INTERVAL=10
-        DEPLOYMENT_FAILED=false
-
+        
         for i in $(seq 1 $MAX_RETRIES); do
           echo "Attempt $i of $MAX_RETRIES"
           HEALTH_CHECK_COMMAND_ID=$(aws ssm send-command \
@@ -247,6 +247,7 @@ jobs:
             echo "Updating stable tag..."
             docker tag ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.IMAGE_TAG }} ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.DEPLOY_ENV }}-stable
             docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.DEPLOY_ENV }}-stable
+            echo "verification_status=success" >> $GITHUB_OUTPUT
             echo "Deployment successful"
             exit 0
           fi
@@ -254,11 +255,15 @@ jobs:
           echo "Health check failed. Status code: $HEALTH_CHECK_STATUS_CODE"
         done
 
-        DEPLOYMENT_FAILED=true
+        echo "verification_status=failed" >> $GITHUB_OUTPUT
         echo "Deployment verification failed after $MAX_RETRIES attempts"
+        exit 1
 
     - name: Rollback Deployment
-      if: failure() || steps.deploy-ec2.outputs.deployment_failed == 'true'
+      if: |
+        failure() || 
+        steps.deploy-ec2.outputs.deployment_failed == 'true' || 
+        steps.verify-deployment.outputs.verification_status == 'failed'
       run: |
         echo "Rolling back to previous stable version..."
         aws ssm send-command \
