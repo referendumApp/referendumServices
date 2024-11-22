@@ -1,6 +1,7 @@
 import random
 import string
 
+DEFAULT_ID = 999999
 NAY_VOTE_ID = 0
 YAY_VOTE_ID = 1
 

@@ -85,6 +85,12 @@ State = create_schema_container(
 )
 
 
+Session = create_schema_container(
+    name="Session",
+    base_fields={"id": (int, ...), "name": (str, ...), "state_id": (int, ...)},
+)
+
+
 LegislativeBody = create_schema_container(
     name="State",
     base_fields={"id": (int, ...), "role_id": (int, ...), "state_id": (int, ...)},

@@ -5,13 +5,13 @@ from typing import AsyncGenerator, Dict, Tuple
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from functools import wraps
 from api.config import settings
 from api.main import app
 from api.security import create_access_token
 from api.tests.test_utils import (
     assert_status_code,
     generate_random_string,
+    DEFAULT_ID,
     YAY_VOTE_ID,
     NAY_VOTE_ID,
 )
@@ -46,7 +46,7 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
 async def create_test_entity(client: AsyncClient, system_headers: Dict[str, str]):
     async def create_entity(endpoint: str, payload: Dict):
         if "id" not in payload:
-            payload["id"] = 999999
+            payload["id"] = DEFAULT_ID
 
         response = await client.post(endpoint, json=payload, headers=system_headers)
         assert_status_code(response, 201)
@@ -91,6 +91,14 @@ async def test_state(create_test_entity, delete_test_entity):
     state = await create_test_entity("/states/", state_data)
     yield state
     await delete_test_entity("states", state["id"])
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_session(create_test_entity, delete_test_entity, test_state):
+    session_data = {"name": "118th", "stateId": test_state["id"]}
+    session = await create_test_entity("/sessions/", session_data)
+    yield session
+    await delete_test_entity("sessions", session["id"])
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -150,22 +158,20 @@ async def test_committee(create_test_entity, delete_test_entity, test_legislativ
 
 
 @pytest_asyncio.fixture(scope="function")
-async def test_bill(create_test_entity, delete_test_entity, test_state, test_legislative_body):
-    print(test_legislative_body)
+async def test_bill(create_test_entity, delete_test_entity, test_session, test_legislative_body):
     bill_data = {
-        "legiscanId": random.randint(100000, 999999),
+        "legiscanId": random.randint(0, DEFAULT_ID),
         "identifier": f"H.B.{random.randint(1, 999)}",
         "title": f"Test Bill {generate_random_string()}",
         "description": "This is a test bill",
-        "stateId": test_state["id"],
+        "stateId": test_session["stateId"],
         "legislativeBodyId": test_legislative_body["id"],
-        "sessionId": 118,
+        "sessionId": test_session["id"],
         "briefing": "yadayadayada",
         "status": "Introduced",
         "status_date": "2024-01-01",
     }
     bill = await create_test_entity("/bills/", bill_data)
-    print(bill)
     yield bill
     await delete_test_entity("bills", bill["id"])
 
@@ -175,7 +181,7 @@ async def test_bill_action(
     create_test_entity, delete_test_entity, test_bill: Dict, test_legislative_body: Dict
 ):
     bill_action_data = {
-        "id": random.randint(100000, 999999),
+        "id": random.randint(100000, DEFAULT_ID),
         "billId": test_bill["id"],
         "legislativeBodyId": test_legislative_body["id"],
         "date": "2024-01-01",
@@ -208,7 +214,7 @@ async def test_bill_version(
 
         # Create bill version record
         bill_version_data = {
-            "id": random.randint(100000, 999999),
+            "id": random.randint(0, DEFAULT_ID),
             "billId": test_bill["id"],
             "url": "http://bill_text.com/1.pdf",
             "hash": hash_value,

@@ -1,4 +1,4 @@
-from api.tests.test_utils import assert_status_code
+from api.tests.test_utils import assert_status_code, DEFAULT_ID
 
 
 async def test_add_bill_success(test_bill):
@@ -18,7 +18,7 @@ async def test_list_bill_details(client, system_headers, test_bill_version):
         "briefing": "yadayadayada",
         "status": "Introduced",
         "statusDate": "2024-01-01",
-        "sessionId": 118,
+        "sessionId": DEFAULT_ID,
         "stateName": "Washington",
         "legislativeBodyRole": "House",
         "sponsors": [],

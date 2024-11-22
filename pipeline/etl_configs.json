@@ -97,6 +97,32 @@
     "dataframe": null
   },
   {
+    "source": "ls_session",
+    "destination": "sessions",
+    "source_columns": [
+      "session_id",
+      "session_name",
+      "state_id"
+    ],
+    "destination_columns": [
+      "id",
+      "name",
+      "state_id"
+    ],
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "session_id": "id",
+            "session_name": "name"
+          }
+        }
+      }
+    ],
+    "dataframe": null
+  },
+  {
     "source": "ls_bill",
     "destination": "bills",
     "source_columns": [
@@ -378,32 +404,6 @@
             "roll_call_id": "bill_action_id",
             "people_id": "legislator_id",
             "vote_id": "vote_choice_id"
-          }
-        }
-      }
-    ],
-    "dataframe": null
-  },
-  {
-    "source": "ls_session",
-    "destination": "sessions",
-    "source_columns": [
-      "session_id",
-      "session_name",
-      "state_id"
-    ],
-    "destination_columns": [
-      "id",
-      "name",
-      "state_id"
-    ],
-    "transformations": [
-      {
-        "function": "rename",
-        "parameters": {
-          "columns": {
-            "session_id": "id",
-            "session_name": "name"
           }
         }
       }
