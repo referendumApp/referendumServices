@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 s3 = boto3.client("s3")
 
-app = FastAPI()
+app = FastAPI(root_path=f"/{settings.ENVIRONMENT}")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
