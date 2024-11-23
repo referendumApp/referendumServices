@@ -131,13 +131,6 @@ async def refresh_access_token(
             "refresh_token": new_refresh_token,
             "token_type": "bearer",
         }
-    except JWTError:
-        logger.warning("Invalid refresh token")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
     except DatabaseException as e:
         logger.error(f"Database error during token refresh: {str(e)}")
         raise HTTPException(
