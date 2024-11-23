@@ -87,9 +87,13 @@ async def get_current_user_or_verify_system_token(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
 ):
-    if api_key == settings.API_ACCESS_TOKEN:
-        logger.info("System token used for authentication")
-        return {"is_system": True}
+    if api_key:
+        if api_key == settings.API_ACCESS_TOKEN:
+            logger.info("System token used for authentication")
+            return {"is_system": True}
+        else:
+            logger.error("Invalid API key provided")
+            raise CREDENTIALS_EXCEPTION
     if token:
         try:
             user = await get_current_user(token, db)
