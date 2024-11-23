@@ -13,8 +13,13 @@ class HealthResponse(CamelCaseBaseModel):
     status: str
 
 
+class RefreshToken(CamelCaseBaseModel):
+    refresh_token: str
+
+
 class TokenResponse(CamelCaseBaseModel):
     access_token: str
+    refresh_token: str
     token_type: str
 
 

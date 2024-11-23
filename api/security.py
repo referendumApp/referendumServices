@@ -5,6 +5,7 @@ from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
+from typing import Dict
 
 from common.database.referendum import models, crud, schemas
 
@@ -32,6 +33,15 @@ CREDENTIALS_EXCEPTION = HTTPException(
 )
 
 
+def _decode_token(token: str) -> Dict:
+    """Internal function to decode JWT tokens"""
+    try:
+        return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    except JWTError as e:
+        logger.warning(f"Token decode failed: {str(e)}")
+        return None
+
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
@@ -56,30 +66,61 @@ def authenticate_user(db: Session, email: str, password: str) -> models.User:
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "type": "access"})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     logger.debug(f"Access token created for user: {data.get('sub')}")
     return encoded_jwt
 
 
+def create_refresh_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire, "type": "refresh"})
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    logger.debug(f"Refresh token created for user: {data.get('sub')}")
+    return encoded_jwt
+
+
+async def verify_token(token: str, token_type: str) -> dict:
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        if payload.get("type") != token_type:
+            raise JWTError("Invalid token type")
+        return payload
+    except JWTError:
+        raise CREDENTIALS_EXCEPTION
+
+
 async def get_current_user(
     token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
 ) -> models.User:
+    if not token:
+        raise CREDENTIALS_EXCEPTION
+
+    payload = _decode_token(token)
+    if not payload:
+        raise CREDENTIALS_EXCEPTION
+
+    # Verify token type
+    if payload.get("type") != "access":
+        logger.warning("Invalid token type for access token")
+        raise CREDENTIALS_EXCEPTION
+
+    # Get and verify email claim
+    email: str = payload.get("sub")
+    if not email:
+        logger.warning("Missing email in access token")
+        raise CREDENTIALS_EXCEPTION
+
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
-            logger.warning("Token decode failed: missing 'sub' claim")
+        user = crud.user.get_user_by_email(db, email)
+        if not user:
+            logger.warning(f"User not found for email: {email}")
             raise CREDENTIALS_EXCEPTION
-        token_data = TokenData(email=email)
-    except AttributeError:
+        return user
+    except Exception as e:
+        logger.error(f"Error retrieving user: {str(e)}")
         raise CREDENTIALS_EXCEPTION
-    except JWTError:
-        logger.warning("Invalid token")
-        raise CREDENTIALS_EXCEPTION
-    user = crud.user.get_user_by_email(db, token_data.email)
-    logger.info(f"User authenticated: {email}")
-    return user
 
 
 async def get_current_user_or_verify_system_token(

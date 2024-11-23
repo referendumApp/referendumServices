@@ -12,11 +12,13 @@ from common.database.referendum.crud import (
 )
 
 from ..database import get_db
-from ..schemas import ErrorResponse, TokenResponse, UserCreateInput
+from ..schemas import ErrorResponse, TokenResponse, UserCreateInput, RefreshToken
 from ..security import (
     SecurityException,
     authenticate_user,
     create_access_token,
+    create_refresh_token,
+    verify_token,
     get_user_create_with_hashed_password,
 )
 
@@ -74,17 +76,15 @@ async def login_for_access_token(
     try:
         user = authenticate_user(db, form_data.username, form_data.password)
         access_token = create_access_token(data={"sub": user.email})
+        refresh_token = create_refresh_token(data={"sub": user.email})
         logger.info(f"Login successful for user: {user.email}")
-        return {"access_token": access_token, "token_type": "bearer"}
-    except ObjectNotFoundException:
-        logger.warning(f"Login failed: User not found - {form_data.username}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except SecurityException:
-        logger.warning(f"Login failed: Incorrect password for user - {form_data.username}")
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+        }
+    except (ObjectNotFoundException, SecurityException):
+        logger.warning(f"Login failed for user: {form_data.username}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -92,6 +92,53 @@ async def login_for_access_token(
         )
     except DatabaseException as e:
         logger.error(f"Database error during login: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(e)}",
+        )
+
+
+@router.post(
+    "/refresh",
+    response_model=TokenResponse,
+    summary="Refresh Access Token",
+    responses={
+        200: {"model": TokenResponse, "description": "Successfully refreshed token"},
+        401: {"model": ErrorResponse, "description": "Invalid refresh token"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def refresh_token(
+    refresh_token: RefreshToken, db: Session = Depends(get_db)
+) -> Dict[str, str]:
+    try:
+        payload = await verify_token(refresh_token.refresh_token, "refresh")
+        email = payload.get("sub")
+        if email is None:
+            raise CREDENTIALS_EXCEPTION
+
+        user = crud.user.get_user_by_email(db, email)
+        if not user:
+            raise CREDENTIALS_EXCEPTION
+
+        access_token = create_access_token(data={"sub": email})
+        new_refresh_token = create_refresh_token(data={"sub": email})
+
+        logger.info(f"Token refreshed successfully for user: {email}")
+        return {
+            "access_token": access_token,
+            "refresh_token": new_refresh_token,
+            "token_type": "bearer",
+        }
+    except JWTError:
+        logger.warning("Invalid refresh token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except DatabaseException as e:
+        logger.error(f"Database error during token refresh: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database error: {str(e)}",
