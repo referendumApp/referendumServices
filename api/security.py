@@ -20,26 +20,11 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 api_key_header = APIKeyHeader(name="X-API_Key", auto_error=False)
 
 
-class SecurityException(Exception):
-    """Base exception for security operations"""
-
-    pass
-
-
-CREDENTIALS_EXCEPTION = HTTPException(
-    status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="Could not validate credentials",
-    headers={"WWW-Authenticate": "Bearer"},
-)
-
-
-def _decode_token(token: str) -> Dict:
-    """Internal function to decode JWT tokens"""
-    try:
-        return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-    except JWTError as e:
-        logger.warning(f"Token decode failed: {str(e)}")
-        return None
+class CredentialsException(Exception):
+    def __init__(self, detail: str):
+        self.status_code = status.HTTP_401_UNAUTHORIZED
+        self.detail = detail
+        self.headers = {"WWW-Authenticate": "Bearer"}
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -55,12 +40,12 @@ def authenticate_user(db: Session, email: str, password: str) -> models.User:
         user = crud.user.get_user_by_email(db, email)
         if not verify_password(password, user.hashed_password):
             logger.warning(f"Failed login attempt for user: {email}")
-            raise SecurityException(f"Unable to authorize user with email: {email}")
+            raise CredentialsException(f"Unable to authorize user with email: {email}")
         logger.info(f"Successful login for user: {email}")
         return user
     except crud.DatabaseException as e:
         logger.error(f"Database error during authentication: {str(e)}")
-        raise SecurityException(f"Database error during authentication: {str(e)}")
+        raise CredentialsException(f"Database error during authentication: {str(e)}")
 
 
 def create_access_token(data: dict) -> str:
@@ -88,39 +73,45 @@ async def verify_token(token: str, token_type: str) -> dict:
             raise JWTError("Invalid token type")
         return payload
     except JWTError:
-        raise CREDENTIALS_EXCEPTION
+        raise CredentialsException
 
 
 async def get_current_user(
     token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
 ) -> models.User:
     if not token:
-        raise CREDENTIALS_EXCEPTION
+        raise CredentialsException
 
-    payload = _decode_token(token)
+    payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
     if not payload:
-        raise CREDENTIALS_EXCEPTION
+        message = "Decoded token returned None"
+        logger.error(message)
+        raise CredentialsException(message)
 
     # Verify token type
     if payload.get("type") != "access":
-        logger.warning("Invalid token type for access token")
-        raise CREDENTIALS_EXCEPTION
+        message = "Invalid token type for access token"
+        logger.error(message)
+        raise CredentialsException(message)
 
     # Get and verify email claim
     email: str = payload.get("sub")
     if not email:
-        logger.warning("Missing email in access token")
-        raise CREDENTIALS_EXCEPTION
+        message = "Missing email in access token"
+        logger.error(message)
+        raise CredentialsException(message)
 
     try:
         user = crud.user.get_user_by_email(db, email)
         if not user:
-            logger.warning(f"User not found for email: {email}")
-            raise CREDENTIALS_EXCEPTION
+            message = f"User not found for email: {email}"
+            logger.error(message)
+            raise CredentialsException(message)
         return user
     except Exception as e:
-        logger.error(f"Error retrieving user: {str(e)}")
-        raise CREDENTIALS_EXCEPTION
+        message = f"Error retrieving user: {str(e)}"
+        logger.error(message)
+        raise CredentialsException(message)
 
 
 async def get_current_user_or_verify_system_token(
@@ -133,8 +124,9 @@ async def get_current_user_or_verify_system_token(
             logger.info("System token used for authentication")
             return {"is_system": True}
         else:
-            logger.error("Invalid API key provided")
-            raise CREDENTIALS_EXCEPTION
+            message = "Invalid API key provided"
+            logger.error(message)
+            raise CredentialsException(message)
     if token:
         try:
             user = await get_current_user(token, db)
@@ -153,8 +145,9 @@ async def get_current_user_or_verify_system_token(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Database error: {str(e)}",
             )
-    logger.warning("No valid authentication provided")
-    raise CREDENTIALS_EXCEPTION
+    message = "No valid authentication provided"
+    logger.error(message)
+    raise CredentialsException(message)
 
 
 async def verify_system_token(api_key: str = Security(api_key_header)):

@@ -14,6 +14,7 @@ from common.database.referendum.crud import (
 from ..database import get_db
 from ..schemas import ErrorResponse, TokenResponse, UserCreateInput, RefreshToken
 from ..security import (
+    CredentialsException,
     SecurityException,
     authenticate_user,
     create_access_token,
@@ -83,8 +84,8 @@ async def login_for_access_token(
             "refresh_token": refresh_token,
             "token_type": "bearer",
         }
-    except (ObjectNotFoundException, SecurityException):
-        logger.warning(f"Login failed for user: {form_data.username}")
+    except (ObjectNotFoundException, SecurityException) as e:
+        logger.warning(f"Login failed with exception {e} for user: {form_data.username}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -108,18 +109,18 @@ async def login_for_access_token(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
-async def refresh_token(
+async def refresh_access_token(
     refresh_token: RefreshToken, db: Session = Depends(get_db)
 ) -> Dict[str, str]:
     try:
         payload = await verify_token(refresh_token.refresh_token, "refresh")
         email = payload.get("sub")
         if email is None:
-            raise CREDENTIALS_EXCEPTION
+            raise CredentialsException
 
         user = crud.user.get_user_by_email(db, email)
         if not user:
-            raise CREDENTIALS_EXCEPTION
+            raise CredentialsException
 
         access_token = create_access_token(data={"sub": email})
         new_refresh_token = create_refresh_token(data={"sub": email})
@@ -142,4 +143,11 @@ async def refresh_token(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database error: {str(e)}",
+        )
+    except Exception as e:
+        logger.warning(f"Failed to refresh token with exception {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
         )
