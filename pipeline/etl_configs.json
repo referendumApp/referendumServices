@@ -304,30 +304,6 @@
     "dataframe": null
   },
   {
-    "source": "ls_text_type",
-    "destination": "bill_version_types",
-    "source_columns": [
-      "bill_text_type_id",
-      "bill_text_name"
-    ],
-    "destination_columns": [
-      "id",
-      "name"
-    ],
-    "transformations": [
-      {
-        "function": "rename",
-        "parameters": {
-          "columns": {
-            "bill_text_type_id": "id",
-            "bill_text_name": "name"
-          }
-        }
-      }
-    ],
-    "dataframe": null
-  },
-  {
     "source": "ls_bill_vote",
     "destination": "bill_actions",
     "source_columns": [
@@ -404,30 +380,6 @@
             "roll_call_id": "bill_action_id",
             "people_id": "legislator_id",
             "vote_id": "vote_choice_id"
-          }
-        }
-      }
-    ],
-    "dataframe": null
-  },
-  {
-    "source": "ls_progress",
-    "destination": "bill_statuses",
-    "source_columns": [
-      "progress_event_id",
-      "progress_desc"
-    ],
-    "destination_columns": [
-      "id",
-      "name"
-    ],
-    "transformations": [
-      {
-        "function": "rename",
-        "parameters": {
-          "columns": {
-            "progress_event_id": "id",
-            "progress_desc": "name"
           }
         }
       }
