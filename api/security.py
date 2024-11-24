@@ -73,7 +73,7 @@ async def get_current_user(
     token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
 ) -> models.User:
     if not token:
-        raise CredentialsException
+        raise CredentialsException("No token provided")
 
     payload = decode_token(token)
     if not payload:
