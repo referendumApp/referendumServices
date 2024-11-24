@@ -19,7 +19,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 api_key_header = APIKeyHeader(name="X-API_Key", auto_error=False)
 
 
-class CredentialsException(Exception):
+class CredentialsException(HTTPException):
     def __init__(self, detail: str):
         self.status_code = status.HTTP_401_UNAUTHORIZED
         self.detail = detail
