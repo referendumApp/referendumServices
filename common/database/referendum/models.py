@@ -40,13 +40,6 @@ committee_membership = Table(
     Column("legislator_id", Integer, ForeignKey("legislators.id"), primary_key=True),
 )
 
-bill_sponsors = Table(
-    "bill_sponsors",
-    Base.metadata,
-    Column("bill_id", Integer, ForeignKey("bills.id"), primary_key=True),
-    Column("legislator_id", Integer, ForeignKey("legislators.id"), primary_key=True),
-    Column("is_primary", Boolean, nullable=False, default=False),
-)
 
 bill_topics = Table(
     "bill_topics",
@@ -54,6 +47,18 @@ bill_topics = Table(
     Column("bill_id", Integer, ForeignKey("bills.id"), primary_key=True),
     Column("topic_id", Integer, ForeignKey("topics.id"), primary_key=True),
 )
+
+
+class Sponsor(Base):
+    __tablename__ = "bill_sponsors"
+
+    bill_id = Column(Integer, ForeignKey("bills.id"), primary_key=True)
+    legislator_id = Column(Integer, ForeignKey("legislators.id"), primary_key=True)
+    rank = Column(Integer, nullable=False, default=0)
+    type = Column(String, nullable=False, default="")
+
+    legislator = relationship("Legislator")
+    bill = relationship("Bill")
 
 
 class VoteChoice(Base):
@@ -147,9 +152,9 @@ class Bill(Base):
     state = relationship("State")
     legislative_body = relationship("LegislativeBody")
     topics = relationship("Topic", secondary=bill_topics)
-    sponsors = relationship("Legislator", secondary=bill_sponsors, back_populates="sponsored_bills")
     bill_versions = relationship("BillVersion", back_populates="bill")
     session = relationship("Session", back_populates="bills")
+    sponsors = relationship("Sponsor", back_populates="bill")
 
 
 class Session(Base):
@@ -210,7 +215,7 @@ class Legislator(Base):
     committees = relationship(
         "Committee", secondary=committee_membership, back_populates="legislators"
     )
-    sponsored_bills = relationship("Bill", secondary=bill_sponsors, back_populates="sponsors")
+    sponsored_bills = relationship("Sponsor", back_populates="legislator")
 
 
 class UserVote(Base):
