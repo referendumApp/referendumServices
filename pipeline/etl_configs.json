@@ -273,12 +273,14 @@
       "text_id",
       "bill_id",
       "bill_text_type_id",
+      "bill_text_date",
       "state_url"
     ],
     "destination_columns": [
       "id",
       "bill_id",
-      "bill_version_type_id",
+      "type",
+      "date",
       "url",
       "hash"
     ],
