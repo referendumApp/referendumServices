@@ -278,7 +278,7 @@
     "destination_columns": [
       "id",
       "bill_id",
-      "bill_version_type_id",
+      "version_type",
       "url",
       "hash"
     ],
@@ -287,7 +287,6 @@
         "function": "rename",
         "parameters": {
           "columns": {
-            "bill_text_type_id": "bill_version_type_id",
             "state_url": "url",
             "text_id": "id"
           }
@@ -298,6 +297,29 @@
         "parameters": {
           "source_name": "url",
           "destination_name": "hash"
+        }
+      },
+      {
+        "function": "map",
+        "parameters": {
+          "source_name": "bill_text_type_id",
+          "destination_name": "version_type",
+          "mapping": {
+            "1": "Introduced",
+            "2": "Comm Sub",
+            "3": "Amended",
+            "4": "Engrossed",
+            "5": "Enrolled",
+            "6": "Chaptered",
+            "7": "Fiscal Note",
+            "8": "Analysis",
+            "9": "Draft",
+            "10": "Conference Sub",
+            "11": "Prefiled",
+            "12": "Veto Message",
+            "13": "Veto Response",
+            "14": "Substitute"
+          }
         }
       }
     ],
@@ -426,6 +448,9 @@
       }
     ],
     "dataframe": null,
-    "unique_constraints": ["bill_id", "legislator_id"]
+    "unique_constraints": [
+      "bill_id",
+      "legislator_id"
+    ]
   }
 ]
