@@ -3,6 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from typing import Dict
 import logging
+from datetime import datetime
 
 from common.database.referendum import schemas, crud
 from common.database.referendum.crud import (
@@ -123,9 +124,8 @@ async def refresh_access_token(
         expiration = token.get("exp")
         if expiration is None:
             raise CredentialsException("Refresh token is invalid: no expiration date")
-
-        if expiration < time.now():
-            raise CredentialsException("Refresh token is invalid: past expiration date")
+        if datetime.fromtimestamp(expiration) < datetime.utcnow():
+            raise CredentialsException("Refresh token has expired")
 
         user = crud.user.get_user_by_email(db, email)
         if not user:
@@ -140,6 +140,13 @@ async def refresh_access_token(
             "refresh_token": new_refresh_token,
             "token_type": "bearer",
         }
+    except CredentialsException as e:
+        logger.warning(f"Token refresh failed: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e),
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     except DatabaseException as e:
         logger.error(f"Database error during token refresh: {str(e)}")
         raise HTTPException(
@@ -147,7 +154,7 @@ async def refresh_access_token(
             detail=f"Database error: {str(e)}",
         )
     except Exception as e:
-        message = f"Failed to refresh token with exception {e}"
+        message = f"Failed to refresh token: {str(e)}"
         logger.warning(message)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
