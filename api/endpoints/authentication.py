@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from jose import JWTError
 from sqlalchemy.orm import Session
 from typing import Dict
 import logging
-from datetime import datetime
 
 from common.database.referendum import schemas, crud
 from common.database.referendum.crud import (
@@ -119,17 +119,11 @@ async def refresh_access_token(
 
         email = token.get("sub")
         if email is None:
-            raise CredentialsException("Refresh token is invalid: no email")
-
-        expiration = token.get("exp")
-        if expiration is None:
-            raise CredentialsException("Refresh token is invalid: no expiration date")
-        if datetime.fromtimestamp(expiration) < datetime.utcnow():
-            raise CredentialsException("Refresh token has expired")
+            raise CredentialsException("Invalid token: missing user identifier")
 
         user = crud.user.get_user_by_email(db, email)
         if not user:
-            raise CredentialsException(f"Refresh token is invalid: no user found for email {email}")
+            raise CredentialsException("Invalid token: user not found")
 
         access_token = create_access_token(data={"sub": email})
         new_refresh_token = create_refresh_token(data={"sub": email})
@@ -140,6 +134,13 @@ async def refresh_access_token(
             "refresh_token": new_refresh_token,
             "token_type": "bearer",
         }
+    except JWTError as e:
+        logger.warning(f"Invalid or expired token: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     except CredentialsException as e:
         logger.warning(f"Token refresh failed: {str(e)}")
         raise HTTPException(
