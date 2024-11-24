@@ -23,6 +23,7 @@ def test_pipeline_execution():
         "ls_bill": "bills",
         "ls_party": "partys",
         "ls_people": "legislators",
+        # TODO - enable these for all tables
         # "legiscan_table": "bill_versions",
         # "legiscan_table": "topics",
         # "legiscan_table": "user_topic_follows",

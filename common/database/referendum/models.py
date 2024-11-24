@@ -45,7 +45,8 @@ bill_sponsors = Table(
     Base.metadata,
     Column("bill_id", Integer, ForeignKey("bills.id"), primary_key=True),
     Column("legislator_id", Integer, ForeignKey("legislators.id"), primary_key=True),
-    Column("is_primary", Boolean, nullable=False, default=False),
+    Column("order", String, nullable=False, default=False),
+    Column("type", String, nullable=False, default=False),
 )
 
 bill_topics = Table(
