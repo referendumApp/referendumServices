@@ -398,7 +398,7 @@
     "destination_columns": [
       "bill_id",
       "legislator_id",
-      "order",
+      "rank",
       "type"
     ],
     "transformations": [
@@ -407,7 +407,7 @@
         "parameters": {
           "columns": {
             "people_id": "legislator_id",
-            "sponsor_order": "order"
+            "sponsor_order": "rank"
           }
         }
       },
@@ -425,6 +425,7 @@
         }
       }
     ],
-    "dataframe": null
+    "dataframe": null,
+    "unique_constraints": ["bill_id", "legislator_id"]
   }
 ]

@@ -28,11 +28,18 @@ async def test_list_bill_details(client, system_headers, test_bill_version, test
         "sessionId": DEFAULT_ID,
         "stateName": "Washington",
         "legislativeBodyRole": "House",
-        "sponsors": [],
+        "sponsors": [{"billId": 999999, "legislatorId": 999999, "rank": 1, "type": "Sponsor"}],
     }
 
     for field, value in expected_fields.items():
         assert bill[field] == value
+
+    # Remove sponsor
+    response = await client.delete(
+        f"/bills/{test_bill_version['billId']}/sponsors/{test_legislator['id']}",
+        headers=system_headers,
+    )
+    assert_status_code(response, 204)
 
 
 async def test_add_bill_already_exists(client, system_headers, test_bill):
@@ -160,7 +167,7 @@ async def test_add_remove_bill_sponsor(client, system_headers, test_bill, test_l
     assert_status_code(response, 200)
     sponsors = response.json()["sponsors"]
     assert len(sponsors) == 1
-    assert sponsors[0]["id"] == test_legislator["id"]
+    assert sponsors[0]["legislatorId"] == test_legislator["id"]
 
     # Remove topic from bill
     response = await client.delete(
