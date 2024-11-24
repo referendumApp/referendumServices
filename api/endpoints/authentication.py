@@ -115,13 +115,21 @@ async def refresh_access_token(
         token = await decode_token(refresh_token.refresh_token)
         if token.get("type") != "refresh":
             raise CredentialsException("Invalid token type")
+
         email = token.get("sub")
         if email is None:
-            raise CredentialsException("No email in provided token")
+            raise CredentialsException("Refresh token is invalid: no email")
+
+        expiration = token.get("exp")
+        if expiration is None:
+            raise CredentialsException("Refresh token is invalid: no expiration date")
+
+        if expiration < time.now():
+            raise CredentialsException("Refresh token is invalid: past expiration date")
 
         user = crud.user.get_user_by_email(db, email)
         if not user:
-            raise CredentialsException(f"No user found for email provided in token: {email}")
+            raise CredentialsException(f"Refresh token is invalid: no user found for email {email}")
 
         access_token = create_access_token(data={"sub": email})
         new_refresh_token = create_refresh_token(data={"sub": email})
