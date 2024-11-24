@@ -1,6 +1,6 @@
 from enum import Enum
 from typing import Dict, List, Optional, Set
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm.session import Session
 import hashlib
 import pandas as pd
@@ -97,6 +97,7 @@ class ETLConfig(BaseModel):
     destination: str
     destination_columns: List[str]
     transformations: List[Transformation]
+    unique_constraints: List[str] = Field(default=["id"])
     dataframe: Optional[pd.DataFrame] = None
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -126,7 +127,6 @@ class ETLConfig(BaseModel):
             for transform in self.transformations:
                 df = transform.apply(df)
             self.dataframe = df
-
         except Exception as e:
             logger.error(f"Error transforming {self.source}: {str(e)}")
             raise
@@ -135,16 +135,15 @@ class ETLConfig(BaseModel):
         try:
             logger.info(f"Loading data into {self.destination} with unique_constraints on 'id'")
 
-            # Check if any data exists
             if self.dataframe.empty:
-                logger.warning(f"Skipping; no data to write")
+                logger.warning("Skipping; no data to write")
                 return
 
             # Check if destination table exists
             query = text("SELECT 1 FROM information_schema.tables WHERE table_name = :table_name")
             exists = conn.execute(query, {"table_name": self.destination}).scalar() is not None
             if not exists:
-                raise ValueError(f"Table '{self.destination}' does not exist")
+                raise ValueError(f"Destination table '{self.destination}' does not exist")
 
             # Create temporary table
             temp_table = f"temp_{self.destination}"
@@ -156,13 +155,17 @@ class ETLConfig(BaseModel):
             )
 
             # Perform UPSERT from temporary table
-            unique_constraint_columns = ["id"]
-            conflict_targets = ", ".join(unique_constraint_columns)
+            conflict_targets = ", ".join(self.unique_constraints)
             update_sets = ", ".join(
                 f"{col} = EXCLUDED.{col}"
                 for col in self.destination_columns
-                if col not in unique_constraint_columns
+                if col not in self.unique_constraints
             )
+
+            # Special case where all columns are part of unique constraint
+            if not update_sets:
+                update_sets = "id = EXCLUDED.id"  # Dummy update that won't actually happen
+
             upsert_query = f"""
                 INSERT INTO {self.destination} ({', '.join(self.destination_columns)})
                 SELECT {', '.join(self.destination_columns)}
@@ -170,8 +173,8 @@ class ETLConfig(BaseModel):
                 ON CONFLICT ({conflict_targets})
                 DO UPDATE SET {update_sets}
             """
+            logger.info(f"Executing upsert query: {upsert_query}")
             conn.execute(text(upsert_query))
-
             conn.execute(text(f"DROP TABLE {temp_table}"))
             conn.commit()
 
