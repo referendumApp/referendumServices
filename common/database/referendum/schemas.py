@@ -145,6 +145,17 @@ BillVersion = create_schema_container(
 )
 
 
+Sponsor = create_schema_container(
+    name="Sponsor",
+    base_fields={
+        "bill_id": (int, ...),
+        "legislator_id": (int, ...),
+        "rank": (int, ...),
+        "type": (str, ...),
+    },
+)
+
+
 Bill = create_schema_container(
     name="Bill",
     base_fields={
@@ -164,19 +175,8 @@ Bill = create_schema_container(
         "state": (Optional[State.Record], None),
         "legislative_body": (Optional[LegislativeBody.Record], None),
         "topics": (List[Topic.Record], []),
-        "sponsors": (List[Legislator.Record], []),
+        "sponsors": (List[Sponsor.Record], []),
         "versions": (List[BillVersion.Record], []),
-    },
-)
-
-
-Sponsor = create_schema_container(
-    name="Sponsor",
-    base_fields={
-        "bill_id": (int, ...),
-        "legislator_id": (int, ...),
-        "order": (int, ...),
-        "type": (str, ...),
     },
 )
 

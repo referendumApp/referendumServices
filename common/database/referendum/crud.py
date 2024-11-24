@@ -149,7 +149,7 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
             .options(
                 joinedload(models.Bill.state),
                 joinedload(models.Bill.legislative_body).joinedload(models.LegislativeBody.role),
-                joinedload(models.Bill.sponsors),
+                joinedload(models.Bill.sponsors).joinedload(models.Sponsor.legislator),
                 joinedload(models.Bill.topics),
                 joinedload(models.Bill.bill_versions),
             )
@@ -187,30 +187,37 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
         db_bill.topics.remove(db_topic)
         db.commit()
 
-    def add_sponsor(self, db: Session, bill_id: int, legislator_id: int, is_primary: bool = False):
-        db_bill = self.read(db=db, obj_id=bill_id)
+    def add_sponsor(
+        self, db: Session, bill_id: int, legislator_id: int, type: str = "Sponsor", rank: int = 1
+    ):
         db_legislator = (
             db.query(models.Legislator).filter(models.Legislator.id == legislator_id).first()
         )
         if not db_legislator:
             raise ObjectNotFoundException(f"Legislator not found for id: {legislator_id}")
 
-        # Check if the sponsor already exists
-        existing_sponsor = [
-            sponsor for sponsor in db_bill.sponsors if sponsor.legislator_id == legislator_id
-        ]
-        if existing_sponsor:
-            existing_sponsor = existing_sponsor[0]
-            if existing_sponsor.is_primary != is_primary:
-                existing_sponsor.is_primary = is_primary
-                db.commit()
-        else:
-            db.execute(
-                models.bill_sponsors.insert().values(
-                    bill_id=bill_id, legislator_id=legislator_id, is_primary=is_primary
-                )
+        existing_sponsor = (
+            db.query(models.Sponsor)
+            .filter(
+                models.Sponsor.bill_id == bill_id, models.Sponsor.legislator_id == legislator_id
             )
-        db.commit()
+            .first()
+        )
+
+        if existing_sponsor:
+            existing_sponsor.rank = rank
+            existing_sponsor.type = type
+        else:
+            new_sponsor = models.Sponsor(
+                bill_id=bill_id, legislator_id=legislator_id, rank=rank, type=type
+            )
+            db.add(new_sponsor)
+
+        try:
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise DatabaseException(f"Error adding sponsor: {str(e)}")
 
     def remove_sponsor(
         self,
@@ -218,18 +225,25 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
         bill_id: int,
         legislator_id: int,
     ):
-        db_bill = self.read(db=db, obj_id=bill_id)
-        db_legislator = (
-            db.query(models.Legislator).filter(models.Legislator.id == legislator_id).first()
-        )
-        if not db_legislator:
-            raise ObjectNotFoundException(f"Legislator not found for id: {legislator_id}")
-        if db_legislator not in db_bill.sponsors:
-            raise ObjectNotFoundException(
-                f"Cannot remove, bill {bill_id} does not have sponsor {legislator_id}"
+        sponsor = (
+            db.query(models.Sponsor)
+            .filter(
+                models.Sponsor.bill_id == bill_id, models.Sponsor.legislator_id == legislator_id
             )
-        db_bill.sponsors.remove(db_legislator)
-        db.commit()
+            .first()
+        )
+
+        if not sponsor:
+            raise ObjectNotFoundException(
+                f"Sponsor relationship not found for bill {bill_id} and legislator {legislator_id}"
+            )
+
+        try:
+            db.delete(sponsor)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise DatabaseException(f"Error removing sponsor: {str(e)}")
 
 
 class BillActionCRUD(
