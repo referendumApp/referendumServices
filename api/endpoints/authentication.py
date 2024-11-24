@@ -15,11 +15,10 @@ from ..database import get_db
 from ..schemas import ErrorResponse, TokenResponse, UserCreateInput, RefreshToken
 from ..security import (
     CredentialsException,
-    SecurityException,
     authenticate_user,
     create_access_token,
     create_refresh_token,
-    verify_token,
+    decode_token,
     get_user_create_with_hashed_password,
 )
 
@@ -84,7 +83,7 @@ async def login_for_access_token(
             "refresh_token": refresh_token,
             "token_type": "bearer",
         }
-    except (ObjectNotFoundException, SecurityException) as e:
+    except (ObjectNotFoundException, CredentialsException) as e:
         logger.warning(f"Login failed with exception {e} for user: {form_data.username}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -113,14 +112,16 @@ async def refresh_access_token(
     refresh_token: RefreshToken, db: Session = Depends(get_db)
 ) -> Dict[str, str]:
     try:
-        payload = await verify_token(refresh_token.refresh_token, "refresh")
-        email = payload.get("sub")
+        token = await decode_token(refresh_token.refresh_token)
+        if token.get("type") != "refresh":
+            raise CredentialsException("Invalid token type")
+        email = token.get("sub")
         if email is None:
-            raise CredentialsException
+            raise CredentialsException("No email in provided token")
 
         user = crud.user.get_user_by_email(db, email)
         if not user:
-            raise CredentialsException
+            raise CredentialsException(f"No user found for email provided in token: {email}")
 
         access_token = create_access_token(data={"sub": email})
         new_refresh_token = create_refresh_token(data={"sub": email})
@@ -138,9 +139,10 @@ async def refresh_access_token(
             detail=f"Database error: {str(e)}",
         )
     except Exception as e:
-        logger.warning(f"Failed to refresh token with exception {e}")
+        message = f"Failed to refresh token with exception {e}"
+        logger.warning(message)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token",
+            detail=message,
             headers={"WWW-Authenticate": "Bearer"},
         )
