@@ -279,7 +279,7 @@ async def test_user_vote(
     user_vote = response.json()
     yield user_vote
     response = await client.delete(
-        f"/users/votes?bill_id={user_vote['billId']}",
+        f"/users/votes?billId={user_vote['billId']}",
         headers=headers,
     )
     assert_status_code(response, 204)
