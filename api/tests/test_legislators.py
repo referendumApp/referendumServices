@@ -1,4 +1,4 @@
-from api.tests.test_utils import assert_status_code
+from api.tests.test_utils import assert_status_code, DEFAULT_ID
 
 
 async def test_add_legislator_success(test_legislator):
@@ -37,8 +37,8 @@ async def test_update_legislator_success(client, system_headers, test_legislator
 
 async def test_update_legislator_not_found(client, system_headers):
     non_existent_legislator = {
-        "id": 9999,
-        "legiscanId": 99999999,
+        "id": DEFAULT_ID * 2,
+        "legiscanId": DEFAULT_ID * 2,
         "name": "Anti-John Doe",
         "image_url": "example.com/image.png",
         "district": "ED-1",

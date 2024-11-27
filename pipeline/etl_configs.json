@@ -97,6 +97,32 @@
     "dataframe": null
   },
   {
+    "source": "ls_session",
+    "destination": "sessions",
+    "source_columns": [
+      "session_id",
+      "session_name",
+      "state_id"
+    ],
+    "destination_columns": [
+      "id",
+      "name",
+      "state_id"
+    ],
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "session_id": "id",
+            "session_name": "name"
+          }
+        }
+      }
+    ],
+    "dataframe": null
+  },
+  {
     "source": "ls_bill",
     "destination": "bills",
     "source_columns": [
@@ -119,7 +145,7 @@
       "legislative_body_id",
       "identifier",
       "session_id",
-      "status_id",
+      "status",
       "status_date"
     ],
     "transformations": [
@@ -138,6 +164,28 @@
         "parameters": {
           "source_name": "id",
           "destination_name": "legiscan_id"
+        }
+      },
+      {
+        "function": "map",
+        "parameters": {
+          "source_name": "status_id",
+          "destination_name": "status",
+          "mapping": {
+            "0": "Prefiled",
+            "1": "Introduced",
+            "2": "Engrossed",
+            "3": "Enrolled",
+            "4": "Passed",
+            "5": "Vetoed",
+            "6": "Failed",
+            "7": "Override",
+            "8": "Chaptered",
+            "9": "Refer",
+            "10": "Report Pass",
+            "11": "Report DNP",
+            "12": "Draft"
+          }
         }
       }
     ],
@@ -230,7 +278,7 @@
     "destination_columns": [
       "id",
       "bill_id",
-      "bill_version_type_id",
+      "version_type",
       "url",
       "hash"
     ],
@@ -239,7 +287,6 @@
         "function": "rename",
         "parameters": {
           "columns": {
-            "bill_text_type_id": "bill_version_type_id",
             "state_url": "url",
             "text_id": "id"
           }
@@ -251,28 +298,27 @@
           "source_name": "url",
           "destination_name": "hash"
         }
-      }
-    ],
-    "dataframe": null
-  },
-  {
-    "source": "ls_text_type",
-    "destination": "bill_version_types",
-    "source_columns": [
-      "bill_text_type_id",
-      "bill_text_name"
-    ],
-    "destination_columns": [
-      "id",
-      "name"
-    ],
-    "transformations": [
+      },
       {
-        "function": "rename",
+        "function": "map",
         "parameters": {
-          "columns": {
-            "bill_text_type_id": "id",
-            "bill_text_name": "name"
+          "source_name": "bill_text_type_id",
+          "destination_name": "version_type",
+          "mapping": {
+            "1": "Introduced",
+            "2": "Comm Sub",
+            "3": "Amended",
+            "4": "Engrossed",
+            "5": "Enrolled",
+            "6": "Chaptered",
+            "7": "Fiscal Note",
+            "8": "Analysis",
+            "9": "Draft",
+            "10": "Conference Sub",
+            "11": "Prefiled",
+            "12": "Veto Message",
+            "13": "Veto Response",
+            "14": "Substitute"
           }
         }
       }
@@ -361,5 +407,50 @@
       }
     ],
     "dataframe": null
+  },
+  {
+    "source": "ls_bill_sponsor",
+    "destination": "bill_sponsors",
+    "source_columns": [
+      "bill_id",
+      "people_id",
+      "sponsor_order",
+      "sponsor_type_id"
+    ],
+    "destination_columns": [
+      "bill_id",
+      "legislator_id",
+      "rank",
+      "type"
+    ],
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "people_id": "legislator_id",
+            "sponsor_order": "rank"
+          }
+        }
+      },
+      {
+        "function": "map",
+        "parameters": {
+          "source_name": "sponsor_type_id",
+          "destination_name": "type",
+          "mapping": {
+            "0": "Sponsor",
+            "1": "Primary Sponsor",
+            "2": "Co-Sponsor",
+            "4": "Joint Sponsor"
+          }
+        }
+      }
+    ],
+    "dataframe": null,
+    "unique_constraints": [
+      "bill_id",
+      "legislator_id"
+    ]
   }
 ]

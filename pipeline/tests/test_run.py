@@ -1,5 +1,4 @@
-import pytest
-import subprocess
+import json
 import os
 
 from pipeline import run
@@ -7,6 +6,7 @@ from sqlalchemy import text
 
 from common.database.referendum import connection as referendum_connection
 from common.database.legiscan_api import connection as legiscan_api_connection
+from pipeline.etl_config import ETLConfig
 
 
 def test_pipeline_execution():
@@ -15,28 +15,13 @@ def test_pipeline_execution():
     referendum_db = referendum_connection.SessionLocal()
     legiscan_db = legiscan_api_connection.SessionLocal()
 
-    table_pairs = {
-        "ls_state": "states",
-        "ls_body": "legislative_bodys",
-        "ls_role": "roles",
-        "ls_committee": "committees",
-        "ls_bill": "bills",
-        "ls_party": "partys",
-        "ls_people": "legislators",
-        # "legiscan_table": "bill_versions",
-        # "legiscan_table": "topics",
-        # "legiscan_table": "user_topic_follows",
-        # "legiscan_table": "users",
-        # "legiscan_table": "user_bill_follows",
-        # "legiscan_table": "committee_membership",
-        # "legiscan_table": "bill_actions",
-        # "legiscan_table": "bill_sponsors",
-        # "legiscan_table": "bill_topics",
-        # "legiscan_table": "user_votes",
-        # "legiscan_table": "legislator_votes",
-        # "legiscan_table": "comments",
-        # "legiscan_table": "user_legislator_follows"
-    }
+    directory = os.path.dirname(os.path.abspath(__file__))
+    config_filepath = f"{directory}/../etl_configs.json"
+    with open(config_filepath, "r") as config_file:
+        config_data = json.load(config_file)
+        etl_configs = [ETLConfig(**config) for config in config_data]
+
+    table_pairs = {config.source: config.destination for config in etl_configs}
 
     for legiscan_table, referendum_table in table_pairs.items():
         # Query to count rows in each table

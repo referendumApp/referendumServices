@@ -1,5 +1,5 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List, Optional
 
@@ -394,7 +394,7 @@ async def admin_get_user_votes(
     },
 )
 async def get_user_votes(
-    bill_id: Optional[int] = None,
+    bill_id: Optional[int] = Query(None, alias="billId"),
     db: Session = Depends(get_db),
     user: Dict[str, Any] = Depends(get_current_user),
 ) -> List[models.UserVote]:
@@ -415,7 +415,7 @@ async def get_user_votes(
     },
 )
 async def uncast_vote(
-    bill_id: int,
+    bill_id: int = Query(alias="billId"),
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):

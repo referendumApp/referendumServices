@@ -129,6 +129,8 @@ def run_text_extraction():
             failed += 1
 
     logger.info(f"Text extraction completed. " f"Succeeded: {succeeded}, " f"Failed: {failed}, ")
+    if failed > 0:
+        raise Exception(f"Succeeded: {succeeded}, " f"Failed: {failed}, ")
 
 
 def orchestrate():

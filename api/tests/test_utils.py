@@ -1,11 +1,11 @@
 import random
 import string
 
+DEFAULT_ID = 999999
 NAY_VOTE_ID = 0
 YAY_VOTE_ID = 1
 
 
-# Shared utility functions
 def assert_status_code(response, expected_status_code: int):
     assert (
         response.status_code == expected_status_code

@@ -133,10 +133,10 @@ gh workflow run run_pipeline.yml -f environment=<environment>
 
 ### Environments
 
-| Environment | Port | Config Location | Image Tags | Auto Deploy | Usage |
-|-------------|------|-----------------|------------|-------------|--------|
-| Development | 8080 | `/dev/` in SSM | `dev-${SHA}`, `dev-stable` | On PR merge | Testing & QA |
-| Production  | 80   | `/prod/` in SSM | `prod-${SHA}`, `prod-stable` | Manual | Live service |
+| Environment | Config Location | Image Tags | Auto Deploy | Usage |
+|-------------|-----------------|------------|-------------|--------|
+| Development | `/dev/` in SSM | `dev-${SHA}`, `dev-stable` | On PR merge | Testing & QA |
+| Production  | `/prod/` in SSM | `prod-${SHA}`, `prod-stable` | Manual | Live service |
 
 ### Deployment Steps
 
