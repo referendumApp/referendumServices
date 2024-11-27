@@ -290,7 +290,8 @@
         "parameters": {
           "columns": {
             "state_url": "url",
-            "text_id": "id"
+            "text_id": "id",
+            "bill_text_date": "date"
           }
         }
       },
