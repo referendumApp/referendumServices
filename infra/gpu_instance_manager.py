@@ -81,6 +81,19 @@ class GPUInstanceManager:
                             },
                         },
                     ],
+                    "TagSpecifications": [
+                        {
+                            "ResourceType": "instance",
+                            "Tags": [
+                                {"Key": "Name", "Value": "LLM-Development"},
+                                {
+                                    "Key": "AutoShutdown",
+                                    "Value": self.config["DEFAULT"]["AutoShutdownHours"],
+                                },
+                                {"Key": "CreatedBy", "Value": "GPUInstanceManager"},
+                            ],
+                        }
+                    ],
                 },
             )
 
@@ -210,8 +223,6 @@ def main():
         2. Start new:      gpu_instance_manager.py request
         3. Stop instance:  gpu_instance_manager.py stop --instance-id i-1234xyz
         4. Resume work:    gpu_instance_manager.py start --instance-id i-1234xyz
-
-        Configure budget limits in ~/.ec2manager.ini
         """
     )
     parser.add_argument("action", choices=["start", "stop", "price", "request"])
