@@ -127,8 +127,8 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
                 logger.error(f"Database error while reading {resource_name}: {str(e)}")
                 raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-        @router.put(
-            "/",
+        @router.patch(
+            "/{item_id}",
             response_model=response_schema,
             summary=f"Update {resource_name} information",
             responses={
@@ -145,21 +145,22 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
             },
         )
         async def update_item(
-            item: update_schema,
+            item_id: int,
+            item: Dict[str, Any],
             db: Session = Depends(get_db),
             _: Dict[str, Any] = Depends(permissions.update),
         ):
             logger.info(f"Attempting to update {resource_name} with ID: {item.id}")
             try:
-                db_item = crud_model.read(db=db, obj_id=item.id)
+                db_item = crud_model.read(db=db, obj_id=item_id)
                 updated_item = crud_model.update(db=db, db_obj=db_item, obj_in=item)
-                logger.info(f"Successfully updated {resource_name} with ID: {item.id}")
+                logger.info(f"Successfully updated {resource_name} with ID: {item_id}")
                 return updated_item
             except ObjectNotFoundException:
-                logger.warning(f"{resource_name} not found for ID: {item.id}")
+                logger.warning(f"{resource_name} not found for ID: {item_id}")
                 raise HTTPException(
                     status_code=404,
-                    detail=f"{resource_name} not found for ID: {item.id}",
+                    detail=f"{resource_name} not found for ID: {item_id}",
                 )
             except DatabaseException as e:
                 logger.error(f"Database error while updating {resource_name}: {str(e)}")

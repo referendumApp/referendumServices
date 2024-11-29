@@ -28,29 +28,19 @@ async def test_add_legislator_unauthorized(client, test_legislator):
 
 
 async def test_update_legislator_success(client, system_headers, test_legislator):
-    updated_data = {**test_legislator, "name": "Updated Test legislator"}
-    response = await client.put("/legislators/", json=updated_data, headers=system_headers)
+    updated_data = {"name": "Updated Test legislator"}
+    response = await client.patch(
+        f"/legislators/{test_legislator['id']}", json=updated_data, headers=system_headers
+    )
     assert_status_code(response, 200)
     updated_legislator = response.json()
     assert updated_legislator["name"] == "Updated Test legislator"
 
 
 async def test_update_legislator_not_found(client, system_headers):
-    non_existent_legislator = {
-        "id": DEFAULT_ID * 2,
-        "legiscanId": DEFAULT_ID * 2,
-        "name": "Anti-John Doe",
-        "image_url": "example.com/image.png",
-        "district": "ED-1",
-        "address": "999 Senate Office Building Washington, DC 20510",
-        "instagram": "@senantijohndoe",
-        "phone": "(202) 111-1112",
-        "partyId": 1,
-        "stateId": 1,
-        "roleId": 1,
-    }
-    response = await client.put(
-        "/legislators/", json=non_existent_legislator, headers=system_headers
+    non_existent_legislator = {"name": "Anti-John Doe"}
+    response = await client.patch(
+        "/legislators/9999", json=non_existent_legislator, headers=system_headers
     )
     assert_status_code(response, 404)
     assert "legislator not found" in response.json()["detail"]

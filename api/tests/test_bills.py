@@ -62,35 +62,30 @@ async def test_add_bill_unauthorized(client, test_bill):
 
 async def test_update_bill(client, system_headers, test_bill):
     updated_data = {**test_bill, "title": "Updated Bill Title"}
-    response = await client.put("/bills/", json=updated_data, headers=system_headers)
+    response = await client.patch(
+        f"/bills/{test_bill['id']}", json=updated_data, headers=system_headers
+    )
     assert_status_code(response, 200)
     updated_bill = response.json()
     assert updated_bill["title"] == "Updated Bill Title"
 
 
 async def test_update_bill_not_found(client, system_headers):
-    non_existent_bill = {
-        "id": 9999,
-        "legiscanId": 0,
+    update_data = {
         "identifier": "DNE.1",
-        "title": "Non-existent Bill",
-        "description": "This bill does not exist",
-        "stateId": 1,
-        "legislativeBodyId": 1,
-        "sessionId": 118,
         "briefing": "yadayadayada",
-        "status": "Introduced",
-        "status_date": "2024-01-01",
     }
-    response = await client.put("/bills/", json=non_existent_bill, headers=system_headers)
+    response = await client.patch("/bills/99999", json=update_data, headers=system_headers)
     assert_status_code(response, 404)
     assert "bill not found" in response.json()["detail"]
 
 
 async def test_update_bill_unauthorized(client, test_bill):
-    updated_data = {**test_bill, "title": "Updated Test Bill"}
-    response = await client.put(
-        "/bills/", json=updated_data, headers={"Authorization": "Bearer user_token"}
+    updated_data = {"title": "Updated Test Bill"}
+    response = await client.patch(
+        f"/bills/{test_bill['id']}",
+        json=updated_data,
+        headers={"Authorization": "Bearer user_token"},
     )
     assert_status_code(response, 403)
 

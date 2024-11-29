@@ -112,14 +112,24 @@ class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         if db_obj is None:
             raise ObjectNotFoundException("Object not found")
         try:
-            obj_data = obj_in.model_dump(exclude_unset=True)
             if isinstance(obj_in, dict):
                 update_data = obj_in
             else:
                 update_data = obj_in.model_dump(exclude_unset=True)
-            for field in obj_data:
-                if field in update_data:
-                    setattr(db_obj, field, update_data[field])
+
+            # Validate non-nullable fields aren't being set to None
+            for field, value in update_data.items():
+                if (
+                    value is None
+                    and hasattr(self.model, "__table__")
+                    and field in self.model.__table__.columns
+                    and self.model.__table__.columns[field].nullable is False
+                ):
+                    raise NullValueException(f"Null value provided for non-nullable field: {field}")
+
+            for field, value in update_data.items():
+                setattr(db_obj, field, value)
+
             db.add(db_obj)
             db.commit()
             db.refresh(db_obj)
