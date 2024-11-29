@@ -4,7 +4,7 @@ import time
 import sys
 
 
-class EC2Manager:
+class GPUInstanceManager:
     def __init__(self, region="us-east-1"):
         self.ec2 = boto3.client("ec2", region_name=region)
         self.region = region
@@ -206,10 +206,10 @@ def main():
         EC2 Spot Instance Manager for LLM Development
 
         Common workflows:
-        1. Check price:    ec2_manager.py price
-        2. Start new:      ec2_manager.py request
-        3. Stop instance:  ec2_manager.py stop --instance-id i-1234xyz
-        4. Resume work:    ec2_manager.py start --instance-id i-1234xyz
+        1. Check price:    gpu_instance_manager.py price
+        2. Start new:      gpu_instance_manager.py request
+        3. Stop instance:  gpu_instance_manager.py stop --instance-id i-1234xyz
+        4. Resume work:    gpu_instance_manager.py start --instance-id i-1234xyz
 
         Configure budget limits in ~/.ec2manager.ini
         """
@@ -221,7 +221,7 @@ def main():
     parser.add_argument("--ami-id", help="Optional AMI ID")
     args = parser.parse_args()
 
-    manager = EC2Manager(args.region)
+    manager = GPUInstanceManager(args.region)
 
     if args.action == "request":
         manager.request_spot_instance(args.instance_type, args.ami_id)
