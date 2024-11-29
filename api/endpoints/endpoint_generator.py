@@ -150,7 +150,7 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
             db: Session = Depends(get_db),
             _: Dict[str, Any] = Depends(permissions.update),
         ):
-            logger.info(f"Attempting to update {resource_name} with ID: {item.id}")
+            logger.info(f"Attempting to update {resource_name} with ID: {item_id}")
             try:
                 db_item = crud_model.read(db=db, obj_id=item_id)
                 updated_item = crud_model.update(db=db, db_obj=db_item, obj_in=item)
