@@ -97,8 +97,6 @@ class DenormalizedBill(CamelCaseBaseModel):
     state_id: int = Field(description="State identifier")
     state_name: str = Field(description="Name of the state")
     legislative_body_id: int = Field(description="Legislative body identifier")
-    legislative_body_role_id: int = Field(description="Role ID of the legislative body")
-    legislative_body_role_name: str = Field(description="Role name of the legislative body")
     sponsors: List[Sponsor.Record] = Field(
         default_factory=list, description="List of all bill sponsors"
     )

@@ -77,8 +77,6 @@ async def get_bill_details(
                 "state_name": bill.state.name,
                 "current_version_id": bill.current_version_id,
                 "legislative_body_id": bill.legislative_body.id,
-                "legislative_body_role_id": bill.legislative_body.role_id,
-                "legislative_body_role_name": bill.legislative_body.role.name,
                 "sponsors": bill.sponsors,
             }
             result.append(bill_dict)
