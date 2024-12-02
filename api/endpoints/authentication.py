@@ -58,7 +58,7 @@ async def signup(user: UserCreateInput, db: Session = Depends(get_db)) -> schema
     except ObjectAlreadyExistsException:
         logger.warning(f"Signup failed: Email already registered - {user.email}")
         raise FormException(
-            status_code=status.HTTP_409_CONFLICT, field="email", message="Email already registered."
+            status_code=status.HTTP_409_CONFLICT, field="email", message="Email already registered"
         )
     except DatabaseException as e:
         logger.error(f"Database error during user signup: {str(e)}")
