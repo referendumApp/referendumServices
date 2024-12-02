@@ -112,7 +112,6 @@ class ETLConfig(BaseModel):
         logger.info(query)
         try:
             self.dataframe = pd.read_sql(query, con=conn)
-            logger.info(self.dataframe)
         except Exception as e:
             logger.error(f"Error reading data with query '{query}': {e}")
             raise
