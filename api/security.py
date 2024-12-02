@@ -29,7 +29,7 @@ class FormException(HTTPException):
         headers: Optional[Dict[str, str]] = None,
     ):
         self.status_code = status_code
-        self.detail = FormErrorResponse(field=field, message=message)
+        self.detail = FormErrorResponse(field=field, message=message).model_dump()
         self.headers = headers
         super().__init__(
             status_code=self.status_code,
@@ -41,7 +41,7 @@ class FormException(HTTPException):
 
 
 class CredentialsException(HTTPException):
-    def __init__(self, detail: str | FormErrorResponse):
+    def __init__(self, detail: str):
         self.status_code = status.HTTP_401_UNAUTHORIZED
         self.detail = detail
         self.headers = {"WWW-Authenticate": "Bearer"}
