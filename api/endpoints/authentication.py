@@ -1,14 +1,15 @@
+import logging
+from typing import Dict
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from typing import Dict
-import logging
 
-from common.database.referendum import schemas, crud
+from common.database.referendum import crud, schemas
 from common.database.referendum.crud import (
+    DatabaseException,
     ObjectAlreadyExistsException,
     ObjectNotFoundException,
-    DatabaseException,
 )
 
 from ..database import get_db
@@ -47,7 +48,11 @@ async def signup(user: UserCreateInput, db: Session = Depends(get_db)) -> schema
     except ObjectAlreadyExistsException:
         logger.warning(f"Signup failed: Email already registered - {user.email}")
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Email already registered."
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "field": "email",
+                "message": "Email already registered",
+            },
         )
     except DatabaseException as e:
         logger.error(f"Database error during user signup: {str(e)}")
@@ -80,14 +85,20 @@ async def login_for_access_token(
         logger.warning(f"Login failed: User not found - {form_data.username}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail={
+                "field": "username",
+                "message": f"User not found - {form_data.username}",
+            },
             headers={"WWW-Authenticate": "Bearer"},
         )
     except SecurityException:
         logger.warning(f"Login failed: Incorrect password for user - {form_data.username}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail={
+                "field": "password",
+                "message": f"Incorrect password for user - {form_data.username}",
+            },
             headers={"WWW-Authenticate": "Bearer"},
         )
     except DatabaseException as e:
