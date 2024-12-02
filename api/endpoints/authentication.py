@@ -14,7 +14,13 @@ from common.database.referendum.crud import (
 )
 
 from ..database import get_db
-from ..schemas import ErrorResponse, RefreshToken, TokenResponse, UserCreateInput
+from ..schemas import (
+    ErrorResponse,
+    FormErrorResponse,
+    RefreshToken,
+    TokenResponse,
+    UserCreateInput,
+)
 from ..security import (
     CredentialsException,
     FormException,
@@ -38,7 +44,7 @@ router = APIRouter()
     responses={
         201: {"model": schemas.User, "description": "Successfully created user"},
         400: {"model": ErrorResponse, "description": "Bad request"},
-        409: {"model": ErrorResponse, "description": "User already exists"},
+        409: {"model": FormErrorResponse, "description": "User already exists"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
@@ -68,7 +74,7 @@ async def signup(user: UserCreateInput, db: Session = Depends(get_db)) -> schema
     summary="Login for Access Token",
     responses={
         200: {"model": TokenResponse, "description": "Successful authentication"},
-        401: {"model": ErrorResponse, "description": "Unauthorized"},
+        401: {"model": FormErrorResponse, "description": "Unauthorized"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )

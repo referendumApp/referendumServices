@@ -11,7 +11,7 @@ from common.database.referendum import models, crud, schemas
 
 from api.config import settings
 from api.database import get_db
-from api.schemas import FormErrorResponse, UserCreateInput
+from api.schemas import FormErrorModel, UserCreateInput
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class FormException(HTTPException):
         headers: Optional[Dict[str, str]] = None,
     ):
         self.status_code = status_code
-        self.detail = FormErrorResponse(field=field, message=message).model_dump()
+        self.detail = FormErrorModel(field=field, message=message).model_dump()
         self.headers = headers
         super().__init__(
             status_code=self.status_code,
