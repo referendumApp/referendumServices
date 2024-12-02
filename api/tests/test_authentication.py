@@ -28,7 +28,7 @@ async def test_signup_existing_email(client):
     # Try to create another user with the same email
     response = await client.post("/auth/signup", json=user_data)
     assert_status_code(response, 409)
-    assert "Email already registered" in response.json()["detail"]
+    assert {"field": "email", "message": "Email already registered"} == response.json()["detail"]
 
 
 async def test_signup_invalid_email(client):
@@ -86,7 +86,10 @@ async def test_login_incorrect_password(client):
     login_data = {"username": user_data["email"], "password": "wrongpassword"}
     response = await client.post("/auth/login", data=login_data)
     assert_status_code(response, 401)
-    assert "Incorrect username or password" in response.json()["detail"]
+    assert {
+        "field": "password",
+        "message": f"Incorrect password for user - {user_data['email']}",
+    } == response.json()["detail"]
 
 
 async def test_login_nonexistent_user(client):
@@ -97,7 +100,10 @@ async def test_login_nonexistent_user(client):
     }
     response = await client.post("/auth/login", data=login_data)
     assert_status_code(response, 401)
-    assert f"User not found - {login_data['username']}" in response.json()["detail"]["message"]
+    assert {
+        "field": "username",
+        "message": f"User not found - {login_data['username']}",
+    } == response.json()["detail"]
 
 
 async def test_login_missing_fields(client):
