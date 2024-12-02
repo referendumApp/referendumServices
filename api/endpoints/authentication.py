@@ -1,21 +1,23 @@
+import logging
+from typing import Dict
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from jose import JWTError
 from sqlalchemy.orm import Session
-from typing import Dict
-import logging
 
-from common.database.referendum import schemas, crud
+from common.database.referendum import crud, schemas
 from common.database.referendum.crud import (
+    DatabaseException,
     ObjectAlreadyExistsException,
     ObjectNotFoundException,
-    DatabaseException,
 )
 
 from ..database import get_db
-from ..schemas import ErrorResponse, TokenResponse, UserCreateInput, RefreshToken
+from ..schemas import ErrorResponse, RefreshToken, TokenResponse, UserCreateInput
 from ..security import (
     CredentialsException,
+    FormException,
     authenticate_user,
     create_access_token,
     create_refresh_token,
@@ -49,8 +51,8 @@ async def signup(user: UserCreateInput, db: Session = Depends(get_db)) -> schema
         return created_user
     except ObjectAlreadyExistsException:
         logger.warning(f"Signup failed: Email already registered - {user.email}")
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Email already registered."
+        raise FormException(
+            status_code=status.HTTP_409_CONFLICT, field="email", message="Email already registered."
         )
     except DatabaseException as e:
         logger.error(f"Database error during user signup: {str(e)}")
@@ -84,11 +86,15 @@ async def login_for_access_token(
             "refresh_token": refresh_token,
             "token_type": "bearer",
         }
-    except (ObjectNotFoundException, CredentialsException) as e:
+    except FormException as e:
+        logger.warning(f"Login failed with exception: {e}")
+        raise e
+    except ObjectNotFoundException as e:
         logger.warning(f"Login failed with exception {e} for user: {form_data.username}")
-        raise HTTPException(
+        raise FormException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            field="username",
+            message=f"User not found - {form_data.username}",
             headers={"WWW-Authenticate": "Bearer"},
         )
     except DatabaseException as e:
