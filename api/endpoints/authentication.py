@@ -3,6 +3,7 @@ from typing import Dict
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from jose import JWTError
 from sqlalchemy.orm import Session
 
 from common.database.referendum import crud, schemas
@@ -13,11 +14,14 @@ from common.database.referendum.crud import (
 )
 
 from ..database import get_db
-from ..schemas import ErrorResponse, TokenResponse, UserCreateInput
+from ..schemas import ErrorResponse, RefreshToken, TokenResponse, UserCreateInput
 from ..security import (
-    SecurityException,
+    CredentialsException,
+    FormException,
     authenticate_user,
     create_access_token,
+    create_refresh_token,
+    decode_token,
     get_user_create_with_hashed_password,
 )
 
@@ -47,12 +51,8 @@ async def signup(user: UserCreateInput, db: Session = Depends(get_db)) -> schema
         return created_user
     except ObjectAlreadyExistsException:
         logger.warning(f"Signup failed: Email already registered - {user.email}")
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "field": "email",
-                "message": "Email already registered",
-            },
+        raise FormException(
+            status_code=status.HTTP_409_CONFLICT, field="email", message="Email already registered."
         )
     except DatabaseException as e:
         logger.error(f"Database error during user signup: {str(e)}")
@@ -79,26 +79,22 @@ async def login_for_access_token(
     try:
         user = authenticate_user(db, form_data.username, form_data.password)
         access_token = create_access_token(data={"sub": user.email})
+        refresh_token = create_refresh_token(data={"sub": user.email})
         logger.info(f"Login successful for user: {user.email}")
-        return {"access_token": access_token, "token_type": "bearer"}
-    except ObjectNotFoundException:
-        logger.warning(f"Login failed: User not found - {form_data.username}")
-        raise HTTPException(
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+        }
+    except FormException as e:
+        logger.warning(f"Login failed with exception: {e}")
+        raise e
+    except ObjectNotFoundException as e:
+        logger.warning(f"Login failed with exception {e} for user: {form_data.username}")
+        raise FormException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={
-                "field": "username",
-                "message": f"User not found - {form_data.username}",
-            },
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except SecurityException:
-        logger.warning(f"Login failed: Incorrect password for user - {form_data.username}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={
-                "field": "password",
-                "message": f"Incorrect password for user - {form_data.username}",
-            },
+            field="username",
+            message=f"User not found - {form_data.username}",
             headers={"WWW-Authenticate": "Bearer"},
         )
     except DatabaseException as e:
@@ -106,4 +102,69 @@ async def login_for_access_token(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database error: {str(e)}",
+        )
+
+
+@router.post(
+    "/refresh",
+    response_model=TokenResponse,
+    summary="Refresh Access Token",
+    responses={
+        200: {"model": TokenResponse, "description": "Successfully refreshed token"},
+        401: {"model": ErrorResponse, "description": "Invalid refresh token"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def refresh_access_token(
+    refresh_token: RefreshToken, db: Session = Depends(get_db)
+) -> Dict[str, str]:
+    try:
+        token = await decode_token(refresh_token.refresh_token)
+        if token.get("type") != "refresh":
+            raise CredentialsException("Invalid token type")
+
+        email = token.get("sub")
+        if email is None:
+            raise CredentialsException("Invalid token: missing user identifier")
+
+        user = crud.user.get_user_by_email(db, email)
+        if not user:
+            raise CredentialsException("Invalid token: user not found")
+
+        access_token = create_access_token(data={"sub": email})
+        new_refresh_token = create_refresh_token(data={"sub": email})
+
+        logger.info(f"Token refreshed successfully for user: {email}")
+        return {
+            "access_token": access_token,
+            "refresh_token": new_refresh_token,
+            "token_type": "bearer",
+        }
+    except JWTError as e:
+        logger.warning(f"Invalid or expired token: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except CredentialsException as e:
+        logger.warning(f"Token refresh failed: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e),
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except DatabaseException as e:
+        logger.error(f"Database error during token refresh: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(e)}",
+        )
+    except Exception as e:
+        message = f"Failed to refresh token: {str(e)}"
+        logger.warning(message)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=message,
+            headers={"WWW-Authenticate": "Bearer"},
         )
