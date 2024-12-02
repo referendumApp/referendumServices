@@ -74,7 +74,7 @@ async def test_delete_topic_not_found(client, system_headers):
     assert "topic not found" in response.json()["detail"]
 
 
-async def test_delete_bill_unauthorized(client, test_topic):
+async def test_delete_topic_unauthorized(client, test_topic):
     response = await client.delete(
         f"/topics/{test_topic['id']}", headers={"Authorization": "Bearer user_token"}
     )
