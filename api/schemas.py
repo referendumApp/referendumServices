@@ -5,6 +5,11 @@ from pydantic import Field, field_validator
 from common.database.referendum.schemas import CamelCaseBaseModel, UserBase, Sponsor
 
 
+class FormErrorResponse(CamelCaseBaseModel):
+    field: str
+    message: str
+
+
 class ErrorResponse(CamelCaseBaseModel):
     detail: str
 
