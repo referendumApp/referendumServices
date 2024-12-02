@@ -97,7 +97,7 @@ async def test_login_nonexistent_user(client):
     }
     response = await client.post("/auth/login", data=login_data)
     assert_status_code(response, 401)
-    assert f"User not found - {login_data['username']}" in response.json()["detail"]
+    assert f"User not found - {login_data['username']}" in response.json()["detail"]["message"]
 
 
 async def test_login_missing_fields(client):
