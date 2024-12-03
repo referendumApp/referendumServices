@@ -1,4 +1,4 @@
-from api.tests.test_utils import assert_status_code, DEFAULT_ID
+from api.tests.test_utils import DEFAULT_ID, assert_status_code
 
 
 async def test_add_legislator_success(test_legislator):
@@ -97,3 +97,35 @@ async def test_delete_legislator_unauthorized(client, test_legislator):
         headers={"Authorization": "Bearer user_token"},
     )
     assert_status_code(response, 403)
+
+
+async def test_get_legislator_voting_history(client, system_headers, test_legislator_vote):
+    bill_response = await client.get(
+        f"/bills/{test_legislator_vote['billId']}",
+        headers=system_headers,
+    )
+    action_response = await client.get(
+        f"/bill_actions/{test_legislator_vote['billActionId']}",
+        headers=system_headers,
+    )
+    vote_choice_response = await client.get("/vote_choices/", headers=system_headers)
+    voting_response = await client.get(
+        f"/legislators/{test_legislator_vote['legislatorId']}/voting_history",
+        headers=system_headers,
+    )
+    assert_status_code(voting_response, 200)
+
+    bill = bill_response.json()
+    action = action_response.json()
+    vote_choice = vote_choice_response.json()
+    voting_history = voting_response.json()[0]
+
+    assert voting_history["billId"] == bill["id"]
+    assert voting_history["identifier"] == bill["identifier"]
+    assert voting_history["title"] == bill["title"]
+
+    bill_action_votes = voting_history["billActionVotes"][0]
+    assert bill_action_votes["billActionId"] == action["id"]
+    assert bill_action_votes["date"] == action["date"]
+    assert bill_action_votes["actionDescription"] == action["description"]
+    assert any(choice["name"] == bill_action_votes["voteChoiceName"] for choice in vote_choice)

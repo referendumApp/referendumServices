@@ -82,12 +82,13 @@ async def get_legislator_voting_history(
 
         legislator_votes = []
         for bill in bill_results:
-            legislator_votes.append
-            LegislatorVote(
-                bill_id=bill.id,
-                identifier=bill.identifier,
-                title=bill.title,
-                bill_action_votes=bill_action_votes[bill.id],
+            legislator_votes.append(
+                LegislatorVote(
+                    bill_id=bill.id,
+                    identifier=bill.identifier,
+                    title=bill.title,
+                    bill_action_votes=bill_action_votes[bill.id],
+                )
             )
 
         return legislator_votes
