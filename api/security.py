@@ -1,4 +1,5 @@
 import logging
+from typing import Dict, Optional
 from datetime import datetime, timedelta
 from fastapi import Security, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
@@ -10,13 +11,33 @@ from common.database.referendum import models, crud, schemas
 
 from api.config import settings
 from api.database import get_db
-from api.schemas import UserCreateInput
+from api.schemas import FormErrorModel, UserCreateInput
 
 logger = logging.getLogger(__name__)
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 api_key_header = APIKeyHeader(name="X-API_Key", auto_error=False)
+
+
+class FormException(HTTPException):
+    def __init__(
+        self,
+        field: str,
+        message: str,
+        status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
+        headers: Optional[Dict[str, str]] = None,
+    ):
+        self.status_code = status_code
+        self.detail = FormErrorModel(field=field, message=message).model_dump()
+        self.headers = headers
+        super().__init__(
+            status_code=self.status_code,
+            detail=self.detail,
+            headers=self.headers,
+        )
+
+        logger.error(self.detail)
 
 
 class CredentialsException(HTTPException):
@@ -26,6 +47,11 @@ class CredentialsException(HTTPException):
         self.headers = {"WWW-Authenticate": "Bearer"}
 
         logger.error(self.detail)
+        super().__init__(
+            status_code=self.status_code,
+            detail=self.detail,
+            headers=self.headers,
+        )
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -44,7 +70,12 @@ def authenticate_user(db: Session, email: str, password: str) -> models.User:
     try:
         user = crud.user.get_user_by_email(db, email)
         if not verify_password(password, user.hashed_password):
-            raise CredentialsException(f"Unable to authorize user with email: {email}")
+            raise FormException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                field="password",
+                message=f"Incorrect password for user - {email}",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
         logger.info(f"Successful login for user: {email}")
         return user
     except crud.DatabaseException as e:

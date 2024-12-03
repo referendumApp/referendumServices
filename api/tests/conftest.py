@@ -170,6 +170,7 @@ async def test_bill(create_test_entity, delete_test_entity, test_session, test_l
         "briefing": "yadayadayada",
         "status": "Introduced",
         "status_date": "2024-01-01",
+        "current_version_id": None,
     }
     bill = await create_test_entity("/bills/", bill_data)
     yield bill

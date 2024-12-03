@@ -171,6 +171,7 @@ Bill = create_schema_container(
         "briefing": (Optional[str], ...),
         "legislative_body_id": (int, ...),
     },
+    record_fields={"current_version_id": (Optional[int], None)},
     relationship_fields={
         "state": (Optional[State.Record], None),
         "legislative_body": (Optional[LegislativeBody.Record], None),
