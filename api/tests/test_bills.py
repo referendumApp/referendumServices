@@ -81,6 +81,7 @@ async def test_update_bill_not_found(client, system_headers):
         "briefing": "yadayadayada",
         "status": "Introduced",
         "status_date": "2024-01-01",
+        "currentVersionId": 0,
     }
     response = await client.put("/bills/", json=non_existent_bill, headers=system_headers)
     assert_status_code(response, 404)

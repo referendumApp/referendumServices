@@ -1,6 +1,6 @@
-from sqlalchemy import Column, Enum, Integer, String, ForeignKey, Table, Date, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey, Table, Date
 from sqlalchemy.orm import relationship, declarative_base
-import enum
+import datetime
 
 Base = declarative_base()
 
@@ -148,11 +148,12 @@ class Bill(Base):
     briefing = Column(String, nullable=True)
     status = Column(String)
     status_date = Column(Date)
+    current_version_id = Column(Integer, ForeignKey("bill_versions.id"), nullable=True)
 
     state = relationship("State")
     legislative_body = relationship("LegislativeBody")
     topics = relationship("Topic", secondary=bill_topics)
-    bill_versions = relationship("BillVersion", back_populates="bill")
+    bill_versions = relationship("BillVersion", foreign_keys="BillVersion.bill_id")
     session = relationship("Session", back_populates="bills")
     sponsors = relationship("Sponsor", back_populates="bill")
 
@@ -175,8 +176,7 @@ class BillVersion(Base):
     bill_id = Column(Integer, ForeignKey("bills.id"))
     url = Column(String, nullable=True)
     hash = Column(String, nullable=True)
-
-    bill = relationship("Bill", back_populates="bill_versions")
+    date = Column(Date, nullable=False, default=datetime.date(1970, 1, 1))
 
 
 class BillAction(Base):
