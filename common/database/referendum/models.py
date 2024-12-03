@@ -234,7 +234,9 @@ class LegislatorVote(Base):
     bill_action_id = Column(Integer, ForeignKey("bill_actions.id"), primary_key=True)
     vote_choice_id = Column(Integer, ForeignKey("vote_choices.id"), nullable=False)
 
-    bill_action = relationship("BillAction", back_populates="legislator_votes")
+    bill_action = relationship(
+        "BillAction", order_by="desc(BillAction.date)", back_populates="legislator_votes"
+    )
     legislator = relationship("Legislator", back_populates="legislator_votes")
     vote_choice = relationship("VoteChoice")
 

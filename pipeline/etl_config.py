@@ -1,11 +1,12 @@
+import hashlib
+import logging
 from enum import Enum
 from typing import Dict, List, Optional, Set
-from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy.orm.session import Session
-import hashlib
+
 import pandas as pd
-import logging
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import text
+from sqlalchemy.orm.session import Session
 
 logger = logging.getLogger(__name__)
 
@@ -91,24 +92,68 @@ class Transformation(BaseModel):
             raise
 
 
+class JoinType(str, Enum):
+    LEFT = "LEFT JOIN"
+    RIGHT = "RIGHT JOIN"
+    INNER = "INNER JOIN"
+    OUTER = "OUTER JOIN"
+
+
+class JoinConfig(BaseModel):
+    join_type: JoinType
+    table: str
+    on: str
+    columns: Set[str]
+
+    def _query_validation(self, source_columns: Set[str]):
+        if self.on not in source_columns:
+            raise ValueError(
+                f"The joined column {self.on} does not exist in the source columns: {source_columns}"
+            )
+
+        if any(col in source_columns for col in self.columns):
+            raise ValueError(
+                f"""Duplicate columns from the joined table detected
+                joined_columns: {self.columns}
+                source_columns: {source_columns}"""
+            )
+
+    def _get_join_source_query(self, source: str, source_columns: Set[str]) -> str:
+        formatted_src_cols = {f"{source}.{src_col}" for src_col in source_columns}
+        formatted_join_cols = {f"{self.table}.{join_col}" for join_col in self.columns}
+        columns = ", ".join(sorted(formatted_src_cols.union(formatted_join_cols)))
+
+        return f"SELECT {columns} FROM {source} {self.join_type.value} {self.table} ON {source}.{self.on} = {self.table}.{self.on}"
+
+
 class ETLConfig(BaseModel):
     source: str
     source_columns: Set[str]
     destination: str
     destination_columns: List[str]
+    join_config: Optional[JoinConfig] = None
     transformations: List[Transformation]
     unique_constraints: List[str] = Field(default=["id"])
     dataframe: Optional[pd.DataFrame] = None
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    def _get_source_query(self) -> str:
+    def _get_source_query(self, join_config: Optional[JoinConfig]) -> str:
         """Generate SQL query for source data extraction"""
-        columns = ", ".join(sorted(self.source_columns))
-        return f"SELECT {columns} FROM {self.source}"
+        if join_config:
+            join_config._query_validation(source_columns=self.source_columns)
+            source_query = join_config._get_join_source_query(
+                source=self.source,
+                source_columns=self.source_columns,
+            )
+        else:
+            columns = ", ".join(sorted(self.source_columns))
+            source_query = f"SELECT {columns} FROM {self.source}"
+
+        return source_query
 
     def extract(self, conn: Session):
-        query = self._get_source_query()
+        query = self._get_source_query(join_config=self.join_config)
         logger.info(query)
         try:
             self.dataframe = pd.read_sql(query, con=conn)
