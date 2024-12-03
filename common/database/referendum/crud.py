@@ -147,7 +147,7 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
             "yay": sum(1 for vote in db_bill.user_votes if vote.vote_choice_id == 1),
             "nay": sum(1 for vote in db_bill.user_votes if vote.vote_choice_id == 0),
         }
-    
+
     def read_all_denormalized(
         self, db: Session, skip: int = 0, limit: int = 100
     ) -> List[models.Bill]:
