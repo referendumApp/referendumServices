@@ -85,6 +85,12 @@ State = create_schema_container(
 )
 
 
+Session = create_schema_container(
+    name="Session",
+    base_fields={"id": (int, ...), "name": (str, ...), "state_id": (int, ...)},
+)
+
+
 LegislativeBody = create_schema_container(
     name="State",
     base_fields={"id": (int, ...), "role_id": (int, ...), "state_id": (int, ...)},
@@ -139,6 +145,17 @@ BillVersion = create_schema_container(
 )
 
 
+Sponsor = create_schema_container(
+    name="Sponsor",
+    base_fields={
+        "bill_id": (int, ...),
+        "legislator_id": (int, ...),
+        "rank": (int, ...),
+        "type": (str, ...),
+    },
+)
+
+
 Bill = create_schema_container(
     name="Bill",
     base_fields={
@@ -149,15 +166,16 @@ Bill = create_schema_container(
         "description": (str, ...),
         "session_id": (int, ...),
         "state_id": (int, ...),
-        "status_id": (int, ...),
+        "status": (str, ...),
         "status_date": (date, ...),
         "briefing": (Optional[str], ...),
+        "legislative_body_id": (int, ...),
     },
     relationship_fields={
         "state": (Optional[State.Record], None),
         "legislative_body": (Optional[LegislativeBody.Record], None),
         "topics": (List[Topic.Record], []),
-        "sponsors": (List[Legislator.Record], []),
+        "sponsors": (List[Sponsor.Record], []),
         "versions": (List[BillVersion.Record], []),
     },
 )

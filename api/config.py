@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     API_ACCESS_TOKEN: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     SECRET_KEY: str
 
     # AWS
@@ -42,6 +43,17 @@ def setup_logging() -> None:
         logging.basicConfig(level=settings.LOG_LEVEL)
         root_logger = logging.getLogger()
         root_logger.addHandler(cloudwatch_handler)
+
+        # Uvicorn loggers
+        uvicorn_access_logger = logging.getLogger("uvicorn.access")
+        uvicorn_access_logger.handlers = []  # Clear existing handlers
+        uvicorn_access_logger.addHandler(cloudwatch_handler)
+        uvicorn_access_logger.propagate = False  # Prevent duplicate logs
+
+        uvicorn_error_logger = logging.getLogger("uvicorn.error")
+        uvicorn_error_logger.handlers = []
+        uvicorn_error_logger.addHandler(cloudwatch_handler)
+        uvicorn_error_logger.propagate = False
 
         # Shutdown hook to flush the handler
         import atexit

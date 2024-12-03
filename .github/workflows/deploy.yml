@@ -115,7 +115,7 @@ jobs:
 
     - name: Set additional deployment variables
       run: |
-        echo "PORT_MAPPING=$([ "$DEPLOY_ENV" == "prod" ] && echo "80:80" || echo "8080:80")" >> $GITHUB_ENV
+        echo "PORT_MAPPING=$([ "$DEPLOY_ENV" == "prod" ] && echo "8000:80" || echo "8001:80")" >> $GITHUB_ENV
         
         # Get EC2 Instance ID from SSM Parameter Store based on environment
         EC2_INSTANCE_ID_PARAM="/$(echo $DEPLOY_ENV | tr '[:upper:]' '[:lower:]')/API_EC2_INSTANCE_ID"
@@ -141,10 +141,12 @@ jobs:
         docker push $ECR_REGISTRY/$ECR_REPOSITORY_API:migrations-${{ env.IMAGE_TAG }}
 
     - name: Deploy to EC2
+      id: deploy-ec2
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
         set -e
+        echo "deployment_failed=false" >> $GITHUB_OUTPUT
         echo "Deploying to EC2..."
         DEPLOY_COMMAND_OUTPUT=$(aws ssm send-command \
           --instance-ids "${{ env.EC2_INSTANCE_ID }}" \
@@ -201,15 +203,11 @@ jobs:
           if [ "$STATUS" = "Success" ]; then
             echo "Deployment command executed successfully"
             break
-          elif [ "$STATUS" = "Failed" ]; then
-            echo "Deployment command failed"
+          elif [ "$STATUS" = "Failed" ] || [ "$STATUS" = "TimedOut" ]; then
+            echo "Deployment command $STATUS"
             echo "Command output:"
             echo "$COMMAND_RESULT" | jq -r '.CommandInvocations[0].CommandPlugins[0].Output'
-            exit 1
-          elif [ "$STATUS" = "TimedOut" ]; then
-            echo "Deployment command timed out"
-            echo "Command output:"
-            echo "$COMMAND_RESULT" | jq -r '.CommandInvocations[0].CommandPlugins[0].Output'
+            echo "deployment_failed=true" >> $GITHUB_OUTPUT
             exit 1
           fi
           
@@ -218,13 +216,15 @@ jobs:
         done
 
     - name: Verify Deployment
+      id: verify-deployment
+      if: always()
       run: |
         set -e
         echo "Verifying deployment..."
-        PORT="${{ env.DEPLOY_ENV == 'prod' && '80' || '8080' }}"
+        PORT="${{ env.DEPLOY_ENV == 'prod' && '8000' || '8001' }}"
         MAX_RETRIES=5
         RETRY_INTERVAL=10
-
+        
         for i in $(seq 1 $MAX_RETRIES); do
           echo "Attempt $i of $MAX_RETRIES"
           HEALTH_CHECK_COMMAND_ID=$(aws ssm send-command \
@@ -247,6 +247,7 @@ jobs:
             echo "Updating stable tag..."
             docker tag ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.IMAGE_TAG }} ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.DEPLOY_ENV }}-stable
             docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.DEPLOY_ENV }}-stable
+            echo "verification_status=success" >> $GITHUB_OUTPUT
             echo "Deployment successful"
             exit 0
           fi
@@ -254,7 +255,16 @@ jobs:
           echo "Health check failed. Status code: $HEALTH_CHECK_STATUS_CODE"
         done
 
+        echo "verification_status=failed" >> $GITHUB_OUTPUT
         echo "Deployment verification failed after $MAX_RETRIES attempts"
+        exit 1
+
+    - name: Rollback Deployment
+      if: |
+        failure() || 
+        steps.deploy-ec2.outputs.deployment_failed == 'true' || 
+        steps.verify-deployment.outputs.verification_status == 'failed'
+      run: |
         echo "Rolling back to previous stable version..."
         aws ssm send-command \
           --instance-ids "${{ env.EC2_INSTANCE_ID }}" \

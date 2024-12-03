@@ -5,11 +5,16 @@ from typing import AsyncGenerator, Dict, Tuple
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-
 from api.config import settings
 from api.main import app
 from api.security import create_access_token
-from api.tests.test_utils import assert_status_code, generate_random_string, NO_VOTE_ID
+from api.tests.test_utils import (
+    assert_status_code,
+    generate_random_string,
+    DEFAULT_ID,
+    YAY_VOTE_ID,
+    NAY_VOTE_ID,
+)
 from common.object_storage.client import ObjectStorageClient
 
 ENV = os.environ.get("ENVIRONMENT")
@@ -41,7 +46,7 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
 async def create_test_entity(client: AsyncClient, system_headers: Dict[str, str]):
     async def create_entity(endpoint: str, payload: Dict):
         if "id" not in payload:
-            payload["id"] = 999999
+            payload["id"] = DEFAULT_ID
 
         response = await client.post(endpoint, json=payload, headers=system_headers)
         assert_status_code(response, 201)
@@ -71,9 +76,9 @@ async def test_vote_choice(create_test_entity, delete_test_entity):
 @pytest_asyncio.fixture(scope="function")
 async def test_vote_choices(create_test_entity, delete_test_entity):
     # We create the original and an alternative
-    vote_choice_data = {"name": "Yea"}
+    vote_choice_data = {"id": YAY_VOTE_ID, "name": "Yea"}
     vote_choice = await create_test_entity("/vote_choices/", vote_choice_data)
-    alt_choice_data = {"id": NO_VOTE_ID, "name": "Nay"}
+    alt_choice_data = {"id": NAY_VOTE_ID, "name": "Nay"}
     alt_choice = await create_test_entity("/vote_choices/", alt_choice_data)
     yield vote_choice, alt_choice
     await delete_test_entity("vote_choices", alt_choice["id"])
@@ -86,6 +91,14 @@ async def test_state(create_test_entity, delete_test_entity):
     state = await create_test_entity("/states/", state_data)
     yield state
     await delete_test_entity("states", state["id"])
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_session(create_test_entity, delete_test_entity, test_state):
+    session_data = {"name": "118th", "stateId": test_state["id"]}
+    session = await create_test_entity("/sessions/", session_data)
+    yield session
+    await delete_test_entity("sessions", session["id"])
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -145,17 +158,17 @@ async def test_committee(create_test_entity, delete_test_entity, test_legislativ
 
 
 @pytest_asyncio.fixture(scope="function")
-async def test_bill(create_test_entity, delete_test_entity, test_state, test_legislative_body):
+async def test_bill(create_test_entity, delete_test_entity, test_session, test_legislative_body):
     bill_data = {
-        "legiscanId": random.randint(100000, 999999),
+        "legiscanId": random.randint(0, DEFAULT_ID),
         "identifier": f"H.B.{random.randint(1, 999)}",
         "title": f"Test Bill {generate_random_string()}",
         "description": "This is a test bill",
-        "stateId": test_state["id"],
+        "stateId": test_session["stateId"],
         "legislativeBodyId": test_legislative_body["id"],
-        "sessionId": 118,
+        "sessionId": test_session["id"],
         "briefing": "yadayadayada",
-        "statusId": 1,
+        "status": "Introduced",
         "status_date": "2024-01-01",
     }
     bill = await create_test_entity("/bills/", bill_data)
@@ -164,18 +177,11 @@ async def test_bill(create_test_entity, delete_test_entity, test_state, test_leg
 
 
 @pytest_asyncio.fixture(scope="function")
-async def test_get_bills(client, system_headers, test_bill):
-    bills = await client.get("/bills/", headers=system_headers)
-    assert_status_code(bills, 200)
-    return bills.json()
-
-
-@pytest_asyncio.fixture(scope="function")
 async def test_bill_action(
     create_test_entity, delete_test_entity, test_bill: Dict, test_legislative_body: Dict
 ):
     bill_action_data = {
-        "id": random.randint(100000, 999999),
+        "id": random.randint(100000, DEFAULT_ID),
         "billId": test_bill["id"],
         "legislativeBodyId": test_legislative_body["id"],
         "date": "2024-01-01",
@@ -208,7 +214,7 @@ async def test_bill_version(
 
         # Create bill version record
         bill_version_data = {
-            "id": random.randint(100000, 999999),
+            "id": random.randint(0, DEFAULT_ID),
             "billId": test_bill["id"],
             "url": "http://bill_text.com/1.pdf",
             "hash": hash_value,
@@ -222,10 +228,7 @@ async def test_bill_version(
         await delete_test_entity("bill_versions", bill_version["id"])
 
         # Then delete the file from MinIO
-        try:
-            storage_client.delete_file(bucket=BILL_TEXT_BUCKET_NAME, key=f"{hash_value}.txt")
-        except Exception as e:
-            logger.warning(f"Failed to delete test bill text from MinIO: {str(e)}")
+        storage_client.delete_file(bucket=BILL_TEXT_BUCKET_NAME, key=f"{hash_value}.txt")
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -276,7 +279,32 @@ async def test_user_vote(
     user_vote = response.json()
     yield user_vote
     response = await client.delete(
-        f"/users/votes?bill_id={user_vote['billId']}",
+        f"/users/votes?billId={user_vote['billId']}",
         headers=headers,
     )
+    assert_status_code(response, 204)
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_legislator_vote(
+    client: AsyncClient,
+    system_headers,
+    test_legislator: Dict,
+    test_bill_action: Dict,
+    test_vote_choice: Dict,
+):
+    legislator_vote_data = {
+        "billId": test_bill_action["billId"],
+        "billActionId": test_bill_action["id"],
+        "legislatorId": test_legislator["id"],
+        "voteChoiceId": test_vote_choice["id"],
+    }
+    response = await client.put(
+        "/legislator_votes/", json=legislator_vote_data, headers=system_headers
+    )
+    assert_status_code(response, 200)
+    legislator_vote = response.json()
+    yield legislator_vote
+    params = {"bill_action_id": test_bill_action["id"], "legislator_id": test_legislator["id"]}
+    response = await client.delete("/legislator_votes/", params=params, headers=system_headers)
     assert_status_code(response, 204)

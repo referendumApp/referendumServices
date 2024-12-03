@@ -40,13 +40,6 @@ committee_membership = Table(
     Column("legislator_id", Integer, ForeignKey("legislators.id"), primary_key=True),
 )
 
-bill_sponsors = Table(
-    "bill_sponsors",
-    Base.metadata,
-    Column("bill_id", Integer, ForeignKey("bills.id"), primary_key=True),
-    Column("legislator_id", Integer, ForeignKey("legislators.id"), primary_key=True),
-    Column("is_primary", Boolean, nullable=False, default=False),
-)
 
 bill_topics = Table(
     "bill_topics",
@@ -54,6 +47,18 @@ bill_topics = Table(
     Column("bill_id", Integer, ForeignKey("bills.id"), primary_key=True),
     Column("topic_id", Integer, ForeignKey("topics.id"), primary_key=True),
 )
+
+
+class Sponsor(Base):
+    __tablename__ = "bill_sponsors"
+
+    bill_id = Column(Integer, ForeignKey("bills.id"), primary_key=True)
+    legislator_id = Column(Integer, ForeignKey("legislators.id"), primary_key=True)
+    rank = Column(Integer, nullable=False, default=0)
+    type = Column(String, nullable=False, default="")
+
+    legislator = relationship("Legislator")
+    bill = relationship("Bill")
 
 
 class VoteChoice(Base):
@@ -139,17 +144,29 @@ class Bill(Base):
     description = Column(String)
     state_id = Column(Integer, ForeignKey("states.id"), index=True)
     legislative_body_id = Column(Integer, ForeignKey("legislative_bodys.id"), index=True)
-    session_id = Column(Integer, index=True)
+    session_id = Column(Integer, ForeignKey("sessions.id"), index=True)
     briefing = Column(String, nullable=True)
-    status_id = Column(Integer)
+    status = Column(String)
     status_date = Column(Date)
 
     state = relationship("State")
     legislative_body = relationship("LegislativeBody")
     topics = relationship("Topic", secondary=bill_topics)
-    sponsors = relationship("Legislator", secondary=bill_sponsors, back_populates="sponsored_bills")
     bill_versions = relationship("BillVersion", back_populates="bill")
     user_votes = relationship("UserVote", back_populates="bill")
+    session = relationship("Session", back_populates="bills")
+    sponsors = relationship("Sponsor", back_populates="bill")
+
+
+class Session(Base):
+    __tablename__ = "sessions"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)
+    state_id = Column(Integer, ForeignKey("states.id"), index=True)
+
+    state = relationship("State")
+    bills = relationship("Bill", back_populates="session")
 
 
 class BillVersion(Base):
@@ -172,6 +189,8 @@ class BillAction(Base):
     date = Column(Date, nullable=False)
     description = Column(String, nullable=False)
 
+    legislator_votes = relationship("LegislatorVote", back_populates="bill_action")
+
 
 class Legislator(Base):
     __tablename__ = "legislators"
@@ -190,13 +209,14 @@ class Legislator(Base):
     phone = Column(String)
     twitter = Column(String)
 
+    legislator_votes = relationship("LegislatorVote", back_populates="legislator")
     party = relationship("Party")
     state = relationship("State")
     role = relationship("Role")
     committees = relationship(
         "Committee", secondary=committee_membership, back_populates="legislators"
     )
-    sponsored_bills = relationship("Bill", secondary=bill_sponsors, back_populates="sponsors")
+    sponsored_bills = relationship("Sponsor", back_populates="legislator")
 
 
 class UserVote(Base):
@@ -216,6 +236,10 @@ class LegislatorVote(Base):
     bill_id = Column(Integer, ForeignKey("bills.id"), primary_key=True)
     bill_action_id = Column(Integer, ForeignKey("bill_actions.id"), primary_key=True)
     vote_choice_id = Column(Integer, ForeignKey("vote_choices.id"), nullable=False)
+
+    bill_action = relationship("BillAction", back_populates="legislator_votes")
+    legislator = relationship("Legislator", back_populates="legislator_votes")
+    vote_choice = relationship("VoteChoice")
 
 
 class Comment(Base):

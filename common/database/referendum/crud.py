@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session, noload
+from sqlalchemy.orm import Session, noload, joinedload
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from pydantic import BaseModel
 from typing import Any, Dict, Generic, List, TypeVar, Type, Union, Optional
@@ -147,6 +147,23 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
             "yay": sum(1 for vote in db_bill.user_votes if vote.vote_choice_id == 1),
             "nay": sum(1 for vote in db_bill.user_votes if vote.vote_choice_id == 0)
         }
+    
+    def read_all_denormalized(
+        self, db: Session, skip: int = 0, limit: int = 100
+    ) -> List[models.Bill]:
+        return (
+            db.query(models.Bill)
+            .options(
+                joinedload(models.Bill.state),
+                joinedload(models.Bill.legislative_body).joinedload(models.LegislativeBody.role),
+                joinedload(models.Bill.sponsors).joinedload(models.Sponsor.legislator),
+                joinedload(models.Bill.topics),
+                joinedload(models.Bill.bill_versions),
+            )
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
     def get_bill_by_legiscan_id(self, db: Session, legiscan_id: int) -> models.Bill:
         try:
@@ -177,30 +194,37 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
         db_bill.topics.remove(db_topic)
         db.commit()
 
-    def add_sponsor(self, db: Session, bill_id: int, legislator_id: int, is_primary: bool = False):
-        db_bill = self.read(db=db, obj_id=bill_id)
+    def add_sponsor(
+        self, db: Session, bill_id: int, legislator_id: int, type: str = "Sponsor", rank: int = 1
+    ):
         db_legislator = (
             db.query(models.Legislator).filter(models.Legislator.id == legislator_id).first()
         )
         if not db_legislator:
             raise ObjectNotFoundException(f"Legislator not found for id: {legislator_id}")
 
-        # Check if the sponsor already exists
-        existing_sponsor = [
-            sponsor for sponsor in db_bill.sponsors if sponsor.legislator_id == legislator_id
-        ]
-        if existing_sponsor:
-            existing_sponsor = existing_sponsor[0]
-            if existing_sponsor.is_primary != is_primary:
-                existing_sponsor.is_primary = is_primary
-                db.commit()
-        else:
-            db.execute(
-                models.bill_sponsors.insert().values(
-                    bill_id=bill_id, legislator_id=legislator_id, is_primary=is_primary
-                )
+        existing_sponsor = (
+            db.query(models.Sponsor)
+            .filter(
+                models.Sponsor.bill_id == bill_id, models.Sponsor.legislator_id == legislator_id
             )
-        db.commit()
+            .first()
+        )
+
+        if existing_sponsor:
+            existing_sponsor.rank = rank
+            existing_sponsor.type = type
+        else:
+            new_sponsor = models.Sponsor(
+                bill_id=bill_id, legislator_id=legislator_id, rank=rank, type=type
+            )
+            db.add(new_sponsor)
+
+        try:
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise DatabaseException(f"Error adding sponsor: {str(e)}")
 
     def remove_sponsor(
         self,
@@ -208,18 +232,25 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
         bill_id: int,
         legislator_id: int,
     ):
-        db_bill = self.read(db=db, obj_id=bill_id)
-        db_legislator = (
-            db.query(models.Legislator).filter(models.Legislator.id == legislator_id).first()
-        )
-        if not db_legislator:
-            raise ObjectNotFoundException(f"Legislator not found for id: {legislator_id}")
-        if db_legislator not in db_bill.sponsors:
-            raise ObjectNotFoundException(
-                f"Cannot remove, bill {bill_id} does not have sponsor {legislator_id}"
+        sponsor = (
+            db.query(models.Sponsor)
+            .filter(
+                models.Sponsor.bill_id == bill_id, models.Sponsor.legislator_id == legislator_id
             )
-        db_bill.sponsors.remove(db_legislator)
-        db.commit()
+            .first()
+        )
+
+        if not sponsor:
+            raise ObjectNotFoundException(
+                f"Sponsor relationship not found for bill {bill_id} and legislator {legislator_id}"
+            )
+
+        try:
+            db.delete(sponsor)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise DatabaseException(f"Error removing sponsor: {str(e)}")
 
 
 class BillActionCRUD(
@@ -475,6 +506,27 @@ class LegislatorVoteCRUD(
             db.rollback()
             raise DatabaseException(f"Database error: {str(e)}")
 
+    def delete_vote(self, db: Session, legislator_id: int, bill_action_id: int):
+        try:
+            db_vote = (
+                db.query(self.model)
+                .filter(
+                    models.LegislatorVote.legislator_id == legislator_id,
+                    models.LegislatorVote.bill_action_id == bill_action_id,
+                )
+                .first()
+            )
+            if db_vote is None:
+                raise ObjectNotFoundException(
+                    f"Vote not found for legislator {legislator_id} for bill action {bill_action_id}"
+                )
+
+            db.delete(db_vote)
+            db.commit()
+        except SQLAlchemyError as e:
+            db.rollback()
+            raise DatabaseException(f"Database error: {str(e)}")
+
     def get_votes_for_bill(self, db: Session, bill_id: int) -> List[models.LegislatorVote]:
         return self.read_filtered(db=db, filters={"bill_id": bill_id})
 
@@ -551,6 +603,10 @@ class VoteChoiceCRUD(
     pass
 
 
+class SessionCRUD(BaseCRUD[models.Session, schemas.Session.Base, schemas.Session.Record]):
+    pass
+
+
 bill = BillCRUD(models.Bill)
 bill_action = BillActionCRUD(models.BillAction)
 bill_version = BillVersionCRUD(models.BillVersion)
@@ -562,6 +618,7 @@ legislator_vote = LegislatorVoteCRUD(models.LegislatorVote)
 party = PartyCRUD(models.Party)
 role = RoleCRUD(models.Role)
 state = StateCRUD(models.State)
+session = SessionCRUD(models.Session)
 topic = TopicCRUD(models.Topic)
 user = UserCRUD(models.User)
 user_vote = UserVoteCRUD(models.UserVote)

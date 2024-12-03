@@ -1,19 +1,88 @@
+from collections import Counter, defaultdict
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.orm import Session, joinedload
 from typing import Dict, Any, List
 import logging
 
-from common.database.referendum import crud, schemas
+from common.database.referendum import crud, schemas, models
 from common.database.referendum.crud import ObjectNotFoundException, DatabaseException
 
 from ..database import get_db
-from ..schemas import ErrorResponse
+from ..schemas import (
+    ErrorResponse,
+    DenormalizedBill,
+    BillVotingHistory,
+    LegislatorVoteDetail,
+    VoteSummary,
+    VoteCountByParty,
+    VoteCountByChoice,
+)
 from ..security import get_current_user_or_verify_system_token, verify_system_token
 from .endpoint_generator import EndpointGenerator
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+# Note that this must be defined before adding crud routes to avoid conflicts with the GET /id endpoint
+@router.get(
+    "/details",
+    response_model=List[DenormalizedBill],
+    summary=f"Get all bill details",
+    responses={
+        200: {
+            "model": List[DenormalizedBill],
+            "description": f"Bill details successfully retrieved",
+        },
+        401: {"model": ErrorResponse, "description": "Not authorized"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+@router.get(
+    "/details",
+    response_model=List[DenormalizedBill],
+    summary=f"Get all bill details",
+    responses={
+        200: {
+            "model": List[DenormalizedBill],
+            "description": f"Bill details successfully retrieved",
+        },
+        401: {"model": ErrorResponse, "description": "Not authorized"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def get_bill_details(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+):
+    try:
+        bills = crud.bill.read_all_denormalized(db=db, skip=skip, limit=limit)
+        result = []
+        for bill in bills:
+            bill_dict = {
+                "bill_id": bill.id,
+                "legiscan_id": bill.legiscan_id,
+                "identifier": bill.identifier,
+                "title": bill.title,
+                "description": bill.description,
+                "briefing": bill.briefing,
+                "status": bill.status,
+                "status_date": bill.status_date,
+                "session_id": bill.session_id,
+                "state_id": bill.state.id,
+                "state_name": bill.state.name,
+                "legislative_body_id": bill.legislative_body.id,
+                "legislative_body_role": bill.legislative_body.role.name,
+                "sponsors": bill.sponsors,
+            }
+            result.append(bill_dict)
+        return result
+    except DatabaseException as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 EndpointGenerator.add_crud_routes(
@@ -69,6 +138,94 @@ async def get_bill_vote_counts(
 ) -> Dict[str, int]:
    bill_votes = crud.bill.get_bill_user_votes(db, bill_id)
    return bill_votes
+
+
+@router.get(
+    "/{bill_id}/voting_history",
+    response_model=BillVotingHistory,
+    summary="Get bill voting history",
+    responses={
+        200: {
+            "model": BillVotingHistory,
+            "description": "Bill voting history successfully retrieved",
+        },
+        401: {"model": ErrorResponse, "description": "Not authorized"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def get_bill_voting_history(
+    bill_id: int,
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+) -> BillVotingHistory:
+    try:
+        query = (
+            select(models.LegislatorVote)
+            .options(
+                joinedload(models.LegislatorVote.bill_action),
+                joinedload(models.LegislatorVote.vote_choice),
+                joinedload(models.LegislatorVote.legislator).joinedload(models.Legislator.party),
+                joinedload(models.LegislatorVote.legislator).joinedload(models.Legislator.role),
+                joinedload(models.LegislatorVote.legislator).joinedload(models.Legislator.state),
+            )
+            .filter(models.LegislatorVote.bill_id == bill_id)
+        )
+
+        results = db.execute(query).scalars().all()
+
+        all_legislator_votes = []
+        vote_summaries_by_action = defaultdict(
+            lambda: {
+                "total_votes": 0,
+                "vote_choice_counter": Counter(),
+                "party_vote_counter": Counter(),
+            }
+        )
+        for vote in results:
+            vote_detail = LegislatorVoteDetail(
+                bill_action_id=vote.bill_action_id,
+                date=vote.bill_action.date,
+                action_description=vote.bill_action.description,
+                legislative_body_id=vote.bill_action.legislative_body_id,
+                legislator_id=vote.legislator_id,
+                legislator_name=vote.legislator.name,
+                party_name=vote.legislator.party.name,
+                role_name=vote.legislator.role.name,
+                state_name=vote.legislator.state.name,
+                vote_choice_name=vote.vote_choice.name,
+            )
+            all_legislator_votes.append(vote_detail)
+
+            running_summary = vote_summaries_by_action[vote.bill_action_id]
+            running_summary["total_votes"] += 1
+            running_summary["vote_choice_counter"][vote.vote_choice_id] += 1
+            running_summary["party_vote_counter"][
+                (vote.legislator.party_id, vote.vote_choice_id)
+            ] += 1
+
+        summaries = [
+            VoteSummary(
+                bill_action_id=action_id,
+                total_votes=summary_data["total_votes"],
+                vote_counts_by_choice=[
+                    VoteCountByChoice(vote_choice_id=choice_id, count=count)
+                    for choice_id, count in summary_data["vote_choice_counter"].items()
+                ],
+                vote_counts_by_party=[
+                    VoteCountByParty(vote_choice_id=vote_choice_id, party_id=party_id, count=count)
+                    for (party_id, vote_choice_id), count in summary_data[
+                        "party_vote_counter"
+                    ].items()
+                ],
+            )
+            for action_id, summary_data in vote_summaries_by_action.items()
+        ]
+
+        return BillVotingHistory(bill_id=bill_id, votes=all_legislator_votes, summaries=summaries)
+    except Exception as e:
+        message = f"Failed to get voting history for bill {bill_id} with error: {str(e)}"
+        logger.error(message)
+        raise HTTPException(status_code=500, detail=message)
 
 
 @router.post(

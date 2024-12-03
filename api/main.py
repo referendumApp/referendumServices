@@ -22,6 +22,7 @@ from .endpoints import (
     comments,
     bill_versions,
     vote_choices,
+    sessions,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -29,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 s3 = boto3.client("s3")
 
-app = FastAPI()
+app = FastAPI(root_path=f"/{settings.ENVIRONMENT}")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -52,6 +53,7 @@ app.include_router(
 )
 app.include_router(partys.router, tags=["partys"], prefix="/partys")
 app.include_router(roles.router, tags=["roles"], prefix="/roles")
+app.include_router(sessions.router, tags=["sessions"], prefix="/sessions")
 app.include_router(states.router, tags=["states"], prefix="/states")
 app.include_router(topics.router, tags=["topics"], prefix="/topics")
 app.include_router(users.router, tags=["users"], prefix="/users")
