@@ -193,8 +193,10 @@ async def test_bulk_update_success(client, system_headers, test_bill):
         assert item["title"] == update_data[i]["title"]
 
 
-async def test_bill_user_votes(client, system_headers, test_bill):
-    response = await client.get(f"/bills/{test_bill['id']}/user_votes", headers=system_headers)
+async def test_bill_user_votes(client, system_headers, test_user_vote):
+    response = await client.get(
+        f"/bills/{test_user_vote['billId']}/user_votes", headers=system_headers
+    )
     assert_status_code(response, 200)
     bill_votes = response.json()
     print(bill_votes)
