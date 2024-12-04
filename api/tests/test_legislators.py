@@ -128,4 +128,4 @@ async def test_get_legislator_voting_history(client, system_headers, test_legisl
     assert bill_action_votes["billActionId"] == action["id"]
     assert bill_action_votes["date"] == action["date"]
     assert bill_action_votes["actionDescription"] == action["description"]
-    assert any(choice["name"] == bill_action_votes["voteChoiceName"] for choice in vote_choice)
+    assert any(choice["id"] == bill_action_votes["voteChoiceId"] for choice in vote_choice)

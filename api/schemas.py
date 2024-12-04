@@ -68,14 +68,14 @@ class LegislatorVoteDetail(CamelCaseBaseModel):
     role_name: str
     state_name: str
 
-    vote_choice_name: str
+    vote_choice_id: int
 
 
 class BillActionVote(CamelCaseBaseModel):
     bill_action_id: int
     date: date
     action_description: str
-    vote_choice_name: str
+    vote_choice_id: int
 
 
 class LegislatorVote(CamelCaseBaseModel):

@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Enum, Integer, String, ForeignKey, Table, Date, Boolean
-from sqlalchemy.orm import relationship, declarative_base
 import enum
+
+from sqlalchemy import Boolean, Column, Date, Enum, ForeignKey, Integer, String, Table
+from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
 
@@ -235,7 +236,9 @@ class LegislatorVote(Base):
     vote_choice_id = Column(Integer, ForeignKey("vote_choices.id"), nullable=False)
 
     bill_action = relationship(
-        "BillAction", order_by="desc(BillAction.date)", back_populates="legislator_votes"
+        "BillAction",
+        order_by="desc(BillAction.id), desc(BillAction.date)",
+        back_populates="legislator_votes",
     )
     legislator = relationship("Legislator", back_populates="legislator_votes")
     vote_choice = relationship("VoteChoice")

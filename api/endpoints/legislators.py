@@ -65,7 +65,7 @@ async def get_legislator_voting_history(
                     "bill_action_id": vote.bill_action_id,
                     "date": vote.bill_action.date,
                     "action_description": vote.bill_action.description,
-                    "vote_choice_name": vote.vote_choice.name,
+                    "vote_choice_id": vote.vote_choice.id,
                 }
             )
 
