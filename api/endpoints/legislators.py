@@ -30,11 +30,11 @@ EndpointGenerator.add_crud_routes(
 @router.get(
     "/{legislator_id}/voting_history",
     response_model=List[LegislatorVote],
-    summary="Get bill voting history",
+    summary="Get legislator voting history",
     responses={
         200: {
             "model": LegislatorVote,
-            "description": "Bill voting history successfully retrieved",
+            "description": "Legislator voting history successfully retrieved",
         },
         401: {"model": ErrorResponse, "description": "Not authorized"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
