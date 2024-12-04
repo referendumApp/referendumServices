@@ -230,7 +230,7 @@ async def test_voting_history(client, system_headers, test_legislator_vote):
         "partyName",
         "roleName",
         "stateName",
-        "voteChoiceName",
+        "voteChoiceId",
     }
     assert set(vote.keys()) == required_vote_keys
     assert vote["billActionId"] == test_legislator_vote["billActionId"]
