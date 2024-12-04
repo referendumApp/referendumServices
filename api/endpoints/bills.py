@@ -194,7 +194,7 @@ async def get_bill_voting_history(
                 party_name=vote.legislator.party.name,
                 role_name=vote.legislator.role.name,
                 state_name=vote.legislator.state.name,
-                vote_choice_name=vote.vote_choice.name,
+                vote_choice_id=vote.vote_choice.id,
             )
             all_legislator_votes.append(vote_detail)
 
