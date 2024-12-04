@@ -194,6 +194,17 @@ async def test_bulk_update_success(client, system_headers, test_bill):
         assert item["title"] == update_data[i]["title"]
 
 
+async def test_bill_user_votes(client, system_headers, test_user_vote):
+    response = await client.get(
+        f"/bills/{test_user_vote['billId']}/user_votes", headers=system_headers
+    )
+    assert_status_code(response, 200)
+    bill_votes = response.json()
+    print(bill_votes)
+    assert bill_votes["yay"] > 0
+    assert bill_votes["nay"] == 0
+
+
 async def test_voting_history(client, system_headers, test_legislator_vote):
     response = await client.get(
         f"/bills/{test_legislator_vote['billId']}/voting_history", headers=system_headers

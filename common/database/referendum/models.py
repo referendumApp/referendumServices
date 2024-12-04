@@ -153,6 +153,7 @@ class Bill(Base):
     state = relationship("State")
     legislative_body = relationship("LegislativeBody")
     topics = relationship("Topic", secondary=bill_topics)
+    user_votes = relationship("UserVote", back_populates="bill")
     bill_versions = relationship("BillVersion", foreign_keys="BillVersion.bill_id")
     session = relationship("Session", back_populates="bills")
     sponsors = relationship("Sponsor", back_populates="bill")
@@ -224,6 +225,8 @@ class UserVote(Base):
     user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
     bill_id = Column(Integer, ForeignKey("bills.id"), primary_key=True)
     vote_choice_id = Column(Integer, ForeignKey("vote_choices.id"), nullable=False)
+
+    bill = relationship("Bill", back_populates="user_votes")
 
 
 class LegislatorVote(Base):
