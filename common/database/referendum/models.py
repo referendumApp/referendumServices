@@ -1,4 +1,6 @@
-import enum
+from sqlalchemy import Column, Integer, String, ForeignKey, Table, Date
+from sqlalchemy.orm import relationship, declarative_base
+import datetime
 
 from sqlalchemy import Boolean, Column, Date, Enum, ForeignKey, Integer, String, Table
 from sqlalchemy.orm import declarative_base, relationship
@@ -149,11 +151,13 @@ class Bill(Base):
     briefing = Column(String, nullable=True)
     status = Column(String)
     status_date = Column(Date)
+    current_version_id = Column(Integer, ForeignKey("bill_versions.id"), nullable=True)
 
     state = relationship("State")
     legislative_body = relationship("LegislativeBody")
     topics = relationship("Topic", secondary=bill_topics)
-    bill_versions = relationship("BillVersion", back_populates="bill")
+    user_votes = relationship("UserVote", back_populates="bill")
+    bill_versions = relationship("BillVersion", foreign_keys="BillVersion.bill_id")
     session = relationship("Session", back_populates="bills")
     sponsors = relationship("Sponsor", back_populates="bill")
 
@@ -176,8 +180,7 @@ class BillVersion(Base):
     bill_id = Column(Integer, ForeignKey("bills.id"))
     url = Column(String, nullable=True)
     hash = Column(String, nullable=True)
-
-    bill = relationship("Bill", back_populates="bill_versions")
+    date = Column(Date, nullable=False, default=datetime.date(1970, 1, 1))
 
 
 class BillAction(Base):
@@ -225,6 +228,8 @@ class UserVote(Base):
     user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
     bill_id = Column(Integer, ForeignKey("bills.id"), primary_key=True)
     vote_choice_id = Column(Integer, ForeignKey("vote_choices.id"), nullable=False)
+
+    bill = relationship("Bill", back_populates="user_votes")
 
 
 class LegislatorVote(Base):

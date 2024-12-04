@@ -81,6 +81,7 @@ async def test_update_bill_not_found(client, system_headers):
         "briefing": "yadayadayada",
         "status": "Introduced",
         "status_date": "2024-01-01",
+        "currentVersionId": 0,
     }
     response = await client.put("/bills/", json=non_existent_bill, headers=system_headers)
     assert_status_code(response, 404)
@@ -191,6 +192,17 @@ async def test_bulk_update_success(client, system_headers, test_bill):
     updated_items = response.json()
     for i, item in enumerate(updated_items):
         assert item["title"] == update_data[i]["title"]
+
+
+async def test_bill_user_votes(client, system_headers, test_user_vote):
+    response = await client.get(
+        f"/bills/{test_user_vote['billId']}/user_votes", headers=system_headers
+    )
+    assert_status_code(response, 200)
+    bill_votes = response.json()
+    print(bill_votes)
+    assert bill_votes["yay"] > 0
+    assert bill_votes["nay"] == 0
 
 
 async def test_voting_history(client, system_headers, test_legislator_vote):

@@ -75,6 +75,7 @@ async def get_bill_details(
                 "session_id": bill.session_id,
                 "state_id": bill.state.id,
                 "state_name": bill.state.name,
+                "current_version_id": bill.current_version_id,
                 "legislative_body_id": bill.legislative_body.id,
                 "legislative_body_role": bill.legislative_body.role.name,
                 "sponsors": bill.sponsors,
@@ -116,6 +117,29 @@ async def get_bill_versions(
 ) -> dict:
     bill = crud.bill.read(db=db, obj_id=bill_id)
     return bill.bill_versions
+
+
+@router.get(
+    "/{bill_id}/user_votes",
+    response_model=Dict[str, int],
+    summary="Get user vote counts for a bill",
+    responses={
+        200: {
+            "model": Dict[str, int],
+            "description": "Vote counts successfully retrieved",
+        },
+        401: {"model": ErrorResponse, "description": "Not authorized"},
+        404: {"model": ErrorResponse, "description": "Bill not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def get_bill_vote_counts(
+    bill_id: int,
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+) -> Dict[str, int]:
+    bill_votes = crud.bill.get_bill_user_votes(db, bill_id)
+    return bill_votes
 
 
 @router.get(
