@@ -101,3 +101,12 @@ if __name__ == "__main__":
 
     print("\nFinal Summary:\n", final_summary)
     print(f"\nTime taken: {int(hours)} hours, {int(minutes)} minutes, and {int(seconds)} seconds.")
+
+## ssh -i ~/.ssh/devServerAccess.pem ubuntu@18.218.175.208
+## rm summarize.py
+## vi summarize.py
+## paste code in
+## :wq
+
+## exit
+## python infra/gpu_instance_manager.py stop --instance-id i-0b6b87ec40ac0d163

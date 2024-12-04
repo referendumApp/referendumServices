@@ -339,9 +339,6 @@ def main():
         if not args.instance_id:
             print("Error: --instance-id required for start action")
             sys.exit(1)
-        if not args.key_name:
-            print("Error: --key-name required for start action")
-            sys.exit(1)
         manager.start_instance(args.instance_id)
     elif args.action == "stop":
         if not args.instance_id:
