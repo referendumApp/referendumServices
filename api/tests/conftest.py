@@ -167,7 +167,6 @@ async def test_bill(create_test_entity, delete_test_entity, test_session, test_l
         "stateId": test_session["stateId"],
         "legislativeBodyId": test_legislative_body["id"],
         "sessionId": test_session["id"],
-        "briefing": "yadayadayada",
         "status": "Introduced",
         "status_date": "2024-01-01",
         "current_version_id": None,

@@ -148,7 +148,6 @@ class Bill(Base):
     state_id = Column(Integer, ForeignKey("states.id"), index=True)
     legislative_body_id = Column(Integer, ForeignKey("legislative_bodys.id"), index=True)
     session_id = Column(Integer, ForeignKey("sessions.id"), index=True)
-    briefing = Column(String, nullable=True)
     status = Column(String)
     status_date = Column(Date)
     current_version_id = Column(Integer, ForeignKey("bill_versions.id"), nullable=True)
@@ -181,6 +180,7 @@ class BillVersion(Base):
     url = Column(String, nullable=True)
     hash = Column(String, nullable=True)
     date = Column(Date, nullable=False, default=datetime.date(1970, 1, 1))
+    briefing = Column(String, nullable=True)
 
 
 class BillAction(Base):
