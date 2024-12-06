@@ -218,6 +218,7 @@ async def test_bill_version(
             "billId": test_bill["id"],
             "url": "http://bill_text.com/1.pdf",
             "hash": hash_value,
+            "briefing": "yadayadayada",
         }
 
         bill_version = await create_test_entity("/bill_versions/", bill_version_data)
