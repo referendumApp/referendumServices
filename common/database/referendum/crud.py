@@ -141,6 +141,13 @@ class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
 
 class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
+    def get_bill_user_votes(self, db: Session, bill_id: int) -> Dict[str, int]:
+        db_bill = self.read(db=db, obj_id=bill_id)
+        return {
+            "yay": sum(1 for vote in db_bill.user_votes if vote.vote_choice_id == 1),
+            "nay": sum(1 for vote in db_bill.user_votes if vote.vote_choice_id == 0),
+        }
+
     def read_all_denormalized(
         self, db: Session, skip: int = 0, limit: int = 100
     ) -> List[models.Bill]:

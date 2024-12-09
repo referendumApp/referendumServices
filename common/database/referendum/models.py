@@ -2,6 +2,9 @@ from sqlalchemy import Column, Integer, String, ForeignKey, Table, Date
 from sqlalchemy.orm import relationship, declarative_base
 import datetime
 
+from sqlalchemy import Boolean, Column, Date, Enum, ForeignKey, Integer, String, Table
+from sqlalchemy.orm import declarative_base, relationship
+
 Base = declarative_base()
 
 # Association tables
@@ -153,6 +156,7 @@ class Bill(Base):
     state = relationship("State")
     legislative_body = relationship("LegislativeBody")
     topics = relationship("Topic", secondary=bill_topics)
+    user_votes = relationship("UserVote", back_populates="bill")
     bill_versions = relationship("BillVersion", foreign_keys="BillVersion.bill_id")
     session = relationship("Session", back_populates="bills")
     sponsors = relationship("Sponsor", back_populates="bill")
@@ -225,6 +229,8 @@ class UserVote(Base):
     bill_id = Column(Integer, ForeignKey("bills.id"), primary_key=True)
     vote_choice_id = Column(Integer, ForeignKey("vote_choices.id"), nullable=False)
 
+    bill = relationship("Bill", back_populates="user_votes")
+
 
 class LegislatorVote(Base):
     __tablename__ = "legislator_votes"
@@ -234,7 +240,11 @@ class LegislatorVote(Base):
     bill_action_id = Column(Integer, ForeignKey("bill_actions.id"), primary_key=True)
     vote_choice_id = Column(Integer, ForeignKey("vote_choices.id"), nullable=False)
 
-    bill_action = relationship("BillAction", back_populates="legislator_votes")
+    bill_action = relationship(
+        "BillAction",
+        order_by="desc(BillAction.id), desc(BillAction.date)",
+        back_populates="legislator_votes",
+    )
     legislator = relationship("Legislator", back_populates="legislator_votes")
     vote_choice = relationship("VoteChoice")
 

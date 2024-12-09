@@ -395,8 +395,17 @@
     "destination_columns": [
       "bill_action_id",
       "legislator_id",
-      "vote_choice_id"
+      "vote_choice_id",
+      "bill_id"
     ],
+    "join_config": {
+      "join_type": "LEFT JOIN",
+      "table": "ls_bill_vote",
+      "on": "roll_call_id",
+      "columns": [
+        "bill_id"
+      ]
+    },
     "transformations": [
       {
         "function": "rename",
@@ -409,7 +418,11 @@
         }
       }
     ],
-    "dataframe": null
+    "dataframe": null,
+    "unique_constraints": [
+      "bill_action_id",
+      "legislator_id"
+    ]
   },
   {
     "source": "ls_bill_sponsor",
