@@ -50,6 +50,16 @@ async def get_bill_details(
         bills = crud.bill.read_all_denormalized(db=db, skip=skip, limit=limit)
         result = []
         for bill in bills:
+            sponsors = [
+                {
+                    "bill_id": sponsor.bill_id,
+                    "legislator_id": sponsor.bill_id,
+                    "legislator_name": sponsor.legislator.name,
+                    "rank": sponsor.rank,
+                    "type": sponsor.type,
+                }
+                for sponsor in bill.sponsors
+            ]
             bill_dict = {
                 "bill_id": bill.id,
                 "legiscan_id": bill.legiscan_id,
@@ -67,7 +77,7 @@ async def get_bill_details(
                 "legislative_body_id": bill.legislative_body.id,
                 "role_id": bill.legislative_body.role.id,
                 "legislative_body_role": bill.legislative_body.role.name,
-                "sponsors": bill.sponsors,
+                "sponsors": sponsors,
             }
             result.append(bill_dict)
         return result
