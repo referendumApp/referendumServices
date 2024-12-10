@@ -1,18 +1,21 @@
+import boto3
 import logging
-from typing import Dict
-
+from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from jose import JWTError
 from sqlalchemy.orm import Session
+from typing import Dict
 
-from common.database.referendum import crud, schemas
+from common.database.referendum import schemas, crud, models
 from common.database.referendum.crud import (
     DatabaseException,
     ObjectAlreadyExistsException,
     ObjectNotFoundException,
 )
-
+from ..config import settings
 from ..database import get_db
 from ..schemas import (
     ErrorResponse,
@@ -20,20 +23,26 @@ from ..schemas import (
     RefreshToken,
     TokenResponse,
     UserCreateInput,
+    PasswordResetRequest,
+    PasswordResetData,
 )
 from ..security import (
     CredentialsException,
     FormException,
     authenticate_user,
+    get_password_hash,
     create_access_token,
     create_refresh_token,
     decode_token,
     get_user_create_with_hashed_password,
 )
 
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+ses = boto3.client("ses", region_name=settings.AWS_REGION)
 
 
 @router.post(
@@ -173,4 +182,135 @@ async def refresh_access_token(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=message,
             headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+def send_password_reset_email(email: str, reset_token: str) -> None:
+    """Send password reset email using AWS SES."""
+    reset_url = f"{settings.FRONTEND_URL}/reset-password?token={reset_token}"
+
+    message = MIMEMultipart()
+    message["Subject"] = "Password Reset Request"
+    message["From"] = settings.SYSTEM_EMAIL
+    message["To"] = email
+
+    html_content = f"""
+    <html>
+        <body>
+            <p>A password reset was requested for your account.</p>
+            <p>Click the link below to reset your password:</p>
+            <p><a href="{reset_url}">Reset Password</a></p>
+            <p>If you didn't request this, please ignore this email.</p>
+            <p>This link will expire in 30 minutes.</p>
+        </body>
+    </html>
+    """
+
+    message.attach(MIMEText(html_content, "html"))
+
+    try:
+        ses.send_raw_email(
+            Source=settings.SYSTEM_EMAIL,
+            Destinations=[email],
+            RawMessage={"Data": message.as_string()},
+        )
+        logger.info(f"Password reset email sent to: {email}")
+    except Exception as e:
+        logger.error(f"Failed to send password reset email: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send password reset email",
+        )
+
+
+@router.post(
+    "/request-reset",
+    status_code=status.HTTP_200_OK,
+    summary="Request Password Reset",
+    responses={
+        200: {"description": "Reset email sent if email exists"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def request_password_reset(
+    request: PasswordResetRequest, db: Session = Depends(get_db)
+) -> dict:
+    """Request a password reset token."""
+    try:
+        user = crud.user.get_user_by_email(db, request.email)
+        if user:
+            # Create a special JWT token for password reset
+            reset_token = create_access_token(
+                data={"sub": user.email, "type": "password_reset"},
+                expires_delta=timedelta(minutes=30),
+            )
+            await send_password_reset_email(user.email, reset_token)
+
+        # Always return success to prevent email enumeration
+        logger.info(f"Password reset requested for: {request.email}")
+        return {"message": "If the email exists, a password reset link has been sent"}
+
+    except Exception as e:
+        logger.error(f"Error in password reset request: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error processing password reset request",
+        )
+
+
+@router.post(
+    "/reset-password",
+    response_model=schemas.User,
+    summary="Reset Password",
+    responses={
+        200: {"model": schemas.User, "description": "Password successfully reset"},
+        400: {"model": ErrorResponse, "description": "Invalid token or password"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def reset_password(
+    reset_data: PasswordResetData, db: Session = Depends(get_db)
+) -> models.User:
+    """Reset password using the reset token."""
+    try:
+        # Verify the reset token
+        payload = jwt.decode(reset_data.token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+
+        if payload.get("type") != "password_reset":
+            logger.warning("Invalid token type used for password reset")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid reset token"
+            )
+
+        email = payload.get("sub")
+        if not email:
+            logger.warning("Token missing email claim")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid reset token"
+            )
+
+        user = crud.user.get_user_by_email(db, email)
+        if not user:
+            logger.warning(f"User not found for reset token: {email}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid reset token"
+            )
+
+        # Update the password
+        hashed_password = get_password_hash(reset_data.new_password)
+        user = crud.user.update(db=db, db_obj=user, obj_in={"hashed_password": hashed_password})
+
+        logger.info(f"Password successfully reset for user: {email}")
+        return user
+
+    except JWTError:
+        logger.warning("Invalid or expired reset token")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token"
+        )
+    except Exception as e:
+        logger.error(f"Error in password reset: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error processing password reset",
         )
