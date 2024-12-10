@@ -40,19 +40,6 @@ router = APIRouter()
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
-@router.get(
-    "/details",
-    response_model=List[DenormalizedBill],
-    summary=f"Get all bill details",
-    responses={
-        200: {
-            "model": List[DenormalizedBill],
-            "description": f"Bill details successfully retrieved",
-        },
-        401: {"model": ErrorResponse, "description": "Not authorized"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
-    },
-)
 async def get_bill_details(
     skip: int = 0,
     limit: int = 100,
@@ -69,7 +56,6 @@ async def get_bill_details(
                 "identifier": bill.identifier,
                 "title": bill.title,
                 "description": bill.description,
-                "briefing": bill.briefing,
                 "status": bill.status,
                 "status_date": bill.status_date,
                 "session_id": bill.session_id,
