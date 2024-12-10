@@ -121,10 +121,12 @@ class DenormalizedBill(CamelCaseBaseModel):
     current_version_id: int = Field(description="Current version ID of the bill")
     status: str = Field(description="Current status of the bill")
     status_date: date = Field(description="Date of the last status change")
-    session_id: int = Field(description="Legislative session")
+    session_id: int = Field(description="Legislative session ID")
+    session_name: str = Field(description="Legislative session name")
     state_id: int = Field(description="State identifier")
     state_name: str = Field(description="Name of the state")
     legislative_body_id: int = Field(description="Legislative body identifier")
+    role_id: int = Field(description="Role ID of the legislative body")
     legislative_body_role: str = Field(description="Role name of the legislative body")
     sponsors: List[Sponsor.Record] = Field(
         default_factory=list, description="List of all bill sponsors"

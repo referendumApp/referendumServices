@@ -1459,9 +1459,9 @@ COPY public.ls_bill_text (text_id, bill_id, bill_text_type_id, bill_text_mime_id
 2624417	1642389	5	2	2023-01-04	189024	8b8411ce6fb4cbb47fe35987cc553ea6	0	\N	https://legiscan.com/US/text/SR9/id/2624417	https://www.congress.gov/118/bills/sres9/BILLS-118sres9ats.pdf	2024-09-29 22:58:20	2024-09-29 22:58:20
 2746931	1741372	1	2	2023-03-15	505174	6d3ae2f2eb69aa701e45d279aff1564f	0	\N	https://legiscan.com/US/text/HB1/id/2746931	https://www.congress.gov/118/bills/hr1/BILLS-118hr1ih.pdf	2024-09-29 20:54:53	2024-09-29 20:54:53
 2769605	1741372	4	2	2023-04-03	419110	4a4a28978c9dff9636fc022c596687e7	0	\N	https://legiscan.com/US/text/HB1/id/2769605	https://www.congress.gov/118/bills/hr1/BILLS-118hr1eh.pdf	2024-09-29 20:54:53	2024-09-29 20:54:53
-2723963	1724917	1	2	2023-03-01	264937	b6bb2065cb7ab2ad89ba59322521db49	0	https://legiscan.com/US/text/HB5/id/2723963	https:www.congress.gov/118/bills/hr5/BILLS-118hr5ih.pdf	2024-09-29 20:56:02	2024-09-29 20:56:02
-2746970	1724917	1	2	2023-03-15	279863	ca021a041b15b1d9c4c1b53123326931	0	https://legiscan.com/US/text/HB5/id/2746970	https:www.congress.gov/118/bills/hr5/BILLS-118hr5rh.pdf	2024-09-29 20:56:02	2024-09-29 20:56:02
-2761423	1724917	4	2	2023-03-28	163102	682304c392983cafb0af6381c5812251	0	https://legiscan.com/US/text/HB5/id/2761423	https:www.congress.gov/118/bills/hr5/BILLS-118hr5eh.pdf	2024-09-29 20:56:02	2024-09-29 20:56:02
+2723963	1724917	1	2	2023-03-01	264937	b6bb2065cb7ab2ad89ba59322521db49	0	\N	https://legiscan.com/US/text/HB5/id/2723963	https:www.congress.gov/118/bills/hr5/BILLS-118hr5ih.pdf	2024-09-29 20:56:02	2024-09-29 20:56:02
+2746970	1724917	1	2	2023-03-15	279863	ca021a041b15b1d9c4c1b53123326931	0	\N	https://legiscan.com/US/text/HB5/id/2746970	https:www.congress.gov/118/bills/hr5/BILLS-118hr5rh.pdf	2024-09-29 20:56:02	2024-09-29 20:56:02
+2761423	1724917	4	2	2023-03-28	163102	682304c392983cafb0af6381c5812251	0	\N	https://legiscan.com/US/text/HB5/id/2761423	https:www.congress.gov/118/bills/hr5/BILLS-118hr5eh.pdf	2024-09-29 20:56:02	2024-09-29 20:56:02
 \.
 
 
