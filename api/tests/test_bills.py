@@ -1,4 +1,4 @@
-from api.tests.test_utils import assert_status_code, DEFAULT_ID
+from api.tests.test_utils import DEFAULT_ID, assert_status_code
 
 
 async def test_add_bill_success(test_bill):
@@ -27,7 +27,15 @@ async def test_list_bill_details(client, system_headers, test_bill_version, test
         "sessionId": DEFAULT_ID,
         "stateName": "Washington",
         "legislativeBodyRole": "House",
-        "sponsors": [{"billId": 999999, "legislatorId": 999999, "rank": 1, "type": "Sponsor"}],
+        "sponsors": [
+            {
+                "billId": 999999,
+                "legislatorId": 999999,
+                "legislatorName": test_legislator["name"],
+                "rank": 1,
+                "type": "Sponsor",
+            }
+        ],
     }
 
     for field, value in expected_fields.items():
