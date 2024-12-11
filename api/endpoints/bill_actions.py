@@ -1,10 +1,10 @@
-from fastapi import APIRouter
 import logging
+
+from fastapi import APIRouter
 
 from common.database.referendum import crud, schemas
 
 from .endpoint_generator import EndpointGenerator
-
 
 logger = logging.getLogger(__name__)
 
