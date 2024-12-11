@@ -1,23 +1,20 @@
 import logging
+from typing import Any, Callable, Dict, Generic, List, Optional, Type, TypeVar
+
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from typing import List, Dict, Any, Generic, TypeVar, Type, Optional, Callable
 from pydantic import BaseModel, ConfigDict
+from sqlalchemy.orm import Session
 
 from common.database.referendum import crud
 from common.database.referendum.crud import (
+    DatabaseException,
     ObjectAlreadyExistsException,
     ObjectNotFoundException,
-    DatabaseException,
 )
 
 from ..database import get_db
-from ..security import (
-    CredentialsException,
-    get_current_user_or_verify_system_token,
-    verify_system_token,
-)
 from ..schemas import ErrorResponse
+from ..security import get_current_user_or_verify_system_token, verify_system_token
 
 logger = logging.getLogger(__name__)
 
