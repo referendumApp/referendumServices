@@ -1,24 +1,30 @@
+import logging
 from collections import Counter, defaultdict
+from typing import Any, Dict, List
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session, joinedload
-from typing import Dict, Any, List
-import logging
+from sqlalchemy.orm import Session, joinedload, load_only
 
-from common.database.referendum import crud, schemas, models
-from common.database.referendum.crud import ObjectNotFoundException, DatabaseException
+from common.database.referendum import crud, models, schemas
+from common.database.referendum.crud import DatabaseException, ObjectNotFoundException
 
 from ..database import get_db
 from ..schemas import (
-    ErrorResponse,
-    DenormalizedBill,
     BillVotingHistory,
+    DenormalizedBill,
+    ErrorResponse,
+    LegislatorVote,
     LegislatorVoteDetail,
-    VoteSummary,
-    VoteCountByParty,
     VoteCountByChoice,
+    VoteCountByParty,
+    VoteSummary,
 )
-from ..security import get_current_user_or_verify_system_token, verify_system_token
+from ..security import (
+    CredentialsException,
+    get_current_user_or_verify_system_token,
+    verify_system_token,
+)
 from .endpoint_generator import EndpointGenerator
 
 logger = logging.getLogger(__name__)
@@ -53,7 +59,7 @@ async def get_bill_details(
             sponsors = [
                 {
                     "bill_id": sponsor.bill_id,
-                    "legislator_id": sponsor.bill_id,
+                    "legislator_id": sponsor.legislator_id,
                     "legislator_name": sponsor.legislator.name,
                     "rank": sponsor.rank,
                     "type": sponsor.type,
@@ -163,7 +169,6 @@ async def get_bill_voting_history(
         query = (
             select(models.LegislatorVote)
             .options(
-                joinedload(models.LegislatorVote.bill_action),
                 joinedload(models.LegislatorVote.vote_choice),
                 joinedload(models.LegislatorVote.legislator).joinedload(models.Legislator.party),
                 joinedload(models.LegislatorVote.legislator).joinedload(models.Legislator.role),
@@ -174,7 +179,7 @@ async def get_bill_voting_history(
 
         results = db.execute(query).scalars().all()
 
-        all_legislator_votes = []
+        all_legislator_votes = {}
         vote_summaries_by_action = defaultdict(
             lambda: {
                 "total_votes": 0,
@@ -183,19 +188,16 @@ async def get_bill_voting_history(
             }
         )
         for vote in results:
-            vote_detail = LegislatorVoteDetail(
-                bill_action_id=vote.bill_action_id,
-                date=vote.bill_action.date,
-                action_description=vote.bill_action.description,
-                legislative_body_id=vote.bill_action.legislative_body_id,
-                legislator_id=vote.legislator_id,
-                legislator_name=vote.legislator.name,
-                party_name=vote.legislator.party.name,
-                role_name=vote.legislator.role.name,
-                state_name=vote.legislator.state.name,
-                vote_choice_id=vote.vote_choice.id,
+            all_legislator_votes.setdefault(vote.bill_action_id, []).append(
+                LegislatorVote(
+                    legislator_id=vote.legislator.id,
+                    legislator_name=vote.legislator.name,
+                    party_name=vote.legislator.party.name,
+                    state_name=vote.legislator.state.name,
+                    role_name=vote.legislator.role.name,
+                    vote_choice_id=vote.vote_choice.id,
+                )
             )
-            all_legislator_votes.append(vote_detail)
 
             running_summary = vote_summaries_by_action[vote.bill_action_id]
             running_summary["total_votes"] += 1
@@ -203,6 +205,30 @@ async def get_bill_voting_history(
             running_summary["party_vote_counter"][
                 (vote.legislator.party_id, vote.vote_choice_id)
             ] += 1
+
+        bill_action_query = (
+            select(models.BillAction)
+            .options(
+                load_only(
+                    models.BillAction.id, models.BillAction.date, models.BillAction.description
+                ),
+            )
+            .filter(models.BillAction.id.in_(all_legislator_votes.keys()))
+            .order_by(models.BillAction.id.desc(), models.BillAction.date.desc())
+        )
+
+        bill_action_results = db.execute(bill_action_query).scalars().all()
+
+        legislator_vote_detail = []
+        for bill_action in bill_action_results:
+            legislator_vote_detail.append(
+                LegislatorVoteDetail(
+                    bill_action_id=bill_action.id,
+                    date=bill_action.date,
+                    action_description=bill_action.description,
+                    legislator_votes=all_legislator_votes[bill_action.id],
+                )
+            )
 
         summaries = [
             VoteSummary(
@@ -222,7 +248,9 @@ async def get_bill_voting_history(
             for action_id, summary_data in vote_summaries_by_action.items()
         ]
 
-        return BillVotingHistory(bill_id=bill_id, votes=all_legislator_votes, summaries=summaries)
+        return BillVotingHistory(bill_id=bill_id, votes=legislator_vote_detail, summaries=summaries)
+    except CredentialsException as e:
+        raise e
     except Exception as e:
         message = f"Failed to get voting history for bill {bill_id} with error: {str(e)}"
         logger.error(message)

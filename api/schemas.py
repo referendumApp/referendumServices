@@ -54,21 +54,21 @@ class VoteCount(CamelCaseBaseModel):
     count: int
 
 
+class LegislatorVote(CamelCaseBaseModel):
+    legislator_id: int
+    legislator_name: str
+    party_name: str
+    state_name: str
+    role_name: str
+    vote_choice_id: int
+
+
 class LegislatorVoteDetail(CamelCaseBaseModel):
     # Action
     bill_action_id: int
     date: date
     action_description: str
-    legislative_body_id: int
-
-    # Vote
-    legislator_id: int
-    legislator_name: str
-    party_name: str
-    role_name: str
-    state_name: str
-
-    vote_choice_id: int
+    legislator_votes: List[LegislatorVote]
 
 
 class BillActionVote(CamelCaseBaseModel):
@@ -78,7 +78,7 @@ class BillActionVote(CamelCaseBaseModel):
     vote_choice_id: int
 
 
-class LegislatorVote(CamelCaseBaseModel):
+class LegislatorVotingHistory(CamelCaseBaseModel):
     bill_id: int
     identifier: str
     title: str
@@ -101,6 +101,11 @@ class VoteSummary(CamelCaseBaseModel):
     total_votes: int
     vote_counts_by_choice: List[VoteCountByChoice] = Field(default_factory=list)
     vote_counts_by_party: List[VoteCountByParty] = Field(default_factory=list)
+
+
+class BillActionVotingHistory(CamelCaseBaseModel):
+    bill_action_id: int
+    legislator_vote: List[LegislatorVote]
 
 
 class BillVotingHistory(CamelCaseBaseModel):

@@ -12,7 +12,11 @@ from common.database.referendum.crud import (
 )
 
 from ..database import get_db
-from ..security import get_current_user_or_verify_system_token, verify_system_token
+from ..security import (
+    CredentialsException,
+    get_current_user_or_verify_system_token,
+    verify_system_token,
+)
 from ..schemas import ErrorResponse
 
 logger = logging.getLogger(__name__)
