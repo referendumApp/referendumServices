@@ -66,36 +66,30 @@ VoteChoice = create_schema_container(
     base_fields={"id": (int, ...), "name": (str, ...)},
 )
 
-
 Party = create_schema_container(
     name="Party",
     base_fields={"id": (int, ...), "name": (str, ...)},
 )
-
 
 Role = create_schema_container(
     name="Role",
     base_fields={"id": (int, ...), "name": (str, ...)},
 )
 
-
 State = create_schema_container(
     name="State",
     base_fields={"id": (int, ...), "name": (str, ...)},
 )
-
 
 Session = create_schema_container(
     name="Session",
     base_fields={"id": (int, ...), "name": (str, ...), "state_id": (int, ...)},
 )
 
-
 LegislativeBody = create_schema_container(
     name="State",
     base_fields={"id": (int, ...), "role_id": (int, ...), "state_id": (int, ...)},
 )
-
 
 Committee = create_schema_container(
     name="Committee",
@@ -106,12 +100,10 @@ Committee = create_schema_container(
     },
 )
 
-
 Topic = create_schema_container(
     name="Topic",
     base_fields={"id": (int, ...), "name": (str, ...)},
 )
-
 
 Legislator = create_schema_container(
     name="Legislator",
@@ -138,12 +130,16 @@ Legislator = create_schema_container(
     },
 )
 
-
 BillVersion = create_schema_container(
     name="BillVersion",
-    base_fields={"id": (int, ...), "bill_id": (int, ...), "url": (str, ...), "hash": (str, ...)},
+    base_fields={
+        "id": (int, ...),
+        "bill_id": (int, ...),
+        "url": (str, ...),
+        "hash": (str, ...),
+        "briefing": (Optional[str], ...),
+    },
 )
-
 
 Sponsor = create_schema_container(
     name="Sponsor",
@@ -154,7 +150,6 @@ Sponsor = create_schema_container(
         "type": (str, ...),
     },
 )
-
 
 Bill = create_schema_container(
     name="Bill",
@@ -168,7 +163,6 @@ Bill = create_schema_container(
         "state_id": (int, ...),
         "status": (str, ...),
         "status_date": (date, ...),
-        "briefing": (Optional[str], ...),
         "legislative_body_id": (int, ...),
     },
     record_fields={"current_version_id": (Optional[int], None)},
@@ -181,7 +175,6 @@ Bill = create_schema_container(
     },
 )
 
-
 BillAction = create_schema_container(
     name="BillAction",
     base_fields={
@@ -192,7 +185,6 @@ BillAction = create_schema_container(
         "description": (str, ...),
     },
 )
-
 
 LegislatorVote = create_schema_container(
     name="LegislatorVote",

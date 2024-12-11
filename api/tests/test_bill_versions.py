@@ -13,3 +13,12 @@ async def test_get_bill_text_success(client, system_headers, test_bill_version):
     assert_status_code(response, 200)
     body = response.json()
     assert body["text"] == "A BILL"
+
+
+async def test_get_bill_briefing_success(client, system_headers, test_bill_version):
+    response = await client.get(
+        f"/bill_versions/{test_bill_version['id']}/briefing", headers=system_headers
+    )
+    assert_status_code(response, 200)
+    body = response.json()
+    assert body["briefing"] == "yadayadayada"

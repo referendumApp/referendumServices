@@ -72,7 +72,6 @@ async def get_bill_details(
                 "identifier": bill.identifier,
                 "title": bill.title,
                 "description": bill.description,
-                "briefing": bill.briefing,
                 "status": bill.status,
                 "status_date": bill.status_date,
                 "session_id": bill.session.id,

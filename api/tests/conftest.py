@@ -167,7 +167,6 @@ async def test_bill(create_test_entity, delete_test_entity, test_session, test_l
         "stateId": test_session["stateId"],
         "legislativeBodyId": test_legislative_body["id"],
         "sessionId": test_session["id"],
-        "briefing": "yadayadayada",
         "status": "Introduced",
         "status_date": "2024-01-01",
         "current_version_id": None,
@@ -219,6 +218,7 @@ async def test_bill_version(
             "billId": test_bill["id"],
             "url": "http://bill_text.com/1.pdf",
             "hash": hash_value,
+            "briefing": "yadayadayada",
         }
 
         bill_version = await create_test_entity("/bill_versions/", bill_version_data)

@@ -22,7 +22,6 @@ async def test_list_bill_details(client, system_headers, test_bill_version, test
     expected_fields = {
         "billId": test_bill_version["billId"],
         "description": "This is a test bill",
-        "briefing": "yadayadayada",
         "status": "Introduced",
         "statusDate": "2024-01-01",
         "sessionId": DEFAULT_ID,
@@ -78,7 +77,6 @@ async def test_update_bill_not_found(client, system_headers):
         "stateId": 1,
         "legislativeBodyId": 1,
         "sessionId": 118,
-        "briefing": "yadayadayada",
         "status": "Introduced",
         "status_date": "2024-01-01",
         "currentVersionId": 0,

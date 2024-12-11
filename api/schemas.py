@@ -130,7 +130,6 @@ class DenormalizedBill(CamelCaseBaseModel):
     identifier: str = Field(description="Bill identifier (e.g., 'HB 123')")
     title: str = Field(description="Official title of the bill")
     description: str = Field(description="Full description of the bill")
-    briefing: Optional[str] = Field(None, description="Brief summary of the bill")
     current_version_id: int = Field(description="Current version ID of the bill")
     status: str = Field(description="Current status of the bill")
     status_date: date = Field(description="Date of the last status change")
