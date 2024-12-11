@@ -103,11 +103,6 @@ class VoteSummary(CamelCaseBaseModel):
     vote_counts_by_party: List[VoteCountByParty] = Field(default_factory=list)
 
 
-class BillActionVotingHistory(CamelCaseBaseModel):
-    bill_action_id: int
-    legislator_vote: List[LegislatorVote]
-
-
 class BillVotingHistory(CamelCaseBaseModel):
     bill_id: int
     votes: List[LegislatorVoteDetail]
