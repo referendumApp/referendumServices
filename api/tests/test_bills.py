@@ -230,7 +230,6 @@ async def test_voting_history(client, system_headers, test_legislator_vote):
         "billActionId",
         "date",
         "actionDescription",
-        "legislativeBodyId",
         "legislatorId",
         "legislatorName",
         "partyName",
@@ -240,7 +239,20 @@ async def test_voting_history(client, system_headers, test_legislator_vote):
     }
     assert set(vote.keys()) == required_vote_keys
     assert vote["billActionId"] == test_legislator_vote["billActionId"]
-    assert vote["legislatorId"] == test_legislator_vote["legislatorId"]
+
+    assert isinstance(vote["legislatorVotes"], list)
+    assert len(vote["legislatorVotes"]) == 1
+    legislator_vote = vote["legislatorVotes"][0]
+    required_legislator_vote_keys = {
+        "legislatorId",
+        "legislatorName",
+        "partyName",
+        "roleName",
+        "stateName",
+        "voteChoiceId",
+    }
+    assert set(legislator_vote.keys()) == required_legislator_vote_keys
+    assert legislator_vote["legislatorId"] == test_legislator_vote["legislatorId"]
 
     assert isinstance(result["summaries"], list)
     assert len(result["summaries"]) == 1
