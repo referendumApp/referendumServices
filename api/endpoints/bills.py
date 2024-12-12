@@ -47,8 +47,8 @@ router = APIRouter()
     },
 )
 async def get_bill_details(
+    limit: int,
     skip: int = 0,
-    limit: int = 100,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ):
