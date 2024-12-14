@@ -49,6 +49,10 @@ class UserCreateInput(UserBase):
         return v
 
 
+class UserUpdateInput(UserCreateInput):
+    current_password: str
+    
+
 class VoteCount(CamelCaseBaseModel):
     vote_choice_id: int
     count: int
