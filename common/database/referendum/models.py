@@ -2,6 +2,8 @@ import datetime
 
 from sqlalchemy import Column, Date, ForeignKey, Integer, String, Table, event
 from sqlalchemy.orm import declarative_base, relationship, Query
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Query, Session, sessionmaker
 
 Base = declarative_base()
 
@@ -259,118 +261,172 @@ class Comment(Base):
     likes = relationship("User", secondary=user_comment_likes, back_populates="liked_comments")
 
 
-@event.listens_for(Query, "before_compile", retval=True)
-def filter_bill_subset(query):
-    if query.column_descriptions:
-        entity = query.column_descriptions[0]["entity"]
-        if entity is Bill and not getattr(query, "_subset_filtered", False):
-            # Start fresh with our filter
-            new_query = query.enable_assertions(False)
-            subset_ids = [
-                999999,
-                1650479,
-                1650485,
-                1650487,
-                1650489,
-                1650495,
-                1650498,
-                1650511,
-                1650517,
-                1650520,
-                1650522,
-                1650530,
-                1650533,
-                1650543,
-                1650547,
-                1650577,
-                1650590,
-                1650609,
-                1650615,
-                1650618,
-                1650634,
-                1650664,
-                1650693,
-                1650697,
-                1650704,
-                1650717,
-                1650758,
-                1650764,
-                1650775,
-                1650799,
-                1650801,
-                1650812,
-                1650826,
-                1650896,
-                1650936,
-                1650939,
-                1650942,
-                1650961,
-                1650965,
-                1650988,
-                1651010,
-                1651014,
-                1651016,
-                1651024,
-                1653507,
-                1655806,
-                1655816,
-                1655889,
-                1656001,
-                1656123,
-                1656164,
-                1656185,
-                1657885,
-                1657890,
-                1657893,
-                1657897,
-                1657899,
-                1657901,
-                1657907,
-                1657908,
-                1657913,
-                1657938,
-                1659561,
-                1659566,
-                1664816,
-                1664819,
-                1664824,
-                1664830,
-                1664834,
-                1664836,
-                1664843,
-                1674730,
-                1674735,
-                1674737,
-                1674738,
-                1674746,
-                1674748,
-                1674759,
-                1674763,
-                1674785,
-                1674808,
-                1674812,
-                1677278,
-                1677308,
-                1677449,
-                1677513,
-                1677559,
-                1679223,
-                1679235,
-                1679249,
-                1679268,
-                1679272,
-                1679282,
-                1650880,
-                1650933,
-                1657889,
-                1664821,
-                1677202,
-                1677339,
-                1679233,
-                1679239,
-            ]
-            new_query = new_query.filter(Bill.id.in_(subset_ids))
-            new_query._subset_filtered = True
+BILL_SUBSET_IDS = [
+    999999,
+    1650479,
+    1650485,
+    1650487,
+    1650489,
+    1650495,
+    1650498,
+    1650511,
+    1650517,
+    1650520,
+    1650522,
+    1650530,
+    1650533,
+    1650543,
+    1650547,
+    1650577,
+    1650590,
+    1650609,
+    1650615,
+    1650618,
+    1650634,
+    1650664,
+    1650693,
+    1650697,
+    1650704,
+    1650717,
+    1650758,
+    1650764,
+    1650775,
+    1650799,
+    1650801,
+    1650812,
+    1650826,
+    1650896,
+    1650936,
+    1650939,
+    1650942,
+    1650961,
+    1650965,
+    1650988,
+    1651010,
+    1651014,
+    1651016,
+    1651024,
+    1653507,
+    1655806,
+    1655816,
+    1655889,
+    1656001,
+    1656123,
+    1656164,
+    1656185,
+    1657885,
+    1657890,
+    1657893,
+    1657897,
+    1657899,
+    1657901,
+    1657907,
+    1657908,
+    1657913,
+    1657938,
+    1659561,
+    1659566,
+    1664816,
+    1664819,
+    1664824,
+    1664830,
+    1664834,
+    1664836,
+    1664843,
+    1674730,
+    1674735,
+    1674737,
+    1674738,
+    1674746,
+    1674748,
+    1674759,
+    1674763,
+    1674785,
+    1674808,
+    1674812,
+    1677278,
+    1677308,
+    1677449,
+    1677513,
+    1677559,
+    1679223,
+    1679235,
+    1679249,
+    1679268,
+    1679272,
+    1679282,
+    1650880,
+    1650933,
+    1657889,
+    1664821,
+    1677202,
+    1677339,
+    1679233,
+    1679239,
+    1724917,
+]
 
-            return new_query
+
+@event.listens_for(Query, "before_compile", retval=True)
+def filter_bill_queries(query):
+    """Filter both direct bill queries and queries with bill_id foreign keys"""
+    logger.warning("Starting query filter")
+    logger.warning(f"Query: {query}")
+
+    if not query.column_descriptions:
+        logger.warning("No column descriptions, returning original query")
+        return query
+
+    if getattr(query, "_bill_filtered", False):
+        logger.warning("Query already filtered, returning")
+        return query
+
+    # Get the primary entity and log it
+    primary_entity = query.column_descriptions[0]["entity"]
+    logger.warning(f"Primary entity: {primary_entity}")
+
+    # Log all entities involved in the query
+    for desc in query.column_descriptions:
+        entity = desc.get("entity")
+        logger.warning(f"Found entity in query: {entity}")
+
+        if entity is Bill:
+            logger.warning("Found Bill entity, applying direct filter")
+            query = query.filter(Bill.id.in_(BILL_SUBSET_IDS))
+            query._bill_filtered = True
+            return query
+
+        if entity and hasattr(entity, "bill_id"):
+            logger.warning(f"Found entity with bill_id: {entity.__name__}")
+            query = query.filter(entity.bill_id.in_(BILL_SUBSET_IDS))
+            query._bill_filtered = True
+            return query
+
+    logger.warning("No filterable entities found")
     return query
+
+
+@event.listens_for(Engine, "before_execute", retval=True)
+def filter_bill_selects(conn, clauseelement, multiparams, params, execution_options):
+    """Filter bill-related select() statements"""
+    logger.warning("Starting filter for SQL statement")
+    logger.warning(f"Statement: {clauseelement}")
+
+    if hasattr(clauseelement, "_bill_filtered") and clauseelement._bill_filtered:
+        logger.warning("Statement already filtered, skipping")
+        return clauseelement, multiparams, params
+
+    if hasattr(clauseelement, "froms"):
+        for table in clauseelement.froms:
+            logger.warning(f"Checking table: {table}")
+            if hasattr(table, "name"):
+                if table.name == "bills":
+                    logger.warning("Found bills table, applying filter")
+                    clauseelement = clauseelement.where(table.c.id.in_(BILL_SUBSET_IDS))
+                    clauseelement._bill_filtered = True
+                elif hasattr(table.c, "bill_id"):
+                    logger.warning(f"Found table with bill_id: {table.name}")
+                    clauseelement = clauseelement.where(table.c.bill_id.in_(BILL_SUBSET_IDS))
+                    clauseelement._bill_filtered = True
+
+    return clauseelement, multiparams, params
