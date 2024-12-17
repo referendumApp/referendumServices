@@ -1,10 +1,12 @@
 import datetime
+import logging
 
 from sqlalchemy import Column, Date, ForeignKey, Integer, String, Table, event
-from sqlalchemy.orm import declarative_base, relationship, Query
+from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Query, Session, sessionmaker
+from sqlalchemy.orm import Query
 
+logger = logging.getLogger(__name__)
 Base = declarative_base()
 
 # Association tables
