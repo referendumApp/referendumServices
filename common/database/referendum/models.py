@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship, declarative_base
 import datetime
 
 from sqlalchemy import Boolean, Column, Date, Enum, ForeignKey, Integer, String, Table
-from sqlalchemy.orm import declarative_base, relationship, column_property
+from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
 
@@ -81,9 +81,7 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
 
     followed_topics = relationship("Topic", secondary=user_topic_follows)
-    followed_bills = relationship(
-        "BillSubset", secondary=user_bill_follows, enable_typechecks=False
-    )
+    followed_bills = relationship("Bill", secondary=user_bill_follows)
     followed_legislators = relationship("Legislator", secondary=user_legislator_follows)
     liked_comments = relationship("Comment", secondary=user_comment_likes, back_populates="likes")
 
@@ -163,48 +161,6 @@ class Bill(Base):
     sponsors = relationship("Sponsor", back_populates="bill")
 
 
-class BillSubset(Bill):
-    """A subset view of the bills table that shares the same underlying database table"""
-
-    # Voodoo to apply a filter
-    __subset_ids = [999999]
-    __mapper_args__ = {
-        "polymorphic_identity": "subset",
-        "primary_key": [Bill.__table__.c.id],
-        "with_polymorphic": "*",
-        "polymorphic_load": "inline",
-    }
-
-    @classmethod
-    def __declare_last__(cls):
-        Bill.__table__.info["filtered"] = True
-        cls.__mapper__.add_properties(
-            {"__subset_filter": column_property(Bill.__table__.c.id.in_(cls.__subset_ids))}
-        )
-
-    # Override base Bill relationships to ensure they use the subset mapper
-    topics = relationship(
-        "Topic",
-        secondary=bill_topics,
-    )
-
-    user_votes = relationship("UserVote", primaryjoin="UserVote.bill_id == BillSubset.id")
-
-    bill_versions = relationship(
-        "BillVersion",
-        foreign_keys="BillVersion.bill_id",
-    )
-
-    session = relationship(
-        "Session",
-    )
-
-    sponsors = relationship("Sponsor", primaryjoin="Sponsor.bill_id == BillSubset.id")
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-
 class Session(Base):
     __tablename__ = "sessions"
 
@@ -213,7 +169,7 @@ class Session(Base):
     state_id = Column(Integer, ForeignKey("states.id"), index=True)
 
     state = relationship("State")
-    bills = relationship("BillSubset", back_populates="session", enable_typechecks=False)
+    bills = relationship("Bill", back_populates="session")
 
 
 class BillVersion(Base):
@@ -273,7 +229,7 @@ class UserVote(Base):
     bill_id = Column(Integer, ForeignKey("bills.id"), primary_key=True)
     vote_choice_id = Column(Integer, ForeignKey("vote_choices.id"), nullable=False)
 
-    bill = relationship("BillSubset", back_populates="user_votes", enable_typechecks=False)
+    bill = relationship("Bill", back_populates="user_votes")
 
 
 class LegislatorVote(Base):
