@@ -70,12 +70,14 @@ async def get_legislator_voting_history(
             )
 
         bill_query = (
-            select(models.Bill)
+            select(models.BillSubset)
             .options(
-                load_only(models.Bill.id, models.Bill.identifier, models.Bill.title),
+                load_only(
+                    models.BillSubset.id, models.BillSubset.identifier, models.BillSubset.title
+                ),
             )
-            .filter(models.Bill.id.in_(bill_action_votes.keys()))
-            .order_by(models.Bill.id.desc())
+            .filter(models.BillSubset.id.in_(bill_action_votes.keys()))
+            .order_by(models.BillSubset.id.desc())
         )
 
         bill_results = db.execute(bill_query).scalars().all()

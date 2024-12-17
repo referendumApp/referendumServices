@@ -140,7 +140,7 @@ class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             raise DatabaseException(f"Database error: {str(e)}")
 
 
-class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
+class BillCRUD(BaseCRUD[models.BillSubset, schemas.Bill.Base, schemas.Bill.Record]):
     def get_bill_user_votes(self, db: Session, bill_id: int) -> Dict[str, int]:
         db_bill = self.read(db=db, obj_id=bill_id)
         yay = sum(1 for vote in db_bill.user_votes if vote.vote_choice_id == 1)
@@ -158,14 +158,16 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
         self, db: Session, skip: int = 0, limit: int = 100
     ) -> List[models.Bill]:
         return (
-            db.query(models.Bill)
+            db.query(models.BillSubset)
             .options(
-                joinedload(models.Bill.state),
-                joinedload(models.Bill.legislative_body).joinedload(models.LegislativeBody.role),
-                joinedload(models.Bill.sponsors).joinedload(models.Sponsor.legislator),
-                joinedload(models.Bill.topics),
-                joinedload(models.Bill.bill_versions),
-                joinedload(models.Bill.session),
+                joinedload(models.BillSubset.state),
+                joinedload(models.BillSubset.legislative_body).joinedload(
+                    models.LegislativeBody.role
+                ),
+                joinedload(models.BillSubset.sponsors).joinedload(models.Sponsor.legislator),
+                joinedload(models.BillSubset.topics),
+                joinedload(models.BillSubset.bill_versions),
+                joinedload(models.BillSubset.session),
             )
             .offset(skip)
             .limit(limit)
@@ -174,7 +176,11 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
 
     def get_bill_by_legiscan_id(self, db: Session, legiscan_id: int) -> models.Bill:
         try:
-            bill = db.query(models.Bill).filter(models.Bill.legiscan_id == legiscan_id).first()
+            bill = (
+                db.query(models.BillSubset)
+                .filter(models.BillSubset.legiscan_id == legiscan_id)
+                .first()
+            )
             if bill is None:
                 raise ObjectNotFoundException(f"Bill with legiscan_id {legiscan_id} not found")
             return bill
@@ -403,7 +409,7 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
 
     def follow_bill(self, db: Session, user_id: int, bill_id: int):
         db_user = self.read(db=db, obj_id=user_id)
-        db_bill = db.query(models.Bill).filter(models.Bill.id == bill_id).first()
+        db_bill = db.query(models.BillSubset).filter(models.BillSubset.id == bill_id).first()
         if not db_bill:
             raise ObjectNotFoundException(f"Bill not found for id: {bill_id}")
         db_user.followed_bills.append(db_bill)
@@ -411,7 +417,7 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
 
     def unfollow_bill(self, db: Session, user_id: int, bill_id: int):
         db_user = self.read(db=db, obj_id=user_id)
-        db_bill = db.query(models.Bill).filter(models.Bill.id == bill_id).first()
+        db_bill = db.query(models.BillSubset).filter(models.BillSubset.id == bill_id).first()
         if not db_bill:
             raise ObjectNotFoundException(f"Bill not found for id: {bill_id}")
         if db_bill not in db_user.followed_bills:
@@ -614,7 +620,7 @@ class SessionCRUD(BaseCRUD[models.Session, schemas.Session.Base, schemas.Session
     pass
 
 
-bill = BillCRUD(models.Bill)
+bill = BillCRUD(models.BillSubset)
 bill_action = BillActionCRUD(models.BillAction)
 bill_version = BillVersionCRUD(models.BillVersion)
 comment = CommentCRUD(models.Comment)
