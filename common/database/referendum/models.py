@@ -1,9 +1,7 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Table, Date
-from sqlalchemy.orm import relationship, declarative_base
 import datetime
 
-from sqlalchemy import Boolean, Column, Date, Enum, ForeignKey, Integer, String, Table
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy import Column, Date, ForeignKey, Integer, String, Table, event
+from sqlalchemy.orm import declarative_base, relationship, Query
 
 Base = declarative_base()
 
@@ -259,3 +257,120 @@ class Comment(Base):
     comment = Column(String, nullable=False)
 
     likes = relationship("User", secondary=user_comment_likes, back_populates="liked_comments")
+
+
+@event.listens_for(Query, "before_compile", retval=True)
+def filter_bill_subset(query):
+    if query.column_descriptions:
+        entity = query.column_descriptions[0]["entity"]
+        if entity is Bill and not getattr(query, "_subset_filtered", False):
+            # Start fresh with our filter
+            new_query = query.enable_assertions(False)
+            subset_ids = [
+                999999,
+                1650479,
+                1650485,
+                1650487,
+                1650489,
+                1650495,
+                1650498,
+                1650511,
+                1650517,
+                1650520,
+                1650522,
+                1650530,
+                1650533,
+                1650543,
+                1650547,
+                1650577,
+                1650590,
+                1650609,
+                1650615,
+                1650618,
+                1650634,
+                1650664,
+                1650693,
+                1650697,
+                1650704,
+                1650717,
+                1650758,
+                1650764,
+                1650775,
+                1650799,
+                1650801,
+                1650812,
+                1650826,
+                1650896,
+                1650936,
+                1650939,
+                1650942,
+                1650961,
+                1650965,
+                1650988,
+                1651010,
+                1651014,
+                1651016,
+                1651024,
+                1653507,
+                1655806,
+                1655816,
+                1655889,
+                1656001,
+                1656123,
+                1656164,
+                1656185,
+                1657885,
+                1657890,
+                1657893,
+                1657897,
+                1657899,
+                1657901,
+                1657907,
+                1657908,
+                1657913,
+                1657938,
+                1659561,
+                1659566,
+                1664816,
+                1664819,
+                1664824,
+                1664830,
+                1664834,
+                1664836,
+                1664843,
+                1674730,
+                1674735,
+                1674737,
+                1674738,
+                1674746,
+                1674748,
+                1674759,
+                1674763,
+                1674785,
+                1674808,
+                1674812,
+                1677278,
+                1677308,
+                1677449,
+                1677513,
+                1677559,
+                1679223,
+                1679235,
+                1679249,
+                1679268,
+                1679272,
+                1679282,
+                1650880,
+                1650933,
+                1657889,
+                1664821,
+                1677202,
+                1677339,
+                1679233,
+                1679239,
+            ]
+            new_query = new_query.filter(Bill.id.in_(subset_ids))
+            new_query._subset_filtered = True
+
+            return new_query
+    return query
