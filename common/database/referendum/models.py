@@ -372,39 +372,27 @@ BILL_SUBSET_IDS = [
 @event.listens_for(Query, "before_compile", retval=True)
 def filter_bill_queries(query):
     """Filter both direct bill queries and queries with bill_id foreign keys"""
-    logger.warning("Starting query filter")
-    logger.warning(f"Query: {query}")
 
     if not query.column_descriptions:
-        logger.warning("No column descriptions, returning original query")
         return query
 
     if getattr(query, "_bill_filtered", False):
-        logger.warning("Query already filtered, returning")
         return query
-
-    # Get the primary entity and log it
-    primary_entity = query.column_descriptions[0]["entity"]
-    logger.warning(f"Primary entity: {primary_entity}")
 
     # Log all entities involved in the query
     for desc in query.column_descriptions:
         entity = desc.get("entity")
-        logger.warning(f"Found entity in query: {entity}")
 
         if entity is Bill:
-            logger.warning("Found Bill entity, applying direct filter")
             query = query.filter(Bill.id.in_(BILL_SUBSET_IDS))
             query._bill_filtered = True
             return query
 
         if entity and hasattr(entity, "bill_id"):
-            logger.warning(f"Found entity with bill_id: {entity.__name__}")
             query = query.filter(entity.bill_id.in_(BILL_SUBSET_IDS))
             query._bill_filtered = True
             return query
 
-    logger.warning("No filterable entities found")
     return query
 
 
