@@ -155,7 +155,7 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
         }
 
     def read_all_denormalized(
-        self, db: Session, skip: int = 0, limit: int = 100
+        self, db: Session, skip: int | None, limit: int | None
     ) -> List[models.Bill]:
         return (
             db.query(models.Bill)

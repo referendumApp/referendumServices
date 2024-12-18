@@ -1,10 +1,13 @@
 import datetime
+import logging
 
+import sqlalchemy.exc
 from sqlalchemy import Column, Date, ForeignKey, Integer, String, Table, event
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Query
 
+logger = logging.getLogger(__name__)
 Base = declarative_base()
 
 # Association tables
@@ -377,19 +380,21 @@ def filter_bill_queries(query):
     if getattr(query, "_bill_filtered", False):
         return query
 
-    # Log all entities involved in the query
-    for desc in query.column_descriptions:
-        entity = desc.get("entity")
+    try:
+        for desc in query.column_descriptions:
+            entity = desc.get("entity")
 
-        if entity is Bill:
-            query = query.filter(Bill.id.in_(BILL_SUBSET_IDS))
-            query._bill_filtered = True
-            return query
+            if entity is Bill:
+                query = query.filter(Bill.id.in_(BILL_SUBSET_IDS))
+                query._bill_filtered = True
+                return query
 
-        if entity and hasattr(entity, "bill_id"):
-            query = query.filter(entity.bill_id.in_(BILL_SUBSET_IDS))
-            query._bill_filtered = True
-            return query
+            if entity and hasattr(entity, "bill_id"):
+                query = query.filter(entity.bill_id.in_(BILL_SUBSET_IDS))
+                query._bill_filtered = True
+                return query
+    except sqlalchemy.exc.InvalidRequestError:
+        logger.error(f"Cannot apply subset filter to offset/limited queries")
 
     return query
 
