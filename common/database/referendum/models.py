@@ -397,23 +397,17 @@ def filter_bill_queries(query):
 @event.listens_for(Engine, "before_execute", retval=True)
 def filter_bill_selects(conn, clauseelement, multiparams, params, execution_options):
     """Filter bill-related select() statements"""
-    logger.warning("Starting filter for SQL statement")
-    logger.warning(f"Statement: {clauseelement}")
 
     if hasattr(clauseelement, "_bill_filtered") and clauseelement._bill_filtered:
-        logger.warning("Statement already filtered, skipping")
         return clauseelement, multiparams, params
 
     if hasattr(clauseelement, "froms"):
         for table in clauseelement.froms:
-            logger.warning(f"Checking table: {table}")
             if hasattr(table, "name"):
                 if table.name == "bills":
-                    logger.warning("Found bills table, applying filter")
                     clauseelement = clauseelement.where(table.c.id.in_(BILL_SUBSET_IDS))
                     clauseelement._bill_filtered = True
                 elif hasattr(table.c, "bill_id"):
-                    logger.warning(f"Found table with bill_id: {table.name}")
                     clauseelement = clauseelement.where(table.c.bill_id.in_(BILL_SUBSET_IDS))
                     clauseelement._bill_filtered = True
 
