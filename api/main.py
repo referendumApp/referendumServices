@@ -23,6 +23,7 @@ from .endpoints import (
     bill_versions,
     vote_choices,
     sessions,
+    statuses,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -55,6 +56,7 @@ app.include_router(partys.router, tags=["partys"], prefix="/partys")
 app.include_router(roles.router, tags=["roles"], prefix="/roles")
 app.include_router(sessions.router, tags=["sessions"], prefix="/sessions")
 app.include_router(states.router, tags=["states"], prefix="/states")
+app.include_router(statuses.router, tags=["statuses"], prefix="/statuses")
 app.include_router(topics.router, tags=["topics"], prefix="/topics")
 app.include_router(users.router, tags=["users"], prefix="/users")
 app.include_router(vote_choices.router, tags=["vote_choices"], prefix="/vote_choices")

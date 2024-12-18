@@ -151,10 +151,11 @@ class Bill(Base):
     state_id = Column(Integer, ForeignKey("states.id"), index=True)
     legislative_body_id = Column(Integer, ForeignKey("legislative_bodys.id"), index=True)
     session_id = Column(Integer, ForeignKey("sessions.id"), index=True)
-    status = Column(String)
+    status_id = Column(Integer, ForeignKey("statuses.id"), index=True)
     status_date = Column(Date)
     current_version_id = Column(Integer, ForeignKey("bill_versions.id"), nullable=True)
 
+    status = relationship("Status")
     state = relationship("State")
     legislative_body = relationship("LegislativeBody")
     topics = relationship("Topic", secondary=bill_topics)
@@ -173,6 +174,13 @@ class Session(Base):
 
     state = relationship("State")
     bills = relationship("Bill", back_populates="session")
+
+
+class Status(Base):
+    __tablename__ = "statuses"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)
 
 
 class BillVersion(Base):
