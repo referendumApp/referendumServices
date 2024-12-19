@@ -77,12 +77,11 @@ async def test_update_user_password(client, test_user_session):
         "email": user["email"],
         "current_password": "testpassword",
         "password": "newpassword",
-        "name": "Test User",
     }
     response = await client.patch("/users/password_reset", json=update_data, headers=user_headers)
     assert_status_code(response, 200)
     updated_user = response.json()
-    assert updated_user["name"] == update_data["name"]
+    assert updated_user["name"] == user["name"]
 
     login_data = { "username": user["email"], "password": "newpassword" }
     response = await client.post("/auth/login", data=login_data)

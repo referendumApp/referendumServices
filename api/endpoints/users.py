@@ -215,7 +215,10 @@ async def update_user_password(
             )
     try:
         db_user = crud.user.get_user_by_email(db, email=user.email)
-        user_create = get_user_create_with_hashed_password(user)
+        user_data = user.model_dump(exclude_unset=True)
+        user_data.pop("current_password")
+        new_user_data = UserCreateInput(**user_data, name=current_user.name)
+        user_create = get_user_create_with_hashed_password(new_user_data)
         updated_user = crud.user.update(db=db, db_obj=db_user, obj_in=user_create)
         logger.info(f"Successfully updated password for user ID: {updated_user.id}")
         return updated_user

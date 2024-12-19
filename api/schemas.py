@@ -51,6 +51,7 @@ class UserCreateInput(UserBase):
 
 
 class UserUpdateInput(UserCreateInput):
+    name: Optional[str] = None
     current_password: str
     
 
