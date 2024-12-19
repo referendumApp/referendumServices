@@ -1,6 +1,6 @@
 import logging
 from collections import Counter, defaultdict
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -16,6 +16,7 @@ from ..schemas import (
     ErrorResponse,
     LegislatorVote,
     LegislatorVoteDetail,
+    UserBillVotes,
     VoteCountByChoice,
     VoteCountByParty,
     VoteSummary,
@@ -126,11 +127,11 @@ async def get_bill_versions(
 
 @router.get(
     "/{bill_id}/user_votes",
-    response_model=Dict[str, int],
+    response_model=UserBillVotes,
     summary="Get user vote counts for a bill",
     responses={
         200: {
-            "model": Dict[str, int],
+            "model": UserBillVotes,
             "description": "Vote counts successfully retrieved",
         },
         401: {"model": ErrorResponse, "description": "Not authorized"},
@@ -142,7 +143,7 @@ async def get_bill_vote_counts(
     bill_id: int,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
-) -> Dict[str, Union[int, float]]:
+):
     bill_votes = crud.bill.get_bill_user_votes(db, bill_id)
     return bill_votes
 
