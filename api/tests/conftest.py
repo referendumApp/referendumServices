@@ -67,7 +67,7 @@ async def delete_test_entity(client: AsyncClient, system_headers: Dict):
 
 @pytest_asyncio.fixture(scope="function")
 async def test_vote_choice(create_test_entity, delete_test_entity):
-    vote_choice_data = {"id": 1, "name": "Yea"}
+    vote_choice_data = {"id": YAY_VOTE_ID, "name": "Yea"}
     vote_choice = await create_test_entity("/vote_choices/", vote_choice_data)
     yield vote_choice
     await delete_test_entity("vote_choices", vote_choice["id"])
@@ -187,13 +187,11 @@ async def test_bill(
 
 
 @pytest_asyncio.fixture(scope="function")
-async def test_bill_action(
-    create_test_entity, delete_test_entity, test_bill: Dict, test_legislative_body: Dict
-):
+async def test_bill_action(create_test_entity, delete_test_entity, test_bill):
     bill_action_data = {
         "id": random.randint(100000, DEFAULT_ID),
         "billId": test_bill["id"],
-        "legislativeBodyId": test_legislative_body["id"],
+        "legislativeBodyId": test_bill["legislativeBodyId"],
         "date": "2024-01-01",
         "description": "Test",
     }
