@@ -340,9 +340,14 @@ class TestManager:
     async def cleanup(self):
         """Clean up resources in reverse order of creation."""
         for resource_type, resource_id in reversed(self.resources_to_cleanup):
-            response = await self.client.delete(
-                f"/{resource_type}/{resource_id}", headers=self.headers
-            )
+            if resource_type == "users":
+                response = await self.client.delete(
+                    f"users/admin/{resource_id}", headers=self.headers
+                )
+            else:
+                response = await self.client.delete(
+                    f"/{resource_type}/{resource_id}", headers=self.headers
+                )
             if response.status_code != 404:  # Ignore if already deleted
                 assert response.status_code == 204
 
@@ -361,6 +366,17 @@ class TestManager:
         if not skip_cleanup:
             self.resources_to_cleanup.append((endpoint.strip("/"), resource["id"]))
         return resource
+
+    # TODO - implement on startup
+    async def create_vote_choices(self):
+        await self.create_resource(
+            "/vote_choices/",
+            {"id": YAY_VOTE_ID, "name": "Yea"},
+        )
+        await self.create_resource(
+            "/vote_choices/",
+            {"id": NAY_VOTE_ID, "name": "Nay"},
+        )
 
     async def create_state(self, name: Optional[str] = None) -> Dict:
         """Create a state with optional custom name."""
@@ -552,6 +568,28 @@ class TestManager:
         response = await self.client.get(f"/bills/{bill_id}", headers=self.headers)
         assert response.status_code == 200, f"Failed to get bill: {response.text}"
         return response.json()
+
+    async def create_user(
+        self,
+        email: Optional[str] = None,
+        password: Optional[str] = None,
+        name: Optional[str] = None,
+    ) -> Dict:
+        """Create a state with optional custom name."""
+        return await self.create_resource(
+            "/users/",
+            {
+                "email": email or f"{generate_random_string()}@example.com",
+                "password": password or "testpassword",
+                "name": name or "Test User",
+            },
+        )
+
+    async def start_user_session(self) -> Tuple:
+        user = await self.create_user()
+        token = create_access_token(data={"sub": user["email"]})
+        headers = {"Authorization": f"Bearer {token}"}
+        return user, headers
 
 
 @pytest_asyncio.fixture

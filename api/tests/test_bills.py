@@ -1,5 +1,7 @@
+import logging
+
 from api.tests.conftest import TestManager
-from api.tests.test_utils import DEFAULT_ID, assert_status_code
+from api.tests.test_utils import DEFAULT_ID, assert_status_code, YAY_VOTE_ID
 
 
 async def test_add_bill_success(test_manager: TestManager):
@@ -209,73 +211,128 @@ async def test_bulk_update_success(client, system_headers, test_manager: TestMan
         assert item["title"] == update_data[i]["title"]
 
 
-async def test_bill_user_votes(client, system_headers, test_user_vote):
-    response = await client.get(
-        f"/bills/{test_user_vote['billId']}/user_votes", headers=system_headers
+async def test_bill_user_votes(client, system_headers, test_manager: TestManager):
+    await test_manager.create_vote_choices()
+    user, headers = await test_manager.start_user_session()
+    test_bill = await test_manager.create_bill()
+
+    vote_data = {
+        "billId": test_bill["id"],
+        "voteChoiceId": YAY_VOTE_ID,
+    }
+    response = await client.put("/users/votes/", json=vote_data, headers=headers)
+    test_error = None
+    try:
+        assert_status_code(response, 200)
+
+        response = await client.get(f"/bills/{test_bill['id']}/user_votes", headers=system_headers)
+        assert_status_code(response, 200)
+        bill_votes = response.json()
+        assert bill_votes["yay"] > 0
+        assert bill_votes["nay"] == 0
+    except Exception as e:
+        test_error = str(e)
+        logging.error(f"Test failed with {test_error}, marking and cleaning up")
+
+    response = await client.delete(
+        f"/users/votes?billId={test_bill['id']}",
+        headers=headers,
+    )
+    assert_status_code(response, 204)
+
+    if test_error:
+        raise Exception(test_error)
+
+
+async def test_voting_history(client, system_headers, test_manager: TestManager):
+    await test_manager.create_vote_choices()
+    test_legislator = await test_manager.create_legislator()
+    test_bill_action = await test_manager.create_bill_action()
+
+    response = await client.put(
+        "/legislator_votes/",
+        json={
+            "billId": test_bill_action["billId"],
+            "billActionId": test_bill_action["id"],
+            "legislatorId": test_legislator["id"],
+            "voteChoiceId": YAY_VOTE_ID,
+        },
+        headers=system_headers,
     )
     assert_status_code(response, 200)
-    bill_votes = response.json()
-    assert bill_votes["yay"] > 0
-    assert bill_votes["nay"] == 0
+    test_legislator_vote = response.json()
+    test_error = None
+    try:
+        response = await client.get(
+            f"/bills/{test_legislator_vote['billId']}/voting_history", headers=system_headers
+        )
+        assert_status_code(response, 200)
+        result = response.json()
 
+        # Check top level structure
+        assert set(result.keys()) == {"billId", "votes", "summaries"}
+        assert result["billId"] == test_legislator_vote["billId"]
 
-async def test_voting_history(client, system_headers, test_legislator_vote):
-    response = await client.get(
-        f"/bills/{test_legislator_vote['billId']}/voting_history", headers=system_headers
+        # Check votes array structure
+        assert isinstance(result["votes"], list)
+        assert len(result["votes"]) == 1
+        vote = result["votes"][0]
+        required_vote_keys = {
+            "billActionId",
+            "date",
+            "actionDescription",
+            "legislatorVotes",
+        }
+        assert set(vote.keys()) == required_vote_keys
+        assert vote["billActionId"] == test_legislator_vote["billActionId"]
+
+        assert isinstance(vote["legislatorVotes"], list)
+        assert len(vote["legislatorVotes"]) == 1
+        legislator_vote = vote["legislatorVotes"][0]
+        required_legislator_vote_keys = {
+            "legislatorId",
+            "legislatorName",
+            "partyName",
+            "roleName",
+            "stateName",
+            "voteChoiceId",
+        }
+        assert set(legislator_vote.keys()) == required_legislator_vote_keys
+        assert legislator_vote["legislatorId"] == test_legislator_vote["legislatorId"]
+
+        assert isinstance(result["summaries"], list)
+        assert len(result["summaries"]) == 1
+        summary = result["summaries"][0]
+        assert set(summary.keys()) == {
+            "billActionId",
+            "totalVotes",
+            "voteCountsByChoice",
+            "voteCountsByParty",
+        }
+
+        assert isinstance(summary["voteCountsByChoice"], list)
+        assert len(summary["voteCountsByChoice"]) == 1
+        vote_choice = summary["voteCountsByChoice"][0]
+        assert set(vote_choice.keys()) == {"voteChoiceId", "count"}
+        assert vote_choice["voteChoiceId"] == test_legislator_vote["voteChoiceId"]
+        assert vote_choice["count"] == 1
+
+        assert isinstance(summary["voteCountsByParty"], list)
+        assert len(summary["voteCountsByParty"]) == 1
+        party_count = summary["voteCountsByParty"][0]
+        assert set(party_count.keys()) == {"voteChoiceId", "partyId", "count"}
+        assert party_count["count"] == 1
+    except Exception as e:
+        test_error = str(e)
+        logging.error(f"Test failed with {test_error}, marking and cleaning up")
+
+    # Cleanup vote
+    response = await client.delete(
+        "/legislator_votes/",
+        params={"bill_action_id": test_bill_action["id"], "legislator_id": test_legislator["id"]},
+        headers=system_headers,
     )
-    assert_status_code(response, 200)
-    result = response.json()
+    assert_status_code(response, 204)
 
-    # Check top level structure
-    assert set(result.keys()) == {"billId", "votes", "summaries"}
-    assert result["billId"] == test_legislator_vote["billId"]
-
-    # Check votes array structure
-    assert isinstance(result["votes"], list)
-    assert len(result["votes"]) == 1
-    vote = result["votes"][0]
-    required_vote_keys = {
-        "billActionId",
-        "date",
-        "actionDescription",
-        "legislatorVotes",
-    }
-    assert set(vote.keys()) == required_vote_keys
-    assert vote["billActionId"] == test_legislator_vote["billActionId"]
-
-    assert isinstance(vote["legislatorVotes"], list)
-    assert len(vote["legislatorVotes"]) == 1
-    legislator_vote = vote["legislatorVotes"][0]
-    required_legislator_vote_keys = {
-        "legislatorId",
-        "legislatorName",
-        "partyName",
-        "roleName",
-        "stateName",
-        "voteChoiceId",
-    }
-    assert set(legislator_vote.keys()) == required_legislator_vote_keys
-    assert legislator_vote["legislatorId"] == test_legislator_vote["legislatorId"]
-
-    assert isinstance(result["summaries"], list)
-    assert len(result["summaries"]) == 1
-    summary = result["summaries"][0]
-    assert set(summary.keys()) == {
-        "billActionId",
-        "totalVotes",
-        "voteCountsByChoice",
-        "voteCountsByParty",
-    }
-
-    assert isinstance(summary["voteCountsByChoice"], list)
-    assert len(summary["voteCountsByChoice"]) == 1
-    vote_choice = summary["voteCountsByChoice"][0]
-    assert set(vote_choice.keys()) == {"voteChoiceId", "count"}
-    assert vote_choice["voteChoiceId"] == test_legislator_vote["voteChoiceId"]
-    assert vote_choice["count"] == 1
-
-    assert isinstance(summary["voteCountsByParty"], list)
-    assert len(summary["voteCountsByParty"]) == 1
-    party_count = summary["voteCountsByParty"][0]
-    assert set(party_count.keys()) == {"voteChoiceId", "partyId", "count"}
-    assert party_count["count"] == 1
+    if test_error:
+        raise Exception(test_error)
