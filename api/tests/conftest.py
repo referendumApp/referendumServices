@@ -384,6 +384,24 @@ class TestManager:
             "/states/", {"name": name or f"State_{generate_random_string()}"}
         )
 
+    async def create_committee(
+        self, name: Optional[str] = None, legislative_body_id: Optional[int] = None
+    ) -> Dict:
+        """Create a state with optional custom name."""
+        if legislative_body_id is None:
+            legislative_body = await self.create_legislative_body()
+        else:
+            legislative_body = await self.get_legislative_body(legislative_body_id)
+
+        return await self.create_resource(
+            "/committees/",
+            {
+                "name": name or f"Committee_{generate_random_string()}",
+                "stateId": legislative_body["stateId"],
+                "legislativeBodyId": legislative_body["id"],
+            },
+        )
+
     async def create_role(self, name: Optional[str] = None) -> Dict:
         """Create a role with optional custom name."""
         return await self.create_resource("/roles/", {"name": name or "Representative"})
@@ -567,6 +585,14 @@ class TestManager:
         """Get current bill details by ID."""
         response = await self.client.get(f"/bills/{bill_id}", headers=self.headers)
         assert response.status_code == 200, f"Failed to get bill: {response.text}"
+        return response.json()
+
+    async def get_legislative_body(self, legislative_body_id: int) -> Dict:
+        """Get legislative_body by ID."""
+        response = await self.client.get(
+            f"/legislative_bodys/{legislative_body_id}", headers=self.headers
+        )
+        assert response.status_code == 200, f"Failed to get legislative_body: {response.text}"
         return response.json()
 
     async def create_user(
