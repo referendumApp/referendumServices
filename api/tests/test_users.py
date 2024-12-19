@@ -39,11 +39,13 @@ async def test_update_user(client, test_user_session):
         "email": user["email"],
         "password": "newpassword",
         "name": "Updated User",
+        "settings": {"feature_flag": True},
     }
     response = await client.put("/users/", json=update_data, headers=user_headers)
     assert_status_code(response, 200)
     updated_user = response.json()
     assert updated_user["name"] == update_data["name"]
+    assert updated_user["settings"] == {"feature_flag": True}
 
 
 async def test_update_user_unauthorized(client, system_headers, test_user_session):

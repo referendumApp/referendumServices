@@ -6,6 +6,7 @@ from sqlalchemy import Column, Date, ForeignKey, Integer, String, Table, event
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Query
+from sqlalchemy.dialects.postgresql import JSONB
 
 logger = logging.getLogger(__name__)
 Base = declarative_base()
@@ -82,6 +83,7 @@ class User(Base):
     name = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
+    settings = Column(JSONB, nullable=False, default={})
 
     followed_topics = relationship("Topic", secondary=user_topic_follows)
     followed_bills = relationship("Bill", secondary=user_bill_follows)
