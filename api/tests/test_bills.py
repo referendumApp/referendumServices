@@ -212,7 +212,6 @@ async def test_bulk_update_success(client, system_headers, test_manager: TestMan
 
 
 async def test_bill_user_votes(client, system_headers, test_manager: TestManager):
-    await test_manager.create_vote_choices()
     user, headers = await test_manager.start_user_session()
     test_bill = await test_manager.create_bill()
 
@@ -245,7 +244,6 @@ async def test_bill_user_votes(client, system_headers, test_manager: TestManager
 
 
 async def test_voting_history(client, system_headers, test_manager: TestManager):
-    await test_manager.create_vote_choices()
     test_legislator = await test_manager.create_legislator()
     test_bill_action = await test_manager.create_bill_action()
 

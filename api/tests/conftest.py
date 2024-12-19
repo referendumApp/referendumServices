@@ -367,15 +367,6 @@ class TestManager:
             self.resources_to_cleanup.append((endpoint.strip("/"), resource["id"]))
         return resource
 
-    # TODO - implement on startup
-    async def create_vote_choices(self):
-        for vote_choice_data in [
-            {"id": YAY_VOTE_ID, "name": "Yea"},
-            {"id": NAY_VOTE_ID, "name": "Nay"},
-        ]:
-            await self.create_resource("/vote_choices/", vote_choice_data)
-            self.resources_to_cleanup.append(("vote_choices", vote_choice_data["id"]))
-
     async def create_state(self, name: Optional[str] = None) -> Dict:
         """Create a state with optional custom name."""
         return await self.create_resource(
@@ -616,7 +607,7 @@ class TestManager:
         return user, headers
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(scope="function")
 async def test_manager(client: AsyncClient, system_headers: Dict[str, str]) -> TestManager:
     """Fixture that provides access to test resources with automatic cleanup."""
     resources = TestManager(client, system_headers)
@@ -624,3 +615,19 @@ async def test_manager(client: AsyncClient, system_headers: Dict[str, str]) -> T
         yield resources
     finally:
         await resources.cleanup()
+
+
+@pytest.fixture(scope="session", autouse=True)
+async def setup_vote_choices(client, system_headers):
+    """Create vote choices once at the start of the test session."""
+    choice_data_options = [
+        {"id": YAY_VOTE_ID, "name": "Yea"},
+        {"id": NAY_VOTE_ID, "name": "Nay"},
+    ]
+    for choice_data in choice_data_options:
+        response = await client.post("/vote_choices", json=choice_data, headers=system_headers)
+        assert response.status_code == 201
+    yield
+    for choice_data in choice_data_options:
+        response = await client.delete(f"/vote_choices/{choice_data['id']}", headers=system_headers)
+        assert response.status_code == 204

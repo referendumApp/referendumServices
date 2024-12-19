@@ -126,9 +126,6 @@ async def test_delete_legislator_unauthorized(test_manager: TestManager):
 
 
 async def test_get_legislator_voting_history(test_manager: TestManager):
-    # Create vote choices first
-    await test_manager.create_vote_choices()
-
     # Create a test legislator and bill action
     test_legislator = await test_manager.create_legislator()
     test_bill_action = await test_manager.create_bill_action()
