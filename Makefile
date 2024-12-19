@@ -14,10 +14,18 @@ empty:
 	docker compose --profile local-empty build
 	docker compose --profile local-empty up
 
-# Run the tests
+# Run tests
 pytest:
 	docker compose --profile test build
-	docker compose --profile test run --rm test
+	docker compose --profile test run --rm test pytest
+
+pytest-api:
+	docker compose --profile test build
+	docker compose --profile test run --rm test pytest $(ARGS) api/ common/
+
+pytest-pipeline:
+	docker compose --profile test build
+	docker compose --profile test run --rm test pytest $(ARGS) pipeline/
 
 # Clean up Docker resources
 clean:
@@ -38,3 +46,5 @@ restart: clean local
 
 # Run tests and cleanup
 test: clean pytest clean
+test-api: clean pytest-api clean
+test-pipeline: clean pytest-pipeline clean
