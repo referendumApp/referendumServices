@@ -161,6 +161,7 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
             db.query(models.Bill)
             .options(
                 joinedload(models.Bill.state),
+                joinedload(models.Bill.status),
                 joinedload(models.Bill.legislative_body).joinedload(models.LegislativeBody.role),
                 joinedload(models.Bill.sponsors).joinedload(models.Sponsor.legislator),
                 joinedload(models.Bill.topics),
@@ -350,6 +351,10 @@ class RoleCRUD(BaseCRUD[models.Role, schemas.Role.Base, schemas.Role.Record]):
 
 
 class StateCRUD(BaseCRUD[models.State, schemas.State.Base, schemas.State.Record]):
+    pass
+
+
+class StatusCRUD(BaseCRUD[models.Status, schemas.Status.Base, schemas.Status.Record]):
     pass
 
 
@@ -625,6 +630,7 @@ legislator_vote = LegislatorVoteCRUD(models.LegislatorVote)
 party = PartyCRUD(models.Party)
 role = RoleCRUD(models.Role)
 state = StateCRUD(models.State)
+status = StatusCRUD(models.Status)
 session = SessionCRUD(models.Session)
 topic = TopicCRUD(models.Topic)
 user = UserCRUD(models.User)
