@@ -369,14 +369,12 @@ class TestManager:
 
     # TODO - implement on startup
     async def create_vote_choices(self):
-        await self.create_resource(
-            "/vote_choices/",
+        for vote_choice_data in [
             {"id": YAY_VOTE_ID, "name": "Yea"},
-        )
-        await self.create_resource(
-            "/vote_choices/",
             {"id": NAY_VOTE_ID, "name": "Nay"},
-        )
+        ]:
+            await self.create_resource("/vote_choices/", vote_choice_data)
+            self.resources_to_cleanup.append(("vote_choices", vote_choice_data["id"]))
 
     async def create_state(self, name: Optional[str] = None) -> Dict:
         """Create a state with optional custom name."""
