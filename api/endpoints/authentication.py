@@ -91,6 +91,7 @@ async def login_for_access_token(
             "access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "bearer",
+            "user": user,
         }
     except FormException as e:
         logger.warning(f"Login failed with exception: {e}")
@@ -145,6 +146,7 @@ async def refresh_access_token(
             "access_token": access_token,
             "refresh_token": new_refresh_token,
             "token_type": "bearer",
+            "user": user,
         }
     except JWTError as e:
         logger.warning(f"Invalid or expired token: {str(e)}")

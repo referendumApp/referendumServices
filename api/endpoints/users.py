@@ -226,6 +226,7 @@ async def update_user_password(
         logger.error(f"Database error while updating user: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
+
 @router.delete(
     "/admin/{user_id}",
     status_code=status.HTTP_204_NO_CONTENT,

@@ -70,6 +70,29 @@ async def test_update_user_unauthorized(client, system_headers, test_user_sessio
     assert_status_code(response, 204)
 
 
+async def test_update_user_password(client, test_user_session):
+    user, user_headers = test_user_session
+
+    update_data = {
+        "email": user["email"],
+        "current_password": "testpassword",
+        "password": "newpassword",
+        "name": "Test User",
+    }
+    response = await client.patch("/users/password_reset", json=update_data, headers=user_headers)
+    assert_status_code(response, 200)
+    updated_user = response.json()
+    assert updated_user["name"] == update_data["name"]
+
+    login_data = { "username": user["email"], "password": "newpassword" }
+    response = await client.post("/auth/login", data=login_data)
+    assert_status_code(response, 200)
+
+    old_login_data = { "username": user["email"], "password": "testpassword" }
+    response = await client.post("/auth/login", data=old_login_data)
+    assert_status_code(response, 401)
+
+
 async def test_admin_delete_user(client, system_headers):
     user_data = {
         "email": "deleteuser@example.com",
