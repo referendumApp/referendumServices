@@ -149,8 +149,8 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
         return {
             "yay": yay,
             "nay": nay,
-            "yay_pct": yay / total,
-            "nay_pct": nay / total,
+            "yayPct": yay / total,
+            "nayPct": nay / total,
             "total": total,
         }
 
