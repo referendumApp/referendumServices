@@ -95,7 +95,7 @@ async def test_state(create_test_entity, delete_test_entity):
 
 @pytest_asyncio.fixture(scope="function")
 async def test_status(create_test_entity, delete_test_entity):
-    status_data = {"name": "Washington"}
+    status_data = {"name": "Introduced"}
     status = await create_test_entity("/statuses/", status_data)
     yield status
     await delete_test_entity("statuses", status["id"])

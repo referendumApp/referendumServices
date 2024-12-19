@@ -23,6 +23,7 @@ async def test_list_bill_details(client, system_headers, test_bill_version, test
         "billId": test_bill_version["billId"],
         "description": "This is a test bill",
         "statusId": 999999,
+        "status": "Introduced",
         "statusDate": "2024-01-01",
         "sessionId": DEFAULT_ID,
         "stateName": "Washington",

@@ -405,7 +405,9 @@ def filter_bill_queries(query):
                 query._bill_filtered = True
                 return query
     except sqlalchemy.exc.InvalidRequestError:
-        logger.error(f"Cannot apply subset filter to offset/limited queries")
+        logger.warning(
+            f"Cannot apply subset filter to offset/limited queries, proceeding with full query"
+        )
 
     return query
 
