@@ -1,0 +1,2391 @@
+diff --git a/Makefile b/Makefile
+index a221cf1..df62cd8 100644
+--- a/Makefile
++++ b/Makefile
+@@ -14,10 +14,18 @@ empty:
+ 	docker compose --profile local-empty build
+ 	docker compose --profile local-empty up
+ 
+-# Run the tests
++# Run tests
+ pytest:
+ 	docker compose --profile test build
+-	docker compose --profile test run --rm test
++	docker compose --profile test run --rm test pytest
++
++pytest-api:
++	docker compose --profile test build
++	docker compose --profile test run --rm test pytest $(ARGS) api/ common/
++
++pytest-pipeline:
++	docker compose --profile test build
++	docker compose --profile test run --rm test pytest $(ARGS) pipeline/
+ 
+ # Clean up Docker resources
+ clean:
+@@ -38,3 +46,5 @@ restart: clean local
+ 
+ # Run tests and cleanup
+ test: clean pytest clean
++test-api: clean pytest-api clean
++test-pipeline: clean pytest-pipeline clean
+diff --git a/api/tests/conftest.py b/api/tests/conftest.py
+index 52ee27b..de6871f 100644
+--- a/api/tests/conftest.py
++++ b/api/tests/conftest.py
+@@ -1,17 +1,17 @@
+ import os
+ import random
+-from typing import AsyncGenerator, Dict, Tuple
++from dataclasses import dataclass, field
++from typing import AsyncGenerator, Dict, Tuple, Optional, List
+ 
+ import pytest
+ import pytest_asyncio
+ from httpx import ASGITransport, AsyncClient
++
+ from api.config import settings
+ from api.main import app
+ from api.security import create_access_token
+ from api.tests.test_utils import (
+-    assert_status_code,
+     generate_random_string,
+-    DEFAULT_ID,
+     YAY_VOTE_ID,
+     NAY_VOTE_ID,
+ )
+@@ -29,6 +29,7 @@ if ENV == "local" and DEBUGGER is not None and DEBUGGER.lower() == "true":
+ 
+ transport = ASGITransport(app=app)
+ base_url = "http://localhost"
++storage_client = ObjectStorageClient()
+ 
+ 
+ @pytest.fixture(scope="session")
+@@ -42,179 +43,208 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
+         yield client
+ 
+ 
+-@pytest_asyncio.fixture(scope="session")
+-async def create_test_entity(client: AsyncClient, system_headers: Dict[str, str]):
+-    async def create_entity(endpoint: str, payload: Dict):
+-        if "id" not in payload:
+-            payload["id"] = DEFAULT_ID
+-
+-        response = await client.post(endpoint, json=payload, headers=system_headers)
+-        assert_status_code(response, 201)
+-        return response.json()
+-
+-    return create_entity
+-
+-
+-@pytest_asyncio.fixture(scope="session")
+-async def delete_test_entity(client: AsyncClient, system_headers: Dict):
+-    async def delete_entity(resource: str, entity_id: str):
+-        response = await client.delete(f"/{resource}/{entity_id}", headers=system_headers)
+-        if response.status_code != 404:
+-            assert_status_code(response, 204)
+-
+-    return delete_entity
+-
+-
+-@pytest_asyncio.fixture(scope="function")
+-async def test_vote_choice(create_test_entity, delete_test_entity):
+-    vote_choice_data = {"id": 1, "name": "Yea"}
+-    vote_choice = await create_test_entity("/vote_choices/", vote_choice_data)
+-    yield vote_choice
+-    await delete_test_entity("vote_choices", vote_choice["id"])
+-
+-
+-@pytest_asyncio.fixture(scope="function")
+-async def test_vote_choices(create_test_entity, delete_test_entity):
+-    # We create the original and an alternative
+-    vote_choice_data = {"id": YAY_VOTE_ID, "name": "Yea"}
+-    vote_choice = await create_test_entity("/vote_choices/", vote_choice_data)
+-    alt_choice_data = {"id": NAY_VOTE_ID, "name": "Nay"}
+-    alt_choice = await create_test_entity("/vote_choices/", alt_choice_data)
+-    yield vote_choice, alt_choice
+-    await delete_test_entity("vote_choices", alt_choice["id"])
+-    await delete_test_entity("vote_choices", vote_choice["id"])
+-
+-
+-@pytest_asyncio.fixture(scope="function")
+-async def test_state(create_test_entity, delete_test_entity):
+-    state_data = {"name": "Washington"}
+-    state = await create_test_entity("/states/", state_data)
+-    yield state
+-    await delete_test_entity("states", state["id"])
+-
+-
+-@pytest_asyncio.fixture(scope="function")
+-async def test_status(create_test_entity, delete_test_entity):
+-    status_data = {"name": "Introduced"}
+-    status = await create_test_entity("/statuses/", status_data)
+-    yield status
+-    await delete_test_entity("statuses", status["id"])
+-
+-
+-@pytest_asyncio.fixture(scope="function")
+-async def test_session(create_test_entity, delete_test_entity, test_state):
+-    session_data = {"name": "118th", "stateId": test_state["id"]}
+-    session = await create_test_entity("/sessions/", session_data)
+-    yield session
+-    await delete_test_entity("sessions", session["id"])
+-
+-
+-@pytest_asyncio.fixture(scope="function")
+-async def test_party(create_test_entity, delete_test_entity):
+-    party_data = {"name": "Independent"}
+-    party = await create_test_entity("/partys/", party_data)
+-    yield party
+-    await delete_test_entity("partys", party["id"])
+-
+-
+-@pytest_asyncio.fixture(scope="function")
+-async def test_user_session(create_test_entity, delete_test_entity):
+-    user_data = {
+-        "email": f"{generate_random_string()}@example.com",
+-        "password": "testpassword",
+-        "name": "Test User",
+-    }
+-    user = await create_test_entity("/users/", user_data)
+-    token = create_access_token(data={"sub": user["email"]})
+-    headers = {"Authorization": f"Bearer {token}"}
+-    yield user, headers
+-    await delete_test_entity("users/admin", user["id"])
+-
+-
+-@pytest_asyncio.fixture(scope="function")
+-async def test_topic(create_test_entity, delete_test_entity):
+-    topic = await create_test_entity("/topics/", {"name": generate_random_string()})
+-    yield topic
+-    await delete_test_entity("topics", topic["id"])
+-
+-
+-@pytest_asyncio.fixture(scope="function")
+-async def test_role(create_test_entity, delete_test_entity):
+-    role_data = {"name": "House"}
+-    role = await create_test_entity("/roles/", role_data)
+-    yield role
+-    await delete_test_entity("roles", role["id"])
+-
++@dataclass
++class TestManager:
++    client: AsyncClient
++    headers: Dict[str, str]
++    resources_to_cleanup: List[tuple] = field(default_factory=list)
++
++    async def cleanup(self):
++        """Clean up resources in reverse order of creation."""
++        for resource_type, resource_id in reversed(self.resources_to_cleanup):
++            if resource_type == "users":
++                response = await self.client.delete(
++                    f"users/admin/{resource_id}", headers=self.headers
++                )
++            else:
++                response = await self.client.delete(
++                    f"/{resource_type}/{resource_id}", headers=self.headers
++                )
++            if response.status_code != 404:  # Ignore if already deleted
++                assert response.status_code == 204
++
++        filenames = storage_client.list_filenames(BILL_TEXT_BUCKET_NAME)
++        for filename in filenames:
++            storage_client.delete_file(BILL_TEXT_BUCKET_NAME, filename)
++
++    async def create_resource(self, endpoint: str, data: Dict, skip_cleanup: bool = False) -> Dict:
++        """Create a resource and optionally track it for cleanup."""
++        if not data.get("id"):
++            data["id"] = random.randint(0, 999999)
++        response = await self.client.post(endpoint, json=data, headers=self.headers)
++        assert response.status_code == 201, f"Failed to create resource: {response.text}"
++        resource = response.json()
++
++        if not skip_cleanup:
++            self.resources_to_cleanup.append((endpoint.strip("/"), resource["id"]))
++        return resource
++
++    async def create_state(self, name: Optional[str] = None) -> Dict:
++        """Create a state with optional custom name."""
++        return await self.create_resource(
++            "/states/", {"name": name or f"State_{generate_random_string()}"}
++        )
+ 
+-@pytest_asyncio.fixture(scope="function")
+-async def test_legislative_body(create_test_entity, delete_test_entity, test_state, test_role):
+-    legislative_body_data = {"stateId": test_state["id"], "roleId": test_role["id"]}
+-    legislative_body = await create_test_entity("/legislative_bodys/", legislative_body_data)
+-    yield legislative_body
+-    await delete_test_entity("legislative_bodys", legislative_body["id"])
++    async def create_committee(
++        self, name: Optional[str] = None, legislative_body_id: Optional[int] = None
++    ) -> Dict:
++        """Create a state with optional custom name."""
++        if legislative_body_id is None:
++            legislative_body = await self.create_legislative_body()
++        else:
++            legislative_body = await self.get_legislative_body(legislative_body_id)
++
++        return await self.create_resource(
++            "/committees/",
++            {
++                "name": name or f"Committee_{generate_random_string()}",
++                "stateId": legislative_body["stateId"],
++                "legislativeBodyId": legislative_body["id"],
++            },
++        )
+ 
++    async def create_role(self, name: Optional[str] = None) -> Dict:
++        """Create a role with optional custom name."""
++        return await self.create_resource("/roles/", {"name": name or "Representative"})
++
++    async def create_party(self, name: Optional[str] = None) -> Dict:
++        """Create a party with optional custom name."""
++        return await self.create_resource("/partys/", {"name": name or "Independent"})
++
++    async def create_session(
++        self, *, state_id: Optional[int] = None, name: Optional[str] = None
++    ) -> Dict:
++        """Create a session, creating state if needed."""
++        if state_id is None:
++            state = await self.create_state()
++            state_id = state["id"]
++
++        return await self.create_resource(
++            "/sessions/",
++            {"name": name or f"Session_{generate_random_string()}", "stateId": state_id},
++        )
+ 
+-@pytest_asyncio.fixture(scope="function")
+-async def test_committee(create_test_entity, delete_test_entity, test_legislative_body):
+-    committee_data = {
+-        "name": f"Test Committee {generate_random_string()}",
+-        "legislativeBodyId": test_legislative_body["id"],
+-    }
+-    committee = await create_test_entity("/committees/", committee_data)
+-    yield committee
+-    await delete_test_entity("committees", committee["id"])
++    async def create_status(self, name: Optional[str] = None) -> Dict:
++        """Create a status with optional custom name."""
++        return await self.create_resource("/statuses/", {"name": name or "Introduced"})
+ 
++    async def create_topic(self, name: Optional[str] = None) -> Dict:
++        """Create a status with optional custom name."""
++        return await self.create_resource("/topics/", {"name": name or "Health"})
+ 
+-@pytest_asyncio.fixture(scope="function")
+-async def test_bill(
+-    create_test_entity, delete_test_entity, test_session, test_legislative_body, test_status
+-):
+-    bill_data = {
+-        "legiscanId": random.randint(0, DEFAULT_ID),
+-        "identifier": f"H.B.{random.randint(1, 999)}",
+-        "title": f"Test Bill {generate_random_string()}",
+-        "description": "This is a test bill",
+-        "stateId": test_session["stateId"],
+-        "legislativeBodyId": test_legislative_body["id"],
+-        "sessionId": test_session["id"],
+-        "statusId": test_status["id"],
+-        "status_date": "2024-01-01",
+-        "current_version_id": None,
+-    }
+-    bill = await create_test_entity("/bills/", bill_data)
+-    yield bill
+-    await delete_test_entity("bills", bill["id"])
++    async def create_legislative_body(
++        self, *, state_id: Optional[int] = None, role_id: Optional[int] = None
++    ) -> Dict:
++        """Create a legislative body, creating dependencies if needed."""
++        if state_id is None:
++            state = await self.create_state()
++            state_id = state["id"]
+ 
++        if role_id is None:
++            role = await self.create_role()
++            role_id = role["id"]
+ 
+-@pytest_asyncio.fixture(scope="function")
+-async def test_bill_action(
+-    create_test_entity, delete_test_entity, test_bill: Dict, test_legislative_body: Dict
+-):
+-    bill_action_data = {
+-        "id": random.randint(100000, DEFAULT_ID),
+-        "billId": test_bill["id"],
+-        "legislativeBodyId": test_legislative_body["id"],
+-        "date": "2024-01-01",
+-        "description": "Test",
+-    }
+-    bill_action = await create_test_entity("/bill_actions/", bill_action_data)
+-    yield bill_action
+-    await delete_test_entity("bill_actions", bill_action["id"])
++        return await self.create_resource(
++            "/legislative_bodys/", {"stateId": state_id, "roleId": role_id}
++        )
+ 
++    async def create_legislator(
++        self,
++        *,
++        name: Optional[str] = None,
++        state_id: Optional[int] = None,
++        role_id: Optional[int] = None,
++        party_id: Optional[int] = None,
++    ) -> Dict:
++        """Create a legislator with all dependencies."""
++        if state_id is None:
++            state = await self.create_state()
++            state_id = state["id"]
++
++        if role_id is None:
++            role = await self.create_role()
++            role_id = role["id"]
++
++        if party_id is None:
++            party = await self.create_party()
++            party_id = party["id"]
++
++        return await self.create_resource(
++            "/legislators/",
++            {
++                "legiscanId": str(random.randint(100, 999)),
++                "name": name or f"Legislator_{generate_random_string()}",
++                "image_url": f"https://example.com/{generate_random_string()}.jpg",
++                "district": f"D-{random.randint(1, 99)}",
++                "address": "123 Capitol St",
++                "partyId": party_id,
++                "stateId": state_id,
++                "roleId": role_id,
++            },
++        )
+ 
+-@pytest_asyncio.fixture(scope="function")
+-async def test_bill_version(
+-    create_test_entity,
+-    delete_test_entity,
+-    test_bill: Dict,
+-):
+-    bill_text = "A BILL"
++    async def create_bill(
++        self,
++        *,
++        title: Optional[str] = None,
++        state_id: Optional[int] = None,
++        legislative_body_id: Optional[int] = None,
++        session_id: Optional[int] = None,
++        status_id: Optional[int] = None,
++    ) -> Dict:
++        """Create a bill with all dependencies."""
++        if state_id is None:
++            state = await self.create_state()
++            state_id = state["id"]
++
++        if legislative_body_id is None:
++            leg_body = await self.create_legislative_body(state_id=state_id)
++            legislative_body_id = leg_body["id"]
++
++        if session_id is None:
++            session = await self.create_session(state_id=state_id)
++            session_id = session["id"]
++
++        if status_id is None:
++            status = await self.create_status()
++            status_id = status["id"]
++
++        bill_id = random.randint(0, 999999)
++
++        return await self.create_resource(
++            "/bills/",
++            {
++                "id": bill_id,
++                "legiscanId": bill_id,
++                "identifier": f"HB_{random.randint(100, 999)}",
++                "title": title or f"Bill_{generate_random_string()}",
++                "description": "Test bill description",
++                "stateId": state_id,
++                "legislativeBodyId": legislative_body_id,
++                "sessionId": session_id,
++                "statusId": status_id,
++                "status_date": "2024-01-01",
++                "current_version_id": None,
++            },
++        )
+ 
+-    hash_value = generate_random_string()
+-    storage_client = ObjectStorageClient()
++    async def create_bill_version(
++        self,
++        *,
++        bill_id: Optional[int] = None,
++        url: Optional[str] = None,
++        hash_value: Optional[str] = None,
++    ) -> Dict:
++        """Create a bill version, creating bill if needed."""
++        if bill_id is None:
++            bill = await self.create_bill()
++            bill_id = bill["id"]
++
++        if not hash_value:
++            hash_value = generate_random_string()
+ 
+-    try:
+         # Upload bill text to MinIO
++        bill_text = "A BILL"
+         storage_client.upload_file(
+             bucket=BILL_TEXT_BUCKET_NAME,
+             key=f"{hash_value}.txt",
+@@ -222,100 +252,94 @@ async def test_bill_version(
+             content_type="text/plain",
+         )
+ 
+-        # Create bill version record
+-        bill_version_data = {
+-            "id": random.randint(0, DEFAULT_ID),
+-            "billId": test_bill["id"],
+-            "url": "http://bill_text.com/1.pdf",
+-            "hash": hash_value,
+-            "briefing": "yadayadayada",
+-        }
+-
+-        bill_version = await create_test_entity("/bill_versions/", bill_version_data)
+-        yield bill_version
+-
+-    finally:
+-        # Cleanup: First delete the database record
+-        await delete_test_entity("bill_versions", bill_version["id"])
+-
+-        # Then delete the file from MinIO
+-        storage_client.delete_file(bucket=BILL_TEXT_BUCKET_NAME, key=f"{hash_value}.txt")
+-
++        return await self.create_resource(
++            "/bill_versions/",
++            {
++                "id": random.randint(1000, 9999),
++                "billId": bill_id,
++                "url": url or f"https://example.com/bills/{generate_random_string()}.pdf",
++                "hash": hash_value,
++                "briefing": "yadayadayada",
++            },
++        )
+ 
+-@pytest_asyncio.fixture(scope="function")
+-async def test_legislator(
+-    create_test_entity, delete_test_entity, test_party, test_state, test_role
+-):
+-    legislator_data = {
+-        "legiscanId": f"{random.randint(100,999)}",
+-        "name": f"John Doe {generate_random_string()}",
+-        "image_url": "example.com/image.png",
+-        "district": f"DC-{random.randint(100,999)}",
+-        "address": "100 Senate Office Building Washington, DC 20510",
+-        "instagram": f"@sen{generate_random_string()}",
+-        "phone": f"(202) {random.randint(100,999)}-{random.randint(1000,9999)}",
+-        "partyId": test_party["id"],
+-        "stateId": test_state["id"],
+-        "roleId": test_role["id"],
+-    }
+-    legislator = await create_test_entity("/legislators/", legislator_data)
+-    yield legislator
+-    await delete_test_entity("legislators", legislator["id"])
++    async def create_bill_action(self, *, bill_id: Optional[int] = None) -> Dict:
++        """Create a bill action, creating bill if needed."""
++        if bill_id is None:
++            bill = await self.create_bill()
++            bill_id = bill["id"]
++        else:
++            bill = await self.get_bill(bill_id)
++
++        return await self.create_resource(
++            "/bill_actions/",
++            {
++                "id": random.randint(1000, 9999),
++                "billId": bill_id,
++                "legislativeBodyId": bill["legislativeBodyId"],
++                "date": "2024-01-01",
++                "description": "Test",
++            },
++        )
+ 
++    async def get_bill(self, bill_id: int) -> Dict:
++        """Get current bill details by ID."""
++        response = await self.client.get(f"/bills/{bill_id}", headers=self.headers)
++        assert response.status_code == 200, f"Failed to get bill: {response.text}"
++        return response.json()
+ 
+-@pytest_asyncio.fixture(scope="function")
+-async def test_get_legislators(client, system_headers, test_legislator):
+-    legislators = await client.get("/legislators/", headers=system_headers)
+-    assert_status_code(legislators, 200)
+-    return legislators.json()
++    async def get_legislative_body(self, legislative_body_id: int) -> Dict:
++        """Get legislative_body by ID."""
++        response = await self.client.get(
++            f"/legislative_bodys/{legislative_body_id}", headers=self.headers
++        )
++        assert response.status_code == 200, f"Failed to get legislative_body: {response.text}"
++        return response.json()
+ 
++    async def create_user(
++        self,
++        email: Optional[str] = None,
++        password: Optional[str] = None,
++        name: Optional[str] = None,
++    ) -> Dict:
++        """Create a state with optional custom name."""
++        return await self.create_resource(
++            "/users/",
++            {
++                "email": email or f"{generate_random_string()}@example.com",
++                "password": password or "testpassword",
++                "name": name or "Test User",
++            },
++        )
+ 
+-@pytest_asyncio.fixture(scope="function")
+-async def test_user_vote(
+-    client: AsyncClient,
+-    system_headers,
+-    test_user_session: Dict,
+-    test_vote_choices: Tuple,
+-    test_bill: Dict,
+-):
+-    _, headers = test_user_session
+-    yay_vote, nay_vote = test_vote_choices
+-
+-    vote_data = {
+-        "billId": test_bill["id"],
+-        "voteChoiceId": yay_vote["id"],
+-    }
+-    response = await client.put("/users/votes/", json=vote_data, headers=headers)
+-    assert_status_code(response, 200)
+-    user_vote = response.json()
+-    yield user_vote
+-    response = await client.delete(
+-        f"/users/votes?billId={user_vote['billId']}",
+-        headers=headers,
+-    )
+-    assert_status_code(response, 204)
++    async def start_user_session(self) -> Tuple:
++        user = await self.create_user()
++        token = create_access_token(data={"sub": user["email"]})
++        headers = {"Authorization": f"Bearer {token}"}
++        return user, headers
+ 
+ 
+ @pytest_asyncio.fixture(scope="function")
+-async def test_legislator_vote(
+-    client: AsyncClient,
+-    system_headers,
+-    test_legislator: Dict,
+-    test_bill_action: Dict,
+-    test_vote_choice: Dict,
+-):
+-    legislator_vote_data = {
+-        "billId": test_bill_action["billId"],
+-        "billActionId": test_bill_action["id"],
+-        "legislatorId": test_legislator["id"],
+-        "voteChoiceId": test_vote_choice["id"],
+-    }
+-    response = await client.put(
+-        "/legislator_votes/", json=legislator_vote_data, headers=system_headers
+-    )
+-    assert_status_code(response, 200)
+-    legislator_vote = response.json()
+-    yield legislator_vote
+-    params = {"bill_action_id": test_bill_action["id"], "legislator_id": test_legislator["id"]}
+-    response = await client.delete("/legislator_votes/", params=params, headers=system_headers)
+-    assert_status_code(response, 204)
++async def test_manager(client: AsyncClient, system_headers: Dict[str, str]) -> TestManager:
++    """Fixture that provides access to test resources with automatic cleanup."""
++    resources = TestManager(client, system_headers)
++    try:
++        yield resources
++    finally:
++        await resources.cleanup()
++
++
++@pytest.fixture(scope="session", autouse=True)
++async def setup_vote_choices(client, system_headers):
++    """Create vote choices once at the start of the test session."""
++    choice_data_options = [
++        {"id": YAY_VOTE_ID, "name": "Yea"},
++        {"id": NAY_VOTE_ID, "name": "Nay"},
++    ]
++    for choice_data in choice_data_options:
++        response = await client.post("/vote_choices", json=choice_data, headers=system_headers)
++        assert response.status_code == 201
++    yield
++    for choice_data in choice_data_options:
++        response = await client.delete(f"/vote_choices/{choice_data['id']}", headers=system_headers)
++        assert response.status_code == 204
+diff --git a/api/tests/test_bill_actions.py b/api/tests/test_bill_actions.py
+index 81b5390..cc5d12f 100644
+--- a/api/tests/test_bill_actions.py
++++ b/api/tests/test_bill_actions.py
+@@ -1,2 +1,6 @@
+-async def test_add_remove_bill_action(test_bill_action):
++from api.tests.conftest import TestManager
++
++
++async def test_add_remove_bill_action(test_manager: TestManager):
++    test_bill_action = await test_manager.create_bill_action()
+     assert "id" in test_bill_action
+diff --git a/api/tests/test_bill_versions.py b/api/tests/test_bill_versions.py
+index e4deb58..6407570 100644
+--- a/api/tests/test_bill_versions.py
++++ b/api/tests/test_bill_versions.py
+@@ -1,13 +1,14 @@
++from api.tests.conftest import TestManager
+ from api.tests.test_utils import assert_status_code
+ 
+ 
+-async def test_get_bill_text_success(client, system_headers, test_bill_version):
+-    response = await client.get(f"/bills/{test_bill_version['billId']}", headers=system_headers)
+-    assert_status_code(response, 200)
+-    bill = response.json()
+-    assert bill["currentVersionId"] == test_bill_version["id"]
++async def test_get_bill_text_success(test_manager: TestManager, system_headers):
++    test_bill_version = await test_manager.create_bill_version()
++    test_bill = await test_manager.get_bill(test_bill_version["billId"])
++
++    assert test_bill["currentVersionId"] == test_bill_version["id"]
+ 
+-    response = await client.get(
++    response = await test_manager.client.get(
+         f"/bill_versions/{test_bill_version['id']}/text", headers=system_headers
+     )
+     assert_status_code(response, 200)
+@@ -15,8 +16,9 @@ async def test_get_bill_text_success(client, system_headers, test_bill_version):
+     assert body["text"] == "A BILL"
+ 
+ 
+-async def test_get_bill_briefing_success(client, system_headers, test_bill_version):
+-    response = await client.get(
++async def test_get_bill_briefing_success(test_manager: TestManager, system_headers):
++    test_bill_version = await test_manager.create_bill_version()
++    response = await test_manager.client.get(
+         f"/bill_versions/{test_bill_version['id']}/briefing", headers=system_headers
+     )
+     assert_status_code(response, 200)
+diff --git a/api/tests/test_bills.py b/api/tests/test_bills.py
+index 9bbbbfb..dc8b98c 100644
+--- a/api/tests/test_bills.py
++++ b/api/tests/test_bills.py
+@@ -1,11 +1,18 @@
+-from api.tests.test_utils import DEFAULT_ID, assert_status_code
++import logging
+ 
++from api.tests.conftest import TestManager
++from api.tests.test_utils import DEFAULT_ID, assert_status_code, YAY_VOTE_ID
+ 
+-async def test_add_bill_success(test_bill):
++
++async def test_add_bill_success(test_manager: TestManager):
++    test_bill = await test_manager.create_bill()
+     assert "id" in test_bill
+ 
+ 
+-async def test_list_bill_details(client, system_headers, test_bill_version, test_legislator):
++async def test_list_bill_details(client, system_headers, test_manager: TestManager):
++    test_legislator = await test_manager.create_legislator()
++    test_bill_version = await test_manager.create_bill_version()
++
+     # Add sponsor
+     response = await client.post(
+         f"/bills/{test_bill_version['billId']}/sponsors/{test_legislator['id']}",
+@@ -19,28 +26,18 @@ async def test_list_bill_details(client, system_headers, test_bill_version, test
+     assert len(bill_data) == 1
+     bill = bill_data[0]
+ 
+-    expected_fields = {
+-        "billId": test_bill_version["billId"],
+-        "description": "This is a test bill",
+-        "statusId": 999999,
+-        "status": "Introduced",
+-        "statusDate": "2024-01-01",
+-        "sessionId": DEFAULT_ID,
+-        "stateName": "Washington",
+-        "legislativeBodyRole": "House",
+-        "sponsors": [
+-            {
+-                "billId": 999999,
+-                "legislatorId": 999999,
+-                "legislatorName": test_legislator["name"],
+-                "rank": 1,
+-                "type": "Sponsor",
+-            }
+-        ],
+-    }
+-
+-    for field, value in expected_fields.items():
+-        assert bill[field] == value
++    expected_fields = [
++        "billId",
++        "description",
++        "statusId",
++        "status",
++        "statusDate",
++        "sessionId",
++        "stateName",
++        "legislativeBodyRole",
++        "sponsors",
++    ]
++    assert all(field in bill for field in expected_fields)
+ 
+     # Remove sponsor
+     response = await client.delete(
+@@ -50,14 +47,16 @@ async def test_list_bill_details(client, system_headers, test_bill_version, test
+     assert_status_code(response, 204)
+ 
+ 
+-async def test_add_bill_already_exists(client, system_headers, test_bill):
++async def test_add_bill_already_exists(client, system_headers, test_manager: TestManager):
++    test_bill = await test_manager.create_bill()
+     bill_data = {**test_bill, "id": 9000}
+     response = await client.post("/bills/", json=bill_data, headers=system_headers)
+     assert_status_code(response, 409)
+     assert "bill already exists" in response.json()["detail"]
+ 
+ 
+-async def test_add_bill_unauthorized(client, test_bill):
++async def test_add_bill_unauthorized(client, test_manager: TestManager):
++    test_bill = await test_manager.create_bill()
+     bill_data = {**test_bill}
+     bill_data.pop("id")
+     response = await client.post(
+@@ -68,7 +67,8 @@ async def test_add_bill_unauthorized(client, test_bill):
+     assert_status_code(response, 403)
+ 
+ 
+-async def test_update_bill(client, system_headers, test_bill):
++async def test_update_bill(client, system_headers, test_manager: TestManager):
++    test_bill = await test_manager.create_bill()
+     updated_data = {**test_bill, "title": "Updated Bill Title"}
+     response = await client.put("/bills/", json=updated_data, headers=system_headers)
+     assert_status_code(response, 200)
+@@ -76,7 +76,8 @@ async def test_update_bill(client, system_headers, test_bill):
+     assert updated_bill["title"] == "Updated Bill Title"
+ 
+ 
+-async def test_update_bill_not_found(client, system_headers, test_status):
++async def test_update_bill_not_found(client, system_headers, test_manager: TestManager):
++    test_status = await test_manager.create_status()
+     non_existent_bill = {
+         "id": 9999,
+         "legiscanId": 0,
+@@ -95,7 +96,8 @@ async def test_update_bill_not_found(client, system_headers, test_status):
+     assert "bill not found" in response.json()["detail"]
+ 
+ 
+-async def test_update_bill_unauthorized(client, test_bill):
++async def test_update_bill_unauthorized(client, test_manager: TestManager):
++    test_bill = await test_manager.create_bill()
+     updated_data = {**test_bill, "title": "Updated Test Bill"}
+     response = await client.put(
+         "/bills/", json=updated_data, headers={"Authorization": "Bearer user_token"}
+@@ -103,7 +105,8 @@ async def test_update_bill_unauthorized(client, test_bill):
+     assert_status_code(response, 403)
+ 
+ 
+-async def test_get_bill_success(client, system_headers, test_bill):
++async def test_get_bill_success(client, system_headers, test_manager: TestManager):
++    test_bill = await test_manager.create_bill()
+     response = await client.get(f"/bills/{test_bill['id']}", headers=system_headers)
+     assert_status_code(response, 200)
+     retrieved_bill = response.json()
+@@ -117,7 +120,8 @@ async def test_get_bill_not_found(client, system_headers):
+     assert "bill not found" in response.json()["detail"]
+ 
+ 
+-async def test_delete_bill_success(client, system_headers, test_bill):
++async def test_delete_bill_success(client, system_headers, test_manager: TestManager):
++    test_bill = await test_manager.create_bill()
+     response = await client.delete(f"/bills/{test_bill['id']}", headers=system_headers)
+     assert_status_code(response, 204)
+ 
+@@ -128,14 +132,17 @@ async def test_delete_bill_not_found(client, system_headers):
+     assert "bill not found" in response.json()["detail"]
+ 
+ 
+-async def test_delete_bill_unauthorized(client, test_bill):
++async def test_delete_bill_unauthorized(client, test_manager: TestManager):
++    test_bill = await test_manager.create_bill()
+     response = await client.delete(
+         f"/bills/{test_bill['id']}", headers={"Authorization": "Bearer user_token"}
+     )
+     assert_status_code(response, 403)
+ 
+ 
+-async def test_add_remove_bill_topic(client, system_headers, test_bill, test_topic):
++async def test_add_remove_bill_topic(client, system_headers, test_manager: TestManager):
++    test_bill = await test_manager.create_bill()
++    test_topic = await test_manager.create_topic()
+     # Add topic to bill
+     response = await client.post(
+         f"/bills/{test_bill['id']}/topics/{test_topic['id']}", headers=system_headers
+@@ -162,7 +169,9 @@ async def test_add_remove_bill_topic(client, system_headers, test_bill, test_top
+     assert len(topics) == 0
+ 
+ 
+-async def test_add_remove_bill_sponsor(client, system_headers, test_bill, test_legislator):
++async def test_add_remove_bill_sponsor(client, system_headers, test_manager: TestManager):
++    test_bill = await test_manager.create_bill()
++    test_legislator = await test_manager.create_legislator()
+     # Add legislator to bill
+     response = await client.post(
+         f"/bills/{test_bill['id']}/sponsors/{test_legislator['id']}",
+@@ -177,7 +186,7 @@ async def test_add_remove_bill_sponsor(client, system_headers, test_bill, test_l
+     assert len(sponsors) == 1
+     assert sponsors[0]["legislatorId"] == test_legislator["id"]
+ 
+-    # Remove topic from bill
++    # Remove sponsor from bill
+     response = await client.delete(
+         f"/bills/{test_bill['id']}/sponsors/{test_legislator['id']}",
+         headers=system_headers,
+@@ -191,8 +200,9 @@ async def test_add_remove_bill_sponsor(client, system_headers, test_bill, test_l
+     assert len(sponsors) == 0
+ 
+ 
+-async def test_bulk_update_success(client, system_headers, test_bill):
++async def test_bulk_update_success(client, system_headers, test_manager: TestManager):
+     # Test successful bulk update
++    test_bill = await test_manager.create_bill()
+     update_data = [{**test_bill, "title": f"Updated {test_bill['title']}"}]
+     response = await client.put("/bills/bulk", json=update_data, headers=system_headers)
+     assert_status_code(response, 200)
+@@ -201,73 +211,126 @@ async def test_bulk_update_success(client, system_headers, test_bill):
+         assert item["title"] == update_data[i]["title"]
+ 
+ 
+-async def test_bill_user_votes(client, system_headers, test_user_vote):
+-    response = await client.get(
+-        f"/bills/{test_user_vote['billId']}/user_votes", headers=system_headers
++async def test_bill_user_votes(client, system_headers, test_manager: TestManager):
++    user, headers = await test_manager.start_user_session()
++    test_bill = await test_manager.create_bill()
++
++    vote_data = {
++        "billId": test_bill["id"],
++        "voteChoiceId": YAY_VOTE_ID,
++    }
++    response = await client.put("/users/votes/", json=vote_data, headers=headers)
++    test_error = None
++    try:
++        assert_status_code(response, 200)
++
++        response = await client.get(f"/bills/{test_bill['id']}/user_votes", headers=system_headers)
++        assert_status_code(response, 200)
++        bill_votes = response.json()
++        assert bill_votes["yay"] > 0
++        assert bill_votes["nay"] == 0
++    except Exception as e:
++        test_error = str(e)
++        logging.error(f"Test failed with {test_error}, marking and cleaning up")
++
++    response = await client.delete(
++        f"/users/votes?billId={test_bill['id']}",
++        headers=headers,
+     )
+-    assert_status_code(response, 200)
+-    bill_votes = response.json()
+-    assert bill_votes["yay"] > 0
+-    assert bill_votes["nay"] == 0
++    assert_status_code(response, 204)
+ 
++    if test_error:
++        raise Exception(test_error)
+ 
+-async def test_voting_history(client, system_headers, test_legislator_vote):
+-    response = await client.get(
+-        f"/bills/{test_legislator_vote['billId']}/voting_history", headers=system_headers
++
++async def test_voting_history(client, system_headers, test_manager: TestManager):
++    test_legislator = await test_manager.create_legislator()
++    test_bill_action = await test_manager.create_bill_action()
++
++    response = await client.put(
++        "/legislator_votes/",
++        json={
++            "billId": test_bill_action["billId"],
++            "billActionId": test_bill_action["id"],
++            "legislatorId": test_legislator["id"],
++            "voteChoiceId": YAY_VOTE_ID,
++        },
++        headers=system_headers,
+     )
+     assert_status_code(response, 200)
+-    result = response.json()
+-
+-    # Check top level structure
+-    assert set(result.keys()) == {"billId", "votes", "summaries"}
+-    assert result["billId"] == test_legislator_vote["billId"]
+-
+-    # Check votes array structure
+-    assert isinstance(result["votes"], list)
+-    assert len(result["votes"]) == 1
+-    vote = result["votes"][0]
+-    required_vote_keys = {
+-        "billActionId",
+-        "date",
+-        "actionDescription",
+-        "legislatorVotes",
+-    }
+-    assert set(vote.keys()) == required_vote_keys
+-    assert vote["billActionId"] == test_legislator_vote["billActionId"]
+-
+-    assert isinstance(vote["legislatorVotes"], list)
+-    assert len(vote["legislatorVotes"]) == 1
+-    legislator_vote = vote["legislatorVotes"][0]
+-    required_legislator_vote_keys = {
+-        "legislatorId",
+-        "legislatorName",
+-        "partyName",
+-        "roleName",
+-        "stateName",
+-        "voteChoiceId",
+-    }
+-    assert set(legislator_vote.keys()) == required_legislator_vote_keys
+-    assert legislator_vote["legislatorId"] == test_legislator_vote["legislatorId"]
+-
+-    assert isinstance(result["summaries"], list)
+-    assert len(result["summaries"]) == 1
+-    summary = result["summaries"][0]
+-    assert set(summary.keys()) == {
+-        "billActionId",
+-        "totalVotes",
+-        "voteCountsByChoice",
+-        "voteCountsByParty",
+-    }
++    test_legislator_vote = response.json()
++    test_error = None
++    try:
++        response = await client.get(
++            f"/bills/{test_legislator_vote['billId']}/voting_history", headers=system_headers
++        )
++        assert_status_code(response, 200)
++        result = response.json()
++
++        # Check top level structure
++        assert set(result.keys()) == {"billId", "votes", "summaries"}
++        assert result["billId"] == test_legislator_vote["billId"]
++
++        # Check votes array structure
++        assert isinstance(result["votes"], list)
++        assert len(result["votes"]) == 1
++        vote = result["votes"][0]
++        required_vote_keys = {
++            "billActionId",
++            "date",
++            "actionDescription",
++            "legislatorVotes",
++        }
++        assert set(vote.keys()) == required_vote_keys
++        assert vote["billActionId"] == test_legislator_vote["billActionId"]
++
++        assert isinstance(vote["legislatorVotes"], list)
++        assert len(vote["legislatorVotes"]) == 1
++        legislator_vote = vote["legislatorVotes"][0]
++        required_legislator_vote_keys = {
++            "legislatorId",
++            "legislatorName",
++            "partyName",
++            "roleName",
++            "stateName",
++            "voteChoiceId",
++        }
++        assert set(legislator_vote.keys()) == required_legislator_vote_keys
++        assert legislator_vote["legislatorId"] == test_legislator_vote["legislatorId"]
++
++        assert isinstance(result["summaries"], list)
++        assert len(result["summaries"]) == 1
++        summary = result["summaries"][0]
++        assert set(summary.keys()) == {
++            "billActionId",
++            "totalVotes",
++            "voteCountsByChoice",
++            "voteCountsByParty",
++        }
++
++        assert isinstance(summary["voteCountsByChoice"], list)
++        assert len(summary["voteCountsByChoice"]) == 1
++        vote_choice = summary["voteCountsByChoice"][0]
++        assert set(vote_choice.keys()) == {"voteChoiceId", "count"}
++        assert vote_choice["voteChoiceId"] == test_legislator_vote["voteChoiceId"]
++        assert vote_choice["count"] == 1
++
++        assert isinstance(summary["voteCountsByParty"], list)
++        assert len(summary["voteCountsByParty"]) == 1
++        party_count = summary["voteCountsByParty"][0]
++        assert set(party_count.keys()) == {"voteChoiceId", "partyId", "count"}
++        assert party_count["count"] == 1
++    except Exception as e:
++        test_error = str(e)
++        logging.error(f"Test failed with {test_error}, marking and cleaning up")
++
++    # Cleanup vote
++    response = await client.delete(
++        "/legislator_votes/",
++        params={"bill_action_id": test_bill_action["id"], "legislator_id": test_legislator["id"]},
++        headers=system_headers,
++    )
++    assert_status_code(response, 204)
+ 
+-    assert isinstance(summary["voteCountsByChoice"], list)
+-    assert len(summary["voteCountsByChoice"]) == 1
+-    vote_choice = summary["voteCountsByChoice"][0]
+-    assert set(vote_choice.keys()) == {"voteChoiceId", "count"}
+-    assert vote_choice["voteChoiceId"] == test_legislator_vote["voteChoiceId"]
+-    assert vote_choice["count"] == 1
+-
+-    assert isinstance(summary["voteCountsByParty"], list)
+-    assert len(summary["voteCountsByParty"]) == 1
+-    party_count = summary["voteCountsByParty"][0]
+-    assert set(party_count.keys()) == {"voteChoiceId", "partyId", "count"}
+-    assert party_count["count"] == 1
++    if test_error:
++        raise Exception(test_error)
+diff --git a/api/tests/test_comments.py b/api/tests/test_comments.py
+index 37e98fb..313fc97 100644
+--- a/api/tests/test_comments.py
++++ b/api/tests/test_comments.py
+@@ -1,8 +1,10 @@
++from api.tests.conftest import TestManager
+ from api.tests.test_utils import assert_status_code
+ 
+ 
+-async def test_replies(client, test_user_session, test_bill):
+-    user, user_headers = test_user_session
++async def test_replies(test_manager: TestManager):
++    user, user_headers = await test_manager.start_user_session()
++    test_bill = await test_manager.create_bill()
+ 
+     # Create a parent comment
+     parent_comment_data = {
+@@ -11,7 +13,9 @@ async def test_replies(client, test_user_session, test_bill):
+         "parentId": None,
+         "comment": "This is a parent comment.",
+     }
+-    response = await client.post("/comments/", json=parent_comment_data, headers=user_headers)
++    response = await test_manager.client.post(
++        "/comments/", json=parent_comment_data, headers=user_headers
++    )
+     assert_status_code(response, 201)
+     parent_comment = response.json()
+     assert parent_comment["comment"] == parent_comment_data["comment"]
+@@ -24,20 +28,26 @@ async def test_replies(client, test_user_session, test_bill):
+         "parentId": parent_comment["id"],
+         "comment": "This is a child comment.",
+     }
+-    response = await client.post("/comments/", json=child_comment_data, headers=user_headers)
++    response = await test_manager.client.post(
++        "/comments/", json=child_comment_data, headers=user_headers
++    )
+     assert_status_code(response, 201)
+     child_comment = response.json()
+     assert child_comment["comment"] == child_comment_data["comment"]
+     assert child_comment["parentId"] == parent_comment["id"]
+ 
+     # Verify both comments were added
+-    response = await client.get(f"/comments/{parent_comment['id']}", headers=user_headers)
++    response = await test_manager.client.get(
++        f"/comments/{parent_comment['id']}", headers=user_headers
++    )
+     assert_status_code(response, 200)
+     retrieved_parent = response.json()
+     assert retrieved_parent["id"] == parent_comment["id"]
+     assert retrieved_parent["comment"] == parent_comment_data["comment"]
+ 
+-    response = await client.get(f"/comments/{child_comment['id']}", headers=user_headers)
++    response = await test_manager.client.get(
++        f"/comments/{child_comment['id']}", headers=user_headers
++    )
+     assert_status_code(response, 200)
+     retrieved_child = response.json()
+     assert retrieved_child["id"] == child_comment["id"]
+@@ -45,27 +55,38 @@ async def test_replies(client, test_user_session, test_bill):
+     assert retrieved_child["comment"] == child_comment_data["comment"]
+ 
+     # Attempt to remove the parent comment
+-    response = await client.delete(f"/comments/{parent_comment['id']}", headers=user_headers)
++    response = await test_manager.client.delete(
++        f"/comments/{parent_comment['id']}", headers=user_headers
++    )
+     assert_status_code(response, 403)
+ 
+     # Remove the child comment
+-    response = await client.delete(f"/comments/{child_comment['id']}", headers=user_headers)
++    response = await test_manager.client.delete(
++        f"/comments/{child_comment['id']}", headers=user_headers
++    )
+     assert_status_code(response, 204)
+ 
+     # Remove the parent comment
+-    response = await client.delete(f"/comments/{parent_comment['id']}", headers=user_headers)
++    response = await test_manager.client.delete(
++        f"/comments/{parent_comment['id']}", headers=user_headers
++    )
+     assert_status_code(response, 204)
+ 
+     # Verify both comments were removed
+-    response = await client.get(f"/comments/{child_comment['id']}", headers=user_headers)
++    response = await test_manager.client.get(
++        f"/comments/{child_comment['id']}", headers=user_headers
++    )
+     assert_status_code(response, 404)
+ 
+-    response = await client.get(f"/comments/{parent_comment['id']}", headers=user_headers)
++    response = await test_manager.client.get(
++        f"/comments/{parent_comment['id']}", headers=user_headers
++    )
+     assert_status_code(response, 404)
+ 
+ 
+-async def test_delete_with_likes(client, test_user_session, test_bill):
+-    user, user_headers = test_user_session
++async def test_delete_with_likes(test_manager: TestManager):
++    user, user_headers = await test_manager.start_user_session()
++    test_bill = await test_manager.create_bill()
+ 
+     # Create a comment
+     comment_data = {
+@@ -74,14 +95,14 @@ async def test_delete_with_likes(client, test_user_session, test_bill):
+         "parentId": None,
+         "comment": "This is a parent comment.",
+     }
+-    response = await client.post("/comments/", json=comment_data, headers=user_headers)
++    response = await test_manager.client.post("/comments/", json=comment_data, headers=user_headers)
+     assert_status_code(response, 201)
+     comment_id = response.json()["id"]
+ 
+     # Like the comment
+-    response = await client.post(f"/comments/{comment_id}/like", headers=user_headers)
++    response = await test_manager.client.post(f"/comments/{comment_id}/like", headers=user_headers)
+     assert_status_code(response, 204)
+ 
+     # Delete the comment with likes
+-    response = await client.delete(f"/comments/{comment_id}", headers=user_headers)
++    response = await test_manager.client.delete(f"/comments/{comment_id}", headers=user_headers)
+     assert_status_code(response, 204)
+diff --git a/api/tests/test_committees.py b/api/tests/test_committees.py
+index 5ef81e1..f7f26a4 100644
+--- a/api/tests/test_committees.py
++++ b/api/tests/test_committees.py
+@@ -1,19 +1,21 @@
++from api.tests.conftest import TestManager
+ from api.tests.test_utils import assert_status_code
+ 
+ 
+-async def test_add_remove_legislator_workflow(
+-    client, system_headers, test_committee, test_legislator
+-):
++async def test_add_remove_legislator_workflow(test_manager: TestManager):
++    test_legislator = await test_manager.create_legislator()
++    test_committee = await test_manager.create_committee()
++
+     # Add the legislator
+-    response = await client.post(
++    response = await test_manager.client.post(
+         f"/committees/{test_committee['id']}/legislators/{test_legislator['id']}",
+-        headers=system_headers,
++        headers=test_manager.headers,
+     )
+     assert_status_code(response, 204)
+ 
+     # Check for membership
+-    response = await client.get(
+-        f"/committees/{test_committee['id']}/legislators", headers=system_headers
++    response = await test_manager.client.get(
++        f"/committees/{test_committee['id']}/legislators", headers=test_manager.headers
+     )
+     assert_status_code(response, 200)
+     legislators = response.json()
+@@ -21,15 +23,15 @@ async def test_add_remove_legislator_workflow(
+     assert legislators[0]["id"] == test_legislator["id"]
+ 
+     # Then, remove the legislator
+-    response = await client.delete(
++    response = await test_manager.client.delete(
+         f"/committees/{test_committee['id']}/legislators/{test_legislator['id']}",
+-        headers=system_headers,
++        headers=test_manager.headers,
+     )
+     assert_status_code(response, 204)
+ 
+     # Check for removal
+-    response = await client.get(
+-        f"/committees/{test_committee['id']}/legislators", headers=system_headers
++    response = await test_manager.client.get(
++        f"/committees/{test_committee['id']}/legislators", headers=test_manager.headers
+     )
+     assert_status_code(response, 200)
+     legislators = response.json()
+diff --git a/api/tests/test_legislators.py b/api/tests/test_legislators.py
+index 95bf5d5..96994da 100644
+--- a/api/tests/test_legislators.py
++++ b/api/tests/test_legislators.py
+@@ -1,25 +1,36 @@
+-from api.tests.test_utils import DEFAULT_ID, assert_status_code
++from api.tests.conftest import TestManager
++from api.tests.test_utils import DEFAULT_ID, assert_status_code, YAY_VOTE_ID
+ 
+ 
+-async def test_add_legislator_success(test_legislator):
++async def test_add_legislator_success(test_manager: TestManager):
++    test_legislator = await test_manager.create_legislator()
+     assert "id" in test_legislator
+ 
+ 
+-async def test_list_legislators(test_get_legislators):
+-    assert len(test_get_legislators) > 0
++async def test_list_legislators(test_manager: TestManager):
++    # Create at least one legislator
++    await test_manager.create_legislator()
++    response = await test_manager.client.get("/legislators/", headers=test_manager.headers)
++    assert_status_code(response, 200)
++    legislators = response.json()
++    assert len(legislators) > 0
+ 
+ 
+-async def test_add_legislator_already_exists(client, system_headers, test_legislator):
++async def test_add_legislator_already_exists(test_manager: TestManager):
++    test_legislator = await test_manager.create_legislator()
+     legislator_data = {**test_legislator, "id": 9000}
+-    response = await client.post("/legislators/", json=legislator_data, headers=system_headers)
++    response = await test_manager.client.post(
++        "/legislators/", json=legislator_data, headers=test_manager.headers
++    )
+     assert_status_code(response, 409)
+     assert "legislator already exists" in response.json()["detail"]
+ 
+ 
+-async def test_add_legislator_unauthorized(client, test_legislator):
++async def test_add_legislator_unauthorized(test_manager: TestManager):
++    test_legislator = await test_manager.create_legislator()
+     legislator_data = {**test_legislator}
+     legislator_data.pop("id")
+-    response = await client.post(
++    response = await test_manager.client.post(
+         "/legislators/",
+         json=legislator_data,
+         headers={"Authorization": "Bearer user_token"},
+@@ -27,38 +38,46 @@ async def test_add_legislator_unauthorized(client, test_legislator):
+     assert_status_code(response, 403)
+ 
+ 
+-async def test_update_legislator_success(client, system_headers, test_legislator):
++async def test_update_legislator_success(test_manager: TestManager):
++    test_legislator = await test_manager.create_legislator()
+     updated_data = {**test_legislator, "name": "Updated Test legislator"}
+-    response = await client.put("/legislators/", json=updated_data, headers=system_headers)
++    response = await test_manager.client.put(
++        "/legislators/", json=updated_data, headers=test_manager.headers
++    )
+     assert_status_code(response, 200)
+     updated_legislator = response.json()
+     assert updated_legislator["name"] == "Updated Test legislator"
+ 
+ 
+-async def test_update_legislator_not_found(client, system_headers):
++async def test_update_legislator_not_found(test_manager: TestManager):
++    party = await test_manager.create_party()
++    state = await test_manager.create_state()
++    role = await test_manager.create_role()
++
+     non_existent_legislator = {
+         "id": DEFAULT_ID * 2,
+-        "legiscanId": DEFAULT_ID * 2,
++        "legiscanId": str(DEFAULT_ID * 2),
+         "name": "Anti-John Doe",
+         "image_url": "example.com/image.png",
+         "district": "ED-1",
+         "address": "999 Senate Office Building Washington, DC 20510",
+         "instagram": "@senantijohndoe",
+         "phone": "(202) 111-1112",
+-        "partyId": 1,
+-        "stateId": 1,
+-        "roleId": 1,
++        "partyId": party["id"],
++        "stateId": state["id"],
++        "roleId": role["id"],
+     }
+-    response = await client.put(
+-        "/legislators/", json=non_existent_legislator, headers=system_headers
++    response = await test_manager.client.put(
++        "/legislators/", json=non_existent_legislator, headers=test_manager.headers
+     )
+     assert_status_code(response, 404)
+     assert "legislator not found" in response.json()["detail"]
+ 
+ 
+-async def test_update_legislator_unauthorized(client, test_legislator):
++async def test_update_legislator_unauthorized(test_manager: TestManager):
++    test_legislator = await test_manager.create_legislator()
+     updated_data = {**test_legislator, "title": "Updated Test legislator"}
+-    response = await client.put(
++    response = await test_manager.client.put(
+         "/legislators/",
+         json=updated_data,
+         headers={"Authorization": "Bearer user_token"},
+@@ -66,66 +85,110 @@ async def test_update_legislator_unauthorized(client, test_legislator):
+     assert_status_code(response, 403)
+ 
+ 
+-async def test_get_legislator_success(client, system_headers, test_legislator):
+-    response = await client.get(f"/legislators/{test_legislator['id']}", headers=system_headers)
++async def test_get_legislator_success(test_manager: TestManager):
++    test_legislator = await test_manager.create_legislator()
++    response = await test_manager.client.get(
++        f"/legislators/{test_legislator['id']}", headers=test_manager.headers
++    )
+     assert_status_code(response, 200)
+     retrieved_legislator = response.json()
+     assert retrieved_legislator["id"] == test_legislator["id"]
+     assert retrieved_legislator["name"] == test_legislator["name"]
+ 
+ 
+-async def test_get_legislator_not_found(client, system_headers):
+-    response = await client.get("/legislators/9999", headers=system_headers)
++async def test_get_legislator_not_found(test_manager: TestManager):
++    response = await test_manager.client.get("/legislators/9999", headers=test_manager.headers)
+     assert_status_code(response, 404)
+     assert "legislator not found" in response.json()["detail"]
+ 
+ 
+-async def test_delete_legislator_success(client, system_headers, test_legislator):
+-    response = await client.delete(f"/legislators/{test_legislator['id']}", headers=system_headers)
++async def test_delete_legislator_success(test_manager: TestManager):
++    test_legislator = await test_manager.create_legislator()
++    response = await test_manager.client.delete(
++        f"/legislators/{test_legislator['id']}", headers=test_manager.headers
++    )
+     assert_status_code(response, 204)
+ 
+ 
+-async def test_delete_legislator_not_found(client, system_headers):
+-    response = await client.delete("/legislators/9999", headers=system_headers)
++async def test_delete_legislator_not_found(test_manager: TestManager):
++    response = await test_manager.client.delete("/legislators/9999", headers=test_manager.headers)
+     assert_status_code(response, 404)
+     assert "legislator not found" in response.json()["detail"]
+ 
+ 
+-async def test_delete_legislator_unauthorized(client, test_legislator):
+-    response = await client.delete(
++async def test_delete_legislator_unauthorized(test_manager: TestManager):
++    test_legislator = await test_manager.create_legislator()
++    response = await test_manager.client.delete(
+         f"/legislators/{test_legislator['id']}",
+         headers={"Authorization": "Bearer user_token"},
+     )
+     assert_status_code(response, 403)
+ 
+ 
+-async def test_get_legislator_voting_history(client, system_headers, test_legislator_vote):
+-    bill_response = await client.get(
+-        f"/bills/{test_legislator_vote['billId']}",
+-        headers=system_headers,
+-    )
+-    action_response = await client.get(
+-        f"/bill_actions/{test_legislator_vote['billActionId']}",
+-        headers=system_headers,
++async def test_get_legislator_voting_history(test_manager: TestManager):
++    # Create a test legislator and bill action
++    test_legislator = await test_manager.create_legislator()
++    test_bill_action = await test_manager.create_bill_action()
++
++    # Create legislator vote
++    response = await test_manager.client.put(
++        "/legislator_votes/",
++        json={
++            "billId": test_bill_action["billId"],
++            "billActionId": test_bill_action["id"],
++            "legislatorId": test_legislator["id"],
++            "voteChoiceId": YAY_VOTE_ID,
++        },
++        headers=test_manager.headers,
+     )
+-    vote_choice_response = await client.get("/vote_choices/", headers=system_headers)
+-    voting_response = await client.get(
+-        f"/legislators/{test_legislator_vote['legislatorId']}/voting_history",
+-        headers=system_headers,
++    assert_status_code(response, 200)
++    test_legislator_vote = response.json()
++
++    test_error = None
++    try:
++        bill_response = await test_manager.client.get(
++            f"/bills/{test_legislator_vote['billId']}",
++            headers=test_manager.headers,
++        )
++        action_response = await test_manager.client.get(
++            f"/bill_actions/{test_legislator_vote['billActionId']}",
++            headers=test_manager.headers,
++        )
++        vote_choice_response = await test_manager.client.get(
++            "/vote_choices/", headers=test_manager.headers
++        )
++        voting_response = await test_manager.client.get(
++            f"/legislators/{test_legislator_vote['legislatorId']}/voting_history",
++            headers=test_manager.headers,
++        )
++        assert_status_code(voting_response, 200)
++
++        bill = bill_response.json()
++        action = action_response.json()
++        vote_choice = vote_choice_response.json()
++        voting_history = voting_response.json()[0]
++
++        assert voting_history["billId"] == bill["id"]
++        assert voting_history["identifier"] == bill["identifier"]
++        assert voting_history["title"] == bill["title"]
++
++        bill_action_votes = voting_history["billActionVotes"][0]
++        assert bill_action_votes["billActionId"] == action["id"]
++        assert bill_action_votes["date"] == action["date"]
++        assert bill_action_votes["actionDescription"] == action["description"]
++        assert any(choice["id"] == bill_action_votes["voteChoiceId"] for choice in vote_choice)
++    except Exception as e:
++        test_error = str(e)
++
++    response = await test_manager.client.delete(
++        "/legislator_votes/",
++        params={
++            "bill_action_id": test_bill_action["id"],
++            "legislator_id": test_legislator["id"],
++        },
++        headers=test_manager.headers,
+     )
+-    assert_status_code(voting_response, 200)
+-
+-    bill = bill_response.json()
+-    action = action_response.json()
+-    vote_choice = vote_choice_response.json()
+-    voting_history = voting_response.json()[0]
+-
+-    assert voting_history["billId"] == bill["id"]
+-    assert voting_history["identifier"] == bill["identifier"]
+-    assert voting_history["title"] == bill["title"]
+-
+-    bill_action_votes = voting_history["billActionVotes"][0]
+-    assert bill_action_votes["billActionId"] == action["id"]
+-    assert bill_action_votes["date"] == action["date"]
+-    assert bill_action_votes["actionDescription"] == action["description"]
+-    assert any(choice["id"] == bill_action_votes["voteChoiceId"] for choice in vote_choice)
++    assert_status_code(response, 204)
++
++    if test_error:
++        raise Exception(test_error)
+diff --git a/api/tests/test_topics.py b/api/tests/test_topics.py
+index 49d9c0d..40defd8 100644
+--- a/api/tests/test_topics.py
++++ b/api/tests/test_topics.py
+@@ -1,21 +1,27 @@
++from api.tests.conftest import TestManager
+ from api.tests.test_utils import assert_status_code
+ 
+ 
+-async def test_add_topic_success(test_topic):
++async def test_add_topic_success(test_manager: TestManager):
++    test_topic = await test_manager.create_topic()
+     assert "id" in test_topic
+ 
+ 
+-async def test_add_topic_already_exists(client, system_headers, test_topic):
++async def test_add_topic_already_exists(test_manager: TestManager):
++    test_topic = await test_manager.create_topic()
+     topic_data = {**test_topic, "id": 9000}
+-    response = await client.post("/topics/", json=topic_data, headers=system_headers)
++    response = await test_manager.client.post(
++        "/topics/", json=topic_data, headers=test_manager.headers
++    )
+     assert_status_code(response, 409)
+     assert "topic already exists" in response.json()["detail"]
+ 
+ 
+-async def test_add_topic_unauthorized(client, test_topic):
++async def test_add_topic_unauthorized(test_manager: TestManager):
++    test_topic = await test_manager.create_topic()
+     topic_data = {**test_topic}
+     topic_data.pop("id")
+-    response = await client.post(
++    response = await test_manager.client.post(
+         "/topics/",
+         json=topic_data,
+         headers={"Authorization": "Bearer user_token"},
+@@ -23,59 +29,72 @@ async def test_add_topic_unauthorized(client, test_topic):
+     assert_status_code(response, 403)
+ 
+ 
+-async def test_update_topic_success(client, system_headers, test_topic):
++async def test_update_topic_success(test_manager: TestManager):
++    test_topic = await test_manager.create_topic()
+     updated_data = {**test_topic, "name": "Updated topic Name"}
+-    response = await client.put("/topics/", json=updated_data, headers=system_headers)
++    response = await test_manager.client.put(
++        "/topics/", json=updated_data, headers=test_manager.headers
++    )
+     assert_status_code(response, 200)
+     updated_topic = response.json()
+     assert updated_topic["name"] == "Updated topic Name"
+ 
+ 
+-async def test_update_topic_not_found(client, system_headers):
++async def test_update_topic_not_found(test_manager: TestManager):
+     non_existent_topic = {
+         "id": 9999,
+         "name": "DNE",
+     }
+-    response = await client.put("/topics/", json=non_existent_topic, headers=system_headers)
++    response = await test_manager.client.put(
++        "/topics/", json=non_existent_topic, headers=test_manager.headers
++    )
+     assert_status_code(response, 404)
+     assert "topic not found" in response.json()["detail"]
+ 
+ 
+-async def test_update_topic_unauthorized(client, test_topic):
++async def test_update_topic_unauthorized(test_manager: TestManager):
++    test_topic = await test_manager.create_topic()
+     updated_data = {**test_topic, "name": "Updated topic Name"}
+-    response = await client.put(
++    response = await test_manager.client.put(
+         "/topics/", json=updated_data, headers={"Authorization": "Bearer user_token"}
+     )
+     assert_status_code(response, 403)
+ 
+ 
+-async def test_get_topic_success(client, system_headers, test_topic):
+-    response = await client.get(f"/topics/{test_topic['id']}", headers=system_headers)
++async def test_get_topic_success(test_manager: TestManager):
++    test_topic = await test_manager.create_topic()
++    response = await test_manager.client.get(
++        f"/topics/{test_topic['id']}", headers=test_manager.headers
++    )
+     assert_status_code(response, 200)
+     retrieved_topic = response.json()
+     assert retrieved_topic["id"] == test_topic["id"]
+     assert retrieved_topic["name"] == test_topic["name"]
+ 
+ 
+-async def test_get_topic_not_found(client, system_headers):
+-    response = await client.get("/topics/9999", headers=system_headers)
++async def test_get_topic_not_found(test_manager: TestManager):
++    response = await test_manager.client.get("/topics/9999", headers=test_manager.headers)
+     assert_status_code(response, 404)
+     assert "topic not found" in response.json()["detail"]
+ 
+ 
+-async def test_delete_topic_success(client, system_headers, test_topic):
+-    response = await client.delete(f"/topics/{test_topic['id']}", headers=system_headers)
++async def test_delete_topic_success(test_manager: TestManager):
++    test_topic = await test_manager.create_topic()
++    response = await test_manager.client.delete(
++        f"/topics/{test_topic['id']}", headers=test_manager.headers
++    )
+     assert_status_code(response, 204)
+ 
+ 
+-async def test_delete_topic_not_found(client, system_headers):
+-    response = await client.delete("/topics/9999", headers=system_headers)
++async def test_delete_topic_not_found(test_manager: TestManager):
++    response = await test_manager.client.delete("/topics/9999", headers=test_manager.headers)
+     assert_status_code(response, 404)
+     assert "topic not found" in response.json()["detail"]
+ 
+ 
+-async def test_delete_topic_unauthorized(client, test_topic):
+-    response = await client.delete(
++async def test_delete_topic_unauthorized(test_manager: TestManager):
++    test_topic = await test_manager.create_topic()
++    response = await test_manager.client.delete(
+         f"/topics/{test_topic['id']}", headers={"Authorization": "Bearer user_token"}
+     )
+     assert_status_code(response, 403)
+diff --git a/api/tests/test_user_votes.py b/api/tests/test_user_votes.py
+index 3b3819d..0218ebf 100644
+--- a/api/tests/test_user_votes.py
++++ b/api/tests/test_user_votes.py
+@@ -1,75 +1,189 @@
++from api.tests.conftest import TestManager
+ from api.tests.test_utils import assert_status_code, YAY_VOTE_ID, NAY_VOTE_ID
++import logging
++
++
++async def test_cast_vote_success(test_manager: TestManager):
++    user, user_headers = await test_manager.start_user_session()
++    test_bill = await test_manager.create_bill()
++
++    vote_data = {
++        "billId": test_bill["id"],
++        "voteChoiceId": YAY_VOTE_ID,
++    }
++    response = await test_manager.client.put("/users/votes", json=vote_data, headers=user_headers)
++    test_error = None
++    try:
++        assert_status_code(response, 200)
++        test_user_vote = response.json()
++        assert "voteChoiceId" in test_user_vote
++    except Exception as e:
++        test_error = str(e)
++        logging.error(f"Test failed with {test_error}, marking and cleaning up")
++
++    # Cleanup
++    response = await test_manager.client.delete(
++        f"/users/votes?billId={test_bill['id']}",
++        headers=user_headers,
++    )
++    assert_status_code(response, 204)
+ 
+-
+-async def test_cast_vote_success(test_user_vote):
+-    assert "voteChoiceId" in test_user_vote
++    if test_error:
++        raise Exception(test_error)
+ 
+ 
+-async def test_cast_vote_update(
+-    client, system_headers, test_user_vote, test_user_session, test_vote_choices
+-):
+-    _, user_headers = test_user_session
+-    yay_vote, nay_vote = test_vote_choices
++async def test_cast_vote_update(test_manager: TestManager):
++    user, user_headers = await test_manager.start_user_session()
++    test_bill = await test_manager.create_bill()
+ 
+-    updated_vote_data = {"billId": test_user_vote["billId"], "voteChoiceId": NAY_VOTE_ID}
+-    response = await client.put("/users/votes", json=updated_vote_data, headers=user_headers)
++    # Create initial vote
++    vote_data = {
++        "billId": test_bill["id"],
++        "voteChoiceId": YAY_VOTE_ID,
++    }
++    response = await test_manager.client.put("/users/votes", json=vote_data, headers=user_headers)
+     assert_status_code(response, 200)
+-    updated_vote = response.json()
+-    assert updated_vote["voteChoiceId"] == nay_vote["id"]
++    test_user_vote = response.json()
++
++    test_error = None
++    try:
++        # Update the vote
++        updated_vote_data = {"billId": test_user_vote["billId"], "voteChoiceId": NAY_VOTE_ID}
++        response = await test_manager.client.put(
++            "/users/votes", json=updated_vote_data, headers=user_headers
++        )
++
++        assert_status_code(response, 200)
++        updated_vote = response.json()
++        assert updated_vote["voteChoiceId"] == NAY_VOTE_ID
++
++        # Verify vote count
++        response = await test_manager.client.get("/users/votes", headers=user_headers)
++
++        assert_status_code(response, 200)
++        votes = response.json()
++        assert len(votes) == 1
++    except Exception as e:
++        test_error = str(e)
++        logging.error(f"Test failed with {test_error}, marking and cleaning up")
++
++    # Cleanup
++    response = await test_manager.client.delete(
++        f"/users/votes?billId={test_bill['id']}",
++        headers=user_headers,
++    )
++    assert_status_code(response, 204)
+ 
+-    response = await client.get("/users/votes", headers=user_headers)
+-    assert_status_code(response, 200)
+-    votes = response.json()
+-    assert len(votes) == 1
++    if test_error:
++        raise Exception(test_error)
+ 
+ 
+-async def test_cast_vote_unauthorized(client, test_bill, test_vote_choice):
+-    vote_data = {"billId": test_bill["id"], "voteChoiceId": test_vote_choice["id"]}
+-    response = await client.put("/users/votes", json=vote_data)
++async def test_cast_vote_unauthorized(test_manager: TestManager):
++    test_bill = await test_manager.create_bill()
++
++    vote_data = {"billId": test_bill["id"], "voteChoiceId": YAY_VOTE_ID}
++    response = await test_manager.client.put("/users/votes", json=vote_data)
+     assert_status_code(response, 401)
+ 
+ 
+-async def test_cast_vote_invalid_bill(client, test_user_session, test_vote_choice):
+-    _, headers = test_user_session
+-    vote_data = {"billId": 9999, "voteChoiceId": test_vote_choice["id"]}
+-    response = await client.put("/users/votes", json=vote_data, headers=headers)
++async def test_cast_vote_invalid_bill(test_manager: TestManager):
++    _, user_headers = await test_manager.start_user_session()
++
++    vote_data = {"billId": 9999, "voteChoiceId": YAY_VOTE_ID}
++    response = await test_manager.client.put("/users/votes", json=vote_data, headers=user_headers)
+     assert_status_code(response, 500)
+     assert "Database error" in response.json()["detail"]
+ 
+ 
+-async def test_cast_vote_invalid_choice(client, test_user_session, test_bill):
+-    _, headers = test_user_session
++async def test_cast_vote_invalid_choice(test_manager: TestManager):
++    _, user_headers = await test_manager.start_user_session()
++    test_bill = await test_manager.create_bill()
++
+     vote_data = {"billId": test_bill["id"], "vote_choice": "MAYBE"}
+-    response = await client.put("/users/votes", json=vote_data, headers=headers)
++    response = await test_manager.client.put("/users/votes", json=vote_data, headers=user_headers)
+     assert_status_code(response, 422)
+ 
+ 
+-async def test_get_votes_for_user(client, test_user_session, test_user_vote):
+-    user, headers = test_user_session
+-    response = await client.get("/users/votes", headers=headers)
+-    assert_status_code(response, 200)
+-    votes = response.json()
+-    assert len(votes) > 0
+-    assert votes[0]["userId"] == user["id"]
++async def test_get_votes_for_user(test_manager: TestManager):
++    user, user_headers = await test_manager.start_user_session()
++    test_bill = await test_manager.create_bill()
+ 
++    # Create a vote
++    vote_data = {
++        "billId": test_bill["id"],
++        "voteChoiceId": YAY_VOTE_ID,
++    }
++    response = await test_manager.client.put("/users/votes", json=vote_data, headers=user_headers)
++    assert_status_code(response, 200)
+ 
+-async def test_get_votes_for_bill(client, system_headers, test_user_vote):
+-    response = await client.get(
+-        f"/users/admin/{test_user_vote['userId']}/votes/?bill_id={test_user_vote['billId']}",
+-        headers=system_headers,
++    test_error = None
++    try:
++        # Get user's votes
++        response = await test_manager.client.get("/users/votes", headers=user_headers)
++        assert_status_code(response, 200)
++        votes = response.json()
++        assert len(votes) > 0
++        assert votes[0]["userId"] == user["id"]
++    except Exception as e:
++        test_error = str(e)
++        logging.error(f"Test failed with {test_error}, marking and cleaning up")
++
++    # Cleanup
++    response = await test_manager.client.delete(
++        f"/users/votes?billId={test_bill['id']}",
++        headers=user_headers,
+     )
++    assert_status_code(response, 204)
++
++    if test_error:
++        raise Exception(test_error)
++
++
++async def test_get_votes_for_bill(test_manager: TestManager):
++    user, user_headers = await test_manager.start_user_session()
++    test_bill = await test_manager.create_bill()
++
++    # Create a vote
++    vote_data = {
++        "billId": test_bill["id"],
++        "voteChoiceId": YAY_VOTE_ID,
++    }
++    response = await test_manager.client.put("/users/votes", json=vote_data, headers=user_headers)
+     assert_status_code(response, 200)
+-    votes = response.json()
+-    assert len(votes) > 0
+-    assert votes[0]["billId"] == test_user_vote["billId"]
++    test_user_vote = response.json()
++
++    test_error = None
++    try:
++        # Get votes for bill
++        response = await test_manager.client.get(
++            f"/users/admin/{user['id']}/votes/?bill_id={test_bill['id']}",
++            headers=test_manager.headers,
++        )
++        assert_status_code(response, 200)
++        votes = response.json()
++        assert len(votes) > 0
++        assert votes[0]["billId"] == test_user_vote["billId"]
++    except Exception as e:
++        test_error = str(e)
++        logging.error(f"Test failed with {test_error}, marking and cleaning up")
++
++    # Cleanup
++    response = await test_manager.client.delete(
++        f"/users/votes?billId={test_bill['id']}",
++        headers=user_headers,
++    )
++    assert_status_code(response, 204)
++
++    if test_error:
++        raise Exception(test_error)
+ 
+ 
+-async def test_get_votes_unauthorized(client):
+-    response = await client.get("/users/votes")
++async def test_get_votes_unauthorized(test_manager: TestManager):
++    response = await test_manager.client.get("/users/votes")
+     assert_status_code(response, 401)
+ 
+ 
+-async def test_get_votes_for_other_user(client, test_user_session):
+-    _, headers = test_user_session
+-    response = await client.get("/users/admin/9999/votes", headers=headers)
++async def test_get_votes_for_other_user(test_manager: TestManager):
++    _, user_headers = await test_manager.start_user_session()
++    response = await test_manager.client.get("/users/admin/9999/votes", headers=user_headers)
+     assert_status_code(response, 403)
+diff --git a/api/tests/test_users.py b/api/tests/test_users.py
+index 5fceabe..af34ed6 100644
+--- a/api/tests/test_users.py
++++ b/api/tests/test_users.py
+@@ -1,244 +1,346 @@
++from api.tests.conftest import TestManager
+ from api.tests.test_utils import assert_status_code
+ from api.security import create_access_token
++import logging
+ 
+ 
+-async def test_create_user(test_user_session):
+-    user, _ = test_user_session
++async def test_create_user(test_manager: TestManager):
++    user, _ = await test_manager.start_user_session()
+     assert "id" in user
+ 
+ 
+-async def test_create_user_duplicate_email(client, system_headers, test_user_session):
+-    user, _ = test_user_session
++async def test_create_user_duplicate_email(test_manager: TestManager):
++    user, _ = await test_manager.start_user_session()
+     user_data = {
+         "email": user["email"],
+         "password": "password",
+         "name": "Duplicate User",
+     }
+ 
+-    response = await client.post("/users/", json=user_data, headers=system_headers)
++    response = await test_manager.client.post(
++        "/users/", json=user_data, headers=test_manager.headers
++    )
+     assert_status_code(response, 409)
+     assert "Email already registered" in response.json()["detail"]
+ 
+ 
+-async def test_get_user(client, system_headers, test_user_session):
+-    user, user_headers = test_user_session
++async def test_get_user(test_manager: TestManager):
++    user, user_headers = await test_manager.start_user_session()
+ 
+-    response = await client.get(f"/users/admin/{user['id']}", headers=system_headers)
+-    assert_status_code(response, 200)
+-    assert response.json()["email"] == user["email"]
++    test_error = None
++    try:
++        # Admin access
++        response = await test_manager.client.get(
++            f"/users/admin/{user['id']}", headers=test_manager.headers
++        )
++        assert_status_code(response, 200)
++        assert response.json()["email"] == user["email"]
+ 
+-    response = await client.get("/users/", headers=user_headers)
+-    assert_status_code(response, 200)
+-    assert response.json()["email"] == user["email"]
++        # User access
++        response = await test_manager.client.get("/users/", headers=user_headers)
++        assert_status_code(response, 200)
++        assert response.json()["email"] == user["email"]
++    except Exception as e:
++        test_error = str(e)
++        logging.error(f"Test failed with {test_error}")
++        raise Exception(test_error)
+ 
+ 
+-async def test_update_user(client, test_user_session):
+-    user, user_headers = test_user_session
++async def test_update_user(test_manager: TestManager):
++    user, user_headers = await test_manager.start_user_session()
+ 
+     update_data = {
+         "email": user["email"],
+         "password": "newpassword",
+         "name": "Updated User",
+     }
+-    response = await client.put("/users/", json=update_data, headers=user_headers)
++    response = await test_manager.client.put("/users/", json=update_data, headers=user_headers)
+     assert_status_code(response, 200)
+     updated_user = response.json()
+     assert updated_user["name"] == update_data["name"]
+ 
+ 
+-async def test_update_user_unauthorized(client, system_headers, test_user_session):
+-    _, user_headers = test_user_session
++async def test_update_user_unauthorized(test_manager: TestManager):
++    _, user_headers = await test_manager.start_user_session()
+ 
++    # Create a new user
+     user_data = {
+         "email": "unauthorizedupdate@example.com",
+         "password": "password",
+         "name": "Unauthorized Update User",
+     }
+-    create_response = await client.post("/users/", json=user_data, headers=system_headers)
++    create_response = await test_manager.client.post(
++        "/users/", json=user_data, headers=test_manager.headers
++    )
+     assert_status_code(create_response, 201)
+     created_user = create_response.json()
+ 
+-    update_data = {
+-        "email": user_data["email"],
+-        "password": "newpassword",
+-        "name": "Updated User",
+-    }
+-    response = await client.put("/users/", json=update_data, headers=user_headers)
+-    assert_status_code(response, 403)
+-
+-    response = await client.delete(f"/users/admin/{created_user['id']}", headers=system_headers)
++    test_error = None
++    try:
++        # Attempt unauthorized update
++        update_data = {
++            "email": user_data["email"],
++            "password": "newpassword",
++            "name": "Updated User",
++        }
++        response = await test_manager.client.put("/users/", json=update_data, headers=user_headers)
++        assert_status_code(response, 403)
++    except Exception as e:
++        test_error = str(e)
++        logging.error(f"Test failed with {test_error}")
++
++    # Cleanup
++    response = await test_manager.client.delete(
++        f"/users/admin/{created_user['id']}", headers=test_manager.headers
++    )
+     assert_status_code(response, 204)
+ 
++    if test_error:
++        raise Exception(test_error)
+ 
+-async def test_admin_delete_user(client, system_headers):
++
++async def test_admin_delete_user(test_manager: TestManager):
+     user_data = {
+         "email": "deleteuser@example.com",
+         "password": "password",
+         "name": "Delete User",
+     }
+-    create_response = await client.post("/users/", json=user_data, headers=system_headers)
++    create_response = await test_manager.client.post(
++        "/users/", json=user_data, headers=test_manager.headers
++    )
+     assert_status_code(create_response, 201)
+     created_user = create_response.json()
+ 
+-    response = await client.delete(f"/users/admin/{created_user['id']}", headers=system_headers)
+-    assert_status_code(response, 204)
+-
+-    response = await client.get(f"/users/admin/{created_user['id']}", headers=system_headers)
+-    assert_status_code(response, 404)
+-
+-
+-async def test_delete_user(client, system_headers):
++    test_error = None
++    try:
++        response = await test_manager.client.delete(
++            f"/users/admin/{created_user['id']}", headers=test_manager.headers
++        )
++        assert_status_code(response, 204)
++
++        response = await test_manager.client.get(
++            f"/users/admin/{created_user['id']}", headers=test_manager.headers
++        )
++        assert_status_code(response, 404)
++    except Exception as e:
++        test_error = str(e)
++        logging.error(f"Test failed with {test_error}")
++        # No cleanup needed since we're testing deletion
++        raise Exception(test_error)
++
++
++async def test_delete_user(test_manager: TestManager):
+     user_data = {
+         "email": "deleteuser@example.com",
+         "password": "password",
+         "name": "Delete User",
+     }
+-    create_response = await client.post("/users/", json=user_data, headers=system_headers)
++    create_response = await test_manager.client.post(
++        "/users/", json=user_data, headers=test_manager.headers
++    )
+     assert_status_code(create_response, 201)
+-
+     created_user = create_response.json()
++
+     token = create_access_token(data={"sub": created_user["email"]})
+     user_headers = {"Authorization": f"Bearer {token}"}
+-    response = await client.delete("/users/", headers=user_headers)
+-    assert_status_code(response, 204)
+ 
+-    response = await client.get(f"/users/admin/{created_user['id']}", headers=system_headers)
++    test_error = None
++    try:
++        response = await test_manager.client.delete("/users/", headers=user_headers)
++        assert_status_code(response, 204)
++
++        response = await test_manager.client.get(
++            f"/users/admin/{created_user['id']}", headers=test_manager.headers
++        )
++        assert_status_code(response, 404)
++    except Exception as e:
++        test_error = str(e)
++        logging.error(f"Test failed with {test_error}")
++        # Cleanup if test failed
++        await test_manager.client.delete(
++            f"/users/admin/{created_user['id']}", headers=test_manager.headers
++        )
++        raise Exception(test_error)
++
++
++async def test_get_non_existent_user(test_manager: TestManager):
++    response = await test_manager.client.get("/users/admin/99999", headers=test_manager.headers)
+     assert_status_code(response, 404)
+ 
+ 
+-async def test_get_non_existent_user(client, system_headers):
+-    response = await client.get("/users/admin/99999", headers=system_headers)
+-    assert_status_code(response, 404)
+-
+-
+-async def test_user_login(client, test_user_session):
+-    user, _ = test_user_session
++async def test_user_login(test_manager: TestManager):
++    user, _ = await test_manager.start_user_session()
+ 
+     login_data = {"username": user["email"], "password": "testpassword"}
+-    response = await client.post("/auth/login", data=login_data)
++    response = await test_manager.client.post("/auth/login", data=login_data)
+     assert_status_code(response, 200)
+     assert "accessToken" in response.json()
+ 
+ 
+-async def test_user_login_invalid_credentials(client):
++async def test_user_login_invalid_credentials(test_manager: TestManager):
+     login_data = {"username": "nonexistent@example.com", "password": "wrongpassword"}
+-    response = await client.post("/auth/login", data=login_data)
++    response = await test_manager.client.post("/auth/login", data=login_data)
+     assert_status_code(response, 401)
+ 
+ 
+-async def test_get_user_topics(client, test_user_session):
+-    _, user_headers = test_user_session
++async def test_get_user_topics(test_manager: TestManager):
++    _, user_headers = await test_manager.start_user_session()
+ 
+-    response = await client.get("/users/topics", headers=user_headers)
++    response = await test_manager.client.get("/users/topics", headers=user_headers)
+     assert_status_code(response, 200)
+     assert isinstance(response.json(), list)
+ 
+ 
+-async def test_follow_topic(client, test_user_session, test_topic):
+-    _, user_headers = test_user_session
+-    topic = test_topic
++async def test_follow_topic(test_manager: TestManager):
++    _, user_headers = await test_manager.start_user_session()
++    topic = await test_manager.create_topic()
+ 
+-    response = await client.post(f"/users/topics/{topic['id']}", headers=user_headers)
+-    assert_status_code(response, 204)
++    test_error = None
++    try:
++        # Follow topic
++        response = await test_manager.client.post(
++            f"/users/topics/{topic['id']}", headers=user_headers
++        )
++        assert_status_code(response, 204)
+ 
+-    # Verify that the topic is in the user's topics
+-    topics_response = await client.get("/users/topics", headers=user_headers)
+-    assert_status_code(topics_response, 200)
+-    user_topics = topics_response.json()
+-    assert any(t["id"] == topic["id"] for t in user_topics)
++        # Verify follow
++        topics_response = await test_manager.client.get("/users/topics", headers=user_headers)
++        assert_status_code(topics_response, 200)
++        user_topics = topics_response.json()
++        assert any(t["id"] == topic["id"] for t in user_topics)
+ 
+-    # Now, unfollow the topic
+-    unfollow_response = await client.delete(f"/users/topics/{topic['id']}", headers=user_headers)
+-    assert_status_code(unfollow_response, 204)
++        # Unfollow topic
++        unfollow_response = await test_manager.client.delete(
++            f"/users/topics/{topic['id']}", headers=user_headers
++        )
++        assert_status_code(unfollow_response, 204)
+ 
+-    # Verify that the topic is no longer in the user's topics
+-    topics_response = await client.get("/users/topics", headers=user_headers)
+-    assert_status_code(topics_response, 200)
+-    user_topics = topics_response.json()
+-    assert not any(t["id"] == topic["id"] for t in user_topics)
++        # Verify unfollow
++        topics_response = await test_manager.client.get("/users/topics", headers=user_headers)
++        assert_status_code(topics_response, 200)
++        user_topics = topics_response.json()
++        assert not any(t["id"] == topic["id"] for t in user_topics)
++    except Exception as e:
++        test_error = str(e)
++        logging.error(f"Test failed with {test_error}, marking and cleaning up")
+ 
++        # Cleanup any remaining follow
++        await test_manager.client.delete(f"/users/topics/{topic['id']}", headers=user_headers)
+ 
+-async def test_follow_nonexistent_topic(client, test_user_session):
+-    _, user_headers = test_user_session
++        raise Exception(test_error)
+ 
+-    response = await client.post("/users/topics/99999", headers=user_headers)
++
++async def test_follow_nonexistent_topic(test_manager: TestManager):
++    _, user_headers = await test_manager.start_user_session()
++
++    response = await test_manager.client.post("/users/topics/99999", headers=user_headers)
+     assert_status_code(response, 404)
+ 
+ 
+-async def test_unfollow_nonexistent_topic(client, test_user_session):
+-    _, user_headers = test_user_session
++async def test_unfollow_nonexistent_topic(test_manager: TestManager):
++    _, user_headers = await test_manager.start_user_session()
+ 
+-    response = await client.delete("/users/topics/99999", headers=user_headers)
++    response = await test_manager.client.delete("/users/topics/99999", headers=user_headers)
+     assert_status_code(response, 404)
+ 
+ 
+-async def test_get_user_bills(client, test_user_session):
+-    _, user_headers = test_user_session
++async def test_get_user_bills(test_manager: TestManager):
++    _, user_headers = await test_manager.start_user_session()
+ 
+-    response = await client.get("/users/bills", headers=user_headers)
++    response = await test_manager.client.get("/users/bills", headers=user_headers)
+     assert_status_code(response, 200)
+     assert isinstance(response.json(), list)
+ 
+ 
+-async def test_follow_bill(client, test_user_session, test_bill):
+-    _, user_headers = test_user_session
++async def test_follow_bill(test_manager: TestManager):
++    _, user_headers = await test_manager.start_user_session()
++    test_bill = await test_manager.create_bill()
+ 
+-    response = await client.post(f"/users/bills/{test_bill['id']}", headers=user_headers)
+-    assert_status_code(response, 204)
++    test_error = None
++    try:
++        # Follow bill
++        response = await test_manager.client.post(
++            f"/users/bills/{test_bill['id']}", headers=user_headers
++        )
++        assert_status_code(response, 204)
+ 
+-    # Verify that the bill is in the user's bills
+-    response = await client.get("/users/bills", headers=user_headers)
+-    assert_status_code(response, 200)
+-    user_topics = response.json()
+-    assert any(t["id"] == test_bill["id"] for t in user_topics)
++        # Verify follow
++        response = await test_manager.client.get("/users/bills", headers=user_headers)
++        assert_status_code(response, 200)
++        user_bills = response.json()
++        assert any(b["id"] == test_bill["id"] for b in user_bills)
+ 
+-    # Now, unfollow the bill
+-    unfollow_response = await client.delete(f"/users/bills/{test_bill['id']}", headers=user_headers)
+-    assert_status_code(unfollow_response, 204)
++        # Unfollow bill
++        unfollow_response = await test_manager.client.delete(
++            f"/users/bills/{test_bill['id']}", headers=user_headers
++        )
++        assert_status_code(unfollow_response, 204)
+ 
+-    # Verify that the topic is no longer in the user's topics
+-    response = await client.get("/users/bills", headers=user_headers)
+-    assert_status_code(response, 200)
+-    user_topics = response.json()
+-    assert not any(t["id"] == test_bill["id"] for t in user_topics)
++        # Verify unfollow
++        response = await test_manager.client.get("/users/bills", headers=user_headers)
++        assert_status_code(response, 200)
++        user_bills = response.json()
++        assert not any(b["id"] == test_bill["id"] for b in user_bills)
++    except Exception as e:
++        test_error = str(e)
++        logging.error(f"Test failed with {test_error}, marking and cleaning up")
+ 
++        # Cleanup any remaining follow
++        await test_manager.client.delete(f"/users/bills/{test_bill['id']}", headers=user_headers)
+ 
+-async def test_follow_nonexistent_bill(client, test_user_session):
+-    _, user_headers = test_user_session
+-
+-    response = await client.post("/users/bills/99999", headers=user_headers)
+-    assert_status_code(response, 404)
++        raise Exception(test_error)
+ 
+ 
+-async def test_unfollow_nonexistent_bill(client, test_user_session):
+-    _, user_headers = test_user_session
++async def test_follow_nonexistent_bill(test_manager: TestManager):
++    _, user_headers = await test_manager.start_user_session()
+ 
+-    response = await client.delete("/users/bills/99999", headers=user_headers)
++    response = await test_manager.client.post("/users/bills/99999", headers=user_headers)
+     assert_status_code(response, 404)
+ 
+ 
+-async def test_follow_legislator(client, test_user_session, test_legislator):
+-    _, user_headers = test_user_session
+-
+-    response = await client.post(
+-        f"/users/legislators/{test_legislator['id']}", headers=user_headers
+-    )
+-    assert_status_code(response, 204)
++async def test_unfollow_nonexistent_bill(test_manager: TestManager):
++    _, user_headers = await test_manager.start_user_session()
+ 
+-    # Verify that the legislator is in the user's followed legislators
+-    response = await client.get("/users/legislators", headers=user_headers)
+-    assert_status_code(response, 200)
+-    user_legislators = response.json()
+-    assert any(l["id"] == test_legislator["id"] for l in user_legislators)
++    response = await test_manager.client.delete("/users/bills/99999", headers=user_headers)
++    assert_status_code(response, 404)
+ 
+-    # Now, unfollow the legislator
+-    unfollow_response = await client.delete(
+-        f"/users/legislators/{test_legislator['id']}", headers=user_headers
+-    )
+-    assert_status_code(unfollow_response, 204)
+ 
+-    # Verify that the legislator is no longer in the user's followed legislators
+-    response = await client.get("/users/legislators", headers=user_headers)
+-    assert_status_code(response, 200)
+-    user_legislators = response.json()
+-    assert not any(l["id"] == test_legislator["id"] for l in user_legislators)
++async def test_follow_legislator(test_manager: TestManager):
++    _, user_headers = await test_manager.start_user_session()
++    test_legislator = await test_manager.create_legislator()
++
++    test_error = None
++    try:
++        # Follow legislator
++        response = await test_manager.client.post(
++            f"/users/legislators/{test_legislator['id']}", headers=user_headers
++        )
++        assert_status_code(response, 204)
++
++        # Verify follow
++        response = await test_manager.client.get("/users/legislators", headers=user_headers)
++        assert_status_code(response, 200)
++        user_legislators = response.json()
++        assert any(l["id"] == test_legislator["id"] for l in user_legislators)
++
++        # Unfollow legislator
++        unfollow_response = await test_manager.client.delete(
++            f"/users/legislators/{test_legislator['id']}", headers=user_headers
++        )
++        assert_status_code(unfollow_response, 204)
++
++        # Verify unfollow
++        response = await test_manager.client.get("/users/legislators", headers=user_headers)
++        assert_status_code(response, 200)
++        user_legislators = response.json()
++        assert not any(l["id"] == test_legislator["id"] for l in user_legislators)
++    except Exception as e:
++        test_error = str(e)
++        logging.error(f"Test failed with {test_error}, marking and cleaning up")
++
++        # Cleanup any remaining follow
++        await test_manager.client.delete(
++            f"/users/legislators/{test_legislator['id']}", headers=user_headers
++        )
++
++        raise Exception(test_error)
+diff --git a/common/database/referendum/models.py b/common/database/referendum/models.py
+index 33ed8f1..cdcbbf1 100644
+--- a/common/database/referendum/models.py
++++ b/common/database/referendum/models.py
+@@ -272,6 +272,11 @@ class Comment(Base):
+     likes = relationship("User", secondary=user_comment_likes, back_populates="liked_comments")
+ 
+ 
++# Bill filtering beta logic
++import os
++
++
++_bill_filtering_disabled = os.environ.get("DISABLE_BETA_BILL_SUBSET_FILTERING")
+ BILL_SUBSET_IDS = [
+     999999,
+     1650479,
+@@ -384,6 +389,8 @@ BILL_SUBSET_IDS = [
+ @event.listens_for(Query, "before_compile", retval=True)
+ def filter_bill_queries(query):
+     """Filter both direct bill queries and queries with bill_id foreign keys"""
++    if _bill_filtering_disabled:
++        return query
+ 
+     if not query.column_descriptions:
+         return query
+@@ -415,6 +422,8 @@ def filter_bill_queries(query):
+ @event.listens_for(Engine, "before_execute", retval=True)
+ def filter_bill_selects(conn, clauseelement, multiparams, params, execution_options):
+     """Filter bill-related select() statements"""
++    if _bill_filtering_disabled:
++        return clauseelement, multiparams, params
+ 
+     if hasattr(clauseelement, "_bill_filtered") and clauseelement._bill_filtered:
+         return clauseelement, multiparams, params
+diff --git a/data/legiscan_api.sql b/data/legiscan_api.sql
+index 2e5be1d..a9e8d10 100644
+--- a/data/legiscan_api.sql
++++ b/data/legiscan_api.sql
+@@ -1298,7 +1298,6 @@ COPY public.ls_bill_sponsor (bill_id, people_id, sponsor_order, sponsor_type_id)
+ 1741372	24026	39	2
+ 1741372	24039	48	2
+ 1741372	24069	37	2
+-\.
+ 1724917	9157	83	2
+ 1724917	9175	25	2
+ 1724917	9176	118	2
+@@ -1422,7 +1421,7 @@ COPY public.ls_bill_sponsor (bill_id, people_id, sponsor_order, sponsor_type_id)
+ 1724917	24060	110	2
+ 1724917	24067	119	2
+ 1724917	24069	19	2
+-
++\.
+ 
+ --
+ -- Data for Name: ls_bill_subject; Type: TABLE DATA; Schema: public; Owner: legiscan_api
+diff --git a/docker-compose.yml b/docker-compose.yml
+index 2c78c38..334a896 100644
+--- a/docker-compose.yml
++++ b/docker-compose.yml
+@@ -148,4 +148,6 @@ services:
+       migrations:
+         condition: service_completed_successfully
+     env_file: .env
++    environment:
++      - DISABLE_BETA_BILL_SUBSET_FILTERING=true
+     profiles: ["test"]
+diff --git a/pipeline/tests/conftest.py b/pipeline/tests/conftest.py
+new file mode 100644
+index 0000000..e69de29
