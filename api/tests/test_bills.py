@@ -22,6 +22,7 @@ async def test_list_bill_details(client, system_headers, test_bill_version, test
     expected_fields = {
         "billId": test_bill_version["billId"],
         "description": "This is a test bill",
+        "statusId": 999999,
         "status": "Introduced",
         "statusDate": "2024-01-01",
         "sessionId": DEFAULT_ID,
@@ -75,7 +76,7 @@ async def test_update_bill(client, system_headers, test_bill):
     assert updated_bill["title"] == "Updated Bill Title"
 
 
-async def test_update_bill_not_found(client, system_headers):
+async def test_update_bill_not_found(client, system_headers, test_status):
     non_existent_bill = {
         "id": 9999,
         "legiscanId": 0,
@@ -85,7 +86,7 @@ async def test_update_bill_not_found(client, system_headers):
         "stateId": 1,
         "legislativeBodyId": 1,
         "sessionId": 118,
-        "status": "Introduced",
+        "statusId": test_status["id"],
         "status_date": "2024-01-01",
         "currentVersionId": 0,
     }
@@ -206,7 +207,6 @@ async def test_bill_user_votes(client, system_headers, test_user_vote):
     )
     assert_status_code(response, 200)
     bill_votes = response.json()
-    print(bill_votes)
     assert bill_votes["yay"] > 0
     assert bill_votes["nay"] == 0
 

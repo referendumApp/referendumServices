@@ -81,6 +81,11 @@ State = create_schema_container(
     base_fields={"id": (int, ...), "name": (str, ...)},
 )
 
+Status = create_schema_container(
+    name="Status",
+    base_fields={"id": (int, ...), "name": (str, ...)},
+)
+
 Session = create_schema_container(
     name="Session",
     base_fields={"id": (int, ...), "name": (str, ...), "state_id": (int, ...)},
@@ -161,13 +166,14 @@ Bill = create_schema_container(
         "description": (str, ...),
         "session_id": (int, ...),
         "state_id": (int, ...),
-        "status": (str, ...),
+        "status_id": (int, ...),
         "status_date": (date, ...),
         "legislative_body_id": (int, ...),
     },
     record_fields={"current_version_id": (Optional[int], None)},
     relationship_fields={
         "state": (Optional[State.Record], None),
+        "status": (Optional[Status.Record], None),
         "legislative_body": (Optional[LegislativeBody.Record], None),
         "topics": (List[Topic.Record], []),
         "sponsors": (List[Sponsor.Record], []),
