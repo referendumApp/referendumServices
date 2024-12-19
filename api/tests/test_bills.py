@@ -1,7 +1,9 @@
+from api.tests.conftest import TestManager
 from api.tests.test_utils import DEFAULT_ID, assert_status_code
 
 
-async def test_add_bill_success(test_bill):
+async def test_add_bill_success(test_manager: TestManager):
+    test_bill = await test_manager.create_bill()
     assert "id" in test_bill
 
 
