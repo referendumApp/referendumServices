@@ -1,6 +1,6 @@
 import os
 import random
-from typing import AsyncGenerator, Dict, Tuple
+from typing import AsyncGenerator, Dict, Tuple, Optional, List
 
 import pytest
 import pytest_asyncio
@@ -16,6 +16,9 @@ from api.tests.test_utils import (
     NAY_VOTE_ID,
 )
 from common.object_storage.client import ObjectStorageClient
+
+from dataclasses import dataclass, field
+import uuid
 
 ENV = os.environ.get("ENVIRONMENT")
 DEBUGGER = os.environ.get("ENABLE_DEBUGGER")
@@ -317,3 +320,228 @@ async def test_legislator_vote(
     params = {"bill_action_id": test_bill_action["id"], "legislator_id": test_legislator["id"]}
     response = await client.delete("/legislator_votes/", params=params, headers=system_headers)
     assert_status_code(response, 204)
+
+
+# ==========
+
+
+def generate_random_string(prefix: str = "") -> str:
+    """Generate a random string with optional prefix."""
+    return f"{prefix}_{uuid.uuid4().hex[:8]}" if prefix else uuid.uuid4().hex[:8]
+
+
+@dataclass
+class TestManager:
+    client: AsyncClient
+    headers: Dict[str, str]
+    resources_to_cleanup: List[tuple] = field(default_factory=list)
+
+    async def cleanup(self):
+        """Clean up resources in reverse order of creation."""
+        print(self.resources_to_cleanup)
+        for resource_type, resource_id in reversed(self.resources_to_cleanup):
+            response = await self.client.delete(
+                f"/{resource_type}/{resource_id}", headers=self.headers
+            )
+            if response.status_code != 404:  # Ignore if already deleted
+                assert response.status_code == 204
+
+    async def create_resource(self, endpoint: str, data: Dict, skip_cleanup: bool = False) -> Dict:
+        """Create a resource and optionally track it for cleanup."""
+        if not data.get("id"):
+            data["id"] = random.randint(0, 999999)
+        print(f"Creating resource at {endpoint} with data: {data}")
+        response = await self.client.post(endpoint, json=data, headers=self.headers)
+        print(f"Response status: {response.status_code}, text: {response.text}")  # Debug log
+        assert response.status_code == 201, f"Failed to create resource: {response.text}"
+        resource = response.json()
+
+        if not skip_cleanup:
+            print(f"Adding to cleanup: {endpoint.strip('/')}, {resource['id']}")  # Debug log
+            self.resources_to_cleanup.append((endpoint.strip("/"), resource["id"]))
+        return resource
+
+    async def create_state(self, name: Optional[str] = None) -> Dict:
+        """Create a state with optional custom name."""
+        return await self.create_resource(
+            "/states/", {"name": name or f"State_{generate_random_string()}"}
+        )
+
+    async def create_role(self, name: Optional[str] = None) -> Dict:
+        """Create a role with optional custom name."""
+        return await self.create_resource("/roles/", {"name": name or "Representative"})
+
+    async def create_party(self, name: Optional[str] = None) -> Dict:
+        """Create a party with optional custom name."""
+        return await self.create_resource("/partys/", {"name": name or "Independent"})
+
+    async def create_session(
+        self, *, state_id: Optional[int] = None, name: Optional[str] = None
+    ) -> Dict:
+        """Create a session, creating state if needed."""
+        if state_id is None:
+            state = await self.create_state()
+            state_id = state["id"]
+
+        return await self.create_resource(
+            "/sessions/",
+            {"name": name or f"Session_{generate_random_string()}", "stateId": state_id},
+        )
+
+    async def create_status(self, name: Optional[str] = None) -> Dict:
+        """Create a status with optional custom name."""
+        return await self.create_resource("/statuses/", {"name": name or "Introduced"})
+
+    async def create_legislative_body(
+        self, *, state_id: Optional[int] = None, role_id: Optional[int] = None
+    ) -> Dict:
+        """Create a legislative body, creating dependencies if needed."""
+        if state_id is None:
+            state = await self.create_state()
+            state_id = state["id"]
+
+        if role_id is None:
+            role = await self.create_role()
+            role_id = role["id"]
+
+        return await self.create_resource(
+            "/legislative_bodys/", {"stateId": state_id, "roleId": role_id}
+        )
+
+    async def create_legislator(
+        self,
+        *,
+        name: Optional[str] = None,
+        state_id: Optional[int] = None,
+        role_id: Optional[int] = None,
+        party_id: Optional[int] = None,
+    ) -> Dict:
+        """Create a legislator with all dependencies."""
+        if state_id is None:
+            state = await self.create_state()
+            state_id = state["id"]
+
+        if role_id is None:
+            role = await self.create_role()
+            role_id = role["id"]
+
+        if party_id is None:
+            party = await self.create_party()
+            party_id = party["id"]
+
+        return await self.create_resource(
+            "/legislators/",
+            {
+                "legiscanId": str(random.randint(100, 999)),
+                "name": name or f"Legislator_{generate_random_string()}",
+                "image_url": f"https://example.com/{generate_random_string()}.jpg",
+                "district": f"D-{random.randint(1, 99)}",
+                "address": "123 Capitol St",
+                "partyId": party_id,
+                "stateId": state_id,
+                "roleId": role_id,
+            },
+        )
+
+    async def create_bill(
+        self,
+        *,
+        title: Optional[str] = None,
+        state_id: Optional[int] = None,
+        legislative_body_id: Optional[int] = None,
+        session_id: Optional[int] = None,
+        status_id: Optional[int] = None,
+    ) -> Dict:
+        """Create a bill with all dependencies."""
+        if state_id is None:
+            state = await self.create_state()
+            state_id = state["id"]
+
+        if legislative_body_id is None:
+            leg_body = await self.create_legislative_body(state_id=state_id)
+            legislative_body_id = leg_body["id"]
+
+        if session_id is None:
+            session = await self.create_session(state_id=state_id)
+            session_id = session["id"]
+
+        if status_id is None:
+            status = await self.create_status()
+            status_id = status["id"]
+
+        bill_id = random.randint(0, 999999)
+
+        return await self.create_resource(
+            "/bills/",
+            {
+                "id": bill_id,
+                "legiscanId": bill_id,
+                "identifier": f"HB_{random.randint(100, 999)}",
+                "title": title or f"Bill_{generate_random_string()}",
+                "description": "Test bill description",
+                "stateId": state_id,
+                "legislativeBodyId": legislative_body_id,
+                "sessionId": session_id,
+                "statusId": status_id,
+                "status_date": "2024-01-01",
+                "current_version_id": None,
+            },
+        )
+
+    async def create_bill_version(
+        self,
+        *,
+        bill_id: Optional[int] = None,
+        url: Optional[str] = None,
+        hash_value: Optional[str] = None,
+    ) -> Dict:
+        """Create a bill version, creating bill if needed."""
+        if bill_id is None:
+            bill = await self.create_bill()
+            bill_id = bill["id"]
+
+        return await self.create_resource(
+            "/bill_versions/",
+            {
+                "id": random.randint(1000, 9999),
+                "billId": bill_id,
+                "url": url or f"https://example.com/bills/{generate_random_string()}.pdf",
+                "hash": hash_value or generate_random_string(),
+                "briefing": "Test bill version briefing",
+            },
+        )
+
+    async def create_bill_action(self, *, bill_id: Optional[int] = None) -> Dict:
+        """Create a bill action, creating bill if needed."""
+        if bill_id is None:
+            bill = await self.create_bill()
+            bill_id = bill["id"]
+        else:
+            bill = await self.get_bill(bill_id)
+
+        return await self.create_resource(
+            "/bill_actions/",
+            {
+                "id": random.randint(1000, 9999),
+                "billId": bill_id,
+                "legislativeBodyId": bill["legislativeBodyId"],
+                "date": "2024-01-01",
+                "description": "Test",
+            },
+        )
+
+    async def get_bill(self, bill_id: int) -> Dict:
+        """Get current bill details by ID."""
+        response = await self.client.get(f"/bills/{bill_id}", headers=self.headers)
+        assert response.status_code == 200, f"Failed to get bill: {response.text}"
+        return response.json()
+
+
+@pytest_asyncio.fixture
+async def test_manager(client: AsyncClient, system_headers: Dict[str, str]) -> TestManager:
+    """Fixture that provides access to test resources with automatic cleanup."""
+    resources = TestManager(client, system_headers)
+    try:
+        yield resources
+    finally:
+        await resources.cleanup()
