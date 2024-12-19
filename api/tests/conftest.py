@@ -32,6 +32,7 @@ if ENV == "local" and DEBUGGER is not None and DEBUGGER.lower() == "true":
 
 transport = ASGITransport(app=app)
 base_url = "http://localhost"
+storage_client = ObjectStorageClient()
 
 
 @pytest.fixture(scope="session")
@@ -338,7 +339,6 @@ class TestManager:
 
     async def cleanup(self):
         """Clean up resources in reverse order of creation."""
-        print(self.resources_to_cleanup)
         for resource_type, resource_id in reversed(self.resources_to_cleanup):
             response = await self.client.delete(
                 f"/{resource_type}/{resource_id}", headers=self.headers
@@ -346,18 +346,19 @@ class TestManager:
             if response.status_code != 404:  # Ignore if already deleted
                 assert response.status_code == 204
 
+        filenames = storage_client.list_filenames(BILL_TEXT_BUCKET_NAME)
+        for filename in filenames:
+            storage_client.delete_file(BILL_TEXT_BUCKET_NAME, filename)
+
     async def create_resource(self, endpoint: str, data: Dict, skip_cleanup: bool = False) -> Dict:
         """Create a resource and optionally track it for cleanup."""
         if not data.get("id"):
             data["id"] = random.randint(0, 999999)
-        print(f"Creating resource at {endpoint} with data: {data}")
         response = await self.client.post(endpoint, json=data, headers=self.headers)
-        print(f"Response status: {response.status_code}, text: {response.text}")  # Debug log
         assert response.status_code == 201, f"Failed to create resource: {response.text}"
         resource = response.json()
 
         if not skip_cleanup:
-            print(f"Adding to cleanup: {endpoint.strip('/')}, {resource['id']}")  # Debug log
             self.resources_to_cleanup.append((endpoint.strip("/"), resource["id"]))
         return resource
 
@@ -500,14 +501,26 @@ class TestManager:
             bill = await self.create_bill()
             bill_id = bill["id"]
 
+        if not hash_value:
+            hash_value = generate_random_string()
+
+        # Upload bill text to MinIO
+        bill_text = "A BILL"
+        storage_client.upload_file(
+            bucket=BILL_TEXT_BUCKET_NAME,
+            key=f"{hash_value}.txt",
+            file_obj=bill_text.encode("utf-8"),
+            content_type="text/plain",
+        )
+
         return await self.create_resource(
             "/bill_versions/",
             {
                 "id": random.randint(1000, 9999),
                 "billId": bill_id,
                 "url": url or f"https://example.com/bills/{generate_random_string()}.pdf",
-                "hash": hash_value or generate_random_string(),
-                "briefing": "Test bill version briefing",
+                "hash": hash_value,
+                "briefing": "yadayadayada",
             },
         )
 
