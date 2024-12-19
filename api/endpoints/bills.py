@@ -1,6 +1,6 @@
 import logging
 from collections import Counter, defaultdict
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -142,7 +142,7 @@ async def get_bill_vote_counts(
     bill_id: int,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
-) -> Dict[str, int]:
+) -> Dict[str, Union[int, float]]:
     bill_votes = crud.bill.get_bill_user_votes(db, bill_id)
     return bill_votes
 
