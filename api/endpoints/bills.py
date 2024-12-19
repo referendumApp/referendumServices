@@ -1,6 +1,6 @@
 import logging
 from collections import Counter, defaultdict
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
