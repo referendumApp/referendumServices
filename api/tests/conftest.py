@@ -393,6 +393,10 @@ class TestManager:
         """Create a status with optional custom name."""
         return await self.create_resource("/statuses/", {"name": name or "Introduced"})
 
+    async def create_topic(self, name: Optional[str] = None) -> Dict:
+        """Create a status with optional custom name."""
+        return await self.create_resource("/topics/", {"name": name or "Health"})
+
     async def create_legislative_body(
         self, *, state_id: Optional[int] = None, role_id: Optional[int] = None
     ) -> Dict:
