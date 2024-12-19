@@ -1421,7 +1421,7 @@ COPY public.ls_bill_sponsor (bill_id, people_id, sponsor_order, sponsor_type_id)
 1724917	24060	110	2
 1724917	24067	119	2
 1724917	24069	19	2
-
+\.
 
 --
 -- Data for Name: ls_bill_subject; Type: TABLE DATA; Schema: public; Owner: legiscan_api
