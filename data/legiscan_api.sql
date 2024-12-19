@@ -1298,7 +1298,6 @@ COPY public.ls_bill_sponsor (bill_id, people_id, sponsor_order, sponsor_type_id)
 1741372	24026	39	2
 1741372	24039	48	2
 1741372	24069	37	2
-\.
 1724917	9157	83	2
 1724917	9175	25	2
 1724917	9176	118	2
