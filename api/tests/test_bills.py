@@ -20,24 +20,29 @@ async def test_list_bill_details(client, system_headers, test_manager: TestManag
     )
     assert_status_code(response, 204)
 
-    response = await client.get("/bills/details", headers=system_headers)
-    assert_status_code(response, 200)
-    bill_data = response.json()
-    assert len(bill_data) == 1
-    bill = bill_data[0]
+    test_error = None
+    try:
+        response = await client.get("/bills/details", headers=system_headers)
+        assert_status_code(response, 200)
+        bill_data = response.json()
+        assert len(bill_data) == 1
+        bill = bill_data[0]
 
-    expected_fields = [
-        "billId",
-        "description",
-        "statusId",
-        "status",
-        "statusDate",
-        "sessionId",
-        "stateName",
-        "legislativeBodyRole",
-        "sponsors",
-    ]
-    assert all(field in bill for field in expected_fields)
+        expected_fields = [
+            "billId",
+            "description",
+            "statusId",
+            "status",
+            "statusDate",
+            "sessionId",
+            "stateName",
+            "legislativeBodyRole",
+            "sponsors",
+        ]
+        assert all(field in bill for field in expected_fields)
+    except Exception as e:
+        test_error = str(e)
+        logging.error(f"Test failed with {test_error}, marking and cleaning up")
 
     # Remove sponsor
     response = await client.delete(
@@ -45,6 +50,9 @@ async def test_list_bill_details(client, system_headers, test_manager: TestManag
         headers=system_headers,
     )
     assert_status_code(response, 204)
+
+    if test_error:
+        raise Exception(test_error)
 
 
 async def test_add_bill_already_exists(client, system_headers, test_manager: TestManager):
