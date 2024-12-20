@@ -11,11 +11,12 @@ from common.database.referendum.crud import (
 )
 
 from ..database import get_db
-from ..schemas import UserCreateInput, UserUpdateInput, ErrorResponse
+from ..schemas import UserCreateInput, PasswordResetInput, UserPasswordResetInput, ErrorResponse
 from ..security import (
     get_current_user,
     get_current_user_or_verify_system_token,
     get_user_create_with_hashed_password,
+    get_password_hash,
     verify_system_token,
     verify_password,
 )
@@ -171,17 +172,14 @@ async def update_user(
     except DatabaseException as e:
         logger.error(f"Database error while updating user: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-    
+
 
 @router.patch(
     "/password_reset",
-    response_model=schemas.User,
+    status_code=status.HTTP_204_NO_CONTENT,
     summary="Update user password",
     responses={
-        200: {
-            "model": schemas.User,
-            "description": "User password successfully updated",
-        },
+        204: {"description": "User password successfully updated"},
         403: {
             "model": ErrorResponse,
             "description": "Unauthorized to update this user's password",
@@ -191,40 +189,58 @@ async def update_user(
     }
 )
 async def update_user_password(
-    user: UserUpdateInput,
+    password_reset: UserPasswordResetInput,
     db: Session = Depends(get_db),
-    auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
-) -> models.User:
+    user: models.User = Depends(get_current_user),
+) -> None:
     logger.info(f"Attempting to update user password for email: {user.email}")
-    if not auth_info["is_system"]:
-        current_user = auth_info["user"]
-        if current_user.email != user.email:
-            logger.warning(
-                f"Unauthorized attempt to update user info: User {current_user.email} tried to update User {user.email}"
-            )
-            raise HTTPException(
-                status_code=403, detail="You can only update your own user information."
-            )
-
-        if not verify_password(user.current_password, current_user.hashed_password):
-            logger.warning(
-                f"Unsuccessful attempt to update user password: User {current_user.email} entered an incorrect password"
-            )
-            raise HTTPException(
-                status_code=403, detail="The current password does not match"
-            )
+    if not verify_password(password_reset.current_password, user.hashed_password):
+        logger.warning(
+            f"Unsuccessful attempt to update user password: User {user.email} entered an incorrect password"
+        )
+        raise HTTPException(
+            status_code=403, detail="The current password does not match"
+        )
     try:
-        db_user = crud.user.get_user_by_email(db, email=user.email)
-        user_data = user.model_dump(exclude_unset=True)
-        user_data.pop("current_password")
-        new_user_data = UserCreateInput(**user_data, name=current_user.name)
-        user_create = get_user_create_with_hashed_password(new_user_data)
-        updated_user = crud.user.update(db=db, db_obj=db_user, obj_in=user_create)
-        logger.info(f"Successfully updated password for user ID: {updated_user.id}")
-        return updated_user
+        hashed_password = get_password_hash(password_reset.new_password)
+        crud.user.update_user_password(db=db, user_id=user.id, hashed_password=hashed_password)
+        logger.info(f"Successfully updated password for user ID: {user.id}")
     except ObjectNotFoundException:
         logger.warning(f"Attempt to update non-existent user with email: {user.email}")
         raise HTTPException(status_code=404, detail=f"User not found for email: {user.email}.")
+    except DatabaseException as e:
+        logger.error(f"Database error while updating user: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@router.patch(
+    "/admin/{user_id}/password_reset",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Update a user's password",
+    responses={
+        204: {"description": "User's password successfully updated"},
+        403: {
+            "model": ErrorResponse,
+            "description": "Unauthorized to update this user's password",
+        },
+        404: {"model": ErrorResponse, "description": "User not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    }
+)
+async def admin_update_user_password(
+    user_id: int,
+    password_reset: PasswordResetInput,
+    db: Session = Depends(get_db),
+    _: Dict[str, any] = Depends(verify_system_token)
+) -> None:
+    logger.info(f"Attempting to update password for user with ID: {user_id}")
+    try:
+        hashed_password = get_password_hash(password_reset.new_password)
+        crud.user.update_user_password(db=db, user_id=user_id, hashed_password=hashed_password)
+        logger.info(f"Successfully updated password for user ID: {user_id}")
+    except ObjectNotFoundException:
+        logger.warning(f"Attempt to update non-existent user with ID: {user_id}")
+        raise HTTPException(status_code=404, detail=f"User not found for ID: {user_id}.")
     except DatabaseException as e:
         logger.error(f"Database error while updating user: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")

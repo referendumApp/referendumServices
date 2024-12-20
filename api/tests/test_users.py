@@ -74,20 +74,42 @@ async def test_update_user_password(client, test_user_session):
     user, user_headers = test_user_session
 
     update_data = {
-        "email": user["email"],
         "current_password": "testpassword",
-        "password": "newpassword",
+        "new_password": "newpassword",
     }
     response = await client.patch("/users/password_reset", json=update_data, headers=user_headers)
-    assert_status_code(response, 200)
-    updated_user = response.json()
-    assert updated_user["name"] == user["name"]
+    assert_status_code(response, 204)
 
     login_data = { "username": user["email"], "password": "newpassword" }
     response = await client.post("/auth/login", data=login_data)
     assert_status_code(response, 200)
 
     old_login_data = { "username": user["email"], "password": "testpassword" }
+    response = await client.post("/auth/login", data=old_login_data)
+    assert_status_code(response, 401)
+
+
+async def test_admin_update_user_password(client, system_headers):
+    user_data = {
+        "email": "updateuserpassword@example.com",
+        "password": "testpassword",
+        "name": "Update User Password",
+    }
+    create_response = await client.post("/users/", json=user_data, headers=system_headers)
+    assert_status_code(create_response, 201)
+    created_user = create_response.json()
+
+    update_data = {
+        "new_password": "newpassword",
+    }
+    response = await client.patch(f"/users/admin/{created_user['id']}/password_reset", json=update_data, headers=system_headers)
+    assert_status_code(response, 204)
+
+    login_data = { "username": created_user["email"], "password": "newpassword" }
+    response = await client.post("/auth/login", data=login_data)
+    assert_status_code(response, 200)
+
+    old_login_data = { "username": created_user["email"], "password": "testpassword" }
     response = await client.post("/auth/login", data=old_login_data)
     assert_status_code(response, 401)
 

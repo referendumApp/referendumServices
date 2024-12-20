@@ -365,6 +365,11 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
         except SQLAlchemyError as e:
             raise DatabaseException(f"Database error: {str(e)}")
 
+    def update_user_password(self, db: Session, user_id: int, hashed_password: str):
+        db_user = self.read(db=db, obj_id=user_id)
+        db_user.hashed_password = hashed_password
+        db.commit()
+
     def follow_topic(self, db: Session, user_id: int, topic_id: int):
         db_user = self.read(db=db, obj_id=user_id)
         db_topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
