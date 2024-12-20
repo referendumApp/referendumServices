@@ -12,10 +12,21 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Build and run tests
+
+    - name: Run API Tests
       run: |
         docker compose --profile test build
-        docker compose --profile test run --rm test
-    - name: Clean up
+        docker compose --profile test run --rm test pytest api/ common/
+
+    - name: Clean up after API tests
+      if: always()
+      run: docker compose --profile test down
+
+    - name: Run Pipeline Tests
+      run: |
+        docker compose --profile test build
+        docker compose --profile test run --rm test pytest pipeline/
+
+    - name: Final cleanup
       if: always()
       run: docker compose --profile test down

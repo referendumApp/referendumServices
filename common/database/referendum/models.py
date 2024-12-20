@@ -272,6 +272,11 @@ class Comment(Base):
     likes = relationship("User", secondary=user_comment_likes, back_populates="liked_comments")
 
 
+# Bill filtering beta logic
+import os
+
+
+_bill_filtering_disabled = os.environ.get("DISABLE_BETA_BILL_SUBSET_FILTERING")
 BILL_SUBSET_IDS = [
     999999,
     1650479,
@@ -384,6 +389,8 @@ BILL_SUBSET_IDS = [
 @event.listens_for(Query, "before_compile", retval=True)
 def filter_bill_queries(query):
     """Filter both direct bill queries and queries with bill_id foreign keys"""
+    if _bill_filtering_disabled:
+        return query
 
     if not query.column_descriptions:
         return query
@@ -415,6 +422,8 @@ def filter_bill_queries(query):
 @event.listens_for(Engine, "before_execute", retval=True)
 def filter_bill_selects(conn, clauseelement, multiparams, params, execution_options):
     """Filter bill-related select() statements"""
+    if _bill_filtering_disabled:
+        return clauseelement, multiparams, params
 
     if hasattr(clauseelement, "_bill_filtered") and clauseelement._bill_filtered:
         return clauseelement, multiparams, params
