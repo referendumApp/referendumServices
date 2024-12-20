@@ -178,20 +178,17 @@ async def message_chat(
         if not session or session.bill_version_id != bill_version_id:
             raise HTTPException(status_code=404, detail="Chat session not found")
 
-        # Check session expiry
         if (
             datetime.utcnow() - session.last_activity
         ).seconds > settings.CHAT_SESSION_TIMEOUT_SECONDS:
             CHAT_SESSIONS.pop(message_request.session_id)
             raise HTTPException(status_code=404, detail="Chat session has expired")
 
-        # Add user message to history
         current_time = datetime.utcnow()
         session.chat_history.append(
             ChatMessage(role="user", content=message_request.message, timestamp=current_time)
         )
 
-        # Prepare chat context
         messages = [
             {"role": "system", "content": session.initial_prompt},
             {"role": "system", "content": f"Bill text: {session.text}"},
