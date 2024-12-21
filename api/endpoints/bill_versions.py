@@ -78,8 +78,8 @@ class ChatSession(BaseModel):
     last_activity: datetime
 
 
-@router.get(
-    "/{bill_version_id}/chat/initialize",
+@router.put(
+    "/{bill_version_id}/chat",
     response_model=Dict[str, str],
     summary="Initialize a new chat session",
     responses={
@@ -156,7 +156,7 @@ class ChatMessageResponse(BaseModel):
 
 
 @router.post(
-    "/{bill_version_id}/chat/message",
+    "/{bill_version_id}/chat",
     response_model=ChatMessageResponse,
     summary="Send a message to the chat session",
     responses={
@@ -217,7 +217,7 @@ async def message_chat(
 
 
 @router.delete(
-    "/{bill_version_id}/chat/terminate",
+    "/{bill_version_id}/chat",
     response_model=Dict[str, str],
     summary="Terminate a chat session",
     responses={
