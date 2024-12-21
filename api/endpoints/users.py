@@ -12,9 +12,9 @@ from common.database.referendum.crud import (
 
 from ..database import get_db
 from ..schemas import (
-    UserCreateInput, 
-    PasswordResetInput, 
-    UserPasswordResetInput, 
+    UserCreateInput,
+    PasswordResetInput,
+    UserPasswordResetInput,
     ErrorResponse,
 )
 from ..security import (
@@ -191,7 +191,7 @@ async def update_user(
         },
         404: {"model": ErrorResponse, "description": "User not found"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
-    }
+    },
 )
 async def update_user_password(
     password_reset: UserPasswordResetInput,
@@ -203,9 +203,7 @@ async def update_user_password(
         logger.warning(
             f"Unsuccessful attempt to update user password: User {user.email} entered an incorrect password"
         )
-        raise HTTPException(
-            status_code=403, detail="The current password does not match"
-        )
+        raise HTTPException(status_code=403, detail="The current password does not match")
     try:
         hashed_password = get_password_hash(password_reset.new_password)
         crud.user.update_user_password(db=db, user_id=user.id, hashed_password=hashed_password)
@@ -230,13 +228,13 @@ async def update_user_password(
         },
         404: {"model": ErrorResponse, "description": "User not found"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
-    }
+    },
 )
 async def admin_update_user_password(
     user_id: int,
     password_reset: PasswordResetInput,
     db: Session = Depends(get_db),
-    _: Dict[str, any] = Depends(verify_system_token)
+    _: Dict[str, any] = Depends(verify_system_token),
 ) -> None:
     logger.info(f"Attempting to update password for user with ID: {user_id}")
     try:
