@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session, joinedload, load_only
 from common.database.referendum import crud, models, schemas
 
 from ..database import get_db
-from ..schemas import ErrorResponse, LegislatorVote
-from ..security import get_current_user_or_verify_system_token
+from ..schemas import ErrorResponse, LegislatorVotingHistory
+from ..security import CredentialsException, get_current_user_or_verify_system_token
 from .endpoint_generator import EndpointGenerator
 
 logger = logging.getLogger(__name__)
@@ -29,11 +29,11 @@ EndpointGenerator.add_crud_routes(
 
 @router.get(
     "/{legislator_id}/voting_history",
-    response_model=List[LegislatorVote],
+    response_model=List[LegislatorVotingHistory],
     summary="Get legislator voting history",
     responses={
         200: {
-            "model": LegislatorVote,
+            "model": LegislatorVotingHistory,
             "description": "Legislator voting history successfully retrieved",
         },
         401: {"model": ErrorResponse, "description": "Not authorized"},
@@ -44,7 +44,7 @@ async def get_legislator_voting_history(
     legislator_id: int,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
-) -> List[LegislatorVote]:
+) -> List[LegislatorVotingHistory]:
     try:
         vote_query = (
             select(models.LegislatorVote)
@@ -83,7 +83,7 @@ async def get_legislator_voting_history(
         legislator_votes = []
         for bill in bill_results:
             legislator_votes.append(
-                LegislatorVote(
+                LegislatorVotingHistory(
                     bill_id=bill.id,
                     identifier=bill.identifier,
                     title=bill.title,
@@ -92,6 +92,8 @@ async def get_legislator_voting_history(
             )
 
         return legislator_votes
+    except CredentialsException as e:
+        raise e
     except Exception as e:
         message = (
             f"Failed to get voting history for legislator {legislator_id} with error: {str(e)}"

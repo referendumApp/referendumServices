@@ -1,10 +1,13 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Table, Date
-from sqlalchemy.orm import relationship, declarative_base
 import datetime
+import logging
 
-from sqlalchemy import Boolean, Column, Date, Enum, ForeignKey, Integer, String, Table
+import sqlalchemy.exc
+from sqlalchemy import Column, Date, ForeignKey, Integer, String, Table, event
 from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Query
 
+logger = logging.getLogger(__name__)
 Base = declarative_base()
 
 # Association tables
@@ -148,11 +151,11 @@ class Bill(Base):
     state_id = Column(Integer, ForeignKey("states.id"), index=True)
     legislative_body_id = Column(Integer, ForeignKey("legislative_bodys.id"), index=True)
     session_id = Column(Integer, ForeignKey("sessions.id"), index=True)
-    briefing = Column(String, nullable=True)
-    status = Column(String)
+    status_id = Column(Integer, ForeignKey("statuses.id"), index=True)
     status_date = Column(Date)
     current_version_id = Column(Integer, ForeignKey("bill_versions.id"), nullable=True)
 
+    status = relationship("Status")
     state = relationship("State")
     legislative_body = relationship("LegislativeBody")
     topics = relationship("Topic", secondary=bill_topics)
@@ -173,6 +176,13 @@ class Session(Base):
     bills = relationship("Bill", back_populates="session")
 
 
+class Status(Base):
+    __tablename__ = "statuses"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)
+
+
 class BillVersion(Base):
     __tablename__ = "bill_versions"
 
@@ -181,6 +191,7 @@ class BillVersion(Base):
     url = Column(String, nullable=True)
     hash = Column(String, nullable=True)
     date = Column(Date, nullable=False, default=datetime.date(1970, 1, 1))
+    briefing = Column(String, nullable=True)
 
 
 class BillAction(Base):
@@ -259,3 +270,172 @@ class Comment(Base):
     comment = Column(String, nullable=False)
 
     likes = relationship("User", secondary=user_comment_likes, back_populates="liked_comments")
+
+
+# Bill filtering beta logic
+import os
+
+
+_bill_filtering_disabled = os.environ.get("DISABLE_BETA_BILL_SUBSET_FILTERING")
+BILL_SUBSET_IDS = [
+    999999,
+    1650479,
+    1650485,
+    1650487,
+    1650489,
+    1650495,
+    1650498,
+    1650511,
+    1650517,
+    1650520,
+    1650522,
+    1650530,
+    1650533,
+    1650543,
+    1650547,
+    1650577,
+    1650590,
+    1650609,
+    1650615,
+    1650618,
+    1650634,
+    1650664,
+    1650693,
+    1650697,
+    1650704,
+    1650717,
+    1650758,
+    1650764,
+    1650775,
+    1650799,
+    1650801,
+    1650812,
+    1650826,
+    1650896,
+    1650936,
+    1650939,
+    1650942,
+    1650961,
+    1650965,
+    1650988,
+    1651010,
+    1651014,
+    1651016,
+    1651024,
+    1653507,
+    1655806,
+    1655816,
+    1655889,
+    1656001,
+    1656123,
+    1656164,
+    1656185,
+    1657885,
+    1657890,
+    1657893,
+    1657897,
+    1657899,
+    1657901,
+    1657907,
+    1657908,
+    1657913,
+    1657938,
+    1659561,
+    1659566,
+    1664816,
+    1664819,
+    1664824,
+    1664830,
+    1664834,
+    1664836,
+    1664843,
+    1674730,
+    1674735,
+    1674737,
+    1674738,
+    1674746,
+    1674748,
+    1674759,
+    1674763,
+    1674785,
+    1674808,
+    1674812,
+    1677278,
+    1677308,
+    1677449,
+    1677513,
+    1677559,
+    1679223,
+    1679235,
+    1679249,
+    1679268,
+    1679272,
+    1679282,
+    1650880,
+    1650933,
+    1657889,
+    1664821,
+    1677202,
+    1677339,
+    1679233,
+    1679239,
+    1724917,
+    1729811,
+    1771729,
+    1775687,
+]
+
+
+@event.listens_for(Query, "before_compile", retval=True)
+def filter_bill_queries(query):
+    """Filter both direct bill queries and queries with bill_id foreign keys"""
+    if _bill_filtering_disabled:
+        return query
+
+    if not query.column_descriptions:
+        return query
+
+    if getattr(query, "_bill_filtered", False):
+        return query
+
+    try:
+        for desc in query.column_descriptions:
+            entity = desc.get("entity")
+
+            if entity is Bill:
+                query = query.filter(Bill.id.in_(BILL_SUBSET_IDS))
+                query._bill_filtered = True
+                return query
+
+            if entity and hasattr(entity, "bill_id"):
+                query = query.filter(entity.bill_id.in_(BILL_SUBSET_IDS))
+                query._bill_filtered = True
+                return query
+    except sqlalchemy.exc.InvalidRequestError:
+        logger.warning(
+            f"Cannot apply subset filter to offset/limited queries, proceeding with full query"
+        )
+
+    return query
+
+
+@event.listens_for(Engine, "before_execute", retval=True)
+def filter_bill_selects(conn, clauseelement, multiparams, params, execution_options):
+    """Filter bill-related select() statements"""
+    if _bill_filtering_disabled:
+        return clauseelement, multiparams, params
+
+    if hasattr(clauseelement, "_bill_filtered") and clauseelement._bill_filtered:
+        return clauseelement, multiparams, params
+
+    if hasattr(clauseelement, "froms"):
+        for table in clauseelement.froms:
+            if hasattr(table, "name"):
+                if table.name == "bills":
+                    clauseelement = clauseelement.where(table.c.id.in_(BILL_SUBSET_IDS))
+                    clauseelement._bill_filtered = True
+                elif hasattr(table.c, "bill_id"):
+                    clauseelement = clauseelement.where(table.c.bill_id.in_(BILL_SUBSET_IDS))
+                    clauseelement._bill_filtered = True
+
+    return clauseelement, multiparams, params

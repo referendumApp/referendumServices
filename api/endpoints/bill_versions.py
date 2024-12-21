@@ -8,7 +8,7 @@ from common.object_storage.client import ObjectStorageClient
 from ..config import settings
 from ..database import get_db
 from ..schemas import ErrorResponse
-from ..security import get_current_user_or_verify_system_token
+from ..security import CredentialsException, get_current_user_or_verify_system_token
 from .endpoint_generator import EndpointGenerator
 
 logger = logging.getLogger(__name__)
@@ -50,6 +50,28 @@ async def get_bill_text(
 
         return {"bill_version_id": bill_version_id, "hash": bill_version.hash, "text": text}
 
+    except CredentialsException as e:
+        raise e
     except Exception as e:
         logger.error(f"Error downloading bill text: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error retrieving bill text: {str(e)}")
+
+
+@router.get(
+    "/{bill_version_id}/briefing",
+    response_model=Dict[str, str | int],
+    summary="Get bill briefing",
+    responses={
+        200: {"model": Dict[str, str | int], "description": "Bill briefing successfully retrieved"},
+        401: {"model": ErrorResponse, "description": "Not authorized"},
+        404: {"model": ErrorResponse, "description": "Bill not found"},
+    },
+)
+async def get_bill_text(
+    bill_version_id: int,
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+) -> dict:
+    bill_version = crud.bill_version.read(db=db, obj_id=bill_version_id)
+
+    return {"bill_version_id": bill_version_id, "briefing": bill_version.briefing}

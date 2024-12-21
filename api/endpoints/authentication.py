@@ -93,15 +93,12 @@ async def login_for_access_token(
             "token_type": "bearer",
             "user": user,
         }
-    except FormException as e:
-        logger.warning(f"Login failed with exception: {e}")
-        raise e
-    except ObjectNotFoundException as e:
+    except (CredentialsException, ObjectNotFoundException) as e:
         logger.warning(f"Login failed with exception {e} for user: {form_data.username}")
         raise FormException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             field="username",
-            message=f"User not found - {form_data.username}",
+            message="Username or password not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
     except DatabaseException as e:
@@ -126,7 +123,7 @@ async def refresh_access_token(
     refresh_token: RefreshToken, db: Session = Depends(get_db)
 ) -> Dict[str, str]:
     try:
-        token = await decode_token(refresh_token.refresh_token)
+        token = decode_token(refresh_token.refresh_token)
         if token.get("type") != "refresh":
             raise CredentialsException("Invalid token type")
 

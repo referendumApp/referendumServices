@@ -87,8 +87,8 @@ async def test_login_incorrect_password(client):
     response = await client.post("/auth/login", data=login_data)
     assert_status_code(response, 401)
     assert {
-        "field": "password",
-        "message": f"Incorrect password for user - {user_data['email']}",
+        "field": "username",
+        "message": "Username or password not found",
     } == response.json()["detail"]
 
 
@@ -102,7 +102,7 @@ async def test_login_nonexistent_user(client):
     assert_status_code(response, 401)
     assert {
         "field": "username",
-        "message": f"User not found - {login_data['username']}",
+        "message": "Username or password not found",
     } == response.json()["detail"]
 
 

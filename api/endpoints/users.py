@@ -11,7 +11,12 @@ from common.database.referendum.crud import (
 )
 
 from ..database import get_db
-from ..schemas import UserCreateInput, PasswordResetInput, UserPasswordResetInput, ErrorResponse
+from ..schemas import (
+    UserCreateInput, 
+    PasswordResetInput, 
+    UserPasswordResetInput, 
+    ErrorResponse,
+)
 from ..security import (
     get_current_user,
     get_current_user_or_verify_system_token,

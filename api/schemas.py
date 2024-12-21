@@ -2,7 +2,7 @@ from datetime import date
 from typing import List, Optional
 from pydantic import Field, field_validator
 
-from common.database.referendum.schemas import CamelCaseBaseModel, UserBase, Sponsor
+from common.database.referendum.schemas import CamelCaseBaseModel, UserBase
 
 
 class FormErrorModel(CamelCaseBaseModel):
@@ -72,21 +72,21 @@ class VoteCount(CamelCaseBaseModel):
     count: int
 
 
+class LegislatorVote(CamelCaseBaseModel):
+    legislator_id: int
+    legislator_name: str
+    party_name: str
+    state_name: str
+    role_name: str
+    vote_choice_id: int
+
+
 class LegislatorVoteDetail(CamelCaseBaseModel):
     # Action
     bill_action_id: int
     date: date
     action_description: str
-    legislative_body_id: int
-
-    # Vote
-    legislator_id: int
-    legislator_name: str
-    party_name: str
-    role_name: str
-    state_name: str
-
-    vote_choice_id: int
+    legislator_votes: List[LegislatorVote]
 
 
 class BillActionVote(CamelCaseBaseModel):
@@ -96,7 +96,7 @@ class BillActionVote(CamelCaseBaseModel):
     vote_choice_id: int
 
 
-class LegislatorVote(CamelCaseBaseModel):
+class LegislatorVotingHistory(CamelCaseBaseModel):
     bill_id: int
     identifier: str
     title: str
@@ -127,6 +127,14 @@ class BillVotingHistory(CamelCaseBaseModel):
     summaries: List[VoteSummary]
 
 
+class SponsorDetail(CamelCaseBaseModel):
+    bill_id: int
+    legislator_id: int
+    legislator_name: str
+    rank: int
+    type: str
+
+
 class DenormalizedBill(CamelCaseBaseModel):
     """Represents a denormalized view of a bill with all related information."""
 
@@ -135,19 +143,29 @@ class DenormalizedBill(CamelCaseBaseModel):
     identifier: str = Field(description="Bill identifier (e.g., 'HB 123')")
     title: str = Field(description="Official title of the bill")
     description: str = Field(description="Full description of the bill")
-    briefing: Optional[str] = Field(None, description="Brief summary of the bill")
     current_version_id: int = Field(description="Current version ID of the bill")
-    status: str = Field(description="Current status of the bill")
+    status_id: int = Field(description="ID of current status of the bill")
+    status: str = Field(description="Name of current status of the bill")
     status_date: date = Field(description="Date of the last status change")
-    session_id: int = Field(description="Legislative session")
+    session_id: int = Field(description="Legislative session ID")
+    session_name: str = Field(description="Legislative session name")
     state_id: int = Field(description="State identifier")
     state_name: str = Field(description="Name of the state")
     legislative_body_id: int = Field(description="Legislative body identifier")
+    role_id: int = Field(description="Role ID of the legislative body")
     legislative_body_role: str = Field(description="Role name of the legislative body")
-    sponsors: List[Sponsor.Record] = Field(
+    sponsors: List[SponsorDetail] = Field(
         default_factory=list, description="List of all bill sponsors"
     )
 
     model_config = {
         "from_attributes": True,
     }
+
+
+class UserBillVotes(CamelCaseBaseModel):
+    yay: int
+    nay: int
+    yay_pct: float
+    nay_pct: float
+    total: int

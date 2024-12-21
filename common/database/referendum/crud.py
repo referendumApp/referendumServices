@@ -141,24 +141,32 @@ class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
 
 class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
-    def get_bill_user_votes(self, db: Session, bill_id: int) -> Dict[str, int]:
+    def get_bill_user_votes(self, db: Session, bill_id: int) -> Dict[str, Union[int, float]]:
         db_bill = self.read(db=db, obj_id=bill_id)
+        yay = sum(1 for vote in db_bill.user_votes if vote.vote_choice_id == 1)
+        nay = sum(1 for vote in db_bill.user_votes if vote.vote_choice_id == 2)
+        total = len(db_bill.user_votes)
         return {
-            "yay": sum(1 for vote in db_bill.user_votes if vote.vote_choice_id == 1),
-            "nay": sum(1 for vote in db_bill.user_votes if vote.vote_choice_id == 0),
+            "yay": yay,
+            "nay": nay,
+            "yay_pct": round(yay / total, 3),
+            "nay_pct": round(nay / total, 3),
+            "total": total,
         }
 
     def read_all_denormalized(
-        self, db: Session, skip: int = 0, limit: int = 100
+        self, db: Session, skip: int | None, limit: int | None
     ) -> List[models.Bill]:
         return (
             db.query(models.Bill)
             .options(
                 joinedload(models.Bill.state),
+                joinedload(models.Bill.status),
                 joinedload(models.Bill.legislative_body).joinedload(models.LegislativeBody.role),
                 joinedload(models.Bill.sponsors).joinedload(models.Sponsor.legislator),
                 joinedload(models.Bill.topics),
                 joinedload(models.Bill.bill_versions),
+                joinedload(models.Bill.session),
             )
             .offset(skip)
             .limit(limit)
@@ -343,6 +351,10 @@ class RoleCRUD(BaseCRUD[models.Role, schemas.Role.Base, schemas.Role.Record]):
 
 
 class StateCRUD(BaseCRUD[models.State, schemas.State.Base, schemas.State.Record]):
+    pass
+
+
+class StatusCRUD(BaseCRUD[models.Status, schemas.Status.Base, schemas.Status.Record]):
     pass
 
 
@@ -623,6 +635,7 @@ legislator_vote = LegislatorVoteCRUD(models.LegislatorVote)
 party = PartyCRUD(models.Party)
 role = RoleCRUD(models.Role)
 state = StateCRUD(models.State)
+status = StatusCRUD(models.Status)
 session = SessionCRUD(models.Session)
 topic = TopicCRUD(models.Topic)
 user = UserCRUD(models.User)

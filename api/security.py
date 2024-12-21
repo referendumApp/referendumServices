@@ -3,7 +3,7 @@ from typing import Dict, Optional
 from datetime import datetime, timedelta
 from fastapi import Security, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
-from jose import JWTError, jwt
+from jose import ExpiredSignatureError, jwt
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 
@@ -63,19 +63,18 @@ def get_password_hash(password: str) -> str:
 
 
 def decode_token(token: str):
-    return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    try:
+        return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    except ExpiredSignatureError as e:
+        logger.warning(f"Invalid access token: {str(e)}")
+        raise CredentialsException(f"Invalid access token: {str(e)}")
 
 
 def authenticate_user(db: Session, email: str, password: str) -> models.User:
     try:
         user = crud.user.get_user_by_email(db, email)
         if not verify_password(password, user.hashed_password):
-            raise FormException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                field="password",
-                message=f"Incorrect password for user - {email}",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            raise CredentialsException("Incorrect password")
         logger.info(f"Successful login for user: {email}")
         return user
     except crud.DatabaseException as e:
