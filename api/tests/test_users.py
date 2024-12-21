@@ -100,7 +100,7 @@ async def test_update_user_unauthorized(test_manager: TestManager):
 
 
 async def test_update_user_password(test_manager: TestManager):
-    user, user_headers = test_manager.start_user_session()
+    user, user_headers = await test_manager.start_user_session()
 
     update_data = {
         "current_password": "testpassword",
