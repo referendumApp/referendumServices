@@ -1,6 +1,7 @@
 import logging
 import json
 import os
+import gc
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from typing import List
@@ -95,7 +96,7 @@ def run_etl():
         logger.error(f"ETL process failed with unexpected error: {str(e)}")
 
 
-def run_text_extraction():
+def run_text_extraction(batch_size=20):
     storage_client = ObjectStorageClient()
     referendum_db = next(get_referendum_db())
     extractor = BillTextExtractor(
@@ -120,13 +121,21 @@ def run_text_extraction():
 
     succeeded = 0
     failed = 0
-    for url_hash, url in missing_text_hash_map.items():
-        try:
-            extractor.process_bill(url_hash, url)
-            succeeded += 1
-        except Exception as e:
-            logger.error(f"Failed to process bill text for url {url}: {str(e)}")
-            failed += 1
+    hash_map_items = list(missing_text_hash_map.items())
+    for i in range(0, len(hash_map_items), batch_size):
+        batch = dict(hash_map_items[i : i + batch_size])
+        logger.info(f"Processing batch {i // batch_size + 1}, size: {len(batch)}")
+
+        for url_hash, url in batch.items():
+            try:
+                extractor.process_bill(url_hash, url)
+                succeeded += 1
+            except Exception as e:
+                logger.error(f"Failed to process bill text for url {url}: {str(e)}")
+                failed += 1
+
+        # Force garbage collection after each batch
+        gc.collect()
 
     logger.info(f"Text extraction completed. " f"Succeeded: {succeeded}, " f"Failed: {failed}, ")
     if failed > 0:
