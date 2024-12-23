@@ -122,24 +122,39 @@ def run_text_extraction(batch_size=20):
     succeeded = 0
     failed = 0
     hash_map_items = list(missing_text_hash_map.items())
+    total_items = len(hash_map_items)
+    total_batches = (total_items + batch_size - 1) // batch_size
+    progress_interval = max(1, total_batches // 10)
+    logger.info(
+        f"Processing {total_items} missing bills across {total_batches} batches (batch_size={batch_size})"
+    )
     for i in range(0, len(hash_map_items), batch_size):
         batch = dict(hash_map_items[i : i + batch_size])
-        logger.info(f"Processing batch {i // batch_size + 1}, size: {len(batch)}")
-
+        current_batch = i // batch_size + 1
+        logger.info(f"Processing batch {current_batch}/{total_batches}, size: {len(batch)}")
         for url_hash, url in batch.items():
+            logger.info(f"Processing url for hash {url_hash}")
             try:
                 extractor.process_bill(url_hash, url)
                 succeeded += 1
             except Exception as e:
-                logger.error(f"Failed to process bill text for url {url}: {str(e)}")
+                logger.error(f"Failed to process with error: {str(e)}")
                 failed += 1
 
-        # Force garbage collection after each batch
         gc.collect()
+        if current_batch % progress_interval == 0:
+            logger.info(
+                f"Progress: {current_batch}/{total_batches} batches completed ({(current_batch / total_batches * 100):.1f}%)"
+            )
 
-    logger.info(f"Text extraction completed. " f"Succeeded: {succeeded}, " f"Failed: {failed}, ")
+    logger.info(
+        f"Text extraction completed. "
+        f"Total Succeeded: {succeeded}, "
+        f"Total Failed: {failed}, "
+        f"Success Rate: {(succeeded / (succeeded + failed) * 100):.1f}%"
+    )
     if failed > 0:
-        raise Exception(f"Succeeded: {succeeded}, " f"Failed: {failed}, ")
+        raise Exception(f"Text extraction had {failed} failures")
 
 
 def orchestrate():
