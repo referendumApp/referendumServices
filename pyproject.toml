@@ -24,6 +24,7 @@ dependencies = [
     "pydantic",
     "pydantic-settings",
     "python-jose",
+    "PyPDF2",
     "requests",
     "tenacity",
     "transformers",
