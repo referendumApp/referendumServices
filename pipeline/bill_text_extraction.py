@@ -2,7 +2,8 @@ from typing import Set, Dict
 import logging
 import requests
 import re
-import io
+import gc
+import tempfile
 import pdfplumber
 from sqlalchemy import text
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -73,22 +74,23 @@ class BillTextExtractor:
         # Rejoin with single newlines
         return "\n".join(cleaned_lines)
 
-    def extract_text(self, pdf_content: bytes) -> str:
-        """Extract text from PDF content"""
+    def download_pdf_streaming(self, url: str, temp_file) -> None:
+        with requests.get(url, stream=True, timeout=30) as response:
+            response.raise_for_status()
+            for chunk in response.iter_content(chunk_size=8192):
+                temp_file.write(chunk)
+        temp_file.flush()
+
+    def extract_text_streaming(self, pdf_path: str) -> str:
         text_parts = []
-        with pdfplumber.open(io.BytesIO(pdf_content)) as pdf:
+        with pdfplumber.open(pdf_path) as pdf:
             for page in pdf.pages:
                 text = page.extract_text()
-
-                # Clean the text before adding
                 cleaned_text = self.clean_text(text)
-
-                # Add to text parts if not empty
-                if text.strip():
+                if cleaned_text.strip():
                     text_parts.append(cleaned_text)
 
-        if not text_parts:
-            logger.error("No text extracted from pdf content")
+                gc.collect()
 
         return "\n\n".join(text_parts)
 
@@ -104,8 +106,9 @@ class BillTextExtractor:
     def process_bill(self, url_hash: str, url: str):
         logger.info(f"Processing bill text for url {url}")
 
-        pdf_content = self.download_pdf(url)
-        text_content = self.extract_text(pdf_content)
+        with tempfile.NamedTemporaryFile() as temp_pdf:
+            self.download_pdf_streaming(url, temp_pdf)
+            text_content = self.extract_text_streaming(temp_pdf.name)
 
         self.store_text(text_content, url_hash)
         logger.info(f"Saved bill text for url {url} at {url_hash}.txt")
