@@ -153,7 +153,6 @@ def run_text_extraction(batch_size=20):
         f"Total Failed: {failed}, "
         f"Success Rate: {(succeeded / (succeeded + failed) * 100):.1f}%"
     )
-
     if failed > 0:
         raise Exception(f"Text extraction had {failed} failures")
 
