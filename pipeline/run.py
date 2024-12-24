@@ -177,7 +177,7 @@ def run_text_extraction(batch_size=20):
         f"Text extraction completed. "
         f"Total Succeeded: {succeeded}, "
         f"Total Failed: {failed}, "
-        f"Success Rate: {(succeeded / (succeeded + failed) * 100):.1f}%"
+        f"Failed PDFs: {failed_urls}"
     )
     if failed > 0:
         raise Exception(f"Text extraction had {failed} failures")

@@ -9,6 +9,8 @@ from sqlalchemy import text
 from tenacity import retry, stop_after_attempt, wait_exponential
 from pathlib import Path
 
+from common.configurations.beta import BILL_SUBSET_IDS
+
 logger = logging.getLogger(__name__)
 
 
@@ -27,8 +29,9 @@ class BillTextExtractor:
             FROM bill_versions
             WHERE url IS NOT NULL
             AND hash IS NOT NULL
+            AND bill_id IN :bill_ids
         """
-        result = self.db_session.execute(text(query))
+        result = self.db_session.execute(text(query), {"bill_ids": tuple(BILL_SUBSET_IDS)})
         return {row[0]: row[1] for row in result}
 
     def get_stored_hashes(self) -> Set[str]:
