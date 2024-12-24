@@ -2,9 +2,11 @@ import logging
 import json
 import os
 import gc
+import signal
+from contextlib import contextmanager
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
-from typing import List
+from typing import List, Dict
 
 from common.database.referendum import connection as referendum_connection
 from common.database.legiscan_api import connection as legiscan_api_connection
@@ -96,6 +98,24 @@ def run_etl():
         logger.error(f"ETL process failed with unexpected error: {str(e)}")
 
 
+# TODO - move this to shared module
+class TimeoutException(Exception):
+    pass
+
+
+@contextmanager
+def timeout(seconds):
+    def handler(signum, frame):
+        raise TimeoutException("Timed out")
+
+    signal.signal(signal.SIGALRM, handler)
+    signal.alarm(seconds)
+    try:
+        yield
+    finally:
+        signal.alarm(0)
+
+
 def run_text_extraction(batch_size=20):
     storage_client = ObjectStorageClient()
     referendum_db = next(get_referendum_db())
@@ -121,6 +141,7 @@ def run_text_extraction(batch_size=20):
 
     succeeded = 0
     failed = 0
+    failed_urls: Dict[str, Dict] = {}
     hash_map_items = list(missing_text_hash_map.items())
     total_items = len(hash_map_items)
     total_batches = (total_items + batch_size - 1) // batch_size
@@ -135,10 +156,15 @@ def run_text_extraction(batch_size=20):
         for url_hash, url in batch.items():
             logger.info(f"Processing url for hash {url_hash}")
             try:
-                extractor.process_bill(url_hash, url)
-                succeeded += 1
+                with timeout(60):
+                    extractor.process_bill(url_hash, url)
+                    succeeded += 1
+            except TimeoutException:
+                logger.error(f"Timeout processing URL: {url}")
+                failed_urls[url_hash] = {"url": url, "error": "Timeout"}
+                failed += 1
             except Exception as e:
-                logger.error(f"Failed to process with error: {str(e)}")
+                failed_urls[url_hash] = {"url": url, "error": str(e)}
                 failed += 1
 
         gc.collect()
@@ -157,13 +183,15 @@ def run_text_extraction(batch_size=20):
         raise Exception(f"Text extraction had {failed} failures")
 
 
-def orchestrate():
+def orchestrate(stage: str = "all"):
     """Orchestrate the complete ETL and text extraction process."""
     try:
-        logger.info("ETL process starting")
-        run_etl()
-        logger.info("Text extraction starting")
-        run_text_extraction()
+        if stage in ["all", "etl"]:
+            logger.info("ETL process starting")
+            run_etl()
+        if stage in ["all", "text_processing"]:
+            logger.info("Text extraction starting")
+            run_text_extraction()
         logger.info("ETL orchestration completed")
     except Exception as e:
         logger.error(f"ETL orchestration failed: {str(e)}")
@@ -171,4 +199,4 @@ def orchestrate():
 
 
 if __name__ == "__main__":
-    orchestrate()
+    orchestrate("all")
