@@ -24,6 +24,7 @@ dependencies = [
     "pydantic",
     "pydantic-settings",
     "python-jose",
+    "PyPDF2",
     "requests",
     "tenacity",
     "transformers",
@@ -31,7 +32,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["httpx", "pytest", "pytest-asyncio", "flake8"]
+test = ["httpx", "pytest", "pytest-asyncio"]
 
 [tool.black]
 line-length = 100

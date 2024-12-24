@@ -4,19 +4,24 @@ import requests
 import re
 import gc
 import tempfile
-import pdfplumber
+import PyPDF2
 from sqlalchemy import text
 from tenacity import retry, stop_after_attempt, wait_exponential
 from pathlib import Path
+
+from common.configurations.beta import BILL_SUBSET_IDS
 
 logger = logging.getLogger(__name__)
 
 
 class BillTextExtractor:
+    CHUNK_SIZE = 32768
+
     def __init__(self, storage_client, db_session, bucket_name: str):
         self.storage_client = storage_client
         self.db_session = db_session
         self.bucket_name = bucket_name
+        self.session = requests.Session()
 
     def get_required_bill_text_hash_map(self) -> Dict:
         query = """
@@ -24,8 +29,9 @@ class BillTextExtractor:
             FROM bill_versions
             WHERE url IS NOT NULL
             AND hash IS NOT NULL
+            AND bill_id IN :bill_ids
         """
-        result = self.db_session.execute(text(query))
+        result = self.db_session.execute(text(query), {"bill_ids": tuple(BILL_SUBSET_IDS)})
         return {row[0]: row[1] for row in result}
 
     def get_stored_hashes(self) -> Set[str]:
@@ -75,20 +81,32 @@ class BillTextExtractor:
         return "\n".join(cleaned_lines)
 
     def download_pdf_streaming(self, url: str, temp_file) -> None:
-        with requests.get(url, stream=True, timeout=30) as response:
+        with self.session.get(url, stream=True, timeout=30) as response:
             response.raise_for_status()
-            for chunk in response.iter_content(chunk_size=8192):
-                temp_file.write(chunk)
+            for chunk in response.iter_content(chunk_size=self.CHUNK_SIZE):
+                if chunk:
+                    temp_file.write(chunk)
         temp_file.flush()
 
     def extract_text_streaming(self, pdf_path: str) -> str:
         text_parts = []
-        with pdfplumber.open(pdf_path) as pdf:
-            for page in pdf.pages:
-                text = page.extract_text()
-                cleaned_text = self.clean_text(text)
-                if cleaned_text.strip():
-                    text_parts.append(cleaned_text)
+
+        with open(pdf_path, "rb") as file:
+            pdf = PyPDF2.PdfReader(file)
+
+            batch_size = 5
+            for i in range(0, len(pdf.pages), batch_size):
+                batch = pdf.pages[i : i + batch_size]
+                for page in batch:
+                    try:
+                        page_text = page.extract_text()
+                        cleaned_text = self.clean_text(page_text)
+                        if cleaned_text:
+                            cleaned_text.strip()
+                            text_parts.append(cleaned_text)
+                    except Exception as e:
+                        logger.error(f"Error on page {i}: {e}")
+                        continue
 
                 gc.collect()
 
