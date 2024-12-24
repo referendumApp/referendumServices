@@ -199,4 +199,4 @@ def orchestrate(stage: str = "all"):
 
 
 if __name__ == "__main__":
-    orchestrate("all")
+    orchestrate("text_processing")
