@@ -8,13 +8,47 @@ from sqlalchemy.orm import Session, joinedload, load_only
 from common.database.referendum import crud, models, schemas
 
 from ..database import get_db
-from ..schemas import ErrorResponse, LegislatorVotingHistory
+from ..schemas import ErrorResponse, LegislatorVotingHistory, PaginatedResponse
 from ..security import CredentialsException, get_current_user_or_verify_system_token
 from .endpoint_generator import EndpointGenerator
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+@router.get(
+    "/",
+    response_model=PaginatedResponse[schemas.Legislator.Full],
+    summary="Get all legislators",
+    responses={
+        200: {
+            "model": PaginatedResponse[schemas.Legislator.Full],
+            "description": "legislators successfully retrieved",
+        },
+        401: {"model": ErrorResponse, "description": "Not authorized"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def get_legislators(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+):
+    logger.info(f"Attempting to read all legislators (skip: {skip}, limit: {limit})")
+    try:
+        legislators = crud.legislator.read_all(db=db, skip=skip, limit=limit + 1)
+        if len(legislators) > limit:
+            has_more = True
+            legislators.pop()
+        else:
+            has_more = False
+
+        return {"has_more": has_more, "items": legislators}
+    except crud.DatabaseException as e:
+        logger.error(f"Database error while reading all legislators: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 EndpointGenerator.add_crud_routes(

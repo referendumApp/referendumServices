@@ -154,6 +154,22 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
             "total": total,
         }
 
+    def read_denormalized(self, db: Session, bill_id: int) -> models.Bill:
+        return (
+            db.query(models.Bill)
+            .options(
+                joinedload(models.Bill.state),
+                joinedload(models.Bill.status),
+                joinedload(models.Bill.legislative_body).joinedload(models.LegislativeBody.role),
+                joinedload(models.Bill.sponsors).joinedload(models.Sponsor.legislator),
+                joinedload(models.Bill.topics),
+                joinedload(models.Bill.bill_versions),
+                joinedload(models.Bill.session),
+            )
+            .filter(models.Bill.id == bill_id)
+            .first()
+        )
+
     def read_all_denormalized(
         self, db: Session, skip: int = 0, limit: int = 100
     ) -> List[models.Bill]:

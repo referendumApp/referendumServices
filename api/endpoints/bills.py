@@ -16,6 +16,7 @@ from ..schemas import (
     ErrorResponse,
     LegislatorVote,
     LegislatorVoteDetail,
+    PaginatedResponse,
     UserBillVotes,
     VoteCountByChoice,
     VoteCountByParty,
@@ -36,11 +37,11 @@ router = APIRouter()
 # Note that this must be defined before adding crud routes to avoid conflicts with the GET /id endpoint
 @router.get(
     "/details",
-    response_model=List[DenormalizedBill],
+    response_model=PaginatedResponse[DenormalizedBill],
     summary="Get all bill details",
     responses={
         200: {
-            "model": List[DenormalizedBill],
+            "model": PaginatedResponse[DenormalizedBill],
             "description": "Bill details successfully retrieved",
         },
         401: {"model": ErrorResponse, "description": "Not authorized"},
@@ -54,7 +55,70 @@ async def get_bill_details(
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ):
     try:
-        bills = crud.bill.read_all_denormalized(db=db, skip=skip, limit=limit)
+        bills = crud.bill.read_all_denormalized(db=db, skip=skip, limit=limit + 1)
+        if len(bills) > limit:
+            has_more = True
+            bills.pop()
+        else:
+            has_more = False
+
+        result = []
+        for bill in bills:
+            sponsors = [
+                {
+                    "bill_id": sponsor.bill_id,
+                    "legislator_id": sponsor.legislator_id,
+                    "legislator_name": sponsor.legislator.name,
+                    "rank": sponsor.rank,
+                    "type": sponsor.type,
+                }
+                for sponsor in bill.sponsors
+            ]
+            bill_dict = {
+                "bill_id": bill.id,
+                "legiscan_id": bill.legiscan_id,
+                "identifier": bill.identifier,
+                "title": bill.title,
+                "description": bill.description,
+                "status_id": bill.status.id,
+                "status": bill.status.name,
+                "status_date": bill.status_date,
+                "session_id": bill.session.id,
+                "session_name": bill.session.name,
+                "state_id": bill.state.id,
+                "state_name": bill.state.name,
+                "current_version_id": bill.current_version_id,
+                "legislative_body_id": bill.legislative_body.id,
+                "role_id": bill.legislative_body.role.id,
+                "legislative_body_role": bill.legislative_body.role.name,
+                "sponsors": sponsors,
+            }
+            result.append(bill_dict)
+        return {"has_more": has_more, "items": result}
+    except DatabaseException as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@router.get(
+    "/{bill_id}/details",
+    response_model=DenormalizedBill,
+    summary="Get all bill details",
+    responses={
+        200: {
+            "model": DenormalizedBill,
+            "description": "Bill details successfully retrieved",
+        },
+        401: {"model": ErrorResponse, "description": "Not authorized"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def get_bill_detail(
+    bill_id: int,
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+):
+    try:
+        bills = crud.bill.read_denormalized(db=db, bill_id=bill_id)
         result = []
         for bill in bills:
             sponsors = [

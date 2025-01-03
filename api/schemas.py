@@ -1,8 +1,11 @@
 from datetime import date
-from typing import List, Optional
+from typing import List, Optional, TypeVar, Generic
 from pydantic import Field, field_validator
 
 from common.database.referendum.schemas import CamelCaseBaseModel, UserBase
+
+
+T = TypeVar("T")
 
 
 class FormErrorModel(CamelCaseBaseModel):
@@ -52,6 +55,11 @@ class UserCreateInput(UserBase):
 class VoteCount(CamelCaseBaseModel):
     vote_choice_id: int
     count: int
+
+
+class PaginatedResponse(CamelCaseBaseModel, Generic[T]):
+    has_more: bool
+    items: List[T]
 
 
 class LegislatorVote(CamelCaseBaseModel):
