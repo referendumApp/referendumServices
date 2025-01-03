@@ -102,7 +102,7 @@ async def get_bill_details(
 @router.get(
     "/{bill_id}/details",
     response_model=DenormalizedBill,
-    summary="Get all bill details",
+    summary="Get bill detail",
     responses={
         200: {
             "model": DenormalizedBill,
