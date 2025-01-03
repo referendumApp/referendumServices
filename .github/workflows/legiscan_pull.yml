@@ -1,0 +1,68 @@
+name: LegiScan Data Import
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  import-legiscan-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360  # 6 hour timeout
+
+    env:
+      AWS_REGION: us-east-2
+      EC2_INSTANCE_ID: "i-0a8a43d7563ec8c4d"
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Run LegiScan Import
+        id: run-import
+        run: |
+          echo "Running LegiScan import..."
+          COMMAND_OUTPUT=$(aws ssm send-command \
+            --instance-ids "${{ env.EC2_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --timeout-seconds 21600 \
+            --parameters '{
+              "commands": [
+                "cd /opt/legiscan",
+                "php -d memory_limit=-1 legiscan-bulk.php --bulk --import --yes --verbose"
+              ]
+            }' \
+            --output json)
+          
+          COMMAND_ID=$(echo "$COMMAND_OUTPUT" | jq -r '.Command.CommandId')
+          echo "Command ID: $COMMAND_ID"
+          
+          # Wait for command completion and check status
+          while true; do
+            RESULT=$(aws ssm list-command-invocations \
+              --command-id "$COMMAND_ID" \
+              --details \
+              --output json)
+            
+            STATUS=$(echo "$RESULT" | jq -r '.CommandInvocations[0].Status')
+            
+            if [ "$STATUS" = "Success" ]; then
+              echo "Import completed successfully"
+              echo "Output:"
+              echo "$RESULT" | jq -r '.CommandInvocations[0].CommandPlugins[0].Output'
+              break
+            elif [ "$STATUS" = "Failed" ] || [ "$STATUS" = "TimedOut" ]; then
+              echo "Import command $STATUS"
+              echo "Command output:"
+              echo "$RESULT" | jq -r '.CommandInvocations[0].CommandPlugins[0].Output'
+              exit 1
+            fi
+            
+            echo "Waiting for import to complete... Current status: $STATUS"
+            sleep 30
+          done
