@@ -1,9 +1,9 @@
 FROM python:3.11.4-slim-bullseye AS base
 
+RUN pip install uv
 WORKDIR /code
 COPY pyproject.toml .
-RUN pip install --no-cache-dir --upgrade pip
-RUN pip install --no-cache-dir .
+RUN uv pip install --system .
 
 # Alembic migration stage
 FROM base AS migrations
@@ -47,7 +47,7 @@ RUN chmod +x /code/local_db_init.sh
 # API Local stage
 FROM base AS api-local
 
-RUN pip install --no-cache-dir .[test]
+RUN uv pip install --system ".[test]"
 
 COPY api /code/api
 COPY common /code/common
@@ -59,7 +59,7 @@ CMD ["/code/entrypoint.sh"]
 # Test stage
 FROM base AS test
 
-RUN pip install --no-cache-dir .[test]
+RUN uv pip install --system ".[test]"
 
 COPY api /code/api
 COPY pipeline /code/pipeline
