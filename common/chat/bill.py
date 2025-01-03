@@ -55,7 +55,7 @@ class ChatSession(BaseModel):
         )
 
         memory = ConversationBufferMemory(return_messages=True)
-        chain = ConversationChain(llm=llm, prompt=prompt, memory=memory, verbose=True)
+        chain = ConversationChain(llm=llm, prompt=prompt, memory=memory, verbose=False)
 
         chain.memory.chat_memory.add_message(SystemMessage(content=f"Bill text: {self.text}"))
 
@@ -128,4 +128,6 @@ class ChatSessionManager:
         return session.send_message(user_message)
 
     def terminate_session(self, session_id: str) -> None:
-        self._sessions.pop(session_id, None)
+        session = self._sessions.pop(session_id, None)
+        if session.chain:
+            del session.chain
