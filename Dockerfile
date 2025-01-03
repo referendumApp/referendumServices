@@ -32,7 +32,9 @@ CMD ["python", "-m", "pipeline.run"]
 # Local init stage
 FROM base AS local-db-init
 
-RUN apt-get update && apt-get install -y postgresql-client
+RUN apt-get update && \
+    apt-get install -y postgresql-client && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY api /code/api
 COPY common /code/common
