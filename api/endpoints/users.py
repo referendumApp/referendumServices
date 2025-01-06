@@ -13,6 +13,7 @@ from common.database.referendum.crud import (
 from ..database import get_db
 from ..schemas import (
     UserCreateInput,
+    UserUpdateInput,
     PasswordResetInput,
     UserPasswordResetInput,
     ErrorResponse,

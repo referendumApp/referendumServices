@@ -142,7 +142,6 @@ async def refresh_access_token(
             "access_token": access_token,
             "refresh_token": new_refresh_token,
             "token_type": "bearer",
-
         }
     except JWTError as e:
         logger.warning(f"Invalid or expired token: {str(e)}")
