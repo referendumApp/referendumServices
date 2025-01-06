@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     BILL_TEXT_BUCKET_NAME: str
     FEEDBACK_FILE_NAME: str = "feedback.json"
 
+    # AI
+    MAX_BILL_LENGTH_WORDS: int = 10000
+    CHAT_SESSION_TIMEOUT_SECONDS: int = 3600
+
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 
 

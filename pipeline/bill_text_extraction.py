@@ -2,20 +2,26 @@ from typing import Set, Dict
 import logging
 import requests
 import re
-import io
-import pdfplumber
+import gc
+import tempfile
+import PyPDF2
 from sqlalchemy import text
 from tenacity import retry, stop_after_attempt, wait_exponential
 from pathlib import Path
+
+from common.configurations.beta import BILL_SUBSET_IDS
 
 logger = logging.getLogger(__name__)
 
 
 class BillTextExtractor:
+    CHUNK_SIZE = 32768
+
     def __init__(self, storage_client, db_session, bucket_name: str):
         self.storage_client = storage_client
         self.db_session = db_session
         self.bucket_name = bucket_name
+        self.session = requests.Session()
 
     def get_required_bill_text_hash_map(self) -> Dict:
         query = """
@@ -23,8 +29,9 @@ class BillTextExtractor:
             FROM bill_versions
             WHERE url IS NOT NULL
             AND hash IS NOT NULL
+            AND bill_id IN :bill_ids
         """
-        result = self.db_session.execute(text(query))
+        result = self.db_session.execute(text(query), {"bill_ids": tuple(BILL_SUBSET_IDS)})
         return {row[0]: row[1] for row in result}
 
     def get_stored_hashes(self) -> Set[str]:
@@ -73,22 +80,35 @@ class BillTextExtractor:
         # Rejoin with single newlines
         return "\n".join(cleaned_lines)
 
-    def extract_text(self, pdf_content: bytes) -> str:
-        """Extract text from PDF content"""
+    def download_pdf_streaming(self, url: str, temp_file) -> None:
+        with self.session.get(url, stream=True, timeout=30) as response:
+            response.raise_for_status()
+            for chunk in response.iter_content(chunk_size=self.CHUNK_SIZE):
+                if chunk:
+                    temp_file.write(chunk)
+        temp_file.flush()
+
+    def extract_text_streaming(self, pdf_path: str) -> str:
         text_parts = []
-        with pdfplumber.open(io.BytesIO(pdf_content)) as pdf:
-            for page in pdf.pages:
-                text = page.extract_text()
 
-                # Clean the text before adding
-                cleaned_text = self.clean_text(text)
+        with open(pdf_path, "rb") as file:
+            pdf = PyPDF2.PdfReader(file)
 
-                # Add to text parts if not empty
-                if text.strip():
-                    text_parts.append(cleaned_text)
+            batch_size = 5
+            for i in range(0, len(pdf.pages), batch_size):
+                batch = pdf.pages[i : i + batch_size]
+                for page in batch:
+                    try:
+                        page_text = page.extract_text()
+                        cleaned_text = self.clean_text(page_text)
+                        if cleaned_text:
+                            cleaned_text.strip()
+                            text_parts.append(cleaned_text)
+                    except Exception as e:
+                        logger.error(f"Error on page {i}: {e}")
+                        continue
 
-        if not text_parts:
-            logger.error("No text extracted from pdf content")
+                gc.collect()
 
         return "\n\n".join(text_parts)
 
@@ -104,8 +124,9 @@ class BillTextExtractor:
     def process_bill(self, url_hash: str, url: str):
         logger.info(f"Processing bill text for url {url}")
 
-        pdf_content = self.download_pdf(url)
-        text_content = self.extract_text(pdf_content)
+        with tempfile.NamedTemporaryFile() as temp_pdf:
+            self.download_pdf_streaming(url, temp_pdf)
+            text_content = self.extract_text_streaming(temp_pdf.name)
 
         self.store_text(text_content, url_hash)
         logger.info(f"Saved bill text for url {url} at {url_hash}.txt")

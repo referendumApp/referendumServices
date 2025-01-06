@@ -16,6 +16,10 @@ dependencies = [
     "fastapi[standard]",
     "alembic",
     "argon2-cffi",
+    "langchain",
+    "langchain-community",
+    "langchain-openai",
+    "openai",
     "sqlalchemy",
     "pandas",
     "passlib",
@@ -24,6 +28,7 @@ dependencies = [
     "pydantic",
     "pydantic-settings",
     "python-jose",
+    "PyPDF2",
     "requests",
     "tenacity",
     "transformers",
@@ -31,7 +36,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["httpx", "pytest", "pytest-asyncio", "flake8"]
+test = ["httpx", "pytest", "pytest-asyncio"]
 
 [tool.black]
 line-length = 100
