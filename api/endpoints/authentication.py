@@ -91,7 +91,6 @@ async def login_for_access_token(
             "access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "bearer",
-            "user": user,
         }
     except (CredentialsException, ObjectNotFoundException) as e:
         logger.warning(f"Login failed with exception {e} for user: {form_data.username}")
@@ -143,7 +142,7 @@ async def refresh_access_token(
             "access_token": access_token,
             "refresh_token": new_refresh_token,
             "token_type": "bearer",
-            "user": user,
+
         }
     except JWTError as e:
         logger.warning(f"Invalid or expired token: {str(e)}")
