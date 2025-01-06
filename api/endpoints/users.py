@@ -597,3 +597,32 @@ def unfollow_topic(
     except DatabaseException as e:
         logger.error(f"Database error while unfollowing topic: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@router.get(
+    "/feed",
+    response_model=List[schemas.Comment.Record],
+    summary="Gets feed items for user",
+    responses={
+        200: {
+            "model": List[schemas.Comment.Record],
+            "description": "User feed retrieved successfully",
+        },
+        401: {"model": ErrorResponse, "description": "Unauthorized"},
+        404: {"model": ErrorResponse, "description": "Not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def get_user_feed(
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user),
+) -> List[schemas.Comment.Record]:
+    feed_items = []
+    try:
+        # TODO - restrict this to relevant comments
+        all_comments = crud.comment.read_all(db=db)
+        feed_items.extend(all_comments)
+
+        return feed_items
+    except DatabaseException as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
