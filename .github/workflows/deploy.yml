@@ -379,7 +379,7 @@ jobs:
                 }
               ] |
               .cpu = "1024" |
-              .memory = "3072" |
+              .memory = "4096" |
               .networkMode = "awsvpc" |
               .requiresCompatibilities = ["FARGATE"] |
               .family = "${{ env.PIPELINE_TASK_DEFINITION }}-${{ env.DEPLOY_ENV }}"

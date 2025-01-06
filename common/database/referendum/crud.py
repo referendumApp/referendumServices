@@ -141,7 +141,7 @@ class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
 
 class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
-    def get_bill_user_votes(self, db: Session, bill_id: int) -> Dict[str, int]:
+    def get_bill_user_votes(self, db: Session, bill_id: int) -> Dict[str, Union[int, float]]:
         db_bill = self.read(db=db, obj_id=bill_id)
         yay = sum(1 for vote in db_bill.user_votes if vote.vote_choice_id == 1)
         nay = sum(1 for vote in db_bill.user_votes if vote.vote_choice_id == 2)
@@ -149,8 +149,8 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
         return {
             "yay": yay,
             "nay": nay,
-            "yay_pct": yay / total,
-            "nay_pct": nay / total,
+            "yay_pct": round(yay / total, 3),
+            "nay_pct": round(nay / total, 3),
             "total": total,
         }
 

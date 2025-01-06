@@ -158,3 +158,11 @@ class DenormalizedBill(CamelCaseBaseModel):
     model_config = {
         "from_attributes": True,
     }
+
+
+class UserBillVotes(CamelCaseBaseModel):
+    yay: int
+    nay: int
+    yay_pct: float
+    nay_pct: float
+    total: int
