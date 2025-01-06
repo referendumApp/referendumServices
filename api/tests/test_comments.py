@@ -50,6 +50,11 @@ async def test_comment_workflow(test_manager: TestManager):
     assert child_result is not None, "Child comment not found in response"
     assert child_result["parentId"] == parent_comment["id"]
 
+    # Verify these comments appear in the feed
+    response = await test_manager.client.get(f"/users/feed", headers=user_headers)
+    assert_status_code(response, 200)
+    assert len(response.json()) == 2
+
     # Attempt to remove the parent comment
     response = await test_manager.client.delete(
         f"/comments/{parent_comment['id']}", headers=user_headers
