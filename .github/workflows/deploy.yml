@@ -144,7 +144,6 @@ jobs:
       id: deploy-ec2
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         set -e
         echo "deployment_failed=false" >> $GITHUB_OUTPUT
@@ -172,15 +171,14 @@ jobs:
               "S3_ACCESS_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.S3_ACCESS_CREDENTIALS_SECRET_NAME }} --query SecretString --output text)",
               "S3_ACCESS_KEY=$(echo $S3_ACCESS_SECRET | jq -r '.access_key')",
               "S3_SECRET_KEY=$(echo $S3_ACCESS_SECRET | jq -r '.secret_key')",
-              "OPENAI_API_KEY=\"$OPENAI_API_KEY\"",
               "echo \"Running database migrations...\"",
-              "if ! docker run --rm -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"$SECRET_KEY\" -e OPENAI_API_KEY=\"$OPENAI_API_KEY\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:migrations-${{ env.IMAGE_TAG }} alembic upgrade head; then",
+              "if ! docker run --rm -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"$SECRET_KEY\" -e OPENAI_API_KEY=\"${{ secrets.OPENAI_API_KEY }}\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:migrations-${{ env.IMAGE_TAG }} alembic upgrade head; then",
               "  echo \"Database migration failed. Aborting deployment.\"",
               "  exit 1",
               "fi",
               "echo \"Database migrations completed successfully.\"",
               "echo \"Starting application...\"",
-              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e ENVIRONMENT=${{ env.DEPLOY_ENV }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"$SECRET_KEY\" -e S3_ACCESS_KEY=\"$S3_ACCESS_KEY\" -e S3_SECRET_KEY=\"$S3_SECRET_KEY\" -e OPENAI_API_KEY=\"$OPENAI_API_KEY\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.IMAGE_TAG }}",
+              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e ENVIRONMENT=${{ env.DEPLOY_ENV }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"$SECRET_KEY\" -e S3_ACCESS_KEY=\"$S3_ACCESS_KEY\" -e S3_SECRET_KEY=\"$S3_SECRET_KEY\" -e OPENAI_API_KEY=\"${{ secrets.OPENAI_API_KEY }}\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.IMAGE_TAG }}",
               "docker container prune -f",
               "docker image prune -af",
               "docker network prune -f",
