@@ -114,6 +114,7 @@ async def initialize_chat(
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> dict:
     """Initialize a new chat session for a specific bill version."""
+    # TODO - check user account for permission
     try:
         # Verify bill version exists
         bill_version = crud.bill_version.read(db=db, obj_id=bill_version_id)
