@@ -148,7 +148,6 @@ jobs:
         set -e
         echo "deployment_failed=false" >> $GITHUB_OUTPUT
         echo "Deploying to EC2..."
-        echo $OPENAI_API_KEY
         DEPLOY_COMMAND_OUTPUT=$(aws ssm send-command \
           --instance-ids "${{ env.EC2_INSTANCE_ID }}" \
           --document-name "AWS-RunShellScript" \
