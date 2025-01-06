@@ -161,7 +161,7 @@ async def get_bill_vote_counts(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
-async def get_bill_voting_history(
+async def get_bill_comments(
     bill_id: int,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
