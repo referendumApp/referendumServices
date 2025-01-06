@@ -31,8 +31,6 @@ EndpointGenerator.add_crud_routes(
     resource_name="bill_version",
 )
 
-CHAT_SESSIONS = {}
-
 
 @router.get(
     "/{bill_version_id}/text",

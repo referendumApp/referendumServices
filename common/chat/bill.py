@@ -90,6 +90,8 @@ class ChatSessionManager:
         self.model_name = model_name
 
     def create_session(self, bill_version_id: int, bill_text: str) -> str:
+        self._cleanup_expired_sessions()
+
         if len(bill_text.split()) > self.max_bill_length:
             raise HTTPException(
                 status_code=400,
@@ -113,6 +115,8 @@ class ChatSessionManager:
         return session_id
 
     def get_session(self, session_id: str) -> ChatSession:
+        self._cleanup_expired_sessions()
+
         session = self._sessions.get(session_id)
         if not session:
             raise HTTPException(status_code=404, detail="Chat session not found")
@@ -131,3 +135,14 @@ class ChatSessionManager:
         session = self._sessions.pop(session_id, None)
         if session.chain:
             del session.chain
+
+    def _cleanup_expired_sessions(self) -> None:
+        """Remove all sessions that have exceeded the timeout period."""
+        current_time = datetime.utcnow()
+        expired_sessions = [
+            session_id
+            for session_id, session in self._sessions.items()
+            if (current_time - session.last_activity).seconds > self.session_timeout_seconds
+        ]
+        for session_id in expired_sessions:
+            self.terminate_session(session_id)
