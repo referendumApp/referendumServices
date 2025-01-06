@@ -11,7 +11,7 @@ from common.database.referendum.crud import (
 )
 
 from ..database import get_db
-from ..schemas import UserCreateInput, ErrorResponse
+from ..schemas import UserCreateInput, UserUpdateInput, ErrorResponse
 from ..security import (
     get_current_user,
     get_current_user_or_verify_system_token,
@@ -144,7 +144,7 @@ async def read_user(
     },
 )
 async def update_user(
-    user: UserCreateInput,
+    user: UserUpdateInput,
     db: Session = Depends(get_db),
     auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> models.User:

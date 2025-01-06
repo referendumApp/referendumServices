@@ -53,11 +53,13 @@ async def test_update_user(test_manager: TestManager):
         "email": user["email"],
         "password": "newpassword",
         "name": "Updated User",
+        "settings": {"feature_flag": True},
     }
     response = await test_manager.client.put("/users/", json=update_data, headers=user_headers)
     assert_status_code(response, 200)
     updated_user = response.json()
     assert updated_user["name"] == update_data["name"]
+    assert updated_user["settings"] == {"feature_flag": True}
 
 
 async def test_update_user_unauthorized(test_manager: TestManager):

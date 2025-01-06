@@ -213,6 +213,7 @@ class UserBase(BaseSchema):
 
 class UserCreate(UserBase):
     hashed_password: str
+    settings: Dict
 
 
 class UserReference(UserBase):
@@ -221,6 +222,7 @@ class UserReference(UserBase):
 
 class User(UserBase):
     id: int
+    settings: Dict = {}
     followed_bills: List[Bill.Record] = []
     followed_topics: List[Topic.Record] = []
     followed_legislators: List[Legislator.Record] = []
