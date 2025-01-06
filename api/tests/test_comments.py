@@ -2,7 +2,7 @@ from api.tests.conftest import TestManager
 from api.tests.test_utils import assert_status_code
 
 
-async def test_replies(test_manager: TestManager):
+async def test_comment_workflow(test_manager: TestManager):
     user, user_headers = await test_manager.start_user_session()
     test_bill = await test_manager.create_bill()
 
@@ -36,23 +36,19 @@ async def test_replies(test_manager: TestManager):
     assert child_comment["comment"] == child_comment_data["comment"]
     assert child_comment["parentId"] == parent_comment["id"]
 
-    # Verify both comments were added
+    # Verify both comments were added to the bill
     response = await test_manager.client.get(
-        f"/comments/{parent_comment['id']}", headers=user_headers
+        f"/bills/{test_bill['id']}/comments", headers=user_headers
     )
     assert_status_code(response, 200)
-    retrieved_parent = response.json()
-    assert retrieved_parent["id"] == parent_comment["id"]
-    assert retrieved_parent["comment"] == parent_comment_data["comment"]
+    comment_list = response.json()
 
-    response = await test_manager.client.get(
-        f"/comments/{child_comment['id']}", headers=user_headers
-    )
-    assert_status_code(response, 200)
-    retrieved_child = response.json()
-    assert retrieved_child["id"] == child_comment["id"]
-    assert retrieved_child["parentId"] == parent_comment["id"]
-    assert retrieved_child["comment"] == child_comment_data["comment"]
+    assert len(comment_list) == 2
+    parent_result = next((c for c in comment_list if c["id"] == parent_comment["id"]), None)
+    assert parent_result is not None, "Parent comment not found in response"
+    child_result = next((c for c in comment_list if c["id"] == child_comment["id"]), None)
+    assert child_result is not None, "Child comment not found in response"
+    assert child_result["parentId"] == parent_comment["id"]
 
     # Attempt to remove the parent comment
     response = await test_manager.client.delete(

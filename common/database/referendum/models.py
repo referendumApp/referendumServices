@@ -162,6 +162,7 @@ class Bill(Base):
     legislative_body = relationship("LegislativeBody")
     topics = relationship("Topic", secondary=bill_topics)
     user_votes = relationship("UserVote", back_populates="bill")
+    comments = relationship("Comment")
     bill_versions = relationship("BillVersion", foreign_keys="BillVersion.bill_id")
     session = relationship("Session", back_populates="bills")
     sponsors = relationship("Sponsor", back_populates="bill")

@@ -149,6 +149,28 @@ async def get_bill_vote_counts(
 
 
 @router.get(
+    "/{bill_id}/comments",
+    response_model=List[schemas.Comment.Record],
+    summary="Get bill comments",
+    responses={
+        200: {
+            "model": List[schemas.Comment.Record],
+            "description": "Bill comments successfully retrieved",
+        },
+        401: {"model": ErrorResponse, "description": "Not authorized"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def get_bill_voting_history(
+    bill_id: int,
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+) -> List[schemas.Comment.Record]:
+    bill_votes = crud.bill.get_bill_comments(db, bill_id)
+    return bill_votes
+
+
+@router.get(
     "/{bill_id}/voting_history",
     response_model=BillVotingHistory,
     summary="Get bill voting history",

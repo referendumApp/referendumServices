@@ -154,6 +154,11 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
             "total": total,
         }
 
+    def get_bill_comments(self, db: Session, bill_id: int) -> List[schemas.Comment.Record]:
+        db_bill = self.read(db=db, obj_id=bill_id)
+
+        return db_bill.comments
+
     def read_all_denormalized(
         self, db: Session, skip: int | None, limit: int | None
     ) -> List[models.Bill]:
