@@ -53,7 +53,7 @@ async def test_comment_workflow(test_manager: TestManager):
     # Verify these comments appear in the feed
     response = await test_manager.client.get(f"/users/feed", headers=user_headers)
     assert_status_code(response, 200)
-    assert len(response.json()) == 2
+    assert len(response.json()) == 3
 
     # Attempt to remove the parent comment
     response = await test_manager.client.delete(

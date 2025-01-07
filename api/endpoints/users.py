@@ -617,7 +617,23 @@ async def get_user_feed(
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user),
 ) -> List[schemas.Comment.Record]:
-    feed_items = []
+    feed_items = [
+        schemas.Comment.Record(
+            id=-1,
+            user_id=-1,
+            bill_id=-1,
+            comment="""Welcome to Referendum and thank you for joining our beta!
+
+Events that may interest you will appear here in your Feed: comments on bills, votes on bills or by legislators you follow, and other newsworthy notifications.
+
+The Catalog tab includes all bills and legislators from the 118th congress.
+You can follow those that interest you and deep dive into the text itself, votes, sponsors, and history here.
+
+If you have any questions, concerns, or run into any issues, please email contact@referendumapp.com
+We're glad to have you in the conversation!
+""",
+        )
+    ]
     try:
         # TODO - restrict this to relevant comments
         all_comments = crud.comment.read_all(db=db)
