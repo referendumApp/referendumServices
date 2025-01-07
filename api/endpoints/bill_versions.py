@@ -5,7 +5,7 @@ import logging
 from pydantic import BaseModel
 
 from common.chat.bill import BillChatSessionManager
-from common.chat.service import LLMService, OpenAIException
+from common.chat.service import LLMService
 from common.database.referendum import crud, schemas
 from common.object_storage.client import ObjectStorageClient
 from ..config import settings
@@ -96,11 +96,7 @@ async def get_bill_briefing(
             "Keep the summary to 5 lines maximum. "
         )
         text_prompt = f"Bill text: {bill_text}\n\n"
-
-        try:
-            briefing = await llm_service.generate_response(system_prompt, text_prompt)
-        except Exception as e:
-            raise OpenAIException(f"Failed to generate bill summary: {str(e)}")
+        briefing = await llm_service.generate_response(system_prompt, text_prompt)
 
     return {"bill_version_id": bill_version_id, "briefing": briefing}
 

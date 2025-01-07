@@ -44,20 +44,19 @@ class BillChatSession:
     def send_message(self, user_message: str) -> str:
         try:
             response = self.chain.predict(input=user_message)
+        except OpenAIException as e:
+            raise ConnectionError(f"Failed to fetch LLM response with error: {str(e)}")
 
-            current_time = datetime.utcnow()
-            self.chat_history.extend(
-                [
-                    ChatMessage(role="user", content=user_message, timestamp=current_time),
-                    ChatMessage(role="assistant", content=response, timestamp=current_time),
-                ]
-            )
-            self.last_activity = current_time
+        current_time = datetime.utcnow()
+        self.chat_history.extend(
+            [
+                ChatMessage(role="user", content=user_message, timestamp=current_time),
+                ChatMessage(role="assistant", content=response, timestamp=current_time),
+            ]
+        )
+        self.last_activity = current_time
 
-            return response
-
-        except Exception as e:
-            raise OpenAIException(str(e))
+        return response
 
 
 class BillChatSessionManager:

@@ -34,7 +34,10 @@ class LLMService:
             ]
         )
         chain = prompt.format_messages(input=user_prompt)
-        response = await self.llm.agenerate([chain])
+        try:
+            response = await self.llm.agenerate([chain])
+        except Exception as e:
+            raise OpenAIException(str(e))
 
         return response.generations[0][0].text
 
