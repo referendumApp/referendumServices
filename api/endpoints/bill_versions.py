@@ -6,7 +6,7 @@ import logging
 import os
 
 from common.chat.bill import BillChatSessionManager
-from common.chat.service import LLMService
+from common.chat.service import LLMService, OpenAIException
 from common.database.referendum import crud, schemas
 from common.object_storage.client import ObjectStorageClient
 from ..config import settings
@@ -98,7 +98,12 @@ async def get_bill_briefing(
             "Keep the summary to 5 lines maximum. "
         )
         text_prompt = f"Bill text: {bill_text}\n\n"
-        briefing = await llm_service.generate_response(system_prompt, text_prompt)
+        try:
+            briefing = await llm_service.generate_response(system_prompt, text_prompt)
+        except OpenAIException as e:
+            raise HTTPException(
+                status_code=500, detail=f"LLM Service call failed with error: {str(e)}"
+            )
 
         # Save the new briefing to the DB
         crud.bill_version.update(db=db, db_obj=bill_version, obj_in={"briefing": briefing})
