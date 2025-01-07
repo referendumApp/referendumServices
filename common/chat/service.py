@@ -29,7 +29,7 @@ class LLMService:
     async def generate_response(self, system_prompt: str, user_prompt: str) -> str:
         messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
         try:
-            response = await self.llm.agenerate(messages=messages)
+            response = await self.llm.agenerate(messages=[messages])
         except Exception as e:
             raise OpenAIException(str(e))
 
