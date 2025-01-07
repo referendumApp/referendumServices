@@ -2,7 +2,7 @@ from typing import Optional
 
 from langchain.chains import ConversationChain
 from langchain.memory import ConversationBufferMemory
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_core.prompts import (
     ChatPromptTemplate,
     SystemMessagePromptTemplate,
@@ -27,15 +27,9 @@ class LLMService:
         self.llm = ChatOpenAI(model_name=model_name, temperature=temperature)
 
     async def generate_response(self, system_prompt: str, user_prompt: str) -> str:
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                SystemMessagePromptTemplate.from_template(system_prompt),
-                HumanMessagePromptTemplate.from_template(user_prompt),
-            ]
-        )
-        chain = prompt.format_messages(input=user_prompt)
+        messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
         try:
-            response = await self.llm.agenerate([chain])
+            response = await self.llm.agenerate(messages=messages)
         except Exception as e:
             raise OpenAIException(str(e))
 
