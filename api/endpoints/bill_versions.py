@@ -1,12 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import Dict, Any, List
+from typing import Dict, Any
 import logging
-from datetime import datetime
-import uuid
 from pydantic import BaseModel
 
-from common.chat.bill import ChatSessionManager
+from common.chat.bill import BillChatSessionManager
+from common.chat.service import LLMService, OpenAIException
 from common.database.referendum import crud, schemas
 from common.object_storage.client import ObjectStorageClient
 from ..config import settings
@@ -17,7 +16,7 @@ from .endpoint_generator import EndpointGenerator
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-session_manager = ChatSessionManager(
+session_manager = BillChatSessionManager(
     max_bill_length=settings.MAX_BILL_LENGTH_WORDS,
     session_timeout_seconds=settings.CHAT_SESSION_TIMEOUT_SECONDS,
 )
@@ -81,8 +80,29 @@ async def get_bill_briefing(
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> dict:
     bill_version = crud.bill_version.read(db=db, obj_id=bill_version_id)
+    if bill_version.briefing:
+        briefing = bill_version.briefing
+    else:
+        s3_client = ObjectStorageClient()
+        bill_text = s3_client.download_file(
+            bucket=settings.BILL_TEXT_BUCKET_NAME, key=f"{bill_version.hash}.txt"
+        ).decode("utf-8")
 
-    return {"bill_version_id": bill_version_id, "briefing": bill_version.briefing}
+        llm_service = LLMService()
+        system_prompt = (
+            "You are an expert in analyzing legislative bills and communicating them to the public. "
+            "Please provide a clear, concise summary of the following bill for the average american citizen. "
+            "If there are any notable concerns or ambiguities, mention them. "
+            "Keep the summary to 5 lines maximum. "
+        )
+        text_prompt = f"Bill text: {bill_text}\n\n"
+
+        try:
+            briefing = await llm_service.generate_response(system_prompt, text_prompt)
+        except Exception as e:
+            raise OpenAIException(f"Failed to generate bill summary: {str(e)}")
+
+    return {"bill_version_id": bill_version_id, "briefing": briefing}
 
 
 class ChatMessageRequest(BaseModel):
