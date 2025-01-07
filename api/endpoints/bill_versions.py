@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Dict, Any
-import logging
 from pydantic import BaseModel
+import logging
+import os
 
 from common.chat.bill import BillChatSessionManager
 from common.chat.service import LLMService
@@ -80,9 +81,10 @@ async def get_bill_briefing(
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> dict:
     bill_version = crud.bill_version.read(db=db, obj_id=bill_version_id)
+    briefing = None
     if bill_version.briefing:
         briefing = bill_version.briefing
-    else:
+    if os.getenv("ENVIRONMENT") == "prod":
         s3_client = ObjectStorageClient()
         bill_text = s3_client.download_file(
             bucket=settings.BILL_TEXT_BUCKET_NAME, key=f"{bill_version.hash}.txt"
@@ -97,6 +99,9 @@ async def get_bill_briefing(
         )
         text_prompt = f"Bill text: {bill_text}\n\n"
         briefing = await llm_service.generate_response(system_prompt, text_prompt)
+
+        # Save the new briefing to the DB
+        crud.bill_version.update(db=db, db_obj=bill_version, obj_in={"briefing": briefing})
 
     return {"bill_version_id": bill_version_id, "briefing": briefing}
 
