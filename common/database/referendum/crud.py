@@ -112,7 +112,7 @@ class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         if db_obj is None:
             raise ObjectNotFoundException("Object not found")
         try:
-            obj_data = obj_in.model_dump(exclude_unset=True)
+            obj_data = db_obj.model_dump(exclude_unset=True)
             if isinstance(obj_in, dict):
                 update_data = obj_in
             else:
