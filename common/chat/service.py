@@ -1,7 +1,6 @@
 from typing import Optional
 
 from langchain.chains import ConversationChain
-from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain_core.messages import SystemMessage
 from langchain_core.prompts import (
@@ -10,6 +9,7 @@ from langchain_core.prompts import (
     HumanMessagePromptTemplate,
     MessagesPlaceholder,
 )
+from langchain_openai import ChatOpenAI
 
 
 class OpenAIException(Exception):
