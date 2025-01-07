@@ -17,7 +17,6 @@ dependencies = [
     "alembic",
     "argon2-cffi",
     "langchain",
-    "langchain-community",
     "langchain-openai",
     "openai",
     "sqlalchemy",
