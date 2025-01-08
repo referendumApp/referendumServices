@@ -166,3 +166,12 @@ class UserBillVotes(CamelCaseBaseModel):
     yay_pct: float
     nay_pct: float
     total: int
+
+
+class CommentDetail(CamelCaseBaseModel):
+    id: int
+    bill_id: int
+    user_id: int
+    user_name: str
+    comment: str
+    parent_id: Optional[int] = None
