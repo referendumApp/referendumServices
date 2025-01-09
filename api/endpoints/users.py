@@ -193,6 +193,7 @@ async def admin_delete_user(
 ) -> None:
     logger.info(f"Attempting to delete user with ID: {user_id}")
     try:
+        # TODO - make this a cascading delete of all their related records
         crud.user.delete(db=db, obj_id=user_id)
         logger.info(f"Successfully deleted user with ID: {user_id}")
         return
@@ -224,7 +225,7 @@ async def delete_user(
 ) -> None:
     logger.info(f"Attempting to delete user with ID: {user.id}")
     try:
-        crud.user.delete(db=db, obj_id=user.id)
+        crud.user.soft_delete(db=db, user_id=user.id)
         logger.info(f"Successfully deleted user with ID: {user.id}")
         return
     except ObjectNotFoundException:
