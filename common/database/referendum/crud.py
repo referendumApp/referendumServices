@@ -386,11 +386,9 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
             if db_user is None:
                 raise ObjectNotFoundException(f"User {user_id} not found")
             db_user.settings = {"deleted": True}
-            print(db_user.settings)
             db.add(db_user)
             db.commit()
             db.refresh(db_user)
-            print(db_user.settings)
 
             return db_user
 
