@@ -79,6 +79,8 @@ async def get_legislators(
     except crud.DatabaseException as e:
         logger.error(f"Database error while reading all legislators: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    except Exception as e:
+        raise
 
 
 EndpointGenerator.add_crud_routes(

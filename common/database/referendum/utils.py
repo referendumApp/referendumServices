@@ -20,8 +20,8 @@ def create_search_filter(
     search_query: str,
     fields: List[Column[str]],
 ) -> BinaryExpression:
-    model_fields = func.concat_ws("", *fields)
+    model_fields = fields[0] if len(fields) == 1 else func.concat_ws("", *fields)
 
     return func.to_tsvector("english", model_fields).op("@@")(
-        func.to_tsquery("english", search_query)
+        func.websearch_to_tsquery("english", search_query)
     )

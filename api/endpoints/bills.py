@@ -36,7 +36,7 @@ router = APIRouter()
 
 
 # Note that this must be defined before adding crud routes to avoid conflicts with the GET /id endpoint
-@router.get(
+@router.post(
     "/details",
     response_model=PaginatedResponse[DenormalizedBill],
     summary="Get all bill details",
