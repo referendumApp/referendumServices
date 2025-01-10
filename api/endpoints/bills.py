@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload, load_only
 
-from common.database.referendum import crud, models, schemas
+from common.database.referendum import crud, models, schemas, utils
 from common.database.referendum.crud import DatabaseException, ObjectNotFoundException
 
 from ..database import get_db
@@ -17,6 +17,7 @@ from ..schemas import (
     LegislatorVote,
     LegislatorVoteDetail,
     PaginatedResponse,
+    PaginationParams,
     UserBillVotes,
     VoteCountByChoice,
     VoteCountByParty,
@@ -49,14 +50,37 @@ router = APIRouter()
     },
 )
 async def get_bill_details(
-    skip: int = 0,
-    limit: int = 100,
+    request_body: PaginationParams,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ):
     try:
-        bills = crud.bill.read_all_denormalized(db=db, skip=skip, limit=limit + 1)
-        if len(bills) > limit:
+        column_filter = (
+            utils.create_column_filter(
+                model=models.Legislator,
+                filter_options=request_body.filter_options,
+            )
+            if request_body.filter_options
+            else None
+        )
+        search_filter = (
+            utils.create_search_filter(
+                search_query=request_body.search_query,
+                fields=[models.Bill.identifier, models.Bill.title, models.Bill.description],
+            )
+            if request_body.search_query
+            else None
+        )
+
+        bills = crud.bill.read_all_denormalized(
+            db=db,
+            skip=request_body.skip,
+            limit=request_body.limit + 1,
+            column_filter=column_filter,
+            search_filter=search_filter,
+            order_by=request_body.order_by,
+        )
+        if len(bills) > request_body.limit:
             has_more = True
             bills.pop()
         else:

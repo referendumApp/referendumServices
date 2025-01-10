@@ -1,6 +1,6 @@
 from datetime import date
 from typing import List, Optional, TypeVar, Generic
-from pydantic import Field, field_validator
+from pydantic import model_serializer, Field, field_validator
 
 from common.database.referendum.schemas import CamelCaseBaseModel, UserBase
 
@@ -55,6 +55,25 @@ class UserCreateInput(UserBase):
 class VoteCount(CamelCaseBaseModel):
     vote_choice_id: int
     count: int
+
+
+class FilterOptions(CamelCaseBaseModel):
+    party_id: Optional[List[int]] = None
+    role_id: Optional[List[int]] = None
+    state_id: Optional[List[int]] = None
+    status_id: Optional[List[int]] = None
+
+    @model_serializer()
+    def exclude_null_fields(self):
+        return {k: v for k, v in self.__dict__.items() if v is not None}
+
+
+class PaginationParams(CamelCaseBaseModel):
+    skip: int = 0
+    limit: int = 100
+    filter_options: Optional[FilterOptions] = None
+    search_query: Optional[str] = None
+    order_by: Optional[str] = None
 
 
 class PaginatedResponse(CamelCaseBaseModel, Generic[T]):

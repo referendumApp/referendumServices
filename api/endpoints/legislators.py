@@ -5,10 +5,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload, load_only
 
-from common.database.referendum import crud, models, schemas
+from common.database.referendum import crud, models, schemas, utils
 
 from ..database import get_db
-from ..schemas import ErrorResponse, LegislatorVotingHistory, PaginatedResponse
+from ..schemas import (
+    ErrorResponse,
+    LegislatorVotingHistory,
+    PaginatedResponse,
+    PaginationParams,
+)
 from ..security import CredentialsException, get_current_user_or_verify_system_token
 from .endpoint_generator import EndpointGenerator
 
@@ -17,7 +22,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get(
+@router.post(
     "/",
     response_model=PaginatedResponse[schemas.Legislator.Full],
     summary="Get all legislators",
@@ -31,15 +36,40 @@ router = APIRouter()
     },
 )
 async def get_legislators(
-    skip: int = 0,
-    limit: int = 100,
+    request_body: PaginationParams,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ):
-    logger.info(f"Attempting to read all legislators (skip: {skip}, limit: {limit})")
+    logger.info(
+        f"Attempting to read all legislators (skip: {request_body.skip}, limit: {request_body.limit})"
+    )
     try:
-        legislators = crud.legislator.read_all(db=db, skip=skip, limit=limit + 1)
-        if len(legislators) > limit:
+        column_filter = (
+            utils.create_column_filter(
+                model=models.Legislator,
+                filter_options=request_body.filter_options,
+            )
+            if request_body.filter_options
+            else None
+        )
+        search_filter = (
+            utils.create_search_filter(
+                search_query=request_body.search_query,
+                fields=[models.Legislator.name],
+            )
+            if request_body.search_query
+            else None
+        )
+
+        legislators = crud.legislator.read_all(
+            db=db,
+            skip=request_body.skip,
+            limit=request_body.limit + 1,
+            column_filter=column_filter,
+            search_filter=search_filter,
+            order_by=request_body.order_by,
+        )
+        if len(legislators) > request_body.limit:
             has_more = True
             legislators.pop()
         else:

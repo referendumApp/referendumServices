@@ -40,7 +40,7 @@ router = APIRouter()
     "/signup",
     response_model=schemas.User,
     status_code=status.HTTP_201_CREATED,
-    summary="User Signup",
+    summary="User Signup Test",
     responses={
         201: {"model": schemas.User, "description": "Successfully created user"},
         400: {"model": ErrorResponse, "description": "Bad request"},

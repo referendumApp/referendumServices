@@ -1,11 +1,12 @@
-from sqlalchemy.orm import Session, noload, joinedload
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+import logging
+from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
+
 from pydantic import BaseModel
-from typing import Any, Dict, Generic, List, TypeVar, Type, Union, Optional
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.sql.elements import BinaryExpression, ColumnElement
 
 from common.database.referendum import models, schemas
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -76,9 +77,23 @@ class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         return db_obj
 
     def read_all(
-        self, db: Session, *, skip: int | None = None, limit: int | None = None
+        self,
+        db: Session,
+        *,
+        skip: int | None = None,
+        limit: int | None = None,
+        column_filter: ColumnElement[bool] | None = None,
+        search_filter: BinaryExpression | None = None,
+        order_by: str | None = None,
     ) -> List[ModelType]:
         query = db.query(self.model)
+
+        if column_filter is not None:
+            query = query.filter(column_filter)
+        if search_filter is not None:
+            query = query.filter(search_filter)
+        if order_by is not None:
+            query = query.order_by(order_by)
         if skip is not None:
             query = query.offset(skip)
         if limit is not None:
@@ -171,23 +186,32 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
         )
 
     def read_all_denormalized(
-        self, db: Session, skip: int = 0, limit: int = 100
+        self,
+        db: Session,
+        skip: int = 0,
+        limit: int = 100,
+        column_filter: ColumnElement[bool] | None = None,
+        search_filter: BinaryExpression | None = None,
+        order_by: str | None = None,
     ) -> List[models.Bill]:
-        return (
-            db.query(models.Bill)
-            .options(
-                joinedload(models.Bill.state),
-                joinedload(models.Bill.status),
-                joinedload(models.Bill.legislative_body).joinedload(models.LegislativeBody.role),
-                joinedload(models.Bill.sponsors).joinedload(models.Sponsor.legislator),
-                joinedload(models.Bill.topics),
-                joinedload(models.Bill.bill_versions),
-                joinedload(models.Bill.session),
-            )
-            .offset(skip)
-            .limit(limit)
-            .all()
+        query = db.query(models.Bill).options(
+            joinedload(models.Bill.state),
+            joinedload(models.Bill.status),
+            joinedload(models.Bill.legislative_body).joinedload(models.LegislativeBody.role),
+            joinedload(models.Bill.sponsors).joinedload(models.Sponsor.legislator),
+            joinedload(models.Bill.topics),
+            joinedload(models.Bill.bill_versions),
+            joinedload(models.Bill.session),
         )
+
+        if column_filter is not None:
+            query = query.filter(column_filter)
+        if search_filter is not None:
+            query = query.filter(search_filter)
+        if order_by is not None:
+            query = query.order_by(order_by)
+
+        return query.offset(skip).limit(limit).all()
 
     def get_bill_by_legiscan_id(self, db: Session, legiscan_id: int) -> models.Bill:
         try:
