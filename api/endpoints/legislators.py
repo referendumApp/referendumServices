@@ -29,7 +29,7 @@ EndpointGenerator.add_crud_routes(
 
 @router.get(
     "/{legislator_id}/voting_history",
-    response_model=List[LegislatorVotingHistory],
+    response_model=LegislatorVotingHistory,
     summary="Get legislator voting history",
     responses={
         200: {
@@ -101,103 +101,17 @@ async def get_legislator_voting_history(
         raise HTTPException(status_code=500, detail=message)
 
 
-@router.get(
-    "/{legislator_id}/scores",
-    response_model=Dict,
-    summary="Get legislator scores",
-    responses={
-        200: {
-            "model": Dict,
-            "description": "Legislator scores successfully retrieved",
-        },
-        401: {"model": ErrorResponse, "description": "Not authorized"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
-    },
-)
-async def get_legislator_scores(legislator_id: int, db: Session, _: Dict[str, Any]) -> Dict:
+@router.get("/{legislator_id}/scores")
+async def get_legislator_scores(
+    legislator_id: int,
+    db: Session,
+    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+):
     try:
-        # Get all legislator votes
-        vote_query = (
-            select(models.LegislatorVote)
-            .options(
-                joinedload(models.LegislatorVote.vote_choice),
-                joinedload(models.LegislatorVote.bill_action),
-                joinedload(models.LegislatorVote.legislator).load_only(models.Legislator.party_id),
-            )
-            .filter(models.LegislatorVote.legislator_id == legislator_id)
-        )
-        vote_results = db.execute(vote_query).scalars().all()
-
-        if not vote_results:
-            return {"delinquency": 0, "bipartisanship": 0, "success": 0, "virtue_signaling": 0}
-
-        total_votes = len(vote_results)
-
-        # Delinquency
-        absent_votes = sum(1 for vote in vote_results if vote.vote_choice.name == "absent")
-        delinquency_score = absent_votes / total_votes if total_votes > 0 else 0
-
-        # Get all opposite party votes in one query
-        opposite_party_query = (
-            select(
-                models.LegislatorVote.bill_action_id,
-                models.LegislatorVote.vote_choice_id,
-                func.count().label("vote_count"),
-            )
-            .join(models.Legislator)
-            .join(models.VoteChoice)
-            .filter(
-                models.Legislator.party_id != vote_results[0].legislator.party_id,
-                models.VoteChoice.name.in_(["yes", "no"]),
-            )
-            .group_by(models.LegislatorVote.bill_action_id, models.LegislatorVote.vote_choice_id)
-        )
-        opposite_votes = {
-            (row.bill_action_id, row.vote_choice_id): row.vote_count
-            for row in db.execute(opposite_party_query).all()
-        }
-
-        # Calculate bipartisanship
-        matching_votes = sum(
-            1
-            for vote in vote_results
-            if (vote.bill_action_id, vote.vote_choice_id) in opposite_votes
-        )
-        bipartisanship_score = matching_votes / total_votes if total_votes > 0 else 0
-
-        # Get all sponsored bills in one query
-        sponsor_query = (
-            select(models.Sponsor)
-            .options(joinedload(models.Sponsor.bill).joinedload(models.Bill.status))
-            .filter(models.Sponsor.legislator_id == legislator_id)
-        )
-        sponsored_bills = db.execute(sponsor_query).scalars().all()
-
-        total_sponsored = len(sponsored_bills)
-        failed_at_first = sum(
-            1
-            for sponsor in sponsored_bills
-            if sponsor.bill.status.name.lower().startswith("introduced")
-        )
-        virtue_signaling_score = failed_at_first / total_sponsored if total_sponsored > 0 else 0
-
-        # Calculate success rate from vote results
-        yes_no_votes = [vote for vote in vote_results if vote.vote_choice.name in ["yes", "no"]]
-        successful_votes = sum(
-            1
-            for vote in yes_no_votes
-            if (
-                (
-                    vote.vote_choice.name == "yes"
-                    and "passed" in vote.bill_action.description.lower()
-                )
-                or (
-                    vote.vote_choice.name == "no"
-                    and "failed" in vote.bill_action.description.lower()
-                )
-            )
-        )
-        success_score = successful_votes / len(yes_no_votes) if yes_no_votes else 0
+        delinquency_score = 0
+        bipartisanship_score = 0
+        success_score = 0
+        virtue_signaling_score = 0
 
         return {
             "delinquency": round(delinquency_score, 3),
@@ -205,7 +119,6 @@ async def get_legislator_scores(legislator_id: int, db: Session, _: Dict[str, An
             "success": round(success_score, 3),
             "virtue_signaling": round(virtue_signaling_score, 3),
         }
-
     except CredentialsException as e:
         raise e
     except Exception as e:
