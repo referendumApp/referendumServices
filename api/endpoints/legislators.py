@@ -99,3 +99,22 @@ async def get_legislator_voting_history(
         )
         logger.error(message)
         raise HTTPException(status_code=500, detail=message)
+
+
+@router.get("/{legislator_id}/scores")
+async def get_legislator_scores(
+    legislator_id: int,
+    db: Session,
+    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+):
+    delinquency_score = 0
+    bipartisanship_score = 0
+    success_score = 0
+    virtue_signaling_score = 0
+
+    return {
+        "delinquency": round(delinquency_score, 3),
+        "bipartisanship": round(bipartisanship_score, 3),
+        "success": round(success_score, 3),
+        "virtue_signaling": round(virtue_signaling_score, 3),
+    }
