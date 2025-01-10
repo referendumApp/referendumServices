@@ -2,7 +2,7 @@ import logging
 from typing import Any, Dict, List, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, func
+from sqlalchemy import select, func, and_, exists
 from sqlalchemy.orm import Session, joinedload, load_only
 
 from common.database.referendum import crud, models, schemas
@@ -104,37 +104,24 @@ async def get_legislator_voting_history(
 def calculate_legislator_scores(
     votes: List[models.LegislatorVote],
     opposite_party_votes: Dict[Tuple[int, int], int],
-) -> Dict[str, float]:
+) -> Dict[str, float | None]:
     if not votes:
-        delinquency_score = None
-        bipartisanship_score = None
-    else:
-        total_votes = len(votes)
+        return {"delinquency": None, "bipartisanship": None}
 
-        # Calculate delinquency score
-        absent_votes = sum(1 for vote in votes if vote.vote_choice_id == 4)  # absent
-        delinquency_score = absent_votes / total_votes if total_votes > 0 else 0
-        delinquency_score = round(delinquency_score, 3)
+    total_votes = len(votes)
+    absent_votes = sum(vote.vote_choice_id == 4 for vote in votes)
+    matching_votes = sum(
+        (vote.bill_action_id, vote.vote_choice_id) in opposite_party_votes for vote in votes
+    )
 
-        # Calculate bipartisanship score
-        print(opposite_party_votes)
-        print(votes)
-        matching_votes = sum(
-            1
-            for vote in votes
-            if (vote.bill_action_id, vote.vote_choice_id) in opposite_party_votes
-        )
-        bipartisanship_score = matching_votes / total_votes if total_votes > 0 else 0
-        bipartisanship_score = round(bipartisanship_score, 3)
-
-        # TODO - Calculate success score (% of votes that go the way this legislator voted)
-
+    # TODO - Calculate success score (% of votes that go the way this legislator voted)
     # TODO - Calculate virtue signaling score (% of bills introduced by this legislator that go nowhere that go the way
-
-    return {
-        "delinquency": delinquency_score,
-        "bipartisanship": bipartisanship_score,
+    scores = {
+        "delinquency": absent_votes / total_votes,
+        "bipartisanship": matching_votes / total_votes,
     }
+
+    return {k: round(v, 3) for k, v in scores.items()}
 
 
 @router.get(
@@ -156,44 +143,47 @@ async def get_legislator_scores(
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ):
     try:
-        # Get all legislator votes
-        vote_query = (
-            select(models.LegislatorVote)
-            .options(
-                joinedload(models.LegislatorVote.vote_choice),
-                joinedload(models.LegislatorVote.bill_action),
-                joinedload(models.LegislatorVote.legislator).load_only(models.Legislator.party_id),
+        # Get total votes, absent votes, and bipartisan matches in one query
+        stats_query = (
+            select(
+                func.count().label("total_votes"),
+                func.sum(models.LegislatorVote.vote_choice_id == 4).label("absent_votes"),
+                func.sum(
+                    and_(
+                        # Join to get opposite party votes for same bill
+                        exists(
+                            select(1)
+                            .select_from(models.LegislatorVote)
+                            .join(models.Legislator)
+                            .join(models.VoteChoice)
+                            .where(
+                                and_(
+                                    models.LegislatorVote.bill_action_id
+                                    == models.LegislatorVote.bill_action_id,
+                                    models.Legislator.party_id != models.Legislator.party_id,
+                                    models.VoteChoice.name.in_(["yes", "no"]),
+                                    models.LegislatorVote.vote_choice_id
+                                    == models.LegislatorVote.vote_choice_id,
+                                )
+                            )
+                        )
+                    )
+                ).label("matching_votes"),
             )
+            .select_from(models.LegislatorVote)
+            .join(models.Legislator)
             .filter(models.LegislatorVote.legislator_id == legislator_id)
         )
-        vote_results = db.execute(vote_query).scalars().all()
 
-        if vote_results:
-            # Get all opposite party votes
-            opposite_party_query = (
-                select(
-                    models.LegislatorVote.bill_action_id,
-                    models.LegislatorVote.vote_choice_id,
-                    func.count().label("vote_count"),
-                )
-                .join(models.Legislator)
-                .join(models.VoteChoice)
-                .filter(
-                    models.Legislator.party_id != vote_results[0].legislator.party_id,
-                    models.VoteChoice.name.in_(["yes", "no"]),
-                )
-                .group_by(
-                    models.LegislatorVote.bill_action_id, models.LegislatorVote.vote_choice_id
-                )
-            )
-            opposite_votes = {
-                (row.bill_action_id, row.vote_choice_id): row.vote_count
-                for row in db.execute(opposite_party_query).all()
-            }
-        else:
-            opposite_votes = {}
+        result = db.execute(stats_query).first()
 
-        return calculate_legislator_scores([vote for vote in vote_results], opposite_votes)
+        if not result or result.total_votes == 0:
+            return {"delinquency": None, "bipartisanship": None}
+
+        return {
+            "delinquency": round(result.absent_votes / result.total_votes, 3),
+            "bipartisanship": round(result.matching_votes / result.total_votes, 3),
+        }
 
     except CredentialsException as e:
         raise e
