@@ -101,20 +101,39 @@ async def get_legislator_voting_history(
         raise HTTPException(status_code=500, detail=message)
 
 
-@router.get("/{legislator_id}/scores")
+@router.get(
+    "/{legislator_id}/scores",
+    response_model=Dict,
+    summary="Get legislator scores",
+    responses={
+        200: {
+            "model": Dict,
+            "description": "Legislator scores successfully retrieved",
+        },
+        401: {"model": ErrorResponse, "description": "Not authorized"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
 async def get_legislator_scores(
     legislator_id: int,
-    db: Session,
+    db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ):
-    delinquency_score = 0
-    bipartisanship_score = 0
-    success_score = 0
-    virtue_signaling_score = 0
+    try:
+        delinquency_score = 0
+        bipartisanship_score = 0
+        success_score = 0
+        virtue_signaling_score = 0
 
-    return {
-        "delinquency": round(delinquency_score, 3),
-        "bipartisanship": round(bipartisanship_score, 3),
-        "success": round(success_score, 3),
-        "virtue_signaling": round(virtue_signaling_score, 3),
-    }
+        return {
+            "delinquency": round(delinquency_score, 3),
+            "bipartisanship": round(bipartisanship_score, 3),
+            "success": round(success_score, 3),
+            "virtue_signaling": round(virtue_signaling_score, 3),
+        }
+    except CredentialsException as e:
+        raise e
+    except Exception as e:
+        message = f"Failed to get scores for legislator {legislator_id} with error: {str(e)}"
+        logger.error(message)
+        raise HTTPException(status_code=500, detail=message)
