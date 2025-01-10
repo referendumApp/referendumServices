@@ -118,7 +118,7 @@ class SponsorData:
 def calculate_legislator_scores(
     vote_results: List[VoteData],
     opposite_party_votes: Dict[Tuple[int, int], int],
-    sponsored_bills: List[SponsorData],
+    sponsored_bill_statuses: List[str],
 ) -> Dict[str, float]:
     """
     Calculate various scores for a legislator based on their voting and sponsorship history.
@@ -126,7 +126,7 @@ def calculate_legislator_scores(
     Args:
         vote_results: List of legislator's votes with associated data
         opposite_party_votes: Dictionary mapping (bill_action_id, vote_choice_id) to count of opposite party votes
-        sponsored_bills: List of bills sponsored by the legislator
+        sponsored_bill_statuses: List of statuses for all bills sponsored by the legislator
 
     Returns:
         Dictionary containing delinquency, bipartisanship, success, and virtue signaling scores
@@ -172,9 +172,9 @@ def calculate_legislator_scores(
         success_score = round(success_score, 3)
 
     # Calculate virtue signaling score
-    total_sponsored = len(sponsored_bills)
+    total_sponsored = len(sponsored_bill_statuses)
     failed_at_first = sum(
-        1 for sponsor in sponsored_bills if sponsor.bill_status.lower().startswith("introduced")
+        1 for status in sponsored_bill_statuses if status.lower().startswith("introduced")
     )
     virtue_signaling_score = failed_at_first / total_sponsored if total_sponsored > 0 else 0
     virtue_signaling_score = round(virtue_signaling_score, 3)
@@ -261,12 +261,10 @@ async def get_legislator_scores(
         )
         sponsored_bills = db.execute(sponsor_query).scalars().all()
 
-        # Transform sponsored bills into SponsorData objects
-        sponsor_data = [
-            SponsorData(bill_status=sponsor.bill.status.name) for sponsor in sponsored_bills
-        ]
+        # Get statuses for all sponsored bills
+        sponsored_bill_statuses = [sponsor.bill.status.name for sponsor in sponsored_bills]
 
-        return calculate_legislator_scores(vote_data, opposite_votes, sponsor_data)
+        return calculate_legislator_scores(vote_data, opposite_votes, sponsored_bill_statuses)
 
     except CredentialsException as e:
         raise e
