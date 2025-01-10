@@ -234,10 +234,10 @@ Comment = create_schema_container(
         "user_id": (int, ...),
         "bill_id": (int, ...),
         "parent_id": (Optional[int], None),
-        "comment": (str, ...),
+        "comment": (str, Field(..., min_length=1)),
     },
     record_fields={"id": (int, ...)},
-    relationship_fields={"likes": (List[UserReference], [])},
+    relationship_fields={"likes": (List[UserReference], []), "user": (UserBase, ...)},
 )
 
 

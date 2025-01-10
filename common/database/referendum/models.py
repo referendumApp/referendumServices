@@ -273,6 +273,7 @@ class Comment(Base):
     comment = Column(String, nullable=False)
 
     likes = relationship("User", secondary=user_comment_likes, back_populates="liked_comments")
+    user = relationship("User")
 
 
 # Bill filtering beta logic

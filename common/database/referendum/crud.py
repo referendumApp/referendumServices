@@ -380,6 +380,21 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
         except SQLAlchemyError as e:
             raise DatabaseException(f"Database error: {str(e)}")
 
+    def soft_delete(self, db: Session, user_id: int) -> models.User:
+        try:
+            db_user = db.query(models.User).filter(models.User.id == user_id).first()
+            if db_user is None:
+                raise ObjectNotFoundException(f"User {user_id} not found")
+            db_user.settings = {"deleted": True}
+            db.add(db_user)
+            db.commit()
+            db.refresh(db_user)
+
+            return db_user
+
+        except SQLAlchemyError as e:
+            raise DatabaseException(f"Database error: {str(e)}")
+
     def follow_topic(self, db: Session, user_id: int, topic_id: int):
         db_user = self.read(db=db, obj_id=user_id)
         db_topic = db.query(models.Topic).filter(models.Topic.id == topic_id).first()
