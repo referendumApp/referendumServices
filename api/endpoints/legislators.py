@@ -1,5 +1,4 @@
 import logging
-from dataclasses import dataclass
 from typing import Any, Dict, List, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -102,88 +101,39 @@ async def get_legislator_voting_history(
         raise HTTPException(status_code=500, detail=message)
 
 
-@dataclass
-class VoteData:
-    vote_choice_name: str
-    bill_action_description: str
-    bill_action_id: int
-    vote_choice_id: int
-
-
-@dataclass
-class SponsorData:
-    bill_status: str
-
-
 def calculate_legislator_scores(
-    vote_results: List[VoteData],
+    votes: List[models.LegislatorVote],
     opposite_party_votes: Dict[Tuple[int, int], int],
-    sponsored_bill_statuses: List[str],
 ) -> Dict[str, float]:
-    """
-    Calculate various scores for a legislator based on their voting and sponsorship history.
-
-    Args:
-        vote_results: List of legislator's votes with associated data
-        opposite_party_votes: Dictionary mapping (bill_action_id, vote_choice_id) to count of opposite party votes
-        sponsored_bill_statuses: List of statuses for all bills sponsored by the legislator
-
-    Returns:
-        Dictionary containing delinquency, bipartisanship, success, and virtue signaling scores
-    """
-    if not vote_results:
+    if not votes:
         delinquency_score = None
         bipartisanship_score = None
-        success_score = None
     else:
-        total_votes = len(vote_results)
+        total_votes = len(votes)
 
         # Calculate delinquency score
-        absent_votes = sum(1 for vote in vote_results if vote.vote_choice_name == "absent")
+        absent_votes = sum(1 for vote in votes if vote.vote_choice_id == 4)  # absent
         delinquency_score = absent_votes / total_votes if total_votes > 0 else 0
         delinquency_score = round(delinquency_score, 3)
 
         # Calculate bipartisanship score
+        print(opposite_party_votes)
+        print(votes)
         matching_votes = sum(
             1
-            for vote in vote_results
+            for vote in votes
             if (vote.bill_action_id, vote.vote_choice_id) in opposite_party_votes
         )
         bipartisanship_score = matching_votes / total_votes if total_votes > 0 else 0
         bipartisanship_score = round(bipartisanship_score, 3)
 
-        # Calculate success score
-        yes_no_votes = [vote for vote in vote_results if vote.vote_choice_name in ["yes", "no"]]
-        successful_votes = sum(
-            1
-            for vote in yes_no_votes
-            if (
-                (
-                    vote.vote_choice_name == "yes"
-                    and "passed" in vote.bill_action_description.lower()
-                )
-                or (
-                    vote.vote_choice_name == "no"
-                    and "failed" in vote.bill_action_description.lower()
-                )
-            )
-        )
-        success_score = successful_votes / len(yes_no_votes) if yes_no_votes else 0
-        success_score = round(success_score, 3)
+        # TODO - Calculate success score (% of votes that go the way this legislator voted)
 
-    # Calculate virtue signaling score
-    total_sponsored = len(sponsored_bill_statuses)
-    failed_at_first = sum(
-        1 for status in sponsored_bill_statuses if status.lower().startswith("introduced")
-    )
-    virtue_signaling_score = failed_at_first / total_sponsored if total_sponsored > 0 else 0
-    virtue_signaling_score = round(virtue_signaling_score, 3)
+    # TODO - Calculate virtue signaling score (% of bills introduced by this legislator that go nowhere that go the way
 
     return {
         "delinquency": delinquency_score,
         "bipartisanship": bipartisanship_score,
-        "success": success_score,
-        "virtue_signaling": virtue_signaling_score,
     }
 
 
@@ -218,16 +168,6 @@ async def get_legislator_scores(
         )
         vote_results = db.execute(vote_query).scalars().all()
 
-        vote_data = [
-            VoteData(
-                vote_choice_name=vote.vote_choice.name,
-                bill_action_description=vote.bill_action.description,
-                bill_action_id=vote.bill_action_id,
-                vote_choice_id=vote.vote_choice_id,
-            )
-            for vote in vote_results
-        ]
-
         if vote_results:
             # Get all opposite party votes
             opposite_party_query = (
@@ -253,18 +193,7 @@ async def get_legislator_scores(
         else:
             opposite_votes = {}
 
-        # Get all sponsored bills in one query
-        sponsor_query = (
-            select(models.Sponsor)
-            .options(joinedload(models.Sponsor.bill).joinedload(models.Bill.status))
-            .filter(models.Sponsor.legislator_id == legislator_id)
-        )
-        sponsored_bills = db.execute(sponsor_query).scalars().all()
-
-        # Get statuses for all sponsored bills
-        sponsored_bill_statuses = [sponsor.bill.status.name for sponsor in sponsored_bills]
-
-        return calculate_legislator_scores(vote_data, opposite_votes, sponsored_bill_statuses)
+        return calculate_legislator_scores([vote for vote in vote_results], opposite_votes)
 
     except CredentialsException as e:
         raise e
