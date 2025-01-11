@@ -1,12 +1,13 @@
 import logging
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, func, and_, exists
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session, joinedload, load_only
 
 from common.database.referendum import crud, models, schemas
 
+from ..constants import YEA_VOTE_ID, NAY_VOTE_ID, ABSENT_VOTE_ID
 from ..database import get_db
 from ..schemas import ErrorResponse, LegislatorVotingHistory
 from ..security import CredentialsException, get_current_user_or_verify_system_token
@@ -101,29 +102,6 @@ async def get_legislator_voting_history(
         raise HTTPException(status_code=500, detail=message)
 
 
-def calculate_legislator_scores(
-    votes: List[models.LegislatorVote],
-    opposite_party_votes: Dict[Tuple[int, int], int],
-) -> Dict[str, float | None]:
-    if not votes:
-        return {"delinquency": None, "bipartisanship": None}
-
-    total_votes = len(votes)
-    absent_votes = sum(vote.vote_choice_id == 4 for vote in votes)
-    matching_votes = sum(
-        (vote.bill_action_id, vote.vote_choice_id) in opposite_party_votes for vote in votes
-    )
-
-    # TODO - Calculate success score (% of votes that go the way this legislator voted)
-    # TODO - Calculate virtue signaling score (% of bills introduced by this legislator that go nowhere that go the way
-    scores = {
-        "delinquency": absent_votes / total_votes,
-        "bipartisanship": matching_votes / total_votes,
-    }
-
-    return {k: round(v, 3) for k, v in scores.items()}
-
-
 @router.get(
     "/{legislator_id}/scores",
     response_model=Dict,
@@ -143,48 +121,86 @@ async def get_legislator_scores(
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ):
     try:
-        # Get total votes, absent votes, and bipartisan matches in one query
-        stats_query = (
-            select(
-                func.count().label("total_votes"),
-                func.sum(models.LegislatorVote.vote_choice_id == 4).label("absent_votes"),
-                func.sum(
-                    and_(
-                        # Join to get opposite party votes for same bill
-                        exists(
-                            select(1)
-                            .select_from(models.LegislatorVote)
-                            .join(models.Legislator)
-                            .join(models.VoteChoice)
-                            .where(
-                                and_(
-                                    models.LegislatorVote.bill_action_id
-                                    == models.LegislatorVote.bill_action_id,
-                                    models.Legislator.party_id != models.Legislator.party_id,
-                                    models.VoteChoice.name.in_(["yes", "no"]),
-                                    models.LegislatorVote.vote_choice_id
-                                    == models.LegislatorVote.vote_choice_id,
-                                )
-                            )
-                        )
-                    )
-                ).label("matching_votes"),
+        # TODO - cache this and/or the subquery
+        # TODO - Calculate success score (% of votes that go the way this legislator voted)
+        # TODO - Calculate virtue signaling score (% of bills introduced by this legislator that go nowhere that go the way
+        print("all votes")
+        r = db.execute(
+            text(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'legislator_votes'"
             )
-            .select_from(models.LegislatorVote)
-            .join(models.Legislator)
-            .filter(models.LegislatorVote.legislator_id == legislator_id)
         )
+        print(r.all())
+        r = db.execute(text("SELECT * FROM legislator_votes"))
+        print(r.all())
+        print("full joined result")
+        r = db.execute(
+            text(
+                """
+                -- Calculates scores for a legislator:
+                -- 1. Delinquency: % of legislator's votes where legislator was absent
+                -- 2. Bipartisanship: % of legislator's votes where legislator voted with opposition party majority
+    
+                -- For all this legislator's votes, find the opposition party's majority position if there was one 
+                WITH opposition_majorities AS (
+                    SELECT 
+                        bill_action_id,
+                        vote_choice_id as majority_choice
+                    FROM legislator_votes lv
+                    JOIN legislators l ON l.id = lv.legislator_id 
+                    -- Get votes from the opposite party
+                    WHERE l.party_id != (SELECT party_id FROM legislators WHERE id = :legislator_id)
+                    -- Only consider clear yes(1)/no(2) votes, not abstentions or absences
+                    AND vote_choice_id IN (:yea_vote_id, :nay_vote_id)
+                    GROUP BY bill_action_id, vote_choice_id
+                    -- Only keep vote positions that had more support than opposition
+                    -- The subquery counts votes for the opposing position
+                    HAVING count(*) > (
+                        SELECT count(*) 
+                        FROM legislator_votes lv2
+                        JOIN legislators l2 ON l2.id = lv2.legislator_id
+                        WHERE lv2.bill_action_id = lv.bill_action_id 
+                        AND l2.party_id != (SELECT party_id FROM legislators WHERE id = :legislator_id)
+                        AND lv2.vote_choice_id IN (:yea_vote_id, :nay_vote_id)
+                        AND lv2.vote_choice_id != lv.vote_choice_id
+                    )
+                )
+    
+                SELECT 
+                    -- Delinquency Score: Absent votes (vote_choice_id=4) divided by total votes
+                    COALESCE(
+                        CAST(COUNT(CASE WHEN lv.vote_choice_id = :absent_vote_id THEN 1 END) AS FLOAT) / 
+                        NULLIF(COUNT(*), 0), 
+                        0
+                    ) as delinquency,
+    
+                    -- Bipartisanship Score: Times voting with opposition majority / 
+                    -- Number of bills where opposition had a majority * 100
+                    COALESCE(
+                        CAST(
+                            COUNT(CASE WHEN lv.vote_choice_id = om.majority_choice THEN 1 END) AS FLOAT
+                        ) / 
+                        NULLIF(
+                            COUNT(CASE WHEN om.majority_choice IS NOT NULL THEN 1 END), 
+                            0
+                        ),
+                        0
+                    ) as bipartisanship
+                FROM legislator_votes lv
+                LEFT JOIN opposition_majorities om ON om.bill_action_id = lv.bill_action_id
+                WHERE lv.legislator_id = :legislator_id
+            """
+            ),
+            {
+                "legislator_id": legislator_id,
+                "yea_vote_id": YEA_VOTE_ID,
+                "nay_vote_id": NAY_VOTE_ID,
+                "absent_vote_id": ABSENT_VOTE_ID,
+            },
+        )
+        delinquency, bipartisanship = r.all()[0]
 
-        result = db.execute(stats_query).first()
-
-        if not result or result.total_votes == 0:
-            return {"delinquency": None, "bipartisanship": None}
-
-        return {
-            "delinquency": round(result.absent_votes / result.total_votes, 3),
-            "bipartisanship": round(result.matching_votes / result.total_votes, 3),
-        }
-
+        return {"delinquency": round(delinquency, 3), "bipartisanship": round(bipartisanship, 3)}
     except CredentialsException as e:
         raise e
     except Exception as e:

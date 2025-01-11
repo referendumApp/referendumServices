@@ -161,8 +161,9 @@ class DenormalizedBill(CamelCaseBaseModel):
 
 
 class UserBillVotes(CamelCaseBaseModel):
-    yay: int
+    yea: int
     nay: int
+    yea_pct: float
     yay_pct: float
     nay_pct: float
     total: int

@@ -2,8 +2,6 @@ import random
 import string
 
 DEFAULT_ID = 999999
-NAY_VOTE_ID = 0
-YAY_VOTE_ID = 1
 
 
 def assert_status_code(response, expected_status_code: int):
