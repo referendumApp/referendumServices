@@ -47,7 +47,7 @@ def downgrade() -> None:
 
     op.execute(
         """
-        CREATE INDEX ix_bill_identifier_title_search ON public.bills
+        CREATE INDEX ix_bill_identifier_title_search ON bills
         USING gin (to_tsvector('english', (((((COALESCE(identifier, '')) || ' ') || 
             (COALESCE(title, ''))) || ' ') || 
             (COALESCE(description, '')))))
