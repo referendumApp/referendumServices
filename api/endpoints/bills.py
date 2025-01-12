@@ -12,6 +12,7 @@ from common.database.referendum.crud import DatabaseException, ObjectNotFoundExc
 from ..database import get_db
 from ..schemas import (
     BillVotingHistory,
+    CommentDetail,
     DenormalizedBill,
     ErrorResponse,
     LegislatorVote,
@@ -150,11 +151,11 @@ async def get_bill_vote_counts(
 
 @router.get(
     "/{bill_id}/comments",
-    response_model=List[schemas.Comment.Record],
+    response_model=List[CommentDetail],
     summary="Get bill comments",
     responses={
         200: {
-            "model": List[schemas.Comment.Record],
+            "model": List[CommentDetail],
             "description": "Bill comments successfully retrieved",
         },
         401: {"model": ErrorResponse, "description": "Not authorized"},
@@ -165,9 +166,20 @@ async def get_bill_comments(
     bill_id: int,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
-) -> List[schemas.Comment.Record]:
-    bill_votes = crud.bill.get_bill_comments(db, bill_id)
-    return bill_votes
+) -> List[CommentDetail]:
+    bill_comments = crud.bill.get_bill_comments(db, bill_id)
+
+    return [
+        CommentDetail(
+            id=comment.id,
+            parent_id=comment.parent_id,
+            bill_id=comment.bill_id,
+            user_id=comment.user_id,
+            comment=comment.comment,
+            user_name=comment.user.name,
+        )
+        for comment in bill_comments
+    ]
 
 
 @router.get(

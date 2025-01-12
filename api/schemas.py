@@ -161,8 +161,24 @@ class DenormalizedBill(CamelCaseBaseModel):
 
 
 class UserBillVotes(CamelCaseBaseModel):
-    yay: int
+    yea: int
     nay: int
+    yea_pct: float
     yay_pct: float
     nay_pct: float
     total: int
+
+
+class CommentDetail(CamelCaseBaseModel):
+    id: int
+    bill_id: int
+    user_id: int
+    user_name: str
+    comment: str
+    parent_id: Optional[int] = None
+
+
+class LegislatorScorecard(CamelCaseBaseModel):
+    legislator_id: int
+    delinquency: float
+    bipartisanship: float

@@ -11,7 +11,7 @@ from common.database.referendum.crud import (
 )
 
 from ..database import get_db
-from ..schemas import UserCreateInput, UserUpdateInput, ErrorResponse
+from ..schemas import UserCreateInput, UserUpdateInput, ErrorResponse, CommentDetail
 from ..security import (
     get_current_user,
     get_current_user_or_verify_system_token,
@@ -193,6 +193,7 @@ async def admin_delete_user(
 ) -> None:
     logger.info(f"Attempting to delete user with ID: {user_id}")
     try:
+        # TODO - make this a cascading delete of all their related records
         crud.user.delete(db=db, obj_id=user_id)
         logger.info(f"Successfully deleted user with ID: {user_id}")
         return
@@ -224,7 +225,7 @@ async def delete_user(
 ) -> None:
     logger.info(f"Attempting to delete user with ID: {user.id}")
     try:
-        crud.user.delete(db=db, obj_id=user.id)
+        crud.user.soft_delete(db=db, user_id=user.id)
         logger.info(f"Successfully deleted user with ID: {user.id}")
         return
     except ObjectNotFoundException:
@@ -601,11 +602,11 @@ def unfollow_topic(
 
 @router.get(
     "/feed",
-    response_model=List[schemas.Comment.Record],
+    response_model=List[CommentDetail],
     summary="Gets feed items for user",
     responses={
         200: {
-            "model": List[schemas.Comment.Record],
+            "model": List[CommentDetail],
             "description": "User feed retrieved successfully",
         },
         401: {"model": ErrorResponse, "description": "Unauthorized"},
@@ -616,7 +617,7 @@ def unfollow_topic(
 async def get_user_feed(
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user),
-) -> List[schemas.Comment.Record]:
+) -> List[CommentDetail]:
     feed_items = [
         schemas.Comment.Record(
             id=-1,
@@ -639,7 +640,19 @@ We're glad to have you join the conversation!
     try:
         # TODO - restrict this to relevant comments
         all_comments = crud.comment.read_all(db=db)
-        feed_items.extend(all_comments)
+        feed_items.extend(
+            [
+                CommentDetail(
+                    id=comment.id,
+                    parent_id=comment.parent_id,
+                    bill_id=comment.bill_id,
+                    user_id=comment.user_id,
+                    comment=comment.comment,
+                    user_name=comment.user.name,
+                )
+                for comment in all_comments
+            ]
+        )
 
         return feed_items
     except DatabaseException as e:

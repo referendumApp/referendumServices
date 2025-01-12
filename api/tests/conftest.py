@@ -12,9 +12,8 @@ from api.main import app
 from api.security import create_access_token
 from api.tests.test_utils import (
     generate_random_string,
-    YAY_VOTE_ID,
-    NAY_VOTE_ID,
 )
+from api.constants import NAY_VOTE_ID, YEA_VOTE_ID, ABSENT_VOTE_ID
 from common.object_storage.client import ObjectStorageClient
 
 ENV = os.environ.get("ENVIRONMENT")
@@ -333,8 +332,9 @@ async def test_manager(client: AsyncClient, system_headers: Dict[str, str]) -> T
 async def setup_vote_choices(client, system_headers):
     """Create vote choices once at the start of the test session."""
     choice_data_options = [
-        {"id": YAY_VOTE_ID, "name": "Yea"},
+        {"id": YEA_VOTE_ID, "name": "Yea"},
         {"id": NAY_VOTE_ID, "name": "Nay"},
+        {"id": ABSENT_VOTE_ID, "name": "Absent"},
     ]
     for choice_data in choice_data_options:
         response = await client.post("/vote_choices", json=choice_data, headers=system_headers)
