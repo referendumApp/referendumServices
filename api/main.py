@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import json
 import logging
 
-from .config import settings
+from .settings import settings
 from .endpoints import (
     health,
     authentication,
