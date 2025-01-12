@@ -65,6 +65,7 @@ async def get_bill_details(
             else None
         )
 
+        order_by = [request_body.order_by] if request_body.order_by else []
         search_filter = None
         if request_body.search_query:
             id_filter = utils.create_search_filter(
@@ -79,6 +80,7 @@ async def get_bill_details(
                 fields=[models.Bill.title],
             )
             search_filter = or_(id_filter, title_filter)
+            order_by.insert(0, "id")
 
         bills = crud.bill.read_all_denormalized(
             db=db,
@@ -86,7 +88,7 @@ async def get_bill_details(
             limit=request_body.limit + 1,
             column_filter=column_filter,
             search_filter=search_filter,
-            order_by=request_body.order_by,
+            order_by=order_by,
         )
         if len(bills) > request_body.limit:
             has_more = True

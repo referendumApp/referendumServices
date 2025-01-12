@@ -7,12 +7,12 @@ from sqlalchemy.orm import Session, joinedload, load_only
 
 from common.database.referendum import crud, models, schemas, utils
 
-from ..constants import YEA_VOTE_ID, NAY_VOTE_ID, ABSENT_VOTE_ID
+from ..constants import ABSENT_VOTE_ID, NAY_VOTE_ID, YEA_VOTE_ID
 from ..database import get_db
 from ..schemas import (
     ErrorResponse,
-    LegislatorVotingHistory,
     LegislatorScorecard,
+    LegislatorVotingHistory,
     PaginatedResponse,
     PaginationParams,
 )
@@ -54,15 +54,16 @@ async def get_legislators(
             if request_body.filter_options
             else None
         )
-        search_filter = (
-            utils.create_search_filter(
+
+        order_by = [request_body.order_by] if request_body.order_by else []
+        search_filter = None
+        if request_body.search_query:
+            search_filter = utils.create_search_filter(
                 search_query=request_body.search_query,
                 search_config=utils.SearchConfig.ENGLISH,
                 fields=[models.Legislator.name],
             )
-            if request_body.search_query
-            else None
-        )
+            order_by.insert(0, "id")
 
         legislators = crud.legislator.read_all(
             db=db,
@@ -70,7 +71,7 @@ async def get_legislators(
             limit=request_body.limit + 1,
             column_filter=column_filter,
             search_filter=search_filter,
-            order_by=request_body.order_by,
+            order_by=order_by,
         )
         if len(legislators) > request_body.limit:
             has_more = True

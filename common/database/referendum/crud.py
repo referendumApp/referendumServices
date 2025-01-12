@@ -84,7 +84,7 @@ class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         limit: int | None = None,
         column_filter: ColumnElement[bool] | None = None,
         search_filter: BinaryExpression | None = None,
-        order_by: str | None = None,
+        order_by: List[str] | None = None,
     ) -> List[ModelType]:
         query = db.query(self.model)
 
@@ -92,8 +92,8 @@ class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             query = query.filter(column_filter)
         if search_filter is not None:
             query = query.filter(search_filter)
-        if order_by is not None:
-            query = query.order_by(order_by)
+        if order_by:
+            query = query.order_by(*order_by)
         if skip is not None:
             query = query.offset(skip)
         if limit is not None:
@@ -172,9 +172,7 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
 
         return db_bill.comments
 
-    def read_all_denormalized(
-        self, db: Session, skip: int | None, limit: int | None
-    ) -> List[models.Bill]:
+    def read_denormalized(self, db: Session, bill_id: int) -> List[models.Bill]:
         return (
             db.query(models.Bill)
             .options(
@@ -197,7 +195,7 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
         limit: int = 100,
         column_filter: ColumnElement[bool] | None = None,
         search_filter: BinaryExpression | ColumnElement[bool] | None = None,
-        order_by: str | None = None,
+        order_by: List[str] | None = None,
     ) -> List[models.Bill]:
         query = db.query(models.Bill).options(
             joinedload(models.Bill.state),
@@ -213,8 +211,8 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
             query = query.filter(column_filter)
         if search_filter is not None:
             query = query.filter(search_filter)
-        if order_by is not None:
-            query = query.order_by(order_by)
+        if order_by:
+            query = query.order_by(*order_by)
 
         return query.offset(skip).limit(limit).all()
 
