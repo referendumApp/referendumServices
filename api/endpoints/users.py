@@ -629,7 +629,9 @@ Events that may interest you will appear here in your Feed: comments on bills, v
 The Catalog tab includes all bills and legislators from the 118th congress.
 You can follow those that interest you and deep dive into the text itself, votes, sponsors, and history here.
 
-If you have any questions, concerns, or run into any issues, please email contact@referendumapp.com
+If you have any questions, concerns, or run into any issues, please email us at contact@referendumapp.com.
+iOS users on TestFlight can also submit feedback to us by taking a screenshot.
+
 We're glad to have you join the conversation!
 """,
         )
