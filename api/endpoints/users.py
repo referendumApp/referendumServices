@@ -619,9 +619,10 @@ async def get_user_feed(
     _: Dict[str, Any] = Depends(get_current_user),
 ) -> List[CommentDetail]:
     feed_items = [
-        schemas.Comment.Record(
+        CommentDetail(
             id=-1,
             user_id=-1,
+            user_name="Referendum",
             bill_id=-1,
             comment="""Welcome to Referendum and thank you for participating in our beta!
 
