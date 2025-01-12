@@ -337,3 +337,16 @@ def filter_bill_selects(conn, clauseelement, multiparams, params, execution_opti
                     clauseelement._bill_filtered = True
 
     return clauseelement, multiparams, params
+
+
+class UserMessageUsage(Base):
+    __tablename__ = "user_message_usage"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    month = Column(Date, nullable=False)  # Store first day of month
+    message_count = Column(Integer, default=0)
+
+    user = relationship("User", back_populates="message_usage")
+
+    __table_args__ = (UniqueConstraint("user_id", "month", name="unique_user_month"),)

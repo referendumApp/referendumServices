@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Dict, Any
@@ -9,7 +10,7 @@ from common.chat.bill import BillChatSessionManager
 from common.chat.service import LLMService, OpenAIException
 from common.database.referendum import crud, schemas
 from common.object_storage.client import ObjectStorageClient
-from ..config import settings
+from ..settings import settings
 from ..database import get_db
 from ..schemas import ErrorResponse
 from ..security import CredentialsException, get_current_user_or_verify_system_token
@@ -138,7 +139,6 @@ async def initialize_chat(
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> dict:
     """Initialize a new chat session for a specific bill version."""
-    # TODO - check user account for permission
     try:
         # Verify bill version exists
         bill_version = crud.bill_version.read(db=db, obj_id=bill_version_id)
@@ -170,15 +170,34 @@ async def initialize_chat(
         200: {"description": "Message processed successfully"},
         401: {"model": ErrorResponse, "description": "Not authorized"},
         404: {"model": ErrorResponse, "description": "Session not found"},
+        429: {"model": ErrorResponse, "description": "Monthly message limit exceeded"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
 async def message_chat(
     bill_version_id: int,
     message_request: ChatMessageRequest,
-    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+    db: Session = Depends(get_db),
+    auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> ChatMessageResponse:
     """Process a message in an existing chat session."""
+    if not auth_info["is_system"]:
+        current_user = auth_info["user"]
+        if not current_user.settings:
+            current_user.settings = {}
+
+        current_month = datetime.utcnow().date().replace(day=1).isoformat()
+        last_reset = current_user.settings.get("message_count_reset_date")
+        if not last_reset or last_reset < current_month:
+            current_user.settings["message_count"] = 0
+            current_user.settings["message_count_reset_date"] = current_month
+
+        current_count = current_user.settings.get("message_count", 0)
+        if current_count >= settings.MAX_MESSAGES_PER_MONTH:
+            raise HTTPException(status_code=429, detail="Monthly message limit exceeded")
+        current_user.settings["message_count"] = current_count + 1
+        db.commit()
+
     try:
         response = session_manager.send_message(message_request.session_id, message_request.message)
 

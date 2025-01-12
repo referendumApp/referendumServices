@@ -7,7 +7,7 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-from api.config import settings
+from api.settings import settings
 from api.main import app
 from api.security import create_access_token
 from api.tests.test_utils import (
