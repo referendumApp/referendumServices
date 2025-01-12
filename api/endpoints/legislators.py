@@ -9,7 +9,7 @@ from common.database.referendum import crud, models, schemas
 
 from ..constants import YEA_VOTE_ID, NAY_VOTE_ID, ABSENT_VOTE_ID
 from ..database import get_db
-from ..schemas import ErrorResponse, LegislatorVotingHistory
+from ..schemas import ErrorResponse, LegislatorVotingHistory, LegislatorScorecard
 from ..security import CredentialsException, get_current_user_or_verify_system_token
 from .endpoint_generator import EndpointGenerator
 
@@ -104,11 +104,11 @@ async def get_legislator_voting_history(
 
 @router.get(
     "/{legislator_id}/scores",
-    response_model=Dict,
+    response_model=LegislatorScorecard,
     summary="Get legislator scores",
     responses={
         200: {
-            "model": Dict,
+            "model": LegislatorScorecard,
             "description": "Legislator scores successfully retrieved",
         },
         401: {"model": ErrorResponse, "description": "Not authorized"},
@@ -119,21 +119,11 @@ async def get_legislator_scores(
     legislator_id: int,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
-):
+) -> LegislatorScorecard:
     try:
         # TODO - cache this and/or the subquery
         # TODO - Calculate success score (% of votes that go the way this legislator voted)
         # TODO - Calculate virtue signaling score (% of bills introduced by this legislator that go nowhere that go the way
-        print("all votes")
-        r = db.execute(
-            text(
-                "SELECT column_name FROM information_schema.columns WHERE table_name = 'legislator_votes'"
-            )
-        )
-        print(r.all())
-        r = db.execute(text("SELECT * FROM legislator_votes"))
-        print(r.all())
-        print("full joined result")
         r = db.execute(
             text(
                 """
@@ -200,7 +190,11 @@ async def get_legislator_scores(
         )
         delinquency, bipartisanship = r.all()[0]
 
-        return {"delinquency": round(delinquency, 3), "bipartisanship": round(bipartisanship, 3)}
+        return LegislatorScorecard(
+            legislator_id=legislator_id,
+            delinquency=round(delinquency, 3),
+            bipartisanship=round(bipartisanship, 3),
+        )
     except CredentialsException as e:
         raise e
     except Exception as e:

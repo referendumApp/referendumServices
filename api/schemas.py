@@ -176,3 +176,9 @@ class CommentDetail(CamelCaseBaseModel):
     user_name: str
     comment: str
     parent_id: Optional[int] = None
+
+
+class LegislatorScorecard(CamelCaseBaseModel):
+    legislator_id: int
+    delinquency: float
+    bipartisanship: float
