@@ -1,0 +1,62 @@
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.py[cod]
+*$py.class
+.pytest_cache
+.coverage
+htmlcov/
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Development/IDE
+.idea
+.vscode
+*.swp
+*.swo
+.DS_Store
+
+# Local development
+local/
+
+# Docker
+docker-compose*.yml
+Dockerfile*
+.docker
+
+# Documentation
+docs/
+*.md
+LICENSE
+
+# Build
+*.log
+*.pot
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info
+dist
+build
+eggs
+parts
+bin
+var
+sdist
+develop-eggs
+.installed.cfg
+lib
+lib64

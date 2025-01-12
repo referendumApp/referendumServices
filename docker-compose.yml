@@ -148,4 +148,6 @@ services:
       migrations:
         condition: service_completed_successfully
     env_file: .env
+    environment:
+      - DISABLE_BETA_BILL_SUBSET_FILTERING=true
     profiles: ["test"]

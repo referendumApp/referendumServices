@@ -1,75 +1,190 @@
-from api.tests.test_utils import assert_status_code, YAY_VOTE_ID, NAY_VOTE_ID
+from api.tests.conftest import TestManager
+from api.tests.test_utils import assert_status_code
+from api.constants import NAY_VOTE_ID, YEA_VOTE_ID
+import logging
 
 
-async def test_cast_vote_success(test_user_vote):
-    assert "voteChoiceId" in test_user_vote
+async def test_cast_vote_success(test_manager: TestManager):
+    user, user_headers = await test_manager.start_user_session()
+    test_bill = await test_manager.create_bill()
+
+    vote_data = {
+        "billId": test_bill["id"],
+        "voteChoiceId": YEA_VOTE_ID,
+    }
+    response = await test_manager.client.put("/users/votes", json=vote_data, headers=user_headers)
+    test_error = None
+    try:
+        assert_status_code(response, 200)
+        test_user_vote = response.json()
+        assert "voteChoiceId" in test_user_vote
+    except Exception as e:
+        test_error = str(e)
+        logging.error(f"Test failed with {test_error}, marking and cleaning up")
+
+    # Cleanup
+    response = await test_manager.client.delete(
+        f"/users/votes?billId={test_bill['id']}",
+        headers=user_headers,
+    )
+    assert_status_code(response, 204)
+
+    if test_error:
+        raise Exception(test_error)
 
 
-async def test_cast_vote_update(
-    client, system_headers, test_user_vote, test_user_session, test_vote_choices
-):
-    _, user_headers = test_user_session
-    yay_vote, nay_vote = test_vote_choices
+async def test_cast_vote_update(test_manager: TestManager):
+    user, user_headers = await test_manager.start_user_session()
+    test_bill = await test_manager.create_bill()
 
-    updated_vote_data = {"billId": test_user_vote["billId"], "voteChoiceId": NAY_VOTE_ID}
-    response = await client.put("/users/votes", json=updated_vote_data, headers=user_headers)
+    # Create initial vote
+    vote_data = {
+        "billId": test_bill["id"],
+        "voteChoiceId": YEA_VOTE_ID,
+    }
+    response = await test_manager.client.put("/users/votes", json=vote_data, headers=user_headers)
     assert_status_code(response, 200)
-    updated_vote = response.json()
-    assert updated_vote["voteChoiceId"] == nay_vote["id"]
+    test_user_vote = response.json()
 
-    response = await client.get("/users/votes", headers=user_headers)
-    assert_status_code(response, 200)
-    votes = response.json()
-    assert len(votes) == 1
+    test_error = None
+    try:
+        # Update the vote
+        updated_vote_data = {"billId": test_user_vote["billId"], "voteChoiceId": NAY_VOTE_ID}
+        response = await test_manager.client.put(
+            "/users/votes", json=updated_vote_data, headers=user_headers
+        )
+
+        assert_status_code(response, 200)
+        updated_vote = response.json()
+        assert updated_vote["voteChoiceId"] == NAY_VOTE_ID
+
+        # Verify vote count
+        response = await test_manager.client.get("/users/votes", headers=user_headers)
+
+        assert_status_code(response, 200)
+        votes = response.json()
+        assert len(votes) == 1
+    except Exception as e:
+        test_error = str(e)
+        logging.error(f"Test failed with {test_error}, marking and cleaning up")
+
+    # Cleanup
+    response = await test_manager.client.delete(
+        f"/users/votes?billId={test_bill['id']}",
+        headers=user_headers,
+    )
+    assert_status_code(response, 204)
+
+    if test_error:
+        raise Exception(test_error)
 
 
-async def test_cast_vote_unauthorized(client, test_bill, test_vote_choice):
-    vote_data = {"billId": test_bill["id"], "voteChoiceId": test_vote_choice["id"]}
-    response = await client.put("/users/votes", json=vote_data)
+async def test_cast_vote_unauthorized(test_manager: TestManager):
+    test_bill = await test_manager.create_bill()
+
+    vote_data = {"billId": test_bill["id"], "voteChoiceId": YEA_VOTE_ID}
+    response = await test_manager.client.put("/users/votes", json=vote_data)
     assert_status_code(response, 401)
 
 
-async def test_cast_vote_invalid_bill(client, test_user_session, test_vote_choice):
-    _, headers = test_user_session
-    vote_data = {"billId": 9999, "voteChoiceId": test_vote_choice["id"]}
-    response = await client.put("/users/votes", json=vote_data, headers=headers)
+async def test_cast_vote_invalid_bill(test_manager: TestManager):
+    _, user_headers = await test_manager.start_user_session()
+
+    vote_data = {"billId": 9999, "voteChoiceId": YEA_VOTE_ID}
+    response = await test_manager.client.put("/users/votes", json=vote_data, headers=user_headers)
     assert_status_code(response, 500)
     assert "Database error" in response.json()["detail"]
 
 
-async def test_cast_vote_invalid_choice(client, test_user_session, test_bill):
-    _, headers = test_user_session
+async def test_cast_vote_invalid_choice(test_manager: TestManager):
+    _, user_headers = await test_manager.start_user_session()
+    test_bill = await test_manager.create_bill()
+
     vote_data = {"billId": test_bill["id"], "vote_choice": "MAYBE"}
-    response = await client.put("/users/votes", json=vote_data, headers=headers)
+    response = await test_manager.client.put("/users/votes", json=vote_data, headers=user_headers)
     assert_status_code(response, 422)
 
 
-async def test_get_votes_for_user(client, test_user_session, test_user_vote):
-    user, headers = test_user_session
-    response = await client.get("/users/votes", headers=headers)
+async def test_get_votes_for_user(test_manager: TestManager):
+    user, user_headers = await test_manager.start_user_session()
+    test_bill = await test_manager.create_bill()
+
+    # Create a vote
+    vote_data = {
+        "billId": test_bill["id"],
+        "voteChoiceId": YEA_VOTE_ID,
+    }
+    response = await test_manager.client.put("/users/votes", json=vote_data, headers=user_headers)
     assert_status_code(response, 200)
-    votes = response.json()
-    assert len(votes) > 0
-    assert votes[0]["userId"] == user["id"]
 
+    test_error = None
+    try:
+        # Get user's votes
+        response = await test_manager.client.get("/users/votes", headers=user_headers)
+        assert_status_code(response, 200)
+        votes = response.json()
+        assert len(votes) > 0
+        assert votes[0]["userId"] == user["id"]
+    except Exception as e:
+        test_error = str(e)
+        logging.error(f"Test failed with {test_error}, marking and cleaning up")
 
-async def test_get_votes_for_bill(client, system_headers, test_user_vote):
-    response = await client.get(
-        f"/users/admin/{test_user_vote['userId']}/votes/?bill_id={test_user_vote['billId']}",
-        headers=system_headers,
+    # Cleanup
+    response = await test_manager.client.delete(
+        f"/users/votes?billId={test_bill['id']}",
+        headers=user_headers,
     )
+    assert_status_code(response, 204)
+
+    if test_error:
+        raise Exception(test_error)
+
+
+async def test_get_votes_for_bill(test_manager: TestManager):
+    user, user_headers = await test_manager.start_user_session()
+    test_bill = await test_manager.create_bill()
+
+    # Create a vote
+    vote_data = {
+        "billId": test_bill["id"],
+        "voteChoiceId": YEA_VOTE_ID,
+    }
+    response = await test_manager.client.put("/users/votes", json=vote_data, headers=user_headers)
     assert_status_code(response, 200)
-    votes = response.json()
-    assert len(votes) > 0
-    assert votes[0]["billId"] == test_user_vote["billId"]
+    test_user_vote = response.json()
+
+    test_error = None
+    try:
+        # Get votes for bill
+        response = await test_manager.client.get(
+            f"/users/admin/{user['id']}/votes/?bill_id={test_bill['id']}",
+            headers=test_manager.headers,
+        )
+        assert_status_code(response, 200)
+        votes = response.json()
+        assert len(votes) > 0
+        assert votes[0]["billId"] == test_user_vote["billId"]
+    except Exception as e:
+        test_error = str(e)
+        logging.error(f"Test failed with {test_error}, marking and cleaning up")
+
+    # Cleanup
+    response = await test_manager.client.delete(
+        f"/users/votes?billId={test_bill['id']}",
+        headers=user_headers,
+    )
+    assert_status_code(response, 204)
+
+    if test_error:
+        raise Exception(test_error)
 
 
-async def test_get_votes_unauthorized(client):
-    response = await client.get("/users/votes")
+async def test_get_votes_unauthorized(test_manager: TestManager):
+    response = await test_manager.client.get("/users/votes")
     assert_status_code(response, 401)
 
 
-async def test_get_votes_for_other_user(client, test_user_session):
-    _, headers = test_user_session
-    response = await client.get("/users/admin/9999/votes", headers=headers)
+async def test_get_votes_for_other_user(test_manager: TestManager):
+    _, user_headers = await test_manager.start_user_session()
+    response = await test_manager.client.get("/users/admin/9999/votes", headers=user_headers)
     assert_status_code(response, 403)

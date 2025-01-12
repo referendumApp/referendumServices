@@ -213,6 +213,7 @@ class UserBase(BaseSchema):
 
 class UserCreate(UserBase):
     hashed_password: str
+    settings: Dict
 
 
 class UserReference(UserBase):
@@ -221,6 +222,7 @@ class UserReference(UserBase):
 
 class User(UserBase):
     id: int
+    settings: Dict = {}
     followed_bills: List[Bill.Record] = []
     followed_topics: List[Topic.Record] = []
     followed_legislators: List[Legislator.Record] = []
@@ -232,10 +234,10 @@ Comment = create_schema_container(
         "user_id": (int, ...),
         "bill_id": (int, ...),
         "parent_id": (Optional[int], None),
-        "comment": (str, ...),
+        "comment": (str, Field(..., min_length=1)),
     },
     record_fields={"id": (int, ...)},
-    relationship_fields={"likes": (List[UserReference], [])},
+    relationship_fields={"likes": (List[UserReference], []), "user": (UserBase, ...)},
 )
 
 

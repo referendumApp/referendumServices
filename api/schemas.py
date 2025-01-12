@@ -1,5 +1,5 @@
 from datetime import date
-from typing import List, Optional, TypeVar, Generic
+from typing import Dict, List, Optional, TypeVar, Generic
 from pydantic import model_serializer, Field, field_validator
 
 from common.database.referendum.schemas import CamelCaseBaseModel, UserBase
@@ -41,6 +41,21 @@ class TokenData(CamelCaseBaseModel):
 
 class UserCreateInput(UserBase):
     password: str
+    settings: Optional[Dict] = {}
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        if len(v) > 100:
+            raise ValueError("Password must not exceed 100 characters")
+        return v
+
+
+class UserUpdateInput(UserBase):
+    password: str
+    settings: Dict = {}
 
     @field_validator("password")
     @classmethod
@@ -173,8 +188,23 @@ class DenormalizedBill(CamelCaseBaseModel):
 
 
 class UserBillVotes(CamelCaseBaseModel):
-    yay: int
+    yea: int
     nay: int
-    yay_pct: float
+    yea_pct: float
     nay_pct: float
     total: int
+
+
+class CommentDetail(CamelCaseBaseModel):
+    id: int
+    bill_id: int
+    user_id: int
+    user_name: str
+    comment: str
+    parent_id: Optional[int] = None
+
+
+class LegislatorScorecard(CamelCaseBaseModel):
+    legislator_id: int
+    delinquency: float
+    bipartisanship: float

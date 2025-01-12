@@ -1,9 +1,12 @@
 import logging
 import json
 import os
+import gc
+import signal
+from contextlib import contextmanager
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
-from typing import List
+from typing import List, Dict
 
 from common.database.referendum import connection as referendum_connection
 from common.database.legiscan_api import connection as legiscan_api_connection
@@ -95,7 +98,25 @@ def run_etl():
         logger.error(f"ETL process failed with unexpected error: {str(e)}")
 
 
-def run_text_extraction():
+# TODO - move this to shared module
+class TimeoutException(Exception):
+    pass
+
+
+@contextmanager
+def timeout(seconds):
+    def handler(signum, frame):
+        raise TimeoutException("Timed out")
+
+    signal.signal(signal.SIGALRM, handler)
+    signal.alarm(seconds)
+    try:
+        yield
+    finally:
+        signal.alarm(0)
+
+
+def run_text_extraction(batch_size=20):
     storage_client = ObjectStorageClient()
     referendum_db = next(get_referendum_db())
     extractor = BillTextExtractor(
@@ -120,26 +141,57 @@ def run_text_extraction():
 
     succeeded = 0
     failed = 0
-    for url_hash, url in missing_text_hash_map.items():
-        try:
-            extractor.process_bill(url_hash, url)
-            succeeded += 1
-        except Exception as e:
-            logger.error(f"Failed to process bill text for url {url}: {str(e)}")
-            failed += 1
+    failed_urls: Dict[str, Dict] = {}
+    hash_map_items = list(missing_text_hash_map.items())
+    total_items = len(hash_map_items)
+    total_batches = (total_items + batch_size - 1) // batch_size
+    progress_interval = max(1, total_batches // 10)
+    logger.info(
+        f"Processing {total_items} missing bills across {total_batches} batches (batch_size={batch_size})"
+    )
+    for i in range(0, len(hash_map_items), batch_size):
+        batch = dict(hash_map_items[i : i + batch_size])
+        current_batch = i // batch_size + 1
+        logger.info(f"Processing batch {current_batch}/{total_batches}, size: {len(batch)}")
+        for url_hash, url in batch.items():
+            logger.info(f"Processing url for hash {url_hash}")
+            try:
+                with timeout(60):
+                    extractor.process_bill(url_hash, url)
+                    succeeded += 1
+            except TimeoutException:
+                logger.error(f"Timeout processing URL: {url}")
+                failed_urls[url_hash] = {"url": url, "error": "Timeout"}
+                failed += 1
+            except Exception as e:
+                failed_urls[url_hash] = {"url": url, "error": str(e)}
+                failed += 1
 
-    logger.info(f"Text extraction completed. " f"Succeeded: {succeeded}, " f"Failed: {failed}, ")
+        gc.collect()
+        if current_batch % progress_interval == 0:
+            logger.info(
+                f"Progress: {current_batch}/{total_batches} batches completed ({(current_batch / total_batches * 100):.1f}%)"
+            )
+
+    logger.info(
+        f"Text extraction completed. "
+        f"Total Succeeded: {succeeded}, "
+        f"Total Failed: {failed}, "
+        f"Failed PDFs: {failed_urls}"
+    )
     if failed > 0:
-        raise Exception(f"Succeeded: {succeeded}, " f"Failed: {failed}, ")
+        raise Exception(f"Text extraction had {failed} failures")
 
 
-def orchestrate():
+def orchestrate(stage: str = "all"):
     """Orchestrate the complete ETL and text extraction process."""
     try:
-        logger.info("ETL process starting")
-        run_etl()
-        logger.info("Text extraction starting")
-        run_text_extraction()
+        if stage in ["all", "etl"]:
+            logger.info("ETL process starting")
+            run_etl()
+        if stage in ["all", "text_processing"]:
+            logger.info("Text extraction starting")
+            run_text_extraction()
         logger.info("ETL orchestration completed")
     except Exception as e:
         logger.error(f"ETL orchestration failed: {str(e)}")

@@ -5,6 +5,7 @@ import sqlalchemy.exc
 from sqlalchemy import Column, Date, ForeignKey, Integer, String, Table, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Query, declarative_base, relationship
+from sqlalchemy.dialects.postgresql import JSONB
 
 logger = logging.getLogger(__name__)
 Base = declarative_base()
@@ -81,6 +82,7 @@ class User(Base):
     name = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
+    settings = Column(JSONB, nullable=False, default={})
 
     followed_topics = relationship("Topic", secondary=user_topic_follows)
     followed_bills = relationship("Bill", secondary=user_bill_follows)
@@ -159,6 +161,7 @@ class Bill(Base):
     legislative_body = relationship("LegislativeBody")
     topics = relationship("Topic", secondary=bill_topics)
     user_votes = relationship("UserVote", back_populates="bill")
+    comments = relationship("Comment")
     bill_versions = relationship("BillVersion", foreign_keys="BillVersion.bill_id")
     session = relationship("Session", back_populates="bills")
     sponsors = relationship("Sponsor", back_populates="bill")
@@ -269,6 +272,7 @@ class Comment(Base):
     comment = Column(String, nullable=False)
 
     likes = relationship("User", secondary=user_comment_likes, back_populates="liked_comments")
+    user = relationship("User")
 
 
 # Bill filtering beta logic
