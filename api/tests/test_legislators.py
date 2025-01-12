@@ -279,7 +279,6 @@ async def test_get_legislator_scores_with_votes(test_manager: TestManager):
     except Exception as e:
         test_error = str(e)
 
-    # Cleanup
     for vote_data in votes_data:
         await test_manager.client.delete(
             "/legislator_votes/",
@@ -327,28 +326,12 @@ async def test_get_legislator_scores_all_absent(test_manager: TestManager):
     except Exception as e:
         test_error = str(e)
 
-    # Cleanup
     await test_manager.client.delete(
         "/legislator_votes/",
         params={
             "bill_action_id": bill_action["id"],
             "legislator_id": test_legislator["id"],
         },
-        headers=test_manager.headers,
-    )
-
-    await test_manager.client.delete(
-        f"/bill_actions/{bill_action['id']}",
-        headers=test_manager.headers,
-    )
-
-    await test_manager.client.delete(
-        f"/bills/{bill['id']}",
-        headers=test_manager.headers,
-    )
-
-    await test_manager.client.delete(
-        f"/legislators/{test_legislator['id']}",
         headers=test_manager.headers,
     )
 
