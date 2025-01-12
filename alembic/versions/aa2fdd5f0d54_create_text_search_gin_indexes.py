@@ -24,18 +24,14 @@ def upgrade() -> None:
     op.execute(
         """
         CREATE INDEX ix_legislator_name_search ON legislators 
-        USING gin(to_tsvector('english', name))
+        USING gin(to_tsvector('english', name));
         """
     )
     op.execute(
-        """
-        CREATE INDEX ix_bill_identifier_title_search ON bills USING gin(
-        to_tsvector('english', 
-            COALESCE(identifier, '') || ' ' || 
-            COALESCE(title, '') || ' ' ||
-            COALESCE(description, '')
-        ))
-        """
+        "CREATE INDEX ix_bill_identifier_search ON bills USING gin(to_tsvector('simple', COALESCE(identifier, '')));"
+    )
+    op.execute(
+        "CREATE INDEX ix_bill_title_search ON bills USING gin(to_tsvector('english', COALESCE(title, '')));"
     )
 
 
@@ -49,4 +45,5 @@ def downgrade() -> None:
     )
 
     op.drop_index("ix_legislator_name_search", "legislators")
-    op.drop_index("ix_bill_identifier_title_search", "bills")
+    op.drop_index("ix_bill_identifier_search", "bills")
+    op.drop_index("ix_bill_title_search", "bills")

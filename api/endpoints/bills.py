@@ -3,7 +3,7 @@ from collections import Counter, defaultdict
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, joinedload, load_only
 
 from common.database.referendum import crud, models, schemas, utils
@@ -63,14 +63,21 @@ async def get_bill_details(
             if request_body.filter_options
             else None
         )
-        search_filter = (
-            utils.create_search_filter(
+
+        search_filter = None
+        if request_body.search_query:
+            id_filter = utils.create_search_filter(
                 search_query=request_body.search_query,
-                fields=[models.Bill.identifier, models.Bill.title, models.Bill.description],
+                search_config=utils.SearchConfig.SIMPLE,
+                fields=[models.Bill.identifier],
+                prefix=True,
             )
-            if request_body.search_query
-            else None
-        )
+            title_filter = utils.create_search_filter(
+                search_query=request_body.search_query,
+                search_config=utils.SearchConfig.ENGLISH,
+                fields=[models.Bill.title],
+            )
+            search_filter = or_(id_filter, title_filter)
 
         bills = crud.bill.read_all_denormalized(
             db=db,

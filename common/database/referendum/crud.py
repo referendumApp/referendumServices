@@ -191,7 +191,7 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
         skip: int = 0,
         limit: int = 100,
         column_filter: ColumnElement[bool] | None = None,
-        search_filter: BinaryExpression | None = None,
+        search_filter: BinaryExpression | ColumnElement[bool] | None = None,
         order_by: str | None = None,
     ) -> List[models.Bill]:
         query = db.query(models.Bill).options(

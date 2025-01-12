@@ -55,6 +55,7 @@ async def get_legislators(
         search_filter = (
             utils.create_search_filter(
                 search_query=request_body.search_query,
+                search_config=utils.SearchConfig.ENGLISH,
                 fields=[models.Legislator.name],
             )
             if request_body.search_query
