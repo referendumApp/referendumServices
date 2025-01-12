@@ -1,8 +1,12 @@
 import datetime
+import logging
 
-from sqlalchemy import Column, Date, ForeignKey, Integer, String, Table
-from sqlalchemy.orm import declarative_base, relationship
+import sqlalchemy.exc
+from sqlalchemy import Column, Date, ForeignKey, Integer, String, Table, event
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Query, declarative_base, relationship
 
+logger = logging.getLogger(__name__)
 Base = declarative_base()
 
 # Association tables
@@ -265,3 +269,66 @@ class Comment(Base):
     comment = Column(String, nullable=False)
 
     likes = relationship("User", secondary=user_comment_likes, back_populates="liked_comments")
+
+
+# Bill filtering beta logic
+import os
+from common.configurations.beta import BILL_SUBSET_IDS
+
+
+_bill_filtering_disabled = os.environ.get("DISABLE_BETA_BILL_SUBSET_FILTERING")
+
+
+@event.listens_for(Query, "before_compile", retval=True)
+def filter_bill_queries(query):
+    """Filter both direct bill queries and queries with bill_id foreign keys"""
+    if _bill_filtering_disabled:
+        return query
+
+    if not query.column_descriptions:
+        return query
+
+    if getattr(query, "_bill_filtered", False):
+        return query
+
+    try:
+        for desc in query.column_descriptions:
+            entity = desc.get("entity")
+
+            if entity is Bill:
+                query = query.filter(Bill.id.in_(BILL_SUBSET_IDS))
+                query._bill_filtered = True
+                return query
+
+            if entity and hasattr(entity, "bill_id"):
+                query = query.filter(entity.bill_id.in_(BILL_SUBSET_IDS))
+                query._bill_filtered = True
+                return query
+    except sqlalchemy.exc.InvalidRequestError:
+        logger.warning(
+            f"Cannot apply subset filter to offset/limited queries, proceeding with full query"
+        )
+
+    return query
+
+
+@event.listens_for(Engine, "before_execute", retval=True)
+def filter_bill_selects(conn, clauseelement, multiparams, params, execution_options):
+    """Filter bill-related select() statements"""
+    if _bill_filtering_disabled:
+        return clauseelement, multiparams, params
+
+    if hasattr(clauseelement, "_bill_filtered") and clauseelement._bill_filtered:
+        return clauseelement, multiparams, params
+
+    if hasattr(clauseelement, "froms"):
+        for table in clauseelement.froms:
+            if hasattr(table, "name"):
+                if table.name == "bills":
+                    clauseelement = clauseelement.where(table.c.id.in_(BILL_SUBSET_IDS))
+                    clauseelement._bill_filtered = True
+                elif hasattr(table.c, "bill_id"):
+                    clauseelement = clauseelement.where(table.c.bill_id.in_(BILL_SUBSET_IDS))
+                    clauseelement._bill_filtered = True
+
+    return clauseelement, multiparams, params
