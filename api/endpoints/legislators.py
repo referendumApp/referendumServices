@@ -127,35 +127,27 @@ async def get_legislator_scores(
         r = db.execute(
             text(
                 """
-                -- Calculates scores for a legislator:
-                -- 1. Delinquency: % of legislator's votes where legislator was absent
-                -- 2. Bipartisanship: % of legislator's votes where legislator voted with opposition party majority
-    
-                -- For all this legislator's votes, find the opposition party's majority position if there was one 
-                WITH opposition_majorities AS (
+                WITH legislator_party AS (
+                    SELECT party_id FROM legislators WHERE id = :legislator_id
+                ),
+                opposition_majorities AS (
                     SELECT 
-                        bill_action_id,
-                        vote_choice_id as majority_choice
-                    FROM legislator_votes lv
-                    JOIN legislators l ON l.id = lv.legislator_id 
-                    -- Get votes from the opposite party
-                    WHERE l.party_id != (SELECT party_id FROM legislators WHERE id = :legislator_id)
-                    -- Only consider clear yes(1)/no(2) votes, not abstentions or absences
-                    AND vote_choice_id IN (:yea_vote_id, :nay_vote_id)
-                    GROUP BY bill_action_id, vote_choice_id
-                    -- Only keep vote positions that had more support than opposition
-                    -- The subquery counts votes for the opposing position
-                    HAVING count(*) > (
-                        SELECT count(*) 
-                        FROM legislator_votes lv2
-                        JOIN legislators l2 ON l2.id = lv2.legislator_id
-                        WHERE lv2.bill_action_id = lv.bill_action_id 
-                        AND l2.party_id != (SELECT party_id FROM legislators WHERE id = :legislator_id)
-                        AND lv2.vote_choice_id IN (:yea_vote_id, :nay_vote_id)
-                        AND lv2.vote_choice_id != lv.vote_choice_id
+                        v1.bill_action_id,
+                        v1.vote_choice_id as majority_choice
+                    FROM vote_counts_by_party v1
+                    -- Get counts from opposition party
+                    WHERE v1.party_id != (SELECT party_id FROM legislator_party)
+                    AND v1.vote_choice_id IN (:yea_vote_id, :nay_vote_id)
+                    -- Only include votes where this choice had more support than opposition
+                    AND NOT EXISTS (
+                        SELECT 1 FROM vote_counts_by_party v2
+                        WHERE v2.bill_action_id = v1.bill_action_id
+                        AND v2.party_id = v1.party_id
+                        AND v2.vote_choice_id IN (:yea_vote_id, :nay_vote_id)
+                        AND v2.vote_choice_id != v1.vote_choice_id
+                        AND v2.vote_count >= v1.vote_count
                     )
                 )
-    
                 SELECT 
                     -- Delinquency Score: Absent votes (vote_choice_id=4) divided by total votes
                     COALESCE(
@@ -165,13 +157,13 @@ async def get_legislator_scores(
                     ) as delinquency,
     
                     -- Bipartisanship Score: Times voting with opposition majority / 
-                    -- Number of bills where opposition had a majority * 100
+                    -- Number of bills where opposition had a majority
                     COALESCE(
                         CAST(
                             COUNT(CASE WHEN lv.vote_choice_id = om.majority_choice THEN 1 END) AS FLOAT
                         ) / 
                         NULLIF(
-                            COUNT(CASE WHEN om.majority_choice IS NOT NULL THEN 1 END), 
+                            COUNT(CASE WHEN om.majority_choice IS NOT NULL THEN 1 END),
                             0
                         ),
                         0
