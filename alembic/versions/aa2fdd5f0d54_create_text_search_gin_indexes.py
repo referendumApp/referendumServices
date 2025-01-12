@@ -18,8 +18,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.drop_index("ix_legislators_name", "legislators")
-    op.drop_index("ix_legislator_name_district", "legislators")
+    op.drop_index("ix_legislators_name", table_name="legislators")
+    op.drop_index("ix_legislator_name_district", table_name="legislators")
 
     op.execute(
         """
