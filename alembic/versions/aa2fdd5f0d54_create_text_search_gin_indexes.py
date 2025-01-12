@@ -18,8 +18,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.drop_index("ix_legislators_name", table_name="legislators")
-    op.drop_index("ix_legislator_name_district", table_name="legislators")
+    # op.drop_index("ix_legislators_name", table_name="legislators")
+    # op.drop_index("ix_legislator_name_district", table_name="legislators")
 
     op.execute(
         """
@@ -36,13 +36,13 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.create_index(op.f("ix_legislators_name"), "legislators", ["name"], unique=False)
-    op.create_index(
-        op.f("ix_legislator_name_district"),
-        "legislators",
-        ["name", "district"],
-        unique=True,
-    )
+    # op.create_index(op.f("ix_legislators_name"), "legislators", ["name"], unique=False)
+    # op.create_index(
+    #     op.f("ix_legislator_name_district"),
+    #     "legislators",
+    #     ["name", "district"],
+    #     unique=True,
+    # )
 
     op.drop_index("ix_legislator_name_search", "legislators")
     op.drop_index("ix_bill_identifier_search", "bills")
