@@ -9,7 +9,7 @@ from passlib.context import CryptContext
 
 from common.database.referendum import models, crud, schemas
 
-from api.config import settings
+from api.settings import settings
 from api.database import get_db
 from api.schemas import FormErrorModel, UserCreateInput
 
