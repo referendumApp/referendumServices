@@ -2,6 +2,7 @@ import logging
 from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
 
 from pydantic import BaseModel
+from sqlalchemy import Column
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.sql.elements import BinaryExpression, ColumnElement
@@ -195,7 +196,7 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
         limit: int = 100,
         column_filter: ColumnElement[bool] | None = None,
         search_filter: BinaryExpression | ColumnElement[bool] | None = None,
-        order_by: List[str] | None = None,
+        order_by: List[Column] | None = None,
     ) -> List[models.Bill]:
         query = db.query(models.Bill).options(
             joinedload(models.Bill.state),

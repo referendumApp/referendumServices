@@ -58,14 +58,14 @@ async def get_bill_details(
     try:
         column_filter = (
             utils.create_column_filter(
-                model=models.Legislator,
+                model=models.Bill,
                 filter_options=request_body.filter_options,
             )
             if request_body.filter_options
             else None
         )
 
-        order_by = [request_body.order_by] if request_body.order_by else []
+        order_by = [getattr(models.Bill, request_body.order_by)] if request_body.order_by else []
         search_filter = None
         if request_body.search_query:
             id_filter = utils.create_search_filter(
@@ -80,7 +80,7 @@ async def get_bill_details(
                 fields=[models.Bill.title],
             )
             search_filter = or_(id_filter, title_filter)
-            order_by.insert(0, "id")
+            order_by.insert(0, models.Bill.id)
 
         bills = crud.bill.read_all_denormalized(
             db=db,

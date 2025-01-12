@@ -55,7 +55,9 @@ async def get_legislators(
             else None
         )
 
-        order_by = [request_body.order_by] if request_body.order_by else []
+        order_by = (
+            [getattr(models.Legislator, request_body.order_by)] if request_body.order_by else []
+        )
         search_filter = None
         if request_body.search_query:
             search_filter = utils.create_search_filter(
@@ -63,7 +65,7 @@ async def get_legislators(
                 search_config=utils.SearchConfig.ENGLISH,
                 fields=[models.Legislator.name],
             )
-            order_by.insert(0, "id")
+            order_by.insert(0, models.Legislator.id)
 
         legislators = crud.legislator.read_all(
             db=db,
