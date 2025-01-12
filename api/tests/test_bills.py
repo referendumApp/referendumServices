@@ -1,7 +1,8 @@
 import logging
 
 from api.tests.conftest import TestManager
-from api.tests.test_utils import DEFAULT_ID, assert_status_code, YAY_VOTE_ID
+from api.tests.test_utils import DEFAULT_ID, assert_status_code
+from api.constants import YEA_VOTE_ID
 
 
 async def test_add_bill_success(test_manager: TestManager):
@@ -225,7 +226,7 @@ async def test_bill_user_votes(client, system_headers, test_manager: TestManager
 
     vote_data = {
         "billId": test_bill["id"],
-        "voteChoiceId": YAY_VOTE_ID,
+        "voteChoiceId": YEA_VOTE_ID,
     }
     response = await client.put("/users/votes/", json=vote_data, headers=headers)
     test_error = None
@@ -235,7 +236,7 @@ async def test_bill_user_votes(client, system_headers, test_manager: TestManager
         response = await client.get(f"/bills/{test_bill['id']}/user_votes", headers=system_headers)
         assert_status_code(response, 200)
         bill_votes = response.json()
-        assert bill_votes["yay"] > 0
+        assert bill_votes["yea"] > 0
         assert bill_votes["nay"] == 0
     except Exception as e:
         test_error = str(e)
@@ -261,7 +262,7 @@ async def test_voting_history(client, system_headers, test_manager: TestManager)
             "billId": test_bill_action["billId"],
             "billActionId": test_bill_action["id"],
             "legislatorId": test_legislator["id"],
-            "voteChoiceId": YAY_VOTE_ID,
+            "voteChoiceId": YEA_VOTE_ID,
         },
         headers=system_headers,
     )
