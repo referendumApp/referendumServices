@@ -17,7 +17,7 @@ dependencies = [
     "fastapi[standard]",
     "langchain==0.3.14",
     "langchain-community==0.3.14",
-    "langchain-openai==0.2.14",
+    "langchain-openai==0.3.0",
     "openai==1.59.4",
     "pandas==2.2.3",
     "passlib==1.7.4",
