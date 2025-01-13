@@ -382,6 +382,11 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
         except SQLAlchemyError as e:
             raise DatabaseException(f"Database error: {str(e)}")
 
+    def update_user_password(self, db: Session, user_id: int, hashed_password: str):
+        db_user = self.read(db=db, obj_id=user_id)
+        db_user.hashed_password = hashed_password
+        db.commit()
+
     def soft_delete(self, db: Session, user_id: int) -> models.User:
         try:
             db_user = db.query(models.User).filter(models.User.id == user_id).first()

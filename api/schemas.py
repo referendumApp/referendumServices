@@ -64,6 +64,23 @@ class UserUpdateInput(UserBase):
         return v
 
 
+class PasswordResetInput(CamelCaseBaseModel):
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        if len(v) > 100:
+            raise ValueError("Password must not exceed 100 characters")
+        return v
+
+
+class UserPasswordResetInput(PasswordResetInput):
+    current_password: str
+
+
 class VoteCount(CamelCaseBaseModel):
     vote_choice_id: int
     count: int

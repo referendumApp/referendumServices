@@ -101,6 +101,58 @@ async def test_update_user_unauthorized(test_manager: TestManager):
         raise Exception(test_error)
 
 
+async def test_update_user_password(test_manager: TestManager):
+    user, user_headers = await test_manager.start_user_session()
+
+    update_data = {
+        "current_password": "testpassword",
+        "new_password": "newpassword",
+    }
+    response = await test_manager.client.patch(
+        "/users/password_reset", json=update_data, headers=user_headers
+    )
+    assert_status_code(response, 204)
+
+    login_data = {"username": user["email"], "password": "newpassword"}
+    response = await test_manager.client.post("/auth/login", data=login_data)
+    assert_status_code(response, 200)
+
+    old_login_data = {"username": user["email"], "password": "testpassword"}
+    response = await test_manager.client.post("/auth/login", data=old_login_data)
+    assert_status_code(response, 401)
+
+
+async def test_admin_update_user_password(test_manager: TestManager):
+    user_data = {
+        "email": "updateuserpassword@example.com",
+        "password": "testpassword",
+        "name": "Update User Password",
+    }
+    create_response = await test_manager.client.post(
+        "/users/", json=user_data, headers=test_manager.headers
+    )
+    assert_status_code(create_response, 201)
+    created_user = create_response.json()
+
+    update_data = {
+        "new_password": "newpassword",
+    }
+    response = await test_manager.client.patch(
+        f"/users/admin/{created_user['id']}/password_reset",
+        json=update_data,
+        headers=test_manager.headers,
+    )
+    assert_status_code(response, 204)
+
+    login_data = {"username": created_user["email"], "password": "newpassword"}
+    response = await test_manager.client.post("/auth/login", data=login_data)
+    assert_status_code(response, 200)
+
+    old_login_data = {"username": created_user["email"], "password": "testpassword"}
+    response = await test_manager.client.post("/auth/login", data=old_login_data)
+    assert_status_code(response, 401)
+
+
 async def test_admin_delete_user(test_manager: TestManager):
     user_data = {
         "email": "deleteuser@example.com",
