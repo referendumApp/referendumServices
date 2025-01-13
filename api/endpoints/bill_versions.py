@@ -1,17 +1,21 @@
-from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from typing import Dict, Any
 import logging
+import os
+from datetime import datetime
+from typing import Any, Dict
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from common.chat.bill import BillChatSessionManager
 from common.chat.service import LLMService, OpenAIException
 from common.database.referendum import crud, schemas
 from common.object_storage.client import ObjectStorageClient
-from ..settings import settings
+
 from ..database import get_db
 from ..schemas import ErrorResponse
 from ..security import CredentialsException, get_current_user_or_verify_system_token
+from ..settings import settings
 from .endpoint_generator import EndpointGenerator
 
 logger = logging.getLogger(__name__)
