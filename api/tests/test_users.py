@@ -206,7 +206,8 @@ async def test_delete_user(test_manager: TestManager):
         response = await test_manager.client.get(
             f"/users/admin/{created_user['id']}", headers=test_manager.headers
         )
-        assert_status_code(response, 404)
+        assert_status_code(response, 200)
+        assert response.json()["settings"]["deleted"]
     except Exception as e:
         test_error = str(e)
         logging.error(f"Test failed with {test_error}")

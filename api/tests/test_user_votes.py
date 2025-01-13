@@ -1,5 +1,6 @@
 from api.tests.conftest import TestManager
-from api.tests.test_utils import assert_status_code, YAY_VOTE_ID, NAY_VOTE_ID
+from api.tests.test_utils import assert_status_code
+from api.constants import NAY_VOTE_ID, YEA_VOTE_ID
 import logging
 
 
@@ -9,7 +10,7 @@ async def test_cast_vote_success(test_manager: TestManager):
 
     vote_data = {
         "billId": test_bill["id"],
-        "voteChoiceId": YAY_VOTE_ID,
+        "voteChoiceId": YEA_VOTE_ID,
     }
     response = await test_manager.client.put("/users/votes", json=vote_data, headers=user_headers)
     test_error = None
@@ -39,7 +40,7 @@ async def test_cast_vote_update(test_manager: TestManager):
     # Create initial vote
     vote_data = {
         "billId": test_bill["id"],
-        "voteChoiceId": YAY_VOTE_ID,
+        "voteChoiceId": YEA_VOTE_ID,
     }
     response = await test_manager.client.put("/users/votes", json=vote_data, headers=user_headers)
     assert_status_code(response, 200)
@@ -81,7 +82,7 @@ async def test_cast_vote_update(test_manager: TestManager):
 async def test_cast_vote_unauthorized(test_manager: TestManager):
     test_bill = await test_manager.create_bill()
 
-    vote_data = {"billId": test_bill["id"], "voteChoiceId": YAY_VOTE_ID}
+    vote_data = {"billId": test_bill["id"], "voteChoiceId": YEA_VOTE_ID}
     response = await test_manager.client.put("/users/votes", json=vote_data)
     assert_status_code(response, 401)
 
@@ -89,7 +90,7 @@ async def test_cast_vote_unauthorized(test_manager: TestManager):
 async def test_cast_vote_invalid_bill(test_manager: TestManager):
     _, user_headers = await test_manager.start_user_session()
 
-    vote_data = {"billId": 9999, "voteChoiceId": YAY_VOTE_ID}
+    vote_data = {"billId": 9999, "voteChoiceId": YEA_VOTE_ID}
     response = await test_manager.client.put("/users/votes", json=vote_data, headers=user_headers)
     assert_status_code(response, 500)
     assert "Database error" in response.json()["detail"]
@@ -111,7 +112,7 @@ async def test_get_votes_for_user(test_manager: TestManager):
     # Create a vote
     vote_data = {
         "billId": test_bill["id"],
-        "voteChoiceId": YAY_VOTE_ID,
+        "voteChoiceId": YEA_VOTE_ID,
     }
     response = await test_manager.client.put("/users/votes", json=vote_data, headers=user_headers)
     assert_status_code(response, 200)
@@ -146,7 +147,7 @@ async def test_get_votes_for_bill(test_manager: TestManager):
     # Create a vote
     vote_data = {
         "billId": test_bill["id"],
-        "voteChoiceId": YAY_VOTE_ID,
+        "voteChoiceId": YEA_VOTE_ID,
     }
     response = await test_manager.client.put("/users/votes", json=vote_data, headers=user_headers)
     assert_status_code(response, 200)

@@ -112,14 +112,12 @@ class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         if db_obj is None:
             raise ObjectNotFoundException("Object not found")
         try:
-            obj_data = obj_in.model_dump(exclude_unset=True)
             if isinstance(obj_in, dict):
                 update_data = obj_in
             else:
                 update_data = obj_in.model_dump(exclude_unset=True)
-            for field in obj_data:
-                if field in update_data:
-                    setattr(db_obj, field, update_data[field])
+            for field in update_data:
+                setattr(db_obj, field, update_data[field])
             db.add(db_obj)
             db.commit()
             db.refresh(db_obj)
@@ -143,16 +141,23 @@ class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
     def get_bill_user_votes(self, db: Session, bill_id: int) -> Dict[str, Union[int, float]]:
         db_bill = self.read(db=db, obj_id=bill_id)
-        yay = sum(1 for vote in db_bill.user_votes if vote.vote_choice_id == 1)
+        yea = sum(1 for vote in db_bill.user_votes if vote.vote_choice_id == 1)
         nay = sum(1 for vote in db_bill.user_votes if vote.vote_choice_id == 2)
         total = len(db_bill.user_votes)
+        # TODO - remove yay when FE has switched
         return {
-            "yay": yay,
+            "yea": yea,
             "nay": nay,
-            "yay_pct": round(yay / total, 3),
+            "yay_pct": round(yea / total, 3),
+            "yea_pct": round(yea / total, 3),
             "nay_pct": round(nay / total, 3),
             "total": total,
         }
+
+    def get_bill_comments(self, db: Session, bill_id: int) -> List[schemas.Comment.Record]:
+        db_bill = self.read(db=db, obj_id=bill_id)
+
+        return db_bill.comments
 
     def read_all_denormalized(
         self, db: Session, skip: int | None, limit: int | None
@@ -381,6 +386,21 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
         db_user = self.read(db=db, obj_id=user_id)
         db_user.hashed_password = hashed_password
         db.commit()
+
+    def soft_delete(self, db: Session, user_id: int) -> models.User:
+        try:
+            db_user = db.query(models.User).filter(models.User.id == user_id).first()
+            if db_user is None:
+                raise ObjectNotFoundException(f"User {user_id} not found")
+            db_user.settings = {"deleted": True}
+            db.add(db_user)
+            db.commit()
+            db.refresh(db_user)
+
+            return db_user
+
+        except SQLAlchemyError as e:
+            raise DatabaseException(f"Database error: {str(e)}")
 
     def follow_topic(self, db: Session, user_id: int, topic_id: int):
         db_user = self.read(db=db, obj_id=user_id)

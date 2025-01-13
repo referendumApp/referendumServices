@@ -1,5 +1,6 @@
 from api.tests.conftest import TestManager
-from api.tests.test_utils import DEFAULT_ID, assert_status_code, YAY_VOTE_ID
+from api.tests.test_utils import DEFAULT_ID, assert_status_code
+from api.constants import NAY_VOTE_ID, YEA_VOTE_ID, ABSENT_VOTE_ID
 
 
 async def test_add_legislator_success(test_manager: TestManager):
@@ -137,7 +138,7 @@ async def test_get_legislator_voting_history(test_manager: TestManager):
             "billId": test_bill_action["billId"],
             "billActionId": test_bill_action["id"],
             "legislatorId": test_legislator["id"],
-            "voteChoiceId": YAY_VOTE_ID,
+            "voteChoiceId": YEA_VOTE_ID,
         },
         headers=test_manager.headers,
     )
@@ -189,6 +190,150 @@ async def test_get_legislator_voting_history(test_manager: TestManager):
         headers=test_manager.headers,
     )
     assert_status_code(response, 204)
+
+    if test_error:
+        raise Exception(test_error)
+
+
+async def test_get_legislator_scores_empty(test_manager: TestManager):
+    """Test scores for a legislator with no votes."""
+    test_legislator = await test_manager.create_legislator()
+
+    try:
+        response = await test_manager.client.get(
+            f"/legislators/{test_legislator['id']}/scorecard", headers=test_manager.headers
+        )
+        assert_status_code(response, 200)
+        scores = response.json()
+        assert scores["delinquency"] == 0
+        assert scores["bipartisanship"] == 0
+    finally:
+        # Cleanup
+        await test_manager.client.delete(
+            f"/legislators/{test_legislator['id']}",
+            headers=test_manager.headers,
+        )
+
+
+async def test_get_legislator_scores_with_votes(test_manager: TestManager):
+    """Test scores for a legislator with a mix of votes."""
+    # Setup
+    party_dem = await test_manager.create_party(name="Democratic")
+    party_rep = await test_manager.create_party(name="Republican")
+    test_legislator = await test_manager.create_legislator(party_id=party_dem["id"])
+    opposing_legislator = await test_manager.create_legislator(party_id=party_rep["id"])
+
+    bill1 = await test_manager.create_bill()
+    bill1_action = await test_manager.create_bill_action(bill_id=bill1["id"])
+    bill2 = await test_manager.create_bill()
+    bill2_action = await test_manager.create_bill_action(bill_id=bill2["id"])
+
+    votes_data = [
+        # Bill 1 votes
+        {
+            "billId": bill1["id"],
+            "billActionId": bill1_action["id"],
+            "legislatorId": test_legislator["id"],
+            "voteChoiceId": YEA_VOTE_ID,
+        },
+        {
+            "billId": bill1["id"],
+            "billActionId": bill1_action["id"],
+            "legislatorId": opposing_legislator["id"],
+            "voteChoiceId": NAY_VOTE_ID,
+        },
+        # Bill 2 votes
+        {
+            "billId": bill2["id"],
+            "billActionId": bill2_action["id"],
+            "legislatorId": test_legislator["id"],
+            "voteChoiceId": YEA_VOTE_ID,
+        },
+        {
+            "billId": bill2["id"],
+            "billActionId": bill2_action["id"],
+            "legislatorId": opposing_legislator["id"],
+            "voteChoiceId": YEA_VOTE_ID,
+        },
+    ]
+
+    test_error = None
+    try:
+        for vote_data in votes_data:
+            response = await test_manager.client.put(
+                "/legislator_votes/",
+                json=vote_data,
+                headers=test_manager.headers,
+            )
+            assert_status_code(response, 200)
+
+        response = await test_manager.client.get(
+            f"/legislators/{test_legislator['id']}/scorecard", headers=test_manager.headers
+        )
+        assert_status_code(response, 200)
+        scores = response.json()
+
+        assert scores["delinquency"] == 0
+        assert scores["bipartisanship"] == 0.5
+
+    except Exception as e:
+        test_error = str(e)
+
+    for vote_data in votes_data:
+        await test_manager.client.delete(
+            "/legislator_votes/",
+            params={
+                "bill_action_id": vote_data["billActionId"],
+                "legislator_id": vote_data["legislatorId"],
+            },
+            headers=test_manager.headers,
+        )
+
+    if test_error:
+        raise Exception(test_error)
+
+
+async def test_get_legislator_scores_all_absent(test_manager: TestManager):
+    """Test scores for a legislator who is absent for all votes."""
+    # Setup
+    test_legislator = await test_manager.create_legislator()
+    bill = await test_manager.create_bill()
+    bill_action = await test_manager.create_bill_action(bill_id=bill["id"])
+
+    test_error = None
+    try:
+        response = await test_manager.client.put(
+            "/legislator_votes/",
+            json={
+                "billId": bill["id"],
+                "billActionId": bill_action["id"],
+                "legislatorId": test_legislator["id"],
+                "voteChoiceId": ABSENT_VOTE_ID,
+            },
+            headers=test_manager.headers,
+        )
+        assert_status_code(response, 200)
+
+        response = await test_manager.client.get(
+            f"/legislators/{test_legislator['id']}/scorecard", headers=test_manager.headers
+        )
+        assert_status_code(response, 200)
+        scores = response.json()
+
+        assert scores["delinquency"] == 1
+        assert scores["bipartisanship"] == 0
+
+    except Exception as e:
+        test_error = str(e)
+
+    await test_manager.client.delete(
+        "/legislator_votes/",
+        params={
+            "bill_action_id": bill_action["id"],
+            "legislator_id": test_legislator["id"],
+        },
+        headers=test_manager.headers,
+    )
 
     if test_error:
         raise Exception(test_error)

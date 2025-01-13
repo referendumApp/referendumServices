@@ -17,6 +17,7 @@ from ..schemas import (
     PasswordResetInput,
     UserPasswordResetInput,
     ErrorResponse,
+    CommentDetail,
 )
 from ..security import (
     get_current_user,
@@ -271,6 +272,7 @@ async def admin_delete_user(
 ) -> None:
     logger.info(f"Attempting to delete user with ID: {user_id}")
     try:
+        # TODO - make this a cascading delete of all their related records
         crud.user.delete(db=db, obj_id=user_id)
         logger.info(f"Successfully deleted user with ID: {user_id}")
         return
@@ -302,7 +304,7 @@ async def delete_user(
 ) -> None:
     logger.info(f"Attempting to delete user with ID: {user.id}")
     try:
-        crud.user.delete(db=db, obj_id=user.id)
+        crud.user.soft_delete(db=db, user_id=user.id)
         logger.info(f"Successfully deleted user with ID: {user.id}")
         return
     except ObjectNotFoundException:
@@ -674,4 +676,64 @@ def unfollow_topic(
         raise HTTPException(status_code=404, detail=f"Error unfollowing: {str(e)}")
     except DatabaseException as e:
         logger.error(f"Database error while unfollowing topic: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@router.get(
+    "/feed",
+    response_model=List[CommentDetail],
+    summary="Gets feed items for user",
+    responses={
+        200: {
+            "model": List[CommentDetail],
+            "description": "User feed retrieved successfully",
+        },
+        401: {"model": ErrorResponse, "description": "Unauthorized"},
+        404: {"model": ErrorResponse, "description": "Not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def get_user_feed(
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user),
+) -> List[CommentDetail]:
+    feed_items = [
+        CommentDetail(
+            id=-1,
+            user_id=-1,
+            user_name="Referendum",
+            bill_id=-1,
+            comment="""Welcome to Referendum and thank you for participating in our beta!
+
+Events that may interest you will appear here in your Feed: comments on bills, votes on bills or by legislators you follow, and other newsworthy notifications.
+
+The Catalog tab includes all bills and legislators from the 118th congress.
+You can follow those that interest you and deep dive into the text itself, votes, sponsors, and history here.
+
+If you have any questions, concerns, or run into any issues, please email us at contact@referendumapp.com.
+iOS users on TestFlight can also submit feedback to us by taking a screenshot.
+
+We're glad to have you join the conversation!
+""",
+        )
+    ]
+    try:
+        # TODO - restrict this to relevant comments
+        all_comments = crud.comment.read_all(db=db)
+        feed_items.extend(
+            [
+                CommentDetail(
+                    id=comment.id,
+                    parent_id=comment.parent_id,
+                    bill_id=comment.bill_id,
+                    user_id=comment.user_id,
+                    comment=comment.comment,
+                    user_name=comment.user.name,
+                )
+                for comment in all_comments
+            ]
+        )
+
+        return feed_items
+    except DatabaseException as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
