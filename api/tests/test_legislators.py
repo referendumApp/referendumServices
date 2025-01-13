@@ -1,8 +1,8 @@
 import pytest
 
+from api.constants import ABSENT_VOTE_ID, NAY_VOTE_ID, YEA_VOTE_ID
 from api.tests.conftest import TestManager
 from api.tests.test_utils import DEFAULT_ID, assert_status_code
-from api.constants import NAY_VOTE_ID, YEA_VOTE_ID, ABSENT_VOTE_ID
 
 
 async def test_add_legislator_success(test_manager: TestManager):
@@ -57,6 +57,15 @@ async def test_list_legislators_filter(
     assert len(legislators["items"]) == expected_length
     for legislator in legislators["items"]:
         assert legislator["name"] in expected_names
+
+
+async def test_invalid_list_legislators_filter(test_manager: TestManager):
+    response = await test_manager.client.post(
+        "/legislators/details",
+        headers=test_manager.headers,
+        json={"filter_options": {"status_id": [1]}},
+    )
+    assert_status_code(response, 500)
 
 
 async def test_list_legislators_sort(test_manager: TestManager):
