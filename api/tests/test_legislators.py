@@ -201,7 +201,7 @@ async def test_get_legislator_scores_empty(test_manager: TestManager):
 
     try:
         response = await test_manager.client.get(
-            f"/legislators/{test_legislator['id']}/scores", headers=test_manager.headers
+            f"/legislators/{test_legislator['id']}/scorecard", headers=test_manager.headers
         )
         assert_status_code(response, 200)
         scores = response.json()
@@ -268,7 +268,7 @@ async def test_get_legislator_scores_with_votes(test_manager: TestManager):
             assert_status_code(response, 200)
 
         response = await test_manager.client.get(
-            f"/legislators/{test_legislator['id']}/scores", headers=test_manager.headers
+            f"/legislators/{test_legislator['id']}/scorecard", headers=test_manager.headers
         )
         assert_status_code(response, 200)
         scores = response.json()
@@ -315,7 +315,7 @@ async def test_get_legislator_scores_all_absent(test_manager: TestManager):
         assert_status_code(response, 200)
 
         response = await test_manager.client.get(
-            f"/legislators/{test_legislator['id']}/scores", headers=test_manager.headers
+            f"/legislators/{test_legislator['id']}/scorecard", headers=test_manager.headers
         )
         assert_status_code(response, 200)
         scores = response.json()
