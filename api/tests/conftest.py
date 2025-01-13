@@ -150,17 +150,20 @@ class TestManager:
         *,
         name: Optional[str] = None,
         state_id: Optional[int] = None,
+        state_name: Optional[str] = None,
         role_id: Optional[int] = None,
+        role_name: Optional[str] = None,
         party_id: Optional[int] = None,
+        party_name: Optional[str] = None,
     ) -> Dict:
         """Create a legislator with all dependencies."""
-        state = await self.create_state(id=state_id)
+        state = await self.create_state(id=state_id, name=state_name)
         state_id = state["id"]
 
-        role = await self.create_role(id=role_id)
+        role = await self.create_role(id=role_id, name=role_name)
         role_id = role["id"]
 
-        party = await self.create_party(id=party_id)
+        party = await self.create_party(id=party_id, name=party_name)
         party_id = party["id"]
 
         return await self.create_resource(
@@ -183,22 +186,25 @@ class TestManager:
         identifier: Optional[str] = None,
         title: Optional[str] = None,
         state_id: Optional[int] = None,
+        state_name: Optional[str] = None,
         legislative_body_id: Optional[int] = None,
         role_id: Optional[int] = None,
+        role_name: Optional[str] = None,
         session_id: Optional[int] = None,
         status_id: Optional[int] = None,
+        status_name: Optional[str] = None,
     ) -> Dict:
         """Create a bill with all dependencies."""
-        state = await self.create_state(id=state_id)
+        state = await self.create_state(id=state_id, name=state_name)
         state_id = state["id"]
 
-        role = await self.create_role(id=role_id)
+        role = await self.create_role(id=role_id, name=role_name)
         role_id = role["id"]
 
         session = await self.create_session(state_id=state_id)
         session_id = session["id"]
 
-        status = await self.create_status()
+        status = await self.create_status(id=status_id, name=status_name)
         status_id = status["id"]
 
         leg_body = await self.create_legislative_body(state_id=state_id, role_id=role_id)

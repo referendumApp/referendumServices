@@ -20,8 +20,8 @@ async def test_list_legislators(test_manager: TestManager):
     )
     assert_status_code(response, 200)
     legislators = response.json()
-    assert len(legislators.hasMore) == False
-    assert len(legislators.items) > 0
+    assert legislators["hasMore"] == False
+    assert len(legislators["items"]) > 0
 
 
 @pytest.mark.parametrize(
@@ -69,7 +69,7 @@ async def test_invalid_list_legislators_filter(test_manager: TestManager):
         headers=test_manager.headers,
         json={"filter_options": {"status_id": [1]}},
     )
-    assert_status_code(response, 500)
+    assert_status_code(response, 400)
 
 
 async def test_list_legislators_sort(test_manager: TestManager):
@@ -293,10 +293,8 @@ async def test_get_legislator_scores_empty(test_manager: TestManager):
 async def test_get_legislator_scores_with_votes(test_manager: TestManager):
     """Test scores for a legislator with a mix of votes."""
     # Setup
-    party_dem = await test_manager.create_party(name="Democratic")
-    party_rep = await test_manager.create_party(name="Republican")
-    test_legislator = await test_manager.create_legislator(party_id=party_dem["id"])
-    opposing_legislator = await test_manager.create_legislator(party_id=party_rep["id"])
+    test_legislator = await test_manager.create_legislator(party_name="Democratic")
+    opposing_legislator = await test_manager.create_legislator(party_name="Republican")
 
     bill1 = await test_manager.create_bill()
     bill1_action = await test_manager.create_bill_action(bill_id=bill1["id"])

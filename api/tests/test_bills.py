@@ -19,17 +19,16 @@ async def test_list_bill_details(client, system_headers, test_manager: TestManag
     response = await client.post(
         f"/bills/{test_bill_version['billId']}/sponsors/{test_legislator['id']}",
         headers=system_headers,
-        json={},
     )
     assert_status_code(response, 204)
 
     test_error = None
     try:
-        response = await client.post("/bills/details", headers=system_headers)
+        response = await client.post("/bills/details", headers=system_headers, json={})
         assert_status_code(response, 200)
         bill_data = response.json()
-        assert len(bill_data.hasMore) == False
-        assert len(bill_data.items) == 1
+        assert bill_data["hasMore"] == False
+        assert len(bill_data["items"]) == 1
         bill = bill_data.items[0]
 
         expected_fields = [
@@ -123,7 +122,7 @@ async def test_invalid_list_bills_filter(test_manager: TestManager):
         headers=test_manager.headers,
         json={"filter_options": {"party_id": [1]}},
     )
-    assert_status_code(response, 500)
+    assert_status_code(response, 400)
 
 
 async def test_list_bill_details_sort(test_manager: TestManager):

@@ -150,8 +150,16 @@ async def get_bill_details(
             }
             result.append(bill_dict)
         return {"has_more": has_more, "items": result}
+    except AttributeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid filter option: {e}",
+        )
     except DatabaseException as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(e)}",
+        )
 
 
 @router.get(
