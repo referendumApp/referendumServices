@@ -38,7 +38,7 @@ jobs:
 
     - name: Clean up after API tests
       if: always()
-      run: docker compose --profile test down --volumes --remove-orphans
+      run: docker compose --profile test down
 
     - name: Run Pipeline Tests
       run: |
@@ -47,4 +47,4 @@ jobs:
 
     - name: Final cleanup
       if: always()
-      run: docker compose --profile test down --volumes --remove-orphans
+      run: docker compose --profile test down
