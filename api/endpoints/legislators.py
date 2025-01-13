@@ -177,19 +177,19 @@ async def get_legislator_voting_history(
 
 
 @router.get(
-    "/{legislator_id}/scores",
+    "/{legislator_id}/scorecard",
     response_model=LegislatorScorecard,
-    summary="Get legislator scores",
+    summary="Get legislator scorecard",
     responses={
         200: {
             "model": LegislatorScorecard,
-            "description": "Legislator scores successfully retrieved",
+            "description": "Legislator scorecard successfully retrieved",
         },
         401: {"model": ErrorResponse, "description": "Not authorized"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
-async def get_legislator_scores(
+async def get_legislator_scorecard(
     legislator_id: int,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
