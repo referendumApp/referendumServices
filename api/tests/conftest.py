@@ -42,6 +42,8 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
 
 @dataclass
 class TestManager:
+    __test__ = False
+
     client: AsyncClient
     headers: Dict[str, str]
     resources_to_cleanup: List[tuple] = field(default_factory=list)
@@ -204,8 +206,9 @@ class TestManager:
         session = await self.create_session(state_id=state_id)
         session_id = session["id"]
 
-        status = await self.create_status(id=status_id, name=status_name)
-        status_id = status["id"]
+        if status_id is None:
+            status = await self.create_status()
+            status_id = status["id"]
 
         leg_body = await self.create_legislative_body(state_id=state_id, role_id=role_id)
         legislative_body_id = leg_body["id"]

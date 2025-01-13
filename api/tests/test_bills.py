@@ -29,7 +29,7 @@ async def test_list_bill_details(client, system_headers, test_manager: TestManag
         bill_data = response.json()
         assert bill_data["hasMore"] == False
         assert len(bill_data["items"]) == 1
-        bill = bill_data.items[0]
+        bill = bill_data["items"][0]
 
         expected_fields = [
             "billId",
