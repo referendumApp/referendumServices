@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from typing import Dict, Any
 import logging
 
+from common.chat.bill import BillChatSessionManager
+from common.chat.service import LLMService, OpenAIException
 from common.database.referendum import crud, schemas
 from common.object_storage.client import ObjectStorageClient
 from ..settings import settings
@@ -14,6 +16,10 @@ from .endpoint_generator import EndpointGenerator
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+session_manager = BillChatSessionManager(
+    max_bill_length=settings.MAX_BILL_LENGTH_WORDS,
+    session_timeout_seconds=settings.CHAT_SESSION_TIMEOUT_SECONDS,
+)
 
 EndpointGenerator.add_crud_routes(
     router=router,
