@@ -1,10 +1,9 @@
-from typing import List, Type
+from typing import Dict, List, Type
 from enum import Enum
 
 from sqlalchemy import Column, and_, func
 from sqlalchemy.sql.elements import BinaryExpression, ColumnElement
 
-from api.schemas import FilterOptions
 from common.database.referendum.crud import ModelType
 
 
@@ -15,11 +14,9 @@ class SearchConfig(str, Enum):
 
 def create_column_filter(
     model: Type[ModelType],
-    filter_options: FilterOptions,
+    filter_options: Dict[str, List],
 ) -> ColumnElement[bool]:
-    return and_(
-        *(getattr(model, field).in_(value) for field, value in filter_options.model_dump().items())
-    )
+    return and_(*(getattr(model, field).in_(value) for field, value in filter_options.items()))
 
 
 def create_search_filter(

@@ -3,7 +3,7 @@ from collections import Counter, defaultdict
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, joinedload, load_only
 
 from common.database.referendum import crud, models, schemas, utils
@@ -11,6 +11,7 @@ from common.database.referendum.crud import DatabaseException, ObjectNotFoundExc
 
 from ..database import get_db
 from ..schemas import (
+    BillPaginationRequestBody,
     BillVotingHistory,
     CommentDetail,
     DenormalizedBill,
@@ -18,7 +19,6 @@ from ..schemas import (
     LegislatorVote,
     LegislatorVoteDetail,
     PaginatedResponse,
-    PaginationParams,
     UserBillVotes,
     VoteCountByChoice,
     VoteCountByParty,
@@ -36,7 +36,16 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-# Note that this must be defined before adding crud routes to avoid conflicts with the GET /id endpoint
+EndpointGenerator.add_crud_routes(
+    router=router,
+    crud_model=crud.bill,
+    create_schema=schemas.Bill.Base,
+    update_schema=schemas.Bill.Record,
+    response_schema=schemas.Bill.Full,
+    resource_name="bill",
+)
+
+
 @router.post(
     "/details",
     response_model=PaginatedResponse[DenormalizedBill],
@@ -51,19 +60,31 @@ router = APIRouter()
     },
 )
 async def get_bill_details(
-    request_body: PaginationParams,
+    request_body: BillPaginationRequestBody,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ):
     try:
-        column_filter = (
-            utils.create_column_filter(
-                model=models.Bill,
-                filter_options=request_body.filter_options,
-            )
-            if request_body.filter_options
-            else None
-        )
+        if column_filter := request_body.filter_options:
+            # We need this until we flatten out 'role_id' in the bills table
+            clauses = []
+            filter_options = request_body.filter_options.model_dump()
+            role_id = filter_options.pop("role_id", None)
+
+            if role_id is not None:
+                role_filter = models.Bill.legislative_body.has(
+                    models.LegislativeBody.role_id.in_(role_id)
+                )
+                clauses.append(role_filter)
+
+            if filter_options:
+                non_role_filter = utils.create_column_filter(
+                    model=models.Bill,
+                    filter_options=filter_options,
+                )
+                clauses.append(non_role_filter)
+
+            column_filter = and_(*clauses)
 
         order_by = [getattr(models.Bill, request_body.order_by)] if request_body.order_by else []
         search_filter = None
@@ -80,7 +101,7 @@ async def get_bill_details(
                 fields=[models.Bill.title],
             )
             search_filter = or_(id_filter, title_filter)
-            order_by.insert(0, models.Bill.id)
+            order_by.append(models.Bill.id)
 
         bills = crud.bill.read_all_denormalized(
             db=db,
@@ -188,16 +209,6 @@ async def get_bill_detail(
         return result
     except DatabaseException as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-
-
-EndpointGenerator.add_crud_routes(
-    router=router,
-    crud_model=crud.bill,
-    create_schema=schemas.Bill.Base,
-    update_schema=schemas.Bill.Record,
-    response_schema=schemas.Bill.Full,
-    resource_name="bill",
-)
 
 
 @router.get(

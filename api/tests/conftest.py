@@ -1,19 +1,17 @@
 import os
 import random
 from dataclasses import dataclass, field
-from typing import AsyncGenerator, Dict, Tuple, Optional, List
+from typing import AsyncGenerator, Dict, List, Optional, Tuple
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-from api.settings import settings
+from api.constants import ABSENT_VOTE_ID, NAY_VOTE_ID, YEA_VOTE_ID
 from api.main import app
 from api.security import create_access_token
-from api.tests.test_utils import (
-    generate_random_string,
-)
-from api.constants import NAY_VOTE_ID, YEA_VOTE_ID, ABSENT_VOTE_ID
+from api.settings import settings
+from api.tests.test_utils import generate_random_string
 from common.object_storage.client import ObjectStorageClient
 
 ENV = os.environ.get("ENVIRONMENT")
@@ -78,10 +76,10 @@ class TestManager:
             self.resources_to_cleanup.append((endpoint.strip("/"), resource["id"]))
         return resource
 
-    async def create_state(self, name: Optional[str] = None) -> Dict:
+    async def create_state(self, id: Optional[int] = None, name: Optional[str] = None) -> Dict:
         """Create a state with optional custom name."""
         return await self.create_resource(
-            "/states/", {"name": name or f"State_{generate_random_string()}"}
+            "/states/", {"id": id, "name": name or f"State_{generate_random_string()}"}
         )
 
     async def create_committee(
@@ -102,13 +100,13 @@ class TestManager:
             },
         )
 
-    async def create_role(self, name: Optional[str] = None) -> Dict:
+    async def create_role(self, id: Optional[int] = None, name: Optional[str] = None) -> Dict:
         """Create a role with optional custom name."""
-        return await self.create_resource("/roles/", {"name": name or "Representative"})
+        return await self.create_resource("/roles/", {"id": id, "name": name or "Representative"})
 
-    async def create_party(self, name: Optional[str] = None) -> Dict:
+    async def create_party(self, id: Optional[int] = None, name: Optional[str] = None) -> Dict:
         """Create a party with optional custom name."""
-        return await self.create_resource("/partys/", {"name": name or "Independent"})
+        return await self.create_resource("/partys/", {"id": id, "name": name or "Independent"})
 
     async def create_session(
         self, *, state_id: Optional[int] = None, name: Optional[str] = None
@@ -123,9 +121,9 @@ class TestManager:
             {"name": name or f"Session_{generate_random_string()}", "stateId": state_id},
         )
 
-    async def create_status(self, name: Optional[str] = None) -> Dict:
+    async def create_status(self, id: Optional[int] = None, name: Optional[str] = None) -> Dict:
         """Create a status with optional custom name."""
-        return await self.create_resource("/statuses/", {"name": name or "Introduced"})
+        return await self.create_resource("/statuses/", {"id": id, "name": name or "Introduced"})
 
     async def create_topic(self, name: Optional[str] = None) -> Dict:
         """Create a status with optional custom name."""
@@ -156,17 +154,14 @@ class TestManager:
         party_id: Optional[int] = None,
     ) -> Dict:
         """Create a legislator with all dependencies."""
-        if state_id is None:
-            state = await self.create_state()
-            state_id = state["id"]
+        state = await self.create_state(id=state_id)
+        state_id = state["id"]
 
-        if role_id is None:
-            role = await self.create_role()
-            role_id = role["id"]
+        role = await self.create_role(id=role_id)
+        role_id = role["id"]
 
-        if party_id is None:
-            party = await self.create_party()
-            party_id = party["id"]
+        party = await self.create_party(id=party_id)
+        party_id = party["id"]
 
         return await self.create_resource(
             "/legislators/",
@@ -185,9 +180,11 @@ class TestManager:
     async def create_bill(
         self,
         *,
+        identifier: Optional[str] = None,
         title: Optional[str] = None,
         state_id: Optional[int] = None,
         legislative_body_id: Optional[int] = None,
+        role_id: Optional[int] = None,
         session_id: Optional[int] = None,
         status_id: Optional[int] = None,
     ) -> Dict:
@@ -198,6 +195,10 @@ class TestManager:
 
         if legislative_body_id is None:
             leg_body = await self.create_legislative_body(state_id=state_id)
+            legislative_body_id = leg_body["id"]
+
+        if role_id is not None:
+            leg_body = await self.create_legislative_body(role_id=role_id)
             legislative_body_id = leg_body["id"]
 
         if session_id is None:
@@ -215,7 +216,7 @@ class TestManager:
             {
                 "id": bill_id,
                 "legiscanId": bill_id,
-                "identifier": f"HB_{random.randint(100, 999)}",
+                "identifier": identifier or f"HB_{random.randint(100, 999)}",
                 "title": title or f"Bill_{generate_random_string()}",
                 "description": "Test bill description",
                 "stateId": state_id,
@@ -319,7 +320,10 @@ class TestManager:
 
 
 @pytest_asyncio.fixture(scope="function")
-async def test_manager(client: AsyncClient, system_headers: Dict[str, str]) -> TestManager:
+async def test_manager(
+    client: AsyncClient,
+    system_headers: Dict[str, str],
+) -> AsyncGenerator[TestManager, None]:
     """Fixture that provides access to test resources with automatic cleanup."""
     resources = TestManager(client, system_headers)
     try:

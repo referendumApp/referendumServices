@@ -18,16 +18,15 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # op.drop_index("ix_legislators_name", table_name="legislators")
-    # op.drop_index("ix_legislator_name_district", table_name="legislators")
+    op.drop_index("ix_legislators_name", table_name="legislators")
+    op.drop_index("ix_legislator_name_district", table_name="legislators")
 
-    # op.execute(
-    #     """
-    #     CREATE INDEX ix_legislator_name_search ON legislators
-    #     USING gin(to_tsvector('english', name));
-    #     """
-    # )
-    op.drop_index("ix_bill_identifier_title_search", table_name="bills")
+    op.execute(
+        """
+        CREATE INDEX ix_legislator_name_search ON legislators
+        USING gin(to_tsvector('english', name));
+        """
+    )
     op.execute(
         "CREATE INDEX ix_bill_identifier_search ON bills USING gin(to_tsvector('simple', COALESCE(identifier, '')));"
     )
@@ -37,22 +36,14 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # op.create_index(op.f("ix_legislators_name"), "legislators", ["name"], unique=False)
-    # op.create_index(
-    #     op.f("ix_legislator_name_district"),
-    #     "legislators",
-    #     ["name", "district"],
-    #     unique=True,
-    # )
-
-    op.execute(
-        """
-        CREATE INDEX ix_bill_identifier_title_search ON bills
-        USING gin (to_tsvector('english', (((((COALESCE(identifier, '')) || ' ') || 
-            (COALESCE(title, ''))) || ' ') || 
-            (COALESCE(description, '')))))
-        """
+    op.create_index(op.f("ix_legislators_name"), "legislators", ["name"], unique=False)
+    op.create_index(
+        op.f("ix_legislator_name_district"),
+        "legislators",
+        ["name", "district"],
+        unique=True,
     )
-    # op.drop_index("ix_legislator_name_search", "legislators")
+
+    op.drop_index("ix_legislator_name_search", "legislators")
     op.drop_index("ix_bill_identifier_search", "bills")
     op.drop_index("ix_bill_title_search", "bills")

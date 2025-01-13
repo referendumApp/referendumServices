@@ -1,9 +1,9 @@
 from datetime import date
-from typing import Dict, List, Optional, TypeVar, Generic
-from pydantic import model_serializer, Field, field_validator
+from typing import Dict, Generic, List, Optional, TypeVar
+
+from pydantic import Field, field_validator, model_serializer
 
 from common.database.referendum.schemas import CamelCaseBaseModel, UserBase
-
 
 T = TypeVar("T")
 
@@ -72,7 +72,7 @@ class VoteCount(CamelCaseBaseModel):
     count: int
 
 
-class FilterOptions(CamelCaseBaseModel):
+class BaseFilterOptions(CamelCaseBaseModel):
     party_id: Optional[List[int]] = None
     role_id: Optional[List[int]] = None
     state_id: Optional[List[int]] = None
@@ -83,12 +83,27 @@ class FilterOptions(CamelCaseBaseModel):
         return {k: v for k, v in self.__dict__.items() if v is not None}
 
 
-class PaginationParams(CamelCaseBaseModel):
+class BillFilterOptions(BaseFilterOptions):
+    status_id: Optional[List[int]] = None
+
+
+class LegislatorFilterOptions(BaseFilterOptions):
+    party_id: Optional[List[int]] = None
+
+
+class BasePaginationRequestBody(CamelCaseBaseModel):
     skip: int = 0
     limit: int = 100
-    filter_options: Optional[FilterOptions] = None
     search_query: Optional[str] = None
     order_by: Optional[str] = None
+
+
+class BillPaginationRequestBody(BasePaginationRequestBody):
+    filter_options: Optional[BillFilterOptions] = None
+
+
+class LegislatorPaginationRequestBody(BasePaginationRequestBody):
+    filter_options: Optional[LegislatorFilterOptions] = None
 
 
 class PaginatedResponse(CamelCaseBaseModel, Generic[T]):

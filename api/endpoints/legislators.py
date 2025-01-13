@@ -11,10 +11,10 @@ from ..constants import ABSENT_VOTE_ID, NAY_VOTE_ID, YEA_VOTE_ID
 from ..database import get_db
 from ..schemas import (
     ErrorResponse,
+    LegislatorPaginationRequestBody,
     LegislatorScorecard,
     LegislatorVotingHistory,
     PaginatedResponse,
-    PaginationParams,
 )
 from ..security import CredentialsException, get_current_user_or_verify_system_token
 from .endpoint_generator import EndpointGenerator
@@ -24,8 +24,18 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+EndpointGenerator.add_crud_routes(
+    router=router,
+    crud_model=crud.legislator,
+    create_schema=schemas.Legislator.Base,
+    update_schema=schemas.Legislator.Record,
+    response_schema=schemas.Legislator.Full,
+    resource_name="legislator",
+)
+
+
 @router.post(
-    "/",
+    "/details",
     response_model=PaginatedResponse[schemas.Legislator.Full],
     summary="Get all legislators",
     responses={
@@ -38,7 +48,7 @@ router = APIRouter()
     },
 )
 async def get_legislators(
-    request_body: PaginationParams,
+    request_body: LegislatorPaginationRequestBody,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ):
@@ -46,14 +56,12 @@ async def get_legislators(
         f"Attempting to read all legislators (skip: {request_body.skip}, limit: {request_body.limit})"
     )
     try:
-        column_filter = (
-            utils.create_column_filter(
+        if column_filter := request_body.filter_options:
+            filter_options = request_body.filter_options.model_dump()
+            column_filter = utils.create_column_filter(
                 model=models.Legislator,
-                filter_options=request_body.filter_options,
+                filter_options=filter_options,
             )
-            if request_body.filter_options
-            else None
-        )
 
         order_by = (
             [getattr(models.Legislator, request_body.order_by)] if request_body.order_by else []
@@ -65,7 +73,7 @@ async def get_legislators(
                 search_config=utils.SearchConfig.ENGLISH,
                 fields=[models.Legislator.name],
             )
-            order_by.insert(0, models.Legislator.id)
+            order_by.append(models.Legislator.id)
 
         legislators = crud.legislator.read_all(
             db=db,
@@ -87,16 +95,6 @@ async def get_legislators(
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
     except Exception as e:
         raise
-
-
-EndpointGenerator.add_crud_routes(
-    router=router,
-    crud_model=crud.legislator,
-    create_schema=schemas.Legislator.Base,
-    update_schema=schemas.Legislator.Record,
-    response_schema=schemas.Legislator.Full,
-    resource_name="legislator",
-)
 
 
 @router.get(
