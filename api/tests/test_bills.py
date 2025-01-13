@@ -19,6 +19,7 @@ async def test_list_bill_details(client, system_headers, test_manager: TestManag
     response = await client.post(
         f"/bills/{test_bill_version['billId']}/sponsors/{test_legislator['id']}",
         headers=system_headers,
+        json={},
     )
     assert_status_code(response, 204)
 

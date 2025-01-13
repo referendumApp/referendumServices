@@ -189,25 +189,20 @@ class TestManager:
         status_id: Optional[int] = None,
     ) -> Dict:
         """Create a bill with all dependencies."""
-        if state_id is None:
-            state = await self.create_state()
-            state_id = state["id"]
+        state = await self.create_state(id=state_id)
+        state_id = state["id"]
 
-        if legislative_body_id is None:
-            leg_body = await self.create_legislative_body(state_id=state_id)
-            legislative_body_id = leg_body["id"]
+        role = await self.create_role(id=role_id)
+        role_id = role["id"]
 
-        if role_id is not None:
-            leg_body = await self.create_legislative_body(role_id=role_id)
-            legislative_body_id = leg_body["id"]
+        session = await self.create_session(state_id=state_id)
+        session_id = session["id"]
 
-        if session_id is None:
-            session = await self.create_session(state_id=state_id)
-            session_id = session["id"]
+        status = await self.create_status()
+        status_id = status["id"]
 
-        if status_id is None:
-            status = await self.create_status()
-            status_id = status["id"]
+        leg_body = await self.create_legislative_body(state_id=state_id, role_id=role_id)
+        legislative_body_id = leg_body["id"]
 
         bill_id = random.randint(0, 999999)
 

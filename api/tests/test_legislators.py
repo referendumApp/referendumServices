@@ -13,7 +13,11 @@ async def test_add_legislator_success(test_manager: TestManager):
 async def test_list_legislators(test_manager: TestManager):
     # Create at least one legislator
     await test_manager.create_legislator()
-    response = await test_manager.client.post("/legislators/details", headers=test_manager.headers)
+    response = await test_manager.client.post(
+        "/legislators/details",
+        headers=test_manager.headers,
+        json={},
+    )
     assert_status_code(response, 200)
     legislators = response.json()
     assert len(legislators.hasMore) == False
