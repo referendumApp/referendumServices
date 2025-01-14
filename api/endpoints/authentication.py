@@ -54,7 +54,7 @@ async def signup(user: UserCreateInput, db: Session = Depends(get_db)) -> schema
     logger.info(f"Signup attempt for email: {user.email}")
     try:
         created_user = crud.user.get_user_by_email(db=db, email=user.email)
-        if created_user:
+        if created_user and created_user.settings.get("deleted"):
             crud.user.update_soft_delete(db=db, user_id=created_user.id, deleted=False)
             if not verify_password(user.password, created_user.hashed_password):
                 hashed_password = get_password_hash(user.password)
