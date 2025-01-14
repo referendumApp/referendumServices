@@ -1,17 +1,17 @@
 import logging
-from typing import Dict, Optional
 from datetime import datetime, timedelta
-from fastapi import Security, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
+from typing import Dict, Optional
+
+from fastapi import Depends, HTTPException, Security, status
+from fastapi.security import APIKeyHeader, OAuth2PasswordBearer
 from jose import ExpiredSignatureError, jwt
-from sqlalchemy.orm import Session
 from passlib.context import CryptContext
+from sqlalchemy.orm import Session
 
-from common.database.referendum import models, crud, schemas
-
-from api.settings import settings
 from api.database import get_db
-from api.schemas import FormErrorModel, UserCreateInput
+from api.schemas import FormErrorModel, UserCreateInput, UserUpdateInput
+from api.settings import settings
+from common.database.referendum import crud, models, schemas
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +73,8 @@ def decode_token(token: str):
 def authenticate_user(db: Session, email: str, password: str) -> models.User:
     try:
         user = crud.user.get_user_by_email(db, email)
+        if user is None or user.settings.get("deleted"):
+            raise crud.ObjectNotFoundException(f"User with email {email} not found")
         if not verify_password(password, user.hashed_password):
             raise CredentialsException("Incorrect password")
         logger.info(f"Successful login for user: {email}")
@@ -163,7 +165,9 @@ def get_token(token: str = Depends(oauth2_scheme)) -> str:
     return token
 
 
-def get_user_create_with_hashed_password(user: UserCreateInput) -> schemas.UserCreate:
+def get_user_create_with_hashed_password(
+    user: UserCreateInput | UserUpdateInput,
+) -> schemas.UserCreate:
     user_data = user.model_dump()
     password = user_data.pop("password")
     hashed_password = get_password_hash(password)

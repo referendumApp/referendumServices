@@ -1,11 +1,12 @@
-from sqlalchemy.orm import Session, noload, joinedload
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+import logging
+from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
+
 from pydantic import BaseModel
-from typing import Any, Dict, Generic, List, TypeVar, Type, Union, Optional
+from sqlalchemy import Column
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.orm import Session, joinedload
 
 from common.database.referendum import models, schemas
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +70,7 @@ class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             db.rollback()
             raise DatabaseException(f"Database error: {str(e)}")
 
-    def read(self, db: Session, obj_id: int) -> T:
+    def read(self, db: Session, obj_id: Column[int] | int) -> ModelType:
         db_obj = db.query(self.model).filter(self.model.id == obj_id).first()
         if db_obj is None:
             raise ObjectNotFoundException("Object not found")
@@ -376,23 +377,26 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
                 # .options(noload(models.User.topics), noload(models.User.bills))
                 .filter(models.User.email == email).first()
             )
-            if db_user is None:
-                raise ObjectNotFoundException(f"User with email {email} not found")
             return db_user
         except SQLAlchemyError as e:
             raise DatabaseException(f"Database error: {str(e)}")
 
-    def update_user_password(self, db: Session, user_id: int, hashed_password: str):
+    def update_user_password(self, db: Session, user_id: Column[int] | int, hashed_password: str):
         db_user = self.read(db=db, obj_id=user_id)
         db_user.hashed_password = hashed_password
         db.commit()
 
-    def soft_delete(self, db: Session, user_id: int) -> models.User:
+    def update_soft_delete(
+        self,
+        db: Session,
+        user_id: Column[int] | int,
+        deleted: bool,
+    ) -> models.User:
         try:
             db_user = db.query(models.User).filter(models.User.id == user_id).first()
             if db_user is None:
                 raise ObjectNotFoundException(f"User {user_id} not found")
-            db_user.settings = {"deleted": True}
+            db_user.settings = {"deleted": deleted}
             db.add(db_user)
             db.commit()
             db.refresh(db_user)
