@@ -28,7 +28,9 @@ from ..security import (
     create_access_token,
     create_refresh_token,
     decode_token,
+    get_password_hash,
     get_user_create_with_hashed_password,
+    verify_password,
 )
 
 logger = logging.getLogger(__name__)
@@ -51,8 +53,17 @@ router = APIRouter()
 async def signup(user: UserCreateInput, db: Session = Depends(get_db)) -> schemas.User:
     logger.info(f"Signup attempt for email: {user.email}")
     try:
-        user_create = get_user_create_with_hashed_password(user)
-        created_user = crud.user.create(db=db, obj_in=user_create)
+        created_user = crud.user.get_user_by_email(db=db, email=user.email)
+        if created_user:
+            crud.user.update_soft_delete(db=db, user_id=created_user.id, deleted=False)
+            if not verify_password(user.password, created_user.hashed_password):
+                hashed_password = get_password_hash(user.password)
+                crud.user.update_user_password(
+                    db=db, user_id=created_user.id, hashed_password=hashed_password
+                )
+        else:
+            user_create = get_user_create_with_hashed_password(user)
+            created_user = crud.user.create(db=db, obj_in=user_create)
         logger.info(f"User created successfully: {created_user.email}")
         return created_user
     except ObjectAlreadyExistsException:

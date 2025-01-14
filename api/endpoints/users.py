@@ -169,6 +169,8 @@ async def update_user(
             )
     try:
         db_user = crud.user.get_user_by_email(db, email=user.email)
+        if db_user is None:
+            raise ObjectNotFoundException(f"User with email {user.email} not found")
         user_create = get_user_create_with_hashed_password(user)
         updated_user = crud.user.update(db=db, db_obj=db_user, obj_in=user_create)
         logger.info(f"Successfully updated information for user ID: {updated_user.id}")
@@ -304,7 +306,7 @@ async def delete_user(
 ) -> None:
     logger.info(f"Attempting to delete user with ID: {user.id}")
     try:
-        crud.user.soft_delete(db=db, user_id=user.id)
+        crud.user.update_soft_delete(db=db, user_id=user.id, deleted=True)
         logger.info(f"Successfully deleted user with ID: {user.id}")
         return
     except ObjectNotFoundException:

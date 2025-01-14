@@ -1,7 +1,8 @@
+import logging
+
+from api.security import create_access_token
 from api.tests.conftest import TestManager
 from api.tests.test_utils import assert_status_code
-from api.security import create_access_token
-import logging
 
 
 async def test_create_user(test_manager: TestManager):
@@ -208,6 +209,25 @@ async def test_delete_user(test_manager: TestManager):
         )
         assert_status_code(response, 200)
         assert response.json()["settings"]["deleted"]
+
+        login_data = {"username": user_data["email"], "password": user_data["password"]}
+        response = await test_manager.client.post("/auth/login", data=login_data)
+        assert_status_code(response, 401)
+
+        recreate_response = await test_manager.client.post(
+            "/auth/signup",
+            json={
+                "email": user_data["email"],
+                "password": "newpassword",
+                "name": user_data["name"],
+            },
+        )
+        assert_status_code(recreate_response, 201)
+        recreated_user = recreate_response.json()
+
+        login_data = {"username": recreated_user["email"], "password": "newpassword"}
+        response = await test_manager.client.post("/auth/login", data=login_data)
+        assert_status_code(response, 200)
     except Exception as e:
         test_error = str(e)
         logging.error(f"Test failed with {test_error}")
