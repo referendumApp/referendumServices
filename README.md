@@ -84,7 +84,10 @@ API_ACCESS_TOKEN=           # API gateway access token
 AWS_REGION=                 # AWS region (default: us-west-2)
 S3_ACCESS_KEY=              # S3/MinIO access key
 S3_SECRET_KEY=              # S3/MinIO secret key
+S3_ENDPOINT_URL =
 BILL_TEXT_BUCKET_NAME=      # S3 bucket for bill texts
+
+OPENAI_API_KEY = 
 ```
 
 ## 🛠 Development
