@@ -99,6 +99,7 @@ async def login_for_access_token(
         refresh_token = create_refresh_token(data={"sub": user.email})
         logger.info(f"Login successful for user: {user.email}")
         return {
+            "user_id": user.id,
             "access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "bearer",

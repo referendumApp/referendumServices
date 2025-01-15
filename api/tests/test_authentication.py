@@ -69,6 +69,7 @@ async def test_login_success(client):
     response = await client.post("/auth/login", data=login_data)
     assert_status_code(response, 200)
     token_data = response.json()
+    assert "userId" in token_data
     assert "accessToken" in token_data
     assert token_data["tokenType"] == "bearer"
 
