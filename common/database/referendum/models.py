@@ -3,9 +3,8 @@ import logging
 
 import sqlalchemy.exc
 from sqlalchemy import Column, Date, ForeignKey, Integer, String, Table, event
-from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Query
+from sqlalchemy.orm import Query, declarative_base, relationship
 from sqlalchemy.dialects.postgresql import JSONB
 
 logger = logging.getLogger(__name__)

@@ -1,7 +1,8 @@
 import logging
+import pytest
 
 from api.tests.conftest import TestManager
-from api.tests.test_utils import DEFAULT_ID, assert_status_code
+from api.tests.test_utils import assert_status_code
 from api.constants import YEA_VOTE_ID
 
 
@@ -23,11 +24,12 @@ async def test_list_bill_details(client, system_headers, test_manager: TestManag
 
     test_error = None
     try:
-        response = await client.get("/bills/details", headers=system_headers)
+        response = await client.post("/bills/details", headers=system_headers, json={})
         assert_status_code(response, 200)
         bill_data = response.json()
-        assert len(bill_data) == 1
-        bill = bill_data[0]
+        assert bill_data["hasMore"] == False
+        assert len(bill_data["items"]) == 1
+        bill = bill_data["items"][0]
 
         expected_fields = [
             "billId",
@@ -54,6 +56,93 @@ async def test_list_bill_details(client, system_headers, test_manager: TestManag
 
     if test_error:
         raise Exception(test_error)
+
+
+@pytest.mark.parametrize(
+    "filter_request,expected_length,expected_titles",
+    [
+        ({"filter_options": {"state_id": [1, 2]}}, 2, ["Batman", "Joker"]),
+        ({"filter_options": {"role_id": [3]}}, 1, ["Robin"]),
+        ({"filter_options": {"status_id": [2, 3], "state_id": [2, 3]}}, 2, ["Joker", "Robin"]),
+        ({"filter_options": {"status_id": [3], "role_id": [1]}}, 0, []),
+        ({"search_query": "Batman"}, 1, ["Batman"]),
+        ({"search_query": "BT"}, 2, ["Batman", "Robin"]),
+        (
+            {"filter_options": {"status_id": [2, 3], "state_id": [2, 3]}, "search_query": "Joker"},
+            1,
+            ["Joker"],
+        ),
+        ({"search_query": "Superman"}, 0, []),
+    ],
+)
+async def test_list_bill_details_filter(
+    filter_request,
+    expected_length,
+    expected_titles,
+    test_manager: TestManager,
+):
+    # Create at least two legislator
+    await test_manager.create_bill(
+        identifier="BT1",
+        title="Batman",
+        state_id=1,
+        role_id=1,
+        status_id=1,
+    )
+    await test_manager.create_bill(
+        identifier="JO1",
+        title="Joker",
+        state_id=2,
+        role_id=2,
+        status_id=2,
+    )
+    await test_manager.create_bill(
+        identifier="BT2",
+        title="Robin",
+        state_id=3,
+        role_id=3,
+        status_id=3,
+    )
+    response = await test_manager.client.post(
+        "/bills/details",
+        headers=test_manager.headers,
+        json=filter_request,
+    )
+    assert_status_code(response, 200)
+    bills = response.json()
+    assert bills["hasMore"] == False
+    assert len(bills["items"]) == expected_length
+    for bill in bills["items"]:
+        assert bill["title"] in expected_titles
+
+
+async def test_invalid_list_bills_filter(test_manager: TestManager):
+    response = await test_manager.client.post(
+        "/bills/details",
+        headers=test_manager.headers,
+        json={"filter_options": {"party_id": [1]}},
+    )
+    assert_status_code(response, 400)
+
+
+async def test_list_bill_details_sort(test_manager: TestManager):
+    test_titles = ["Batman", "Joker", "Robin", "Bane", "Mr. Freeze"]
+    for title in test_titles:
+        await test_manager.create_bill(title=title)
+
+    response = await test_manager.client.post(
+        "/bills/details",
+        headers=test_manager.headers,
+        json={"order_by": "title"},
+    )
+    assert_status_code(response, 200)
+    bills = response.json()
+    assert bills["hasMore"] == False
+    assert len(bills["items"]) == 5
+
+    sorted_test_titles = sorted(test_titles)
+    for index, bill in enumerate(bills["items"]):
+        assert bill["title"] == sorted_test_titles[index]
 
 
 async def test_add_bill_already_exists(client, system_headers, test_manager: TestManager):
@@ -221,7 +310,7 @@ async def test_bulk_update_success(client, system_headers, test_manager: TestMan
 
 
 async def test_bill_user_votes(client, system_headers, test_manager: TestManager):
-    user, headers = await test_manager.start_user_session()
+    _, headers = await test_manager.start_user_session()
     test_bill = await test_manager.create_bill()
 
     vote_data = {

@@ -1,15 +1,21 @@
 import logging
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session, joinedload, load_only
 
-from common.database.referendum import crud, models, schemas
+from common.database.referendum import crud, models, schemas, utils
 
-from ..constants import YEA_VOTE_ID, NAY_VOTE_ID, ABSENT_VOTE_ID
+from ..constants import ABSENT_VOTE_ID, NAY_VOTE_ID, YEA_VOTE_ID
 from ..database import get_db
-from ..schemas import ErrorResponse, LegislatorVotingHistory, LegislatorScorecard
+from ..schemas import (
+    ErrorResponse,
+    LegislatorPaginationRequestBody,
+    LegislatorScorecard,
+    LegislatorVotingHistory,
+    PaginatedResponse,
+)
 from ..security import CredentialsException, get_current_user_or_verify_system_token
 from .endpoint_generator import EndpointGenerator
 
@@ -26,6 +32,74 @@ EndpointGenerator.add_crud_routes(
     response_schema=schemas.Legislator.Full,
     resource_name="legislator",
 )
+
+
+@router.post(
+    "/details",
+    response_model=PaginatedResponse[schemas.Legislator.Full],
+    summary="Get all legislators",
+    responses={
+        200: {
+            "model": PaginatedResponse[schemas.Legislator.Full],
+            "description": "legislators successfully retrieved",
+        },
+        401: {"model": ErrorResponse, "description": "Not authorized"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def get_legislators(
+    request_body: LegislatorPaginationRequestBody,
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+):
+    logger.info(
+        f"Attempting to read all legislators (skip: {request_body.skip}, limit: {request_body.limit})"
+    )
+    try:
+        if column_filter := request_body.filter_options:
+            filter_options = request_body.filter_options.model_dump()
+            column_filter = utils.create_column_filter(
+                model=models.Legislator,
+                filter_options=filter_options,
+            )
+
+        order_by = (
+            [getattr(models.Legislator, request_body.order_by)] if request_body.order_by else []
+        )
+        search_filter = None
+        if request_body.search_query:
+            search_filter = utils.create_search_filter(
+                search_query=request_body.search_query,
+                search_config=utils.SearchConfig.ENGLISH,
+                fields=[models.Legislator.name],
+            )
+            order_by.append(models.Legislator.id)
+
+        legislators = crud.legislator.read_all(
+            db=db,
+            skip=request_body.skip,
+            limit=request_body.limit + 1,
+            column_filter=column_filter,
+            search_filter=search_filter,
+            order_by=order_by,
+        )
+        if len(legislators) > request_body.limit:
+            has_more = True
+            legislators.pop()
+        else:
+            has_more = False
+
+        return {"has_more": has_more, "items": legislators}
+    except AttributeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid filter option: {e}",
+        )
+    except crud.DatabaseException as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(e)}",
+        )
 
 
 @router.get(

@@ -1,6 +1,8 @@
+import pytest
+
+from api.constants import ABSENT_VOTE_ID, NAY_VOTE_ID, YEA_VOTE_ID
 from api.tests.conftest import TestManager
 from api.tests.test_utils import DEFAULT_ID, assert_status_code
-from api.constants import NAY_VOTE_ID, YEA_VOTE_ID, ABSENT_VOTE_ID
 
 
 async def test_add_legislator_success(test_manager: TestManager):
@@ -11,10 +13,83 @@ async def test_add_legislator_success(test_manager: TestManager):
 async def test_list_legislators(test_manager: TestManager):
     # Create at least one legislator
     await test_manager.create_legislator()
-    response = await test_manager.client.get("/legislators/", headers=test_manager.headers)
+    response = await test_manager.client.post(
+        "/legislators/details",
+        headers=test_manager.headers,
+        json={},
+    )
     assert_status_code(response, 200)
     legislators = response.json()
-    assert len(legislators) > 0
+    assert legislators["hasMore"] == False
+    assert len(legislators["items"]) > 0
+
+
+@pytest.mark.parametrize(
+    "filter_request,expected_length,expected_names",
+    [
+        ({"filter_options": {"state_id": [1, 2]}}, 2, ["Batman", "Joker"]),
+        ({"filter_options": {"role_id": [3]}}, 1, ["Robin"]),
+        ({"filter_options": {"party_id": [2, 3], "state_id": [2, 3]}}, 2, ["Joker", "Robin"]),
+        ({"filter_options": {"party_id": [3], "role_id": [1]}}, 0, []),
+        ({"search_query": "Batman"}, 1, ["Batman"]),
+        (
+            {"filter_options": {"party_id": [2, 3], "state_id": [2, 3]}, "search_query": "Joker"},
+            1,
+            ["Joker"],
+        ),
+        ({"search_query": "Superman"}, 0, []),
+    ],
+)
+async def test_list_legislators_filter(
+    filter_request,
+    expected_length,
+    expected_names,
+    test_manager: TestManager,
+):
+    # Create at least two legislator
+    await test_manager.create_legislator(name="Batman", state_id=1, role_id=1, party_id=1)
+    await test_manager.create_legislator(name="Joker", state_id=2, role_id=2, party_id=2)
+    await test_manager.create_legislator(name="Robin", state_id=3, role_id=3, party_id=3)
+    response = await test_manager.client.post(
+        "/legislators/details",
+        headers=test_manager.headers,
+        json=filter_request,
+    )
+    assert_status_code(response, 200)
+    legislators = response.json()
+    assert legislators["hasMore"] == False
+    assert len(legislators["items"]) == expected_length
+    for legislator in legislators["items"]:
+        assert legislator["name"] in expected_names
+
+
+async def test_invalid_list_legislators_filter(test_manager: TestManager):
+    response = await test_manager.client.post(
+        "/legislators/details",
+        headers=test_manager.headers,
+        json={"filter_options": {"status_id": [1]}},
+    )
+    assert_status_code(response, 400)
+
+
+async def test_list_legislators_sort(test_manager: TestManager):
+    test_names = ["Batman", "Joker", "Robin", "Bane", "Mr. Freeze"]
+    for name in test_names:
+        await test_manager.create_legislator(name=name)
+
+    response = await test_manager.client.post(
+        "/legislators/details",
+        headers=test_manager.headers,
+        json={"order_by": "name"},
+    )
+    assert_status_code(response, 200)
+    legislators = response.json()
+    assert legislators["hasMore"] == False
+    assert len(legislators["items"]) == 5
+
+    sorted_test_names = sorted(test_names)
+    for index, legislator in enumerate(legislators["items"]):
+        assert legislator["name"] == sorted_test_names[index]
 
 
 async def test_add_legislator_already_exists(test_manager: TestManager):
@@ -218,10 +293,8 @@ async def test_get_legislator_scores_empty(test_manager: TestManager):
 async def test_get_legislator_scores_with_votes(test_manager: TestManager):
     """Test scores for a legislator with a mix of votes."""
     # Setup
-    party_dem = await test_manager.create_party(name="Democratic")
-    party_rep = await test_manager.create_party(name="Republican")
-    test_legislator = await test_manager.create_legislator(party_id=party_dem["id"])
-    opposing_legislator = await test_manager.create_legislator(party_id=party_rep["id"])
+    test_legislator = await test_manager.create_legislator(party_name="Democratic")
+    opposing_legislator = await test_manager.create_legislator(party_name="Republican")
 
     bill1 = await test_manager.create_bill()
     bill1_action = await test_manager.create_bill_action(bill_id=bill1["id"])

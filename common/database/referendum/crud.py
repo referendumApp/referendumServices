@@ -5,6 +5,8 @@ from pydantic import BaseModel
 from sqlalchemy import Column
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.sql.elements import BinaryExpression, ColumnElement
+
 
 from common.database.referendum import models, schemas
 
@@ -77,9 +79,23 @@ class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         return db_obj
 
     def read_all(
-        self, db: Session, *, skip: int | None = None, limit: int | None = None
+        self,
+        db: Session,
+        *,
+        skip: int | None = None,
+        limit: int | None = None,
+        column_filter: ColumnElement[bool] | None = None,
+        search_filter: BinaryExpression | None = None,
+        order_by: List[str] | None = None,
     ) -> List[ModelType]:
         query = db.query(self.model)
+
+        if column_filter is not None:
+            query = query.filter(column_filter)
+        if search_filter is not None:
+            query = query.filter(search_filter)
+        if order_by:
+            query = query.order_by(*order_by)
         if skip is not None:
             query = query.offset(skip)
         if limit is not None:
@@ -145,11 +161,9 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
         yea = sum(1 for vote in db_bill.user_votes if vote.vote_choice_id == 1)
         nay = sum(1 for vote in db_bill.user_votes if vote.vote_choice_id == 2)
         total = len(db_bill.user_votes)
-        # TODO - remove yay when FE has switched
         return {
             "yea": yea,
             "nay": nay,
-            "yay_pct": round(yea / total, 3),
             "yea_pct": round(yea / total, 3),
             "nay_pct": round(nay / total, 3),
             "total": total,
@@ -160,9 +174,7 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
 
         return db_bill.comments
 
-    def read_all_denormalized(
-        self, db: Session, skip: int | None, limit: int | None
-    ) -> List[models.Bill]:
+    def read_denormalized(self, db: Session, bill_id: int) -> List[models.Bill]:
         return (
             db.query(models.Bill)
             .options(
@@ -174,10 +186,37 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
                 joinedload(models.Bill.bill_versions),
                 joinedload(models.Bill.session),
             )
-            .offset(skip)
-            .limit(limit)
-            .all()
+            .filter(models.Bill.id == bill_id)
+            .first()
         )
+
+    def read_all_denormalized(
+        self,
+        db: Session,
+        skip: int = 0,
+        limit: int = 100,
+        column_filter: ColumnElement[bool] | None = None,
+        search_filter: BinaryExpression | ColumnElement[bool] | None = None,
+        order_by: List[Column] | None = None,
+    ) -> List[models.Bill]:
+        query = db.query(models.Bill).options(
+            joinedload(models.Bill.state),
+            joinedload(models.Bill.status),
+            joinedload(models.Bill.legislative_body).joinedload(models.LegislativeBody.role),
+            joinedload(models.Bill.sponsors).joinedload(models.Sponsor.legislator),
+            joinedload(models.Bill.topics),
+            joinedload(models.Bill.bill_versions),
+            joinedload(models.Bill.session),
+        )
+
+        if column_filter is not None:
+            query = query.filter(column_filter)
+        if search_filter is not None:
+            query = query.filter(search_filter)
+        if order_by:
+            query = query.order_by(*order_by)
+
+        return query.offset(skip).limit(limit).all()
 
     def get_bill_by_legiscan_id(self, db: Session, legiscan_id: int) -> models.Bill:
         try:

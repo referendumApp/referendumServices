@@ -3,20 +3,22 @@ from collections import Counter, defaultdict
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, joinedload, load_only
 
-from common.database.referendum import crud, models, schemas
+from common.database.referendum import crud, models, schemas, utils
 from common.database.referendum.crud import DatabaseException, ObjectNotFoundException
 
 from ..database import get_db
 from ..schemas import (
+    BillPaginationRequestBody,
     BillVotingHistory,
     CommentDetail,
     DenormalizedBill,
     ErrorResponse,
     LegislatorVote,
     LegislatorVoteDetail,
+    PaginatedResponse,
     UserBillVotes,
     VoteCountByChoice,
     VoteCountByParty,
@@ -34,14 +36,23 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-# Note that this must be defined before adding crud routes to avoid conflicts with the GET /id endpoint
-@router.get(
+EndpointGenerator.add_crud_routes(
+    router=router,
+    crud_model=crud.bill,
+    create_schema=schemas.Bill.Base,
+    update_schema=schemas.Bill.Record,
+    response_schema=schemas.Bill.Full,
+    resource_name="bill",
+)
+
+
+@router.post(
     "/details",
-    response_model=List[DenormalizedBill],
+    response_model=PaginatedResponse[DenormalizedBill],
     summary="Get all bill details",
     responses={
         200: {
-            "model": List[DenormalizedBill],
+            "model": PaginatedResponse[DenormalizedBill],
             "description": "Bill details successfully retrieved",
         },
         401: {"model": ErrorResponse, "description": "Not authorized"},
@@ -49,13 +60,128 @@ router = APIRouter()
     },
 )
 async def get_bill_details(
-    skip: int | None = None,
-    limit: int | None = None,
+    request_body: BillPaginationRequestBody,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ):
     try:
-        bills = crud.bill.read_all_denormalized(db=db, skip=skip, limit=limit)
+        if column_filter := request_body.filter_options:
+            # We need this until we flatten out 'role_id' in the bills table
+            clauses = []
+            filter_options = request_body.filter_options.model_dump()
+            role_id = filter_options.pop("role_id", None)
+
+            if role_id is not None:
+                role_filter = models.Bill.legislative_body.has(
+                    models.LegislativeBody.role_id.in_(role_id)
+                )
+                clauses.append(role_filter)
+
+            if filter_options:
+                non_role_filter = utils.create_column_filter(
+                    model=models.Bill,
+                    filter_options=filter_options,
+                )
+                clauses.append(non_role_filter)
+
+            column_filter = and_(*clauses)
+
+        order_by = [getattr(models.Bill, request_body.order_by)] if request_body.order_by else []
+        search_filter = None
+        if request_body.search_query:
+            id_filter = utils.create_search_filter(
+                search_query=request_body.search_query,
+                search_config=utils.SearchConfig.SIMPLE,
+                fields=[models.Bill.identifier],
+                prefix=True,
+            )
+            title_filter = utils.create_search_filter(
+                search_query=request_body.search_query,
+                search_config=utils.SearchConfig.ENGLISH,
+                fields=[models.Bill.title],
+            )
+            search_filter = or_(id_filter, title_filter)
+            order_by.append(models.Bill.id)
+
+        bills = crud.bill.read_all_denormalized(
+            db=db,
+            skip=request_body.skip,
+            limit=request_body.limit + 1,
+            column_filter=column_filter,
+            search_filter=search_filter,
+            order_by=order_by,
+        )
+        if len(bills) > request_body.limit:
+            has_more = True
+            bills.pop()
+        else:
+            has_more = False
+
+        result = []
+        for bill in bills:
+            sponsors = [
+                {
+                    "bill_id": sponsor.bill_id,
+                    "legislator_id": sponsor.legislator_id,
+                    "legislator_name": sponsor.legislator.name,
+                    "rank": sponsor.rank,
+                    "type": sponsor.type,
+                }
+                for sponsor in bill.sponsors
+            ]
+            bill_dict = {
+                "bill_id": bill.id,
+                "legiscan_id": bill.legiscan_id,
+                "identifier": bill.identifier,
+                "title": bill.title,
+                "description": bill.description,
+                "status_id": bill.status.id,
+                "status": bill.status.name,
+                "status_date": bill.status_date,
+                "session_id": bill.session.id,
+                "session_name": bill.session.name,
+                "state_id": bill.state.id,
+                "state_name": bill.state.name,
+                "current_version_id": bill.current_version_id,
+                "legislative_body_id": bill.legislative_body.id,
+                "role_id": bill.legislative_body.role.id,
+                "legislative_body_role": bill.legislative_body.role.name,
+                "sponsors": sponsors,
+            }
+            result.append(bill_dict)
+        return {"has_more": has_more, "items": result}
+    except AttributeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid filter option: {e}",
+        )
+    except DatabaseException as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(e)}",
+        )
+
+
+@router.get(
+    "/{bill_id}/details",
+    response_model=DenormalizedBill,
+    summary="Get bill detail",
+    responses={
+        200: {
+            "model": DenormalizedBill,
+            "description": "Bill details successfully retrieved",
+        },
+        401: {"model": ErrorResponse, "description": "Not authorized"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def get_bill_detail(
+    bill_id: int,
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+):
+    try:
+        bills = crud.bill.read_denormalized(db=db, bill_id=bill_id)
         result = []
         for bill in bills:
             sponsors = [
@@ -91,16 +217,6 @@ async def get_bill_details(
         return result
     except DatabaseException as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-
-
-EndpointGenerator.add_crud_routes(
-    router=router,
-    crud_model=crud.bill,
-    create_schema=schemas.Bill.Base,
-    update_schema=schemas.Bill.Record,
-    response_schema=schemas.Bill.Full,
-    resource_name="bill",
-)
 
 
 @router.get(

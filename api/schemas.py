@@ -1,8 +1,11 @@
 from datetime import date
-from typing import List, Optional, Dict
-from pydantic import Field, field_validator
+from typing import Dict, Generic, List, Optional, TypeVar
+
+from pydantic import Field, field_validator, model_serializer
 
 from common.database.referendum.schemas import CamelCaseBaseModel, UserBase
+
+T = TypeVar("T")
 
 
 class FormErrorModel(CamelCaseBaseModel):
@@ -86,6 +89,45 @@ class VoteCount(CamelCaseBaseModel):
     count: int
 
 
+class BaseFilterOptions(CamelCaseBaseModel):
+    party_id: Optional[List[int]] = None
+    role_id: Optional[List[int]] = None
+    state_id: Optional[List[int]] = None
+    status_id: Optional[List[int]] = None
+
+    @model_serializer()
+    def exclude_null_fields(self):
+        return {k: v for k, v in self.__dict__.items() if v is not None}
+
+
+class BillFilterOptions(BaseFilterOptions):
+    status_id: Optional[List[int]] = None
+
+
+class LegislatorFilterOptions(BaseFilterOptions):
+    party_id: Optional[List[int]] = None
+
+
+class BasePaginationRequestBody(CamelCaseBaseModel):
+    skip: int = 0
+    limit: int = 100
+    search_query: Optional[str] = None
+    order_by: Optional[str] = None
+
+
+class BillPaginationRequestBody(BasePaginationRequestBody):
+    filter_options: Optional[BillFilterOptions] = None
+
+
+class LegislatorPaginationRequestBody(BasePaginationRequestBody):
+    filter_options: Optional[LegislatorFilterOptions] = None
+
+
+class PaginatedResponse(CamelCaseBaseModel, Generic[T]):
+    has_more: bool
+    items: List[T]
+
+
 class LegislatorVote(CamelCaseBaseModel):
     legislator_id: int
     legislator_name: str
@@ -157,7 +199,7 @@ class DenormalizedBill(CamelCaseBaseModel):
     identifier: str = Field(description="Bill identifier (e.g., 'HB 123')")
     title: str = Field(description="Official title of the bill")
     description: str = Field(description="Full description of the bill")
-    current_version_id: int = Field(description="Current version ID of the bill")
+    current_version_id: Optional[int] = Field(None, description="Current version ID of the bill")
     status_id: int = Field(description="ID of current status of the bill")
     status: str = Field(description="Name of current status of the bill")
     status_date: date = Field(description="Date of the last status change")
@@ -181,7 +223,6 @@ class UserBillVotes(CamelCaseBaseModel):
     yea: int
     nay: int
     yea_pct: float
-    yay_pct: float
     nay_pct: float
     total: int
 
