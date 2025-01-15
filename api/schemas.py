@@ -30,6 +30,7 @@ class RefreshToken(CamelCaseBaseModel):
 
 
 class TokenResponse(CamelCaseBaseModel):
+    user_id: int
     access_token: str
     refresh_token: str
     token_type: str
