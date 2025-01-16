@@ -100,9 +100,11 @@ class Transformation(BaseModel):
                         df[source_name]
                         .astype(str)
                         .apply(
-                            lambda x: x.split(delimiter)[index]
-                            if x is not None and len(x.split(delimiter)) > index
-                            else default
+                            lambda x: (
+                                x.split(delimiter)[index]
+                                if x is not None and len(x.split(delimiter)) > index
+                                else default
+                            )
                         )
                     )
                     return df
