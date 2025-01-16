@@ -228,7 +228,7 @@ class Legislator(Base):
 
     legislator_votes = relationship("LegislatorVote", back_populates="legislator")
     party = relationship("Party")
-    state = relationship("State", foreign_keys="[Legislator.state_id]")
+    state = relationship("State")
     role = relationship("Role")
     committees = relationship(
         "Committee", secondary=committee_membership, back_populates="legislators"
