@@ -219,7 +219,7 @@ class Legislator(Base):
     role_id = Column(Integer, ForeignKey("roles.id"))
     state_id = Column(Integer, ForeignKey("states.id"))
     district = Column(String, nullable=False)
-    representing_state_id = Column(Integer, ForeignKey("states.id"))
+    representing_state_abbr = Column(String)
     address = Column(String)
     facebook = Column(String)
     instagram = Column(String)
@@ -229,7 +229,6 @@ class Legislator(Base):
     legislator_votes = relationship("LegislatorVote", back_populates="legislator")
     party = relationship("Party")
     state = relationship("State", foreign_keys="[Legislator.state_id]")
-    representing_state = relationship("State", foreign_keys="[Legislator.representing_state_id]")
     role = relationship("Role")
     committees = relationship(
         "Committee", secondary=committee_membership, back_populates="legislators"

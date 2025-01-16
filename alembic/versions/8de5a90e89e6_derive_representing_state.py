@@ -20,32 +20,20 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade():
     # Add column to legislators table
-    op.add_column("legislators", sa.Column("representing_state_id", sa.Integer(), nullable=True))
-
-    # Add foreign key constraint
-    op.create_foreign_key(
-        "fk_legislators_representing_state_id",
-        "legislators",
-        "states",
-        ["representing_state_id"],
-        ["id"],
-    )
+    op.add_column("legislators", sa.Column("representing_state_abbr", sa.String(), nullable=True))
 
     # Create index
     op.create_index(
-        op.f("ix_legislators_representing_state_id"),
+        op.f("ix_legislators_representing_state_abbr"),
         "legislators",
-        ["representing_state_id"],
+        ["representing_state_abbr"],
         unique=False,
     )
 
 
 def downgrade():
     # Remove index
-    op.drop_index(op.f("ix_legislators_representing_state_id"), table_name="legislators")
-
-    # Remove foreign key constraint
-    op.drop_constraint("fk_legislators_representing_state_id", "legislators", type_="foreignkey")
+    op.drop_index(op.f("ix_legislators_representing_state_abbr"), table_name="legislators")
 
     # Remove column
-    op.drop_column("legislators", "representing_state_id")
+    op.drop_column("legislators", "representing_state_abbr")

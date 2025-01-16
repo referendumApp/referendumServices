@@ -18,6 +18,7 @@ class TransformationFunction(str, Enum):
     ADD_URL = "add_url"
     HASH = "hash"
     MAP = "map"
+    SPLIT_EXTRACT = "split_extract"
 
 
 class Transformation(BaseModel):
@@ -82,6 +83,28 @@ class Transformation(BaseModel):
                     mapping_dict = self.parameters.get("mapping")
                     mapping_dict = {int(k): v for k, v in mapping_dict.items()}
                     df[destination_name] = df[source_name].map(mapping_dict)
+                    return df
+
+                case TransformationFunction.SPLIT_EXTRACT:
+                    source_name = self.parameters.get("source_name")
+                    destination_name = self.parameters.get("destination_name")
+                    delimiter = self.parameters.get("delimiter", ",")
+                    index = self.parameters.get("index", 0)
+                    default = self.parameters.get("default", None)
+
+                    if source_name not in df.columns:
+                        raise ValueError(f"Source column '{source_name}' not found")
+
+                    df = df.copy()
+                    df[destination_name] = (
+                        df[source_name]
+                        .astype(str)
+                        .apply(
+                            lambda x: x.split(delimiter)[index]
+                            if x is not None and len(x.split(delimiter)) > index
+                            else default
+                        )
+                    )
                     return df
 
                 case _:

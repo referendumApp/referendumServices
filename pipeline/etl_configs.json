@@ -188,6 +188,7 @@
       "party_id",
       "district",
       "state_id",
+      "representing_state_abbr",
       "image_url",
       "role_id"
     ],
@@ -212,6 +213,15 @@
         "parameters": {
           "source_name": "ballotpedia",
           "destination_name": "image_url"
+        }
+      },
+      {
+        "function": "split_extract",
+        "parameters": {
+          "source_name": "district",
+          "destination_name": "representing_state_abbr",
+          "delimiter": "-",
+          "index": 1
         }
       }
     ],
