@@ -13,7 +13,7 @@ dependencies = [
     "alembic==1.14.0",
     "argon2-cffi==23.1.0",
     "boto3==1.35.97",
-    "debugpy==1.8.11",
+    "debugpy==1.8.12",
     "fastapi[standard]",
     "langchain==0.3.14",
     "langchain-community==0.3.14",
