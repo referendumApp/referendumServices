@@ -17,7 +17,11 @@ from ..schemas import (
     PasswordResetInput,
     UserPasswordResetInput,
     ErrorResponse,
+    Announcement,
+    BillEvent,
     CommentDetail,
+    FeedItem,
+    FeedItemType,
 )
 from ..security import (
     get_current_user,
@@ -698,16 +702,13 @@ def unfollow_topic(
 async def get_user_feed(
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user),
-) -> List[CommentDetail]:
+) -> List[FeedItem]:
     feed_items = [
-        CommentDetail(
-            id=-1,
-            user_id=-1,
-            user_name="Referendum",
-            bill_id=-1,
-            comment="""Welcome to Referendum and thank you for participating in our beta!
-
-Events that may interest you will appear here in your Feed: comments on bills, votes on bills or by legislators you follow, and other newsworthy notifications.
+        FeedItem(
+            type=FeedItemType.Announcement,
+            content=Announcement(
+                header="Welcome to Referendum and thank you for participating in our beta!",
+                text="""Events that may interest you will appear here in your Feed: comments on bills, votes on bills or by legislators you follow, and other newsworthy notifications.
 
 The Catalog tab includes all bills and legislators from the 118th congress.
 You can follow those that interest you and deep dive into the text itself, votes, sponsors, and history here.
@@ -717,20 +718,32 @@ iOS users on TestFlight can also submit feedback to us by taking a screenshot.
 
 We're glad to have you join the conversation!
 """,
-        )
+            ),
+        ),
+        FeedItem(
+            type=FeedItemType.BillEvent,
+            content=BillEvent(
+                bill_id=0,  # TODO
+                bill_identifier="HBXXXX",
+                text="BILL OF THE WEEK",
+            ),
+        ),
     ]
     try:
         # TODO - restrict this to relevant comments
         all_comments = crud.comment.read_all(db=db)
         feed_items.extend(
             [
-                CommentDetail(
-                    id=comment.id,
-                    parent_id=comment.parent_id,
-                    bill_id=comment.bill_id,
-                    user_id=comment.user_id,
-                    comment=comment.comment,
-                    user_name=comment.user.name,
+                FeedItem(
+                    type=FeedItemType.Comment,
+                    content=CommentDetail(
+                        id=comment.id,
+                        parent_id=comment.parent_id,
+                        bill_id=comment.bill_id,
+                        user_id=comment.user_id,
+                        comment=comment.comment,
+                        user_name=comment.user.name,
+                    ),
                 )
                 for comment in all_comments
             ]
