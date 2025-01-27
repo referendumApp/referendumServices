@@ -16,7 +16,7 @@ dependencies = [
     "debugpy==1.8.11",
     "fastapi[standard]",
     "langchain==0.3.14",
-    "langchain-community==0.3.14",
+    "langchain-community==0.3.15",
     "langchain-openai==0.3.1",
     "openai==1.59.6",
     "pandas==2.2.3",
