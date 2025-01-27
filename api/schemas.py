@@ -1,6 +1,6 @@
-from datetime import date
+from datetime import date, datetime
 from enum import Enum
-from typing import Dict, Generic, List, Optional, TypeVar
+from typing import Dict, Generic, List, Optional, TypeVar, Union
 
 from pydantic import Field, field_validator, model_serializer
 
@@ -232,11 +232,13 @@ class UserBillVotes(CamelCaseBaseModel):
 class CommentDetail(CamelCaseBaseModel):
     id: int
     bill_id: int
+    bill_identifier: str
     user_id: int
     user_name: str
     comment: str
     parent_id: Optional[int] = None
-    # created_at, updated_at, bill_identifier
+    created_at: datetime
+    updated_at: Optional[datetime] = None
 
 
 class Announcement(CamelCaseBaseModel):
@@ -264,4 +266,4 @@ class FeedItemType(Enum):
 
 class FeedItem(CamelCaseBaseModel):
     type: FeedItemType
-    content: Announcement | CommentDetail | BillEvent
+    content: Union[Announcement, CommentDetail, BillEvent]

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from pydantic import BaseModel, EmailStr, Field, ConfigDict, create_model
 from pydantic.alias_generators import to_camel
 from typing import TypeVar, Generic, List, Type, Dict, Any, Optional
@@ -236,7 +236,11 @@ Comment = create_schema_container(
         "parent_id": (Optional[int], None),
         "comment": (str, Field(..., min_length=1)),
     },
-    record_fields={"id": (int, ...)},
+    record_fields={
+        "id": (int, ...),
+        "created_at": (datetime, ...),
+        "updated_at": (Optional[datetime], None),
+    },
     relationship_fields={"likes": (List[UserReference], []), "user": (UserBase, ...)},
 )
 

@@ -687,11 +687,11 @@ def unfollow_topic(
 
 @router.get(
     "/feed",
-    response_model=List[CommentDetail],
+    response_model=List[FeedItem],
     summary="Gets feed items for user",
     responses={
         200: {
-            "model": List[CommentDetail],
+            "model": List[FeedItem],
             "description": "User feed retrieved successfully",
         },
         401: {"model": ErrorResponse, "description": "Unauthorized"},
@@ -741,9 +741,12 @@ We're glad to have you join the conversation!
                         id=comment.id,
                         parent_id=comment.parent_id,
                         bill_id=comment.bill_id,
+                        bill_identifier=comment.bill.identifier,
                         user_id=comment.user_id,
                         comment=comment.comment,
                         user_name=comment.user.name,
+                        created_at=comment.created_at,
+                        updated_at=comment.updated_at,
                     ),
                 )
                 for comment in all_comments

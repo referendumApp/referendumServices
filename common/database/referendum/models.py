@@ -1,10 +1,9 @@
 import datetime
 import logging
 
-import sqlalchemy.exc
-from sqlalchemy import Column, Date, ForeignKey, Integer, String, Table, event
-from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Query, declarative_base, relationship
+from sqlalchemy import Column, Date, ForeignKey, Integer, String, Table, DateTime
+from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import JSONB
 
 logger = logging.getLogger(__name__)
@@ -270,6 +269,9 @@ class Comment(Base):
     bill_id = Column(Integer, ForeignKey("bills.id"), nullable=False)
     parent_id = Column(Integer, ForeignKey("comments.id"))
     comment = Column(String, nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime, onupdate=func.now(), nullable=True)
 
+    bill = relationship("Bill")
     likes = relationship("User", secondary=user_comment_likes, back_populates="liked_comments")
     user = relationship("User")

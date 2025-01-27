@@ -290,9 +290,12 @@ async def get_bill_comments(
             id=comment.id,
             parent_id=comment.parent_id,
             bill_id=comment.bill_id,
+            bill_identifier=comment.bill.identifier,
             user_id=comment.user_id,
             comment=comment.comment,
             user_name=comment.user.name,
+            created_at=comment.created_at,
+            updated_at=comment.updated_at,
         )
         for comment in bill_comments
     ]
