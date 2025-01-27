@@ -15,7 +15,7 @@ dependencies = [
     "boto3==1.36.2",
     "debugpy==1.8.11",
     "fastapi[standard]",
-    "langchain==0.3.14",
+    "langchain==0.3.15",
     "langchain-community==0.3.14",
     "langchain-openai==0.3.1",
     "openai==1.59.6",
