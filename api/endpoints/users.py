@@ -720,12 +720,13 @@ We're glad to have you join the conversation!
 """,
             ),
         ),
+        # TODO - derive this from feed items managed outside of code
         FeedItem(
             type=FeedItemType.BillEvent,
             content=BillEvent(
-                bill_id=0,  # TODO
-                bill_identifier="HBXXXX",
-                text="BILL OF THE WEEK",
+                bill_id=1860121,
+                bill_identifier="HB7521",
+                text="Referendum's Bill of the Week: The TikTok Ban",
             ),
         ),
     ]
