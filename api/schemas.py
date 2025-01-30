@@ -3,7 +3,8 @@ from typing import Dict, Generic, List, Optional, TypeVar
 
 from pydantic import Field, field_validator, model_serializer
 
-from common.database.referendum.schemas import CamelCaseBaseModel, UserBase
+from common.database.referendum.schemas import UserBase
+from common.core.schemas import CamelCaseBaseModel
 
 T = TypeVar("T")
 
@@ -241,3 +242,13 @@ class LegislatorScorecard(CamelCaseBaseModel):
     legislator_id: int
     delinquency: float
     bipartisanship: float
+
+
+class ChatMessageRequest(CamelCaseBaseModel):
+    message: str
+    session_id: str
+
+
+class ChatMessageResponse(CamelCaseBaseModel):
+    response: str
+    session_id: str
