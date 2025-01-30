@@ -687,15 +687,27 @@ class SessionCRUD(BaseCRUD[models.Session, schemas.Session.Base, schemas.Session
     pass
 
 
+class PresidentCRUD(BaseCRUD[models.President, schemas.President.Base, schemas.President.Record]):
+    pass
+
+
+class ExecutiveOrderCRUD(
+    BaseCRUD[models.ExecutiveOrder, schemas.ExecutiveOrder.Base, schemas.ExecutiveOrder.Record]
+):
+    pass
+
+
 bill = BillCRUD(models.Bill)
 bill_action = BillActionCRUD(models.BillAction)
 bill_version = BillVersionCRUD(models.BillVersion)
 comment = CommentCRUD(models.Comment)
 committee = CommitteeCRUD(models.Committee)
+executive_order = ExecutiveOrderCRUD(models.ExecutiveOrder)
 legislator = LegislatorCRUD(models.Legislator)
 legislative_body = LegislativeBodyCRUD(models.LegislativeBody)
 legislator_vote = LegislatorVoteCRUD(models.LegislatorVote)
 party = PartyCRUD(models.Party)
+president = PartyCRUD(models.President)
 role = RoleCRUD(models.Role)
 state = StateCRUD(models.State)
 status = StatusCRUD(models.Status)

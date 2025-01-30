@@ -273,3 +273,20 @@ class Comment(Base):
 
     likes = relationship("User", secondary=user_comment_likes, back_populates="liked_comments")
     user = relationship("User")
+
+
+class President(Base):
+    __tablename__ = "presidents"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)
+    party_id = Column(Integer, ForeignKey("partys.id"))
+
+
+class ExecutiveOrder(Base):
+    __tablename__ = "executive_orders"
+
+    id = Column(Integer, primary_key=True)
+    title = Column(String, nullable=False)
+    status_date = Column(Date)
+    president_id = Column(Integer, ForeignKey("presidents.id"), index=True)

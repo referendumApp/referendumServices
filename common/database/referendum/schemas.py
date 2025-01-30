@@ -205,6 +205,27 @@ LegislatorVote = create_schema_container(
     },
 )
 
+President = create_schema_container(
+    name="President",
+    base_fields={
+        "id": (int, ...),
+        "name": (date, ...),
+        "party_id": (int, ...),
+    },
+)
+
+
+ExecutiveOrder = create_schema_container(
+    name="ExecutiveOrder",
+    base_fields={
+        "id": (int, ...),
+        "title": (date, ...),
+        "url": (str, ...),
+        "hash": (str, ...),
+        "briefing": (Optional[str], ...),
+    },
+)
+
 
 class UserBase(BaseSchema):
     email: EmailStr = Field(..., max_length=100)
