@@ -87,7 +87,7 @@ async def get_bill_briefing(
     briefing = None
     if bill_version.briefing:
         briefing = bill_version.briefing
-    if os.getenv("ENVIRONMENT") == "prod":
+    else:
         s3_client = ObjectStorageClient()
         bill_text = s3_client.download_file(
             bucket=settings.BILL_TEXT_BUCKET_NAME, key=f"{bill_version.hash}.txt"
