@@ -258,7 +258,7 @@ class LegislatorScorecard(CamelCaseBaseModel):
     bipartisanship: float
 
 
-class FeedItemType(Enum):
+class FeedItemType(str, Enum):
     Comment = "comment"
     Announcement = "announcement"
     BillEvent = "bill_event"
@@ -267,3 +267,17 @@ class FeedItemType(Enum):
 class FeedItem(CamelCaseBaseModel):
     type: FeedItemType
     content: Union[Announcement, CommentDetail, BillEvent]
+
+    @field_validator("content")
+    def validate_content_type(cls, v, values):
+        type_to_class = {
+            FeedItemType.Announcement: Announcement,
+            FeedItemType.BillEvent: BillEvent,
+            FeedItemType.Comment: CommentDetail,
+        }
+        expected_type = type_to_class.get(values.data.get("type"))
+        if expected_type and not isinstance(v, expected_type):
+            raise ValueError(
+                f"Content must be of type {expected_type.__name__} when type is {values.data['type']}"
+            )
+        return v
