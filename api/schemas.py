@@ -241,3 +241,29 @@ class LegislatorScorecard(CamelCaseBaseModel):
     legislator_id: int
     delinquency: float
     bipartisanship: float
+
+
+class ExecutiveOrderFilterOptions(CamelCaseBaseModel):
+    president_id: Optional[List[int]] = None
+
+
+class ExecutiveOrderPaginationRequestBody(CamelCaseBaseModel):
+    skip: int = 0
+    limit: int = 100
+    search_query: Optional[str] = None
+    order_by: Optional[str] = None
+    filter_options: Optional[ExecutiveOrderFilterOptions] = None
+
+
+class DenormalizedExecutiveOrder(CamelCaseBaseModel):
+    """Represents a denormalized view of an executive order with all related information."""
+
+    executive_order_id: int = Field(description="Primary identifier of the executive order")
+    title: str = Field(description="Official title of the executive order")
+    date: date = Field(description="Date the executive order was signed")
+    president_id: int = Field(description="ID of the president who signed the EO")
+    president_name: str = Field(description="Name of the president who signed the EO")
+
+    model_config = {
+        "from_attributes": True,
+    }
