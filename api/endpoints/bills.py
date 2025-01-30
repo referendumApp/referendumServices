@@ -181,40 +181,36 @@ async def get_bill_detail(
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ):
     try:
-        bills = crud.bill.read_denormalized(db=db, bill_id=bill_id)
-        result = []
-        for bill in bills:
-            sponsors = [
-                {
-                    "bill_id": sponsor.bill_id,
-                    "legislator_id": sponsor.legislator_id,
-                    "legislator_name": sponsor.legislator.name,
-                    "rank": sponsor.rank,
-                    "type": sponsor.type,
-                }
-                for sponsor in bill.sponsors
-            ]
-            bill_dict = {
-                "bill_id": bill.id,
-                "legiscan_id": bill.legiscan_id,
-                "identifier": bill.identifier,
-                "title": bill.title,
-                "description": bill.description,
-                "status_id": bill.status.id,
-                "status": bill.status.name,
-                "status_date": bill.status_date,
-                "session_id": bill.session.id,
-                "session_name": bill.session.name,
-                "state_id": bill.state.id,
-                "state_name": bill.state.name,
-                "current_version_id": bill.current_version_id,
-                "legislative_body_id": bill.legislative_body.id,
-                "role_id": bill.legislative_body.role.id,
-                "legislative_body_role": bill.legislative_body.role.name,
-                "sponsors": sponsors,
+        bill = crud.bill.read_denormalized(db=db, bill_id=bill_id)
+        sponsors = [
+            {
+                "bill_id": sponsor.bill_id,
+                "legislator_id": sponsor.legislator_id,
+                "legislator_name": sponsor.legislator.name,
+                "rank": sponsor.rank,
+                "type": sponsor.type,
             }
-            result.append(bill_dict)
-        return result
+            for sponsor in bill.sponsors
+        ]
+        return {
+            "bill_id": bill.id,
+            "legiscan_id": bill.legiscan_id,
+            "identifier": bill.identifier,
+            "title": bill.title,
+            "description": bill.description,
+            "status_id": bill.status.id,
+            "status": bill.status.name,
+            "status_date": bill.status_date,
+            "session_id": bill.session.id,
+            "session_name": bill.session.name,
+            "state_id": bill.state.id,
+            "state_name": bill.state.name,
+            "current_version_id": bill.current_version_id,
+            "legislative_body_id": bill.legislative_body.id,
+            "role_id": bill.legislative_body.role.id,
+            "legislative_body_role": bill.legislative_body.role.name,
+            "sponsors": sponsors,
+        }
     except DatabaseException as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 

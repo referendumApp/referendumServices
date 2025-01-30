@@ -6,9 +6,25 @@ from api.tests.test_utils import assert_status_code
 from api.constants import YEA_VOTE_ID
 
 
-async def test_add_bill_success(test_manager: TestManager):
+async def test_get_bill_details(client, system_headers, test_manager: TestManager):
     test_bill = await test_manager.create_bill()
     assert "id" in test_bill
+
+    response = await client.get(f"/bills/{test_bill['id']}/details", headers=system_headers)
+    assert_status_code(response, 200)
+
+    expected_fields = [
+        "billId",
+        "description",
+        "statusId",
+        "status",
+        "statusDate",
+        "sessionId",
+        "stateName",
+        "legislativeBodyRole",
+        "sponsors",
+    ]
+    assert all(field in response.json() for field in expected_fields)
 
 
 async def test_list_bill_details(client, system_headers, test_manager: TestManager):
