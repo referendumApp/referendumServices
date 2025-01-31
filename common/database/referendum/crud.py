@@ -175,7 +175,7 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
         return db_bill.comments
 
     def read_denormalized(self, db: Session, bill_id: int) -> models.Bill:
-        db_bill = (
+        return (
             db.query(models.Bill)
             .options(
                 joinedload(models.Bill.state),
@@ -189,8 +189,6 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
             .filter(models.Bill.id == bill_id)
             .first()
         )
-        if db_bill is None:
-            raise ObjectNotFoundException("Bill not found")
 
     def read_all_denormalized(
         self,
