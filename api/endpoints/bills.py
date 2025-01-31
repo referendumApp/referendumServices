@@ -179,8 +179,6 @@ async def get_bill_detail(
 ):
     try:
         bill = crud.bill.read_denormalized(db=db, bill_id=bill_id)
-        if not bill:
-            raise HTTPException(status_code=404, detail=f"Bill not found for id {bill_id}")
 
         sponsors = [
             {
@@ -213,6 +211,8 @@ async def get_bill_detail(
         }
     except DatabaseException as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    except ObjectNotFoundException as e:
+        raise HTTPException(status_code=404, detail=f"Bill not found for id {bill_id}")
 
 
 @router.get(
