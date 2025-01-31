@@ -201,7 +201,7 @@ President = create_schema_container(
     name="President",
     base_fields={
         "id": (int, ...),
-        "name": (date, ...),
+        "name": (str, ...),
         "party_id": (int, ...),
     },
 )
@@ -212,10 +212,11 @@ ExecutiveOrder = create_schema_container(
     base_fields={
         "id": (int, ...),
         "title": (str, ...),
-        "date": (date, ...),
+        "signed_date": (date, ...),
         "url": (str, ...),
         "hash": (str, ...),
         "briefing": (Optional[str], ...),
+        "president_id": (int, ...),
     },
     relationship_fields={
         "president": (President.Record, ...),

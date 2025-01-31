@@ -193,7 +193,6 @@ async def message_chat(
         response = session_manager.send_message(message_request.session_id, message_request.message)
 
         return ChatMessageResponse(response=response, session_id=message_request.session_id)
-
     except HTTPException as e:
         raise e
     except Exception as e:

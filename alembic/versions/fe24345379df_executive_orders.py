@@ -36,7 +36,7 @@ def upgrade():
         "executive_orders",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("title", sa.String(), nullable=False),
-        sa.Column("date", sa.Date(), nullable=False),
+        sa.Column("signed_date", sa.Date(), nullable=False),
         sa.Column("url", sa.String(), nullable=False),
         sa.Column("hash", sa.String(), nullable=False),
         sa.Column("briefing", sa.String(), nullable=True),

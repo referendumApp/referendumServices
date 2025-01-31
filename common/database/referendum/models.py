@@ -288,8 +288,10 @@ class ExecutiveOrder(Base):
 
     id = Column(Integer, primary_key=True)
     title = Column(String, nullable=False)
-    date = Column(Date)
+    signed_date = Column(Date)
     url = Column(String)
     hash = Column(String)
     briefing = Column(String, nullable=True)
     president_id = Column(Integer, ForeignKey("presidents.id"), index=True)
+
+    president = relationship("President")

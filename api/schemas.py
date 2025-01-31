@@ -261,13 +261,14 @@ class DenormalizedExecutiveOrder(CamelCaseBaseModel):
 
     executive_order_id: int = Field(description="Primary identifier of the executive order")
     title: str = Field(description="Official title of the executive order")
-    date: date = Field(description="Date the executive order was signed")
+    signed_date: date = Field(description="Date the executive order was signed")
     president_id: int = Field(description="ID of the president who signed the EO")
     president_name: str = Field(description="Name of the president who signed the EO")
 
     model_config = {
         "from_attributes": True,
     }
+
 
 class ChatSession(CamelCaseBaseModel):
     session_id: str

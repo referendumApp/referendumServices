@@ -714,7 +714,7 @@ class ExecutiveOrderCRUD(
         order_by: List[Column] | None = None,
     ) -> List[models.ExecutiveOrder]:
         query = db.query(models.ExecutiveOrder).options(
-            joinedload(models.ExecutiveOrder.president_id),
+            joinedload(models.ExecutiveOrder.president),
         )
 
         if column_filter is not None:
