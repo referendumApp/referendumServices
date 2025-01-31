@@ -9,7 +9,8 @@ from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from api.database import get_db
-from api.schemas import FormErrorModel, UserCreateInput, UserUpdateInput
+from api.schemas.users import UserCreateInput, UserUpdateInput
+from api.schemas.interactions import FormErrorModel
 from api.settings import settings
 from common.database.referendum import crud, models, schemas
 

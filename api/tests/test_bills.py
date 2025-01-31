@@ -9,6 +9,7 @@ from api.constants import YEA_VOTE_ID
 async def test_get_bill_details(client, system_headers, test_manager: TestManager):
     test_bill = await test_manager.create_bill()
     assert "id" in test_bill
+    print(test_bill)
 
     response = await client.get(f"/bills/{test_bill['id']}/details", headers=system_headers)
     assert_status_code(response, 200)

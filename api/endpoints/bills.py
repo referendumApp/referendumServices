@@ -10,20 +10,17 @@ from common.database.referendum import crud, models, schemas, utils
 from common.database.referendum.crud import DatabaseException, ObjectNotFoundException
 
 from ..database import get_db
-from ..schemas import (
-    BillPaginationRequestBody,
+from ..schemas.resources import (
     BillVotingHistory,
-    CommentDetail,
     DenormalizedBill,
-    ErrorResponse,
     LegislatorVote,
     LegislatorVoteDetail,
-    PaginatedResponse,
-    UserBillVotes,
     VoteCountByChoice,
     VoteCountByParty,
     VoteSummary,
 )
+from ..schemas.users import UserBillVotes, CommentDetail
+from ..schemas.interactions import PaginatedResponse, BillPaginationRequestBody, ErrorResponse
 from ..security import (
     CredentialsException,
     get_current_user_or_verify_system_token,

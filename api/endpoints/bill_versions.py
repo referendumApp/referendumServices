@@ -1,5 +1,4 @@
 import logging
-import os
 from datetime import datetime
 from typing import Any, Dict
 
@@ -12,7 +11,12 @@ from common.database.referendum import crud, schemas
 from common.object_storage.client import ObjectStorageClient
 
 from ..database import get_db
-from ..schemas import ErrorResponse, ChatMessageRequest, ChatMessageResponse, ChatSession
+from ..schemas.interactions import (
+    ErrorResponse,
+    ChatMessageRequest,
+    ChatMessageResponse,
+    ChatSession,
+)
 from ..security import CredentialsException, get_current_user_or_verify_system_token
 from ..settings import settings
 from .endpoint_generator import EndpointGenerator
