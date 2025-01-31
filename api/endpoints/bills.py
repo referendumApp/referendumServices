@@ -182,6 +182,9 @@ async def get_bill_detail(
 ):
     try:
         bill = crud.bill.read_denormalized(db=db, bill_id=bill_id)
+        if not bill:
+            raise HTTPException(status_code=404, detail=f"Bill not found for id {bill_id}")
+
         sponsors = [
             {
                 "bill_id": sponsor.bill_id,
