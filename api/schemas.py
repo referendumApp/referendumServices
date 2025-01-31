@@ -3,7 +3,8 @@ from typing import Dict, Generic, List, Optional, TypeVar
 
 from pydantic import Field, field_validator, model_serializer
 
-from common.database.referendum.schemas import CamelCaseBaseModel, UserBase
+from common.database.referendum.schemas import UserBase
+from common.core.schemas import CamelCaseBaseModel
 
 T = TypeVar("T")
 
@@ -267,3 +268,14 @@ class DenormalizedExecutiveOrder(CamelCaseBaseModel):
     model_config = {
         "from_attributes": True,
     }
+
+class ChatSession(CamelCaseBaseModel):
+    session_id: str
+
+
+class ChatMessageRequest(ChatSession):
+    message: str
+
+
+class ChatMessageResponse(ChatSession):
+    response: str

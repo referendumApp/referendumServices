@@ -1,12 +1,12 @@
 from typing import Optional, List, Dict
 from datetime import datetime
-from pydantic import BaseModel
 from uuid import uuid4
 
+from common.core.schemas import CamelCaseBaseModel
 from common.chat.service import OpenAIException, LLMService
 
 
-class ChatMessage(BaseModel):
+class ChatMessage(CamelCaseBaseModel):
     role: str
     content: str
     timestamp: datetime

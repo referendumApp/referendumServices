@@ -174,7 +174,7 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
 
         return db_bill.comments
 
-    def read_denormalized(self, db: Session, bill_id: int) -> List[models.Bill]:
+    def read_denormalized(self, db: Session, bill_id: int) -> models.Bill:
         return (
             db.query(models.Bill)
             .options(
