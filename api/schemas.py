@@ -244,11 +244,13 @@ class LegislatorScorecard(CamelCaseBaseModel):
     bipartisanship: float
 
 
-class ChatMessageRequest(CamelCaseBaseModel):
+class ChatSession(CamelCaseBaseModel):
+    session_id: str
+
+
+class ChatMessageRequest(ChatSession):
     message: str
-    session_id: str
 
 
-class ChatMessageResponse(CamelCaseBaseModel):
+class ChatMessageResponse(ChatSession):
     response: str
-    session_id: str
