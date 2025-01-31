@@ -97,7 +97,7 @@ async def get_executive_order_details(
                 "title": eo.title,
                 "hash": eo.hash,
                 "url": eo.url,
-                "date": eo.date,
+                "signed_date": eo.signed_date,
                 "president_id": eo.president.id,
                 "president_name": eo.president.name,
             }

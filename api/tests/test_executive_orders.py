@@ -9,6 +9,7 @@ async def test_list_executive_order_details(client, system_headers, test_manager
     test_executive_order = await test_manager.create_executive_order(
         president_id=test_president["id"]
     )
+    print(test_executive_order)
 
     test_error = None
     try:
@@ -22,12 +23,15 @@ async def test_list_executive_order_details(client, system_headers, test_manager
         expected_fields = [
             "executiveOrderId",
             "briefing",
-            "signed_date",
+            "signedDate",
             "hash",
             "presidentId",
             "title",
             "url",
         ]
+        print(eo)
+        print(expected_fields)
+        print([field in eo for field in expected_fields])
         assert all(field in eo for field in expected_fields)
     except Exception as e:
         test_error = str(e)
