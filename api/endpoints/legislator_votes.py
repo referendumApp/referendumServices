@@ -8,7 +8,7 @@ from common.database.referendum import crud, schemas
 from common.database.referendum.crud import ObjectNotFoundException, DatabaseException
 
 from ..database import get_db
-from ..schemas import ErrorResponse
+from ..schemas.interactions import ErrorResponse
 from ..security import verify_system_token
 
 logger = logging.getLogger(__name__)

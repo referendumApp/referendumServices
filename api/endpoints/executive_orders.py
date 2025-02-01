@@ -1,25 +1,20 @@
 import logging
-from collections import Counter, defaultdict
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import and_, or_, select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
 from common.database.referendum import crud, models, schemas, utils
-from common.database.referendum.crud import DatabaseException, ObjectNotFoundException
+from common.database.referendum.crud import DatabaseException
 
 from ..database import get_db
-from ..schemas import (
-    ExecutiveOrderPaginationRequestBody,
-    DenormalizedExecutiveOrder,
+from ..schemas.interactions import (
     ErrorResponse,
+    ExecutiveOrderPaginationRequestBody,
     PaginatedResponse,
 )
-from ..security import (
-    get_current_user_or_verify_system_token,
-    verify_system_token,
-)
+from ..schemas.resources import DenormalizedExecutiveOrder
+from ..security import get_current_user_or_verify_system_token
 from .endpoint_generator import EndpointGenerator
 
 
