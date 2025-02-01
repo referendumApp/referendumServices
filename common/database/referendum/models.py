@@ -219,6 +219,7 @@ class Legislator(Base):
     role_id = Column(Integer, ForeignKey("roles.id"))
     state_id = Column(Integer, ForeignKey("states.id"))
     district = Column(String, nullable=False)
+    representing_state_id = Column(Integer)
     address = Column(String)
     facebook = Column(String)
     instagram = Column(String)
