@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from common.chat.bill import BillChatSessionManager
@@ -13,7 +12,7 @@ from common.database.referendum import crud, schemas
 from common.object_storage.client import ObjectStorageClient
 
 from ..database import get_db
-from ..schemas import ErrorResponse
+from ..schemas import ErrorResponse, ChatMessageRequest, ChatMessageResponse, ChatSession
 from ..security import CredentialsException, get_current_user_or_verify_system_token
 from ..settings import settings
 from .endpoint_generator import EndpointGenerator
@@ -87,7 +86,7 @@ async def get_bill_briefing(
     briefing = None
     if bill_version.briefing:
         briefing = bill_version.briefing
-    if os.getenv("ENVIRONMENT") == "prod":
+    else:
         s3_client = ObjectStorageClient()
         bill_text = s3_client.download_file(
             bucket=settings.BILL_TEXT_BUCKET_NAME, key=f"{bill_version.hash}.txt"
@@ -114,22 +113,12 @@ async def get_bill_briefing(
     return {"bill_version_id": bill_version_id, "briefing": briefing}
 
 
-class ChatMessageRequest(BaseModel):
-    message: str
-    session_id: str
-
-
-class ChatMessageResponse(BaseModel):
-    response: str
-    session_id: str
-
-
 @router.put(
     "/{bill_version_id}/chat",
-    response_model=Dict[str, str],
+    response_model=ChatSession,
     summary="Initialize a new chat session",
     responses={
-        200: {"description": "Chat session successfully initialized"},
+        201: {"model": ChatSession, "description": "Chat session successfully initialized"},
         401: {"model": ErrorResponse, "description": "Not authorized"},
         404: {"model": ErrorResponse, "description": "Bill not found"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
@@ -169,7 +158,7 @@ async def initialize_chat(
     response_model=ChatMessageResponse,
     summary="Send a message to the chat session",
     responses={
-        200: {"description": "Message processed successfully"},
+        200: {"model": ChatMessageResponse, "description": "Message processed successfully"},
         401: {"model": ErrorResponse, "description": "Not authorized"},
         404: {"model": ErrorResponse, "description": "Session not found"},
         429: {"model": ErrorResponse, "description": "Monthly message limit exceeded"},

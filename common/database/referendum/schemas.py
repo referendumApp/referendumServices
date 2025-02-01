@@ -1,18 +1,10 @@
 from datetime import date
 from pydantic import BaseModel, EmailStr, Field, ConfigDict, create_model
-from pydantic.alias_generators import to_camel
 from typing import TypeVar, Generic, List, Type, Dict, Any, Optional
 
+from common.core.schemas import CamelCaseBaseModel
+
 T = TypeVar("T")
-
-
-class CamelCaseBaseModel(BaseModel):
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        protected_namespaces=(),
-        arbitrary_types_allowed=True,
-    )
 
 
 class BaseSchema(CamelCaseBaseModel):
