@@ -24,6 +24,8 @@ from .endpoints import (
     vote_choices,
     sessions,
     statuses,
+    executive_orders,
+    presidents,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -47,12 +49,14 @@ app.include_router(bill_actions.router, tags=["bill_actions"], prefix="/bill_act
 app.include_router(bill_versions.router, tags=["bill_versions"], prefix="/bill_versions")
 app.include_router(comments.router, tags=["comments"], prefix="/comments")
 app.include_router(committees.router, tags=["committees"], prefix="/committees")
+app.include_router(executive_orders.router, tags=["executive_orders"], prefix="/executive_orders")
 app.include_router(legislators.router, tags=["legislators"], prefix="/legislators")
 app.include_router(legislator_votes.router, tags=["legislator_votes"], prefix="/legislator_votes")
 app.include_router(
     legislative_bodys.router, tags=["legislative_bodys"], prefix="/legislative_bodys"
 )
 app.include_router(partys.router, tags=["partys"], prefix="/partys")
+app.include_router(presidents.router, tags=["presidents"], prefix="/presidents")
 app.include_router(roles.router, tags=["roles"], prefix="/roles")
 app.include_router(sessions.router, tags=["sessions"], prefix="/sessions")
 app.include_router(states.router, tags=["states"], prefix="/states")

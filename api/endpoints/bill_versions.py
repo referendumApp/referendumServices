@@ -119,10 +119,10 @@ async def get_bill_briefing(
 
 @router.put(
     "/{bill_version_id}/chat",
-    response_model=ChatSession,
+    response_model=ChatMessageResponse,
     summary="Initialize a new chat session",
     responses={
-        201: {"model": ChatSession, "description": "Chat session successfully initialized"},
+        201: {"model": ChatMessageResponse, "description": "Chat session successfully initialized"},
         401: {"model": ErrorResponse, "description": "Not authorized"},
         404: {"model": ErrorResponse, "description": "Bill not found"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
@@ -148,7 +148,10 @@ async def initialize_chat(
 
         # Create new session
         session_id = session_manager.create_session(bill_version_id, text)
-        return {"session_id": session_id}
+        return {
+            "session_id": session_id,
+            "response": "Hi, what can I help you learn about this bill?",
+        }
 
     except HTTPException as e:
         raise e
@@ -197,7 +200,6 @@ async def message_chat(
         response = session_manager.send_message(message_request.session_id, message_request.message)
 
         return ChatMessageResponse(response=response, session_id=message_request.session_id)
-
     except HTTPException as e:
         raise e
     except Exception as e:

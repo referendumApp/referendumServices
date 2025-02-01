@@ -691,15 +691,57 @@ class SessionCRUD(BaseCRUD[models.Session, schemas.Session.Base, schemas.Session
     pass
 
 
+class PresidentCRUD(BaseCRUD[models.President, schemas.President.Base, schemas.President.Record]):
+    pass
+
+
+class ExecutiveOrderCRUD(
+    BaseCRUD[models.ExecutiveOrder, schemas.ExecutiveOrder.Base, schemas.ExecutiveOrder.Record]
+):
+    def read_denormalized(self, db: Session, executive_order_id: int) -> models.ExecutiveOrder:
+        return (
+            db.query(models.ExecutiveOrder)
+            .options(
+                joinedload(models.ExecutiveOrder.president_id),
+            )
+            .filter(models.ExecutiveOrder.id == executive_order_id)
+            .first()
+        )
+
+    def read_all_denormalized(
+        self,
+        db: Session,
+        skip: int = 0,
+        limit: int = 100,
+        column_filter: ColumnElement[bool] | None = None,
+        search_filter: BinaryExpression | ColumnElement[bool] | None = None,
+        order_by: List[Column] | None = None,
+    ) -> List[models.ExecutiveOrder]:
+        query = db.query(models.ExecutiveOrder).options(
+            joinedload(models.ExecutiveOrder.president),
+        )
+
+        if column_filter is not None:
+            query = query.filter(column_filter)
+        if search_filter is not None:
+            query = query.filter(search_filter)
+        if order_by:
+            query = query.order_by(*order_by)
+
+        return query.offset(skip).limit(limit).all()
+
+
 bill = BillCRUD(models.Bill)
 bill_action = BillActionCRUD(models.BillAction)
 bill_version = BillVersionCRUD(models.BillVersion)
 comment = CommentCRUD(models.Comment)
 committee = CommitteeCRUD(models.Committee)
+executive_order = ExecutiveOrderCRUD(models.ExecutiveOrder)
 legislator = LegislatorCRUD(models.Legislator)
 legislative_body = LegislativeBodyCRUD(models.LegislativeBody)
 legislator_vote = LegislatorVoteCRUD(models.LegislatorVote)
 party = PartyCRUD(models.Party)
+president = PartyCRUD(models.President)
 role = RoleCRUD(models.Role)
 state = StateCRUD(models.State)
 status = StatusCRUD(models.Status)

@@ -113,6 +113,7 @@ Legislator = create_schema_container(
         "party_id": (int, ...),
         "role_id": (int, ...),
         "state_id": (int, ...),
+        "representing_state_id": (Optional[int], None),
         "address": (Optional[str], None),
         "facebook": (Optional[str], None),
         "instagram": (Optional[str], None),
@@ -194,6 +195,32 @@ LegislatorVote = create_schema_container(
     },
     relationship_fields={
         "vote_choice": (VoteChoice.Record, ...),
+    },
+)
+
+President = create_schema_container(
+    name="President",
+    base_fields={
+        "id": (int, ...),
+        "name": (str, ...),
+        "party_id": (int, ...),
+    },
+)
+
+
+ExecutiveOrder = create_schema_container(
+    name="ExecutiveOrder",
+    base_fields={
+        "id": (int, ...),
+        "title": (str, ...),
+        "signed_date": (date, ...),
+        "url": (str, ...),
+        "hash": (str, ...),
+        "briefing": (Optional[str], ...),
+        "president_id": (int, ...),
+    },
+    relationship_fields={
+        "president": (President.Record, ...),
     },
 )
 
