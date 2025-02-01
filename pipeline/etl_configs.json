@@ -170,7 +170,7 @@
     "dataframe": null
   },
   {
-    "source": "(SELECT p.*, SPLIT_PART(p.district, '-', 1) as representing_state_abbr FROM ls_people p) AS derived_people",
+    "source": "(SELECT p.*, SPLIT_PART(p.district, '-', 2) as representing_state_abbr FROM ls_people p) AS derived_people",
     "destination": "legislators",
     "source_columns": [
       "people_id",
@@ -196,7 +196,7 @@
     "join_config": {
       "join_type": "LEFT JOIN",
       "table": "ls_state",
-      "on": ["representing_state_abbr", "state_name"],
+      "on": ["representing_state_abbr", "state_abbr"],
       "columns": [
         "ls_state.state_id AS representing_state_id"
       ]
