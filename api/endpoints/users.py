@@ -14,7 +14,6 @@ from ..database import get_db
 from ..schemas.users import (
     UserCreateInput,
     UserUpdateInput,
-    CommentDetail,
     PasswordResetInput,
     UserPasswordResetInput,
 )
@@ -22,7 +21,7 @@ from ..schemas.interactions import (
     ErrorResponse,
     Announcement,
     BillEvent,
-    CommentDetail,
+    Comment,
     FeedItem,
     FeedItemType,
 )
@@ -740,7 +739,7 @@ We're glad to have you join the conversation!
             [
                 FeedItem(
                     type=FeedItemType.Comment,
-                    content=CommentDetail(
+                    content=Comment(
                         id=comment.id,
                         parent_id=comment.parent_id,
                         bill_id=comment.bill_id,
@@ -749,7 +748,6 @@ We're glad to have you join the conversation!
                         comment=comment.comment,
                         user_name=comment.user.name,
                         created_at=comment.created_at,
-                        updated_at=comment.updated_at,
                     ),
                 )
                 for comment in all_comments

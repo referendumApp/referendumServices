@@ -1,7 +1,7 @@
 """comment timestamps
 
 Revision ID: fbaa14d45feb
-Revises: aa2fdd5f0d54
+Revises: fe24345379df
 Create Date: 2025-01-27 14:13:05.495914
 
 """
@@ -14,7 +14,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = "fbaa14d45feb"
-down_revision: Union[str, None] = "aa2fdd5f0d54"
+down_revision: Union[str, None] = "fe24345379df"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
