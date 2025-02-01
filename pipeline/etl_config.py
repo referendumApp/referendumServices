@@ -18,6 +18,7 @@ class TransformationFunction(str, Enum):
     ADD_URL = "add_url"
     HASH = "hash"
     MAP = "map"
+    SPLIT_EXTRACT = "split_extract"
 
 
 class Transformation(BaseModel):
@@ -84,6 +85,30 @@ class Transformation(BaseModel):
                     df[destination_name] = df[source_name].map(mapping_dict)
                     return df
 
+                case TransformationFunction.SPLIT_EXTRACT:
+                    source_name = self.parameters.get("source_name")
+                    destination_name = self.parameters.get("destination_name")
+                    delimiter = self.parameters.get("delimiter", ",")
+                    index = self.parameters.get("index", 0)
+                    default = self.parameters.get("default", None)
+
+                    if source_name not in df.columns:
+                        raise ValueError(f"Source column '{source_name}' not found")
+
+                    df = df.copy()
+                    df[destination_name] = (
+                        df[source_name]
+                        .astype(str)
+                        .apply(
+                            lambda x: (
+                                x.split(delimiter)[index]
+                                if x is not None and len(x.split(delimiter)) > index
+                                else default
+                            )
+                        )
+                    )
+                    return df
+
                 case _:
                     raise ValueError(f"Unsupported transformation: {self.function}")
 
@@ -102,11 +127,12 @@ class JoinType(str, Enum):
 class JoinConfig(BaseModel):
     join_type: JoinType
     table: str
-    on: str
+    on: str | tuple
     columns: Set[str]
 
     def _query_validation(self, source_columns: Set[str]):
-        if self.on not in source_columns:
+        join_column = self.on[0] if isinstance(self.on, tuple) else self.on
+        if join_column not in source_columns:
             raise ValueError(
                 f"The joined column {self.on} does not exist in the source columns: {source_columns}"
             )
@@ -119,11 +145,19 @@ class JoinConfig(BaseModel):
             )
 
     def _get_join_source_query(self, source: str, source_columns: Set[str]) -> str:
-        formatted_src_cols = {f"{source}.{src_col}" for src_col in source_columns}
-        formatted_join_cols = {f"{self.table}.{join_col}" for join_col in self.columns}
-        columns = ", ".join(sorted(formatted_src_cols.union(formatted_join_cols)))
+        source_alias = source.split(" AS ")[-1].strip() if ") AS " in source else source
+        formatted_src_cols = {f"{source_alias}.{src_col}" for src_col in source_columns}
+        columns = ", ".join(sorted(formatted_src_cols.union(self.columns)))
 
-        return f"SELECT {columns} FROM {source} {self.join_type.value} {self.table} ON {source}.{self.on} = {self.table}.{self.on}"
+        if isinstance(self.on, tuple):
+            join_condition = f"{source_alias}.{self.on[0]} = {self.table}.{self.on[1]}"
+        else:
+            join_condition = f"{source_alias}.{self.on} = {self.table}.{self.on}"
+
+        return f"""SELECT {columns} 
+                  FROM {source} 
+                  {self.join_type.value} {self.table} 
+                  ON {join_condition}"""
 
 
 class ETLConfig(BaseModel):
@@ -140,6 +174,10 @@ class ETLConfig(BaseModel):
 
     def _get_source_query(self, join_config: Optional[JoinConfig]) -> str:
         """Generate SQL query for source data extraction"""
+        # Check if source is a subquery by looking for ') AS' pattern
+        is_subquery = ") AS " in self.source
+        source_alias = self.source.split(" AS ")[-1].strip() if is_subquery else self.source
+
         if join_config:
             join_config._query_validation(source_columns=self.source_columns)
             source_query = join_config._get_join_source_query(
@@ -147,7 +185,10 @@ class ETLConfig(BaseModel):
                 source_columns=self.source_columns,
             )
         else:
-            columns = ", ".join(sorted(self.source_columns))
+            if is_subquery:
+                columns = ", ".join(f"{source_alias}.{col}" for col in sorted(self.source_columns))
+            else:
+                columns = ", ".join(sorted(self.source_columns))
             source_query = f"SELECT {columns} FROM {self.source}"
 
         return source_query
