@@ -117,6 +117,26 @@ class DenormalizedBill(CamelCaseBaseModel):
 
 
 ####################
+# Executive Order Details
+####################
+
+
+class DenormalizedExecutiveOrder(CamelCaseBaseModel):
+    executive_order_id: int = Field(description="Primary identifier of the executive order")
+    title: str = Field(description="Official title of the executive order")
+    signed_date: date = Field(description="Date the executive order was signed")
+    url: str = Field(description="URL of the official PDF of the executive order")
+    hash: str = Field(description="Hash to uniquely identify the text in Referendum")
+    briefing: Optional[str] = Field(None, description="Summary of the executive order")
+    president_id: int = Field(description="ID of the president who signed the EO")
+    president_name: str = Field(description="Name of the president who signed the EO")
+
+    model_config = {
+        "from_attributes": True,
+    }
+
+
+####################
 # Legislator Details
 ####################
 

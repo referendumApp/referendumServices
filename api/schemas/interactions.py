@@ -71,6 +71,19 @@ class BillPaginationRequestBody(BasePaginationRequestBody):
 
 
 ####################
+# Executive Order Pagination
+####################
+
+
+class ExecutiveOrderFilterOptions(BaseFilterOptions):
+    status_id: Optional[List[int]] = None
+
+
+class ExecutiveOrderPaginationRequestBody(BasePaginationRequestBody):
+    filter_options: Optional[BillFilterOptions] = None
+
+
+####################
 # Legislator Pagination
 ####################
 
