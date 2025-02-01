@@ -14,13 +14,8 @@ from common.database.referendum.crud import (
 )
 
 from ..database import get_db
-from ..schemas import (
-    ErrorResponse,
-    FormErrorResponse,
-    RefreshToken,
-    TokenResponse,
-    UserCreateInput,
-)
+from ..schemas.users import UserCreateInput, RefreshToken, TokenResponse
+from ..schemas.interactions import FormErrorResponse, ErrorResponse
 from ..security import (
     CredentialsException,
     FormException,

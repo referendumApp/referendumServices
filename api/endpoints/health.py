@@ -9,7 +9,7 @@ import os
 from common.object_storage.client import ObjectStorageClient
 
 from ..database import get_db
-from ..schemas import ErrorResponse, HealthResponse
+from ..schemas.interactions import ErrorResponse, HealthResponse
 
 router = APIRouter()
 

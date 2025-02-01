@@ -9,13 +9,11 @@ from common.database.referendum import crud, models, schemas, utils
 
 from ..constants import ABSENT_VOTE_ID, NAY_VOTE_ID, YEA_VOTE_ID
 from ..database import get_db
-from ..schemas import (
-    ErrorResponse,
-    LegislatorPaginationRequestBody,
+from ..schemas.resources import (
     LegislatorScorecard,
     LegislatorVotingHistory,
-    PaginatedResponse,
 )
+from ..schemas.interactions import PaginatedResponse, LegislatorPaginationRequestBody, ErrorResponse
 from ..security import CredentialsException, get_current_user_or_verify_system_token
 from .endpoint_generator import EndpointGenerator
 

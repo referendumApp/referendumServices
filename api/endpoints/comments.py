@@ -12,7 +12,7 @@ from common.database.referendum.crud import (
 )
 
 from ..database import get_db
-from ..schemas import ErrorResponse
+from ..schemas.interactions import ErrorResponse
 from ..security import (
     get_current_user,
     get_current_user_or_verify_system_token,

@@ -11,11 +11,14 @@ from common.database.referendum.crud import (
 )
 
 from ..database import get_db
-from ..schemas import (
+from ..schemas.users import (
     UserCreateInput,
     UserUpdateInput,
+    CommentDetail,
     PasswordResetInput,
     UserPasswordResetInput,
+)
+from ..schemas.interactions import (
     ErrorResponse,
     Announcement,
     BillEvent,
