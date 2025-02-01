@@ -21,20 +21,20 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade():
     # Add column to legislators table
-    op.add_column("legislators", sa.Column("representing_state_abbr", sa.String(), nullable=True))
+    op.add_column("legislators", sa.Column("representing_state_id", sa.String(), nullable=True))
 
     # Create index
     op.create_index(
-        op.f("ix_legislators_representing_state_abbr"),
+        op.f("ix_legislators_representing_state_id"),
         "legislators",
-        ["representing_state_abbr"],
+        ["representing_state_id"],
         unique=False,
     )
 
 
 def downgrade():
     # Remove index
-    op.drop_index(op.f("ix_legislators_representing_state_abbr"), table_name="legislators")
+    op.drop_index(op.f("ix_legislators_representing_state_id"), table_name="legislators")
 
     # Remove column
-    op.drop_column("legislators", "representing_state_abbr")
+    op.drop_column("legislators", "representing_state_id")

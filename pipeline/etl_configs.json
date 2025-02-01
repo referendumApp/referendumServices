@@ -170,7 +170,7 @@
     "dataframe": null
   },
   {
-    "source": "ls_people",
+    "source": "(SELECT p.*, SPLIT_PART(p.district, '-', 1) as representing_state_abbr FROM ls_people p) AS derived_people",
     "destination": "legislators",
     "source_columns": [
       "people_id",
@@ -179,7 +179,8 @@
       "district",
       "ballotpedia",
       "state_id",
-      "role_id"
+      "role_id",
+      "representing_state_abbr"
     ],
     "destination_columns": [
       "id",
@@ -188,10 +189,18 @@
       "party_id",
       "district",
       "state_id",
-      "representing_state_abbr",
+      "representing_state_id",
       "image_url",
       "role_id"
     ],
+    "join_config": {
+      "join_type": "LEFT JOIN",
+      "table": "ls_state",
+      "on": ["representing_state_abbr", "state_name"],
+      "columns": [
+        "ls_state.state_id AS representing_state_id"
+      ]
+    },
     "transformations": [
       {
         "function": "rename",
@@ -214,18 +223,12 @@
           "source_name": "ballotpedia",
           "destination_name": "image_url"
         }
-      },
-      {
-        "function": "split_extract",
-        "parameters": {
-          "source_name": "district",
-          "destination_name": "representing_state_abbr",
-          "delimiter": "-",
-          "index": 1
-        }
       }
     ],
-    "dataframe": null
+    "dataframe": null,
+    "unique_constraints": [
+      "id"
+    ]
   },
   {
     "source": "ls_committee",

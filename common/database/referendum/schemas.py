@@ -113,7 +113,7 @@ Legislator = create_schema_container(
         "party_id": (int, ...),
         "role_id": (int, ...),
         "state_id": (int, ...),
-        "representing_state_abbr": (Optional[str], None),
+        "representing_state_id": (Optional[int], None),
         "address": (Optional[str], None),
         "facebook": (Optional[str], None),
         "instagram": (Optional[str], None),
