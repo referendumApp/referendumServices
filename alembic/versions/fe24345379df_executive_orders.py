@@ -1,7 +1,7 @@
 """executive orders
 
 Revision ID: fe24345379df
-Revises: aa2fdd5f0d54
+Revises: 8de5a90e89e6
 Create Date: 2025-01-29 21:41:54.707776
 
 """
@@ -14,7 +14,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = "fe24345379df"
-down_revision: Union[str, None] = "aa2fdd5f0d54"
+down_revision: Union[str, None] = "8de5a90e89e6"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
