@@ -1,6 +1,7 @@
 import os
 import random
 from dataclasses import dataclass, field
+from datetime import date
 from typing import AsyncGenerator, Dict, List, Optional, Tuple
 
 import pytest
@@ -109,6 +110,56 @@ class TestManager:
     async def create_party(self, id: Optional[int] = None, name: Optional[str] = None) -> Dict:
         """Create a party with optional custom name."""
         return await self.create_resource("/partys/", {"id": id, "name": name or "Independent"})
+
+    async def create_president(
+        self,
+        president_id: Optional[int] = None,
+        name: Optional[str] = None,
+        party_id: Optional[int] = None,
+        party_name: Optional[int] = None,
+    ) -> Dict:
+        """Create a bill with all dependencies."""
+        party = await self.create_party(id=party_id, name=party_name)
+        party_id = party["id"]
+
+        if not president_id:
+            president_id = random.randint(0, 999999)
+
+        return await self.create_resource(
+            "/presidents/",
+            {
+                "id": president_id,
+                "name": name or f"President_{generate_random_string()}",
+                "partyId": party_id,
+            },
+        )
+
+    async def create_executive_order(
+        self,
+        president_id: Optional[int] = None,
+        hash_value: Optional[str] = None,
+        title: Optional[str] = None,
+    ) -> Dict:
+        """Create an executive_order with all dependencies."""
+        if not president_id:
+            president = await self.create_president()
+            president_id = president["id"]
+
+        if not hash_value:
+            hash_value = generate_random_string()
+
+        return await self.create_resource(
+            "/executive_orders/",
+            {
+                "id": random.randint(0, 999999),
+                "briefing": "yadayadayada",
+                "signedDate": "2024-01-01",
+                "hash": hash_value,
+                "presidentId": president_id,
+                "title": title or f"EO_{generate_random_string()}",
+                "url": generate_random_string(),
+            },
+        )
 
     async def create_session(
         self, *, state_id: Optional[int] = None, name: Optional[str] = None

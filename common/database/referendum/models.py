@@ -274,3 +274,25 @@ class Comment(Base):
 
     likes = relationship("User", secondary=user_comment_likes, back_populates="liked_comments")
     user = relationship("User")
+
+
+class President(Base):
+    __tablename__ = "presidents"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)
+    party_id = Column(Integer, ForeignKey("partys.id"))
+
+
+class ExecutiveOrder(Base):
+    __tablename__ = "executive_orders"
+
+    id = Column(Integer, primary_key=True)
+    title = Column(String, nullable=False)
+    signed_date = Column(Date)
+    url = Column(String)
+    hash = Column(String)
+    briefing = Column(String, nullable=True)
+    president_id = Column(Integer, ForeignKey("presidents.id"), index=True)
+
+    president = relationship("President")
