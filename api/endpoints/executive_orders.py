@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from common.database.referendum import crud, models, schemas, utils
-from common.database.referendum.crud import DatabaseException
+from common.database.referendum.crud import DatabaseException, ObjectNotFoundException
 
 from ..database import get_db
 from ..schemas.interactions import (
@@ -148,5 +148,9 @@ async def get_executive_order_detail(
             }
             result.append(eo_dict)
         return result
+    except ObjectNotFoundException:
+        raise HTTPException(
+            status_code=404, detail=f"Executive Order not found for id {executive_order_id}"
+        )
     except DatabaseException as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")

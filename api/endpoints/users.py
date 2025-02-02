@@ -169,15 +169,15 @@ async def update_user(
             )
     try:
         db_user = crud.user.get_user_by_email(db, email=user.email)
-        if db_user is None:
-            raise ObjectNotFoundException(f"User with email {user.email} not found")
+    except ObjectNotFoundException:
+        logger.warning(f"Attempt to update non-existent user with email: {user.email}")
+        raise HTTPException(status_code=404, detail=f"User not found for email: {user.email}.")
+
+    try:
         user_create = get_user_create_with_hashed_password(user)
         updated_user = crud.user.update(db=db, db_obj=db_user, obj_in=user_create)
         logger.info(f"Successfully updated information for user ID: {updated_user.id}")
         return updated_user
-    except ObjectNotFoundException:
-        logger.warning(f"Attempt to update non-existent user with email: {user.email}")
-        raise HTTPException(status_code=404, detail=f"User not found for email: {user.email}.")
     except DatabaseException as e:
         logger.error(f"Database error while updating user: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
@@ -343,6 +343,9 @@ def get_user_topics(
         topics = crud.user.get_user_topics(db=db, user_id=user.id)
         logger.info(f"Successfully retrieved {len(topics)} topics for user ID: {user.id}")
         return topics
+    except ObjectNotFoundException:
+        logger.warning(f"Failed to get topics for non-existent user with ID: {user.id}")
+        raise HTTPException(status_code=404, detail=f"User not found for ID: {user.id}.")
     except DatabaseException as e:
         logger.error(f"Database error while retrieving user topics: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
@@ -374,6 +377,9 @@ def get_user_bills(
         bills = crud.user.get_user_bills(db=db, user_id=user.id)
         logger.info(f"Successfully retrieved {len(bills)} bills for user ID: {user.id}")
         return bills
+    except ObjectNotFoundException:
+        logger.warning(f"Failed to get bills for non-existent user with ID: {user.id}")
+        raise HTTPException(status_code=404, detail=f"User not found for ID: {user.id}.")
     except DatabaseException as e:
         logger.error(f"Database error while retrieving user bills: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
@@ -405,6 +411,9 @@ def get_user_legislators(
         legislators = crud.user.get_user_legislators(db=db, user_id=user.id)
         logger.info(f"Successfully retrieved {len(legislators)} legislators for user ID: {user.id}")
         return legislators
+    except ObjectNotFoundException:
+        logger.warning(f"Failed to get legislators for non-existent user with ID: {user.id}")
+        raise HTTPException(status_code=404, detail=f"User not found for ID: {user.id}.")
     except DatabaseException as e:
         logger.error(f"Database error while retrieving user legislators: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from common.chat.bill import BillChatSessionManager
 from common.chat.service import LLMService, OpenAIException
 from common.database.referendum import crud, schemas
+from common.database.referendum.crud import ObjectNotFoundException
 from common.object_storage.client import ObjectStorageClient
 
 from ..database import get_db
@@ -15,7 +16,6 @@ from ..schemas.interactions import (
     ErrorResponse,
     ChatMessageRequest,
     ChatMessageResponse,
-    ChatSession,
 )
 from ..security import CredentialsException, get_current_user_or_verify_system_token
 from ..settings import settings
@@ -54,7 +54,12 @@ async def get_bill_text(
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> dict:
-    bill_version = crud.bill_version.read(db=db, obj_id=bill_version_id)
+    try:
+        bill_version = crud.bill_version.read(db=db, obj_id=bill_version_id)
+    except ObjectNotFoundException:
+        raise HTTPException(
+            status_code=404, detail=f"Bill version not found for id: {bill_version_id}"
+        )
 
     try:
         s3_client = ObjectStorageClient()
@@ -63,7 +68,6 @@ async def get_bill_text(
         ).decode("utf-8")
 
         return {"bill_version_id": bill_version_id, "hash": bill_version.hash, "text": text}
-
     except CredentialsException as e:
         raise e
     except Exception as e:
@@ -86,8 +90,13 @@ async def get_bill_briefing(
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> dict:
-    bill_version = crud.bill_version.read(db=db, obj_id=bill_version_id)
-    briefing = None
+    try:
+        bill_version = crud.bill_version.read(db=db, obj_id=bill_version_id)
+    except ObjectNotFoundException:
+        raise HTTPException(
+            status_code=404, detail=f"Bill version not found for id: {bill_version_id}"
+        )
+
     if bill_version.briefing:
         briefing = bill_version.briefing
     else:
@@ -135,11 +144,13 @@ async def initialize_chat(
 ) -> dict:
     """Initialize a new chat session for a specific bill version."""
     try:
-        # Verify bill version exists
         bill_version = crud.bill_version.read(db=db, obj_id=bill_version_id)
-        if not bill_version:
-            raise HTTPException(status_code=404, detail="Bill version not found")
+    except ObjectNotFoundException:
+        raise HTTPException(
+            status_code=404, detail=f"Bill version not found for id {bill_version_id}"
+        )
 
+    try:
         # Get bill text
         s3_client = ObjectStorageClient()
         text = s3_client.download_file(
@@ -152,9 +163,6 @@ async def initialize_chat(
             "session_id": session_id,
             "response": "Hi, what can I help you learn about this bill?",
         }
-
-    except HTTPException as e:
-        raise e
     except Exception as e:
         logger.error(f"Error initializing chat session: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error initializing chat session: {str(e)}")

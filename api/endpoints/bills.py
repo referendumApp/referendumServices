@@ -234,8 +234,11 @@ async def get_bill_versions(
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> dict:
-    bill = crud.bill.read(db=db, obj_id=bill_id)
-    return bill.bill_versions
+    try:
+        bill = crud.bill.read(db=db, obj_id=bill_id)
+        return bill.bill_versions
+    except ObjectNotFoundException:
+        raise HTTPException(status_code=404, detail=f"Bill not found for id: {bill_id}")
 
 
 @router.get(
@@ -257,7 +260,10 @@ async def get_bill_vote_counts(
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ):
-    bill_votes = crud.bill.get_bill_user_votes(db, bill_id)
+    try:
+        bill_votes = crud.bill.get_bill_user_votes(db, bill_id)
+    except ObjectNotFoundException:
+        raise HTTPException(status_code=404, detail=f"Bill not found for id: {bill_id}")
     return bill_votes
 
 
@@ -279,7 +285,10 @@ async def get_bill_comments(
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> List[CommentDetail]:
-    bill_comments = crud.bill.get_bill_comments(db, bill_id)
+    try:
+        bill_comments = crud.bill.get_bill_comments(db, bill_id)
+    except ObjectNotFoundException:
+        raise HTTPException(status_code=404, detail=f"Bill not found for id: {bill_id}")
 
     return [
         CommentDetail(
