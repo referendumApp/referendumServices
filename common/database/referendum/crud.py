@@ -431,6 +431,7 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
         db_user = self.read(db=db, obj_id=user_id)
         db_user.hashed_password = hashed_password
         db.commit()
+        db.refresh(db_user)
 
     def update_soft_delete(
         self,
