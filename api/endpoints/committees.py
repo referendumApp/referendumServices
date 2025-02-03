@@ -9,7 +9,7 @@ from common.database.referendum.crud import DatabaseException, ObjectNotFoundExc
 from ..database import get_db
 from ..schemas.interactions import ErrorResponse
 from ..security import get_current_user_or_verify_system_token, verify_system_token
-from .endpoint_generator import EndpointGenerator
+from ._core import EndpointGenerator
 
 
 logger = logging.getLogger(__name__)

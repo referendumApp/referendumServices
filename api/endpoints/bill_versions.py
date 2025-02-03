@@ -19,7 +19,7 @@ from ..schemas.interactions import (
 )
 from ..security import CredentialsException, get_current_user_or_verify_system_token
 from ..settings import settings
-from .endpoint_generator import EndpointGenerator
+from ._core import EndpointGenerator
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
