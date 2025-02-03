@@ -33,6 +33,7 @@ from ..security import (
     verify_system_token,
     verify_password,
 )
+from ._core import handle_crud_exceptions, handle_general_exceptions
 
 logger = logging.getLogger(__name__)
 
@@ -55,23 +56,16 @@ router = APIRouter()
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_crud_exceptions("user")
 async def create_user(
     user: UserCreateInput,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(verify_system_token),
 ) -> models.User:
-    logger.info(f"Attempting to create new user with email: {user.email}")
-    try:
-        user_create = get_user_create_with_hashed_password(user)
-        created_user = crud.user.create(db=db, obj_in=user_create)
-        logger.info(f"Successfully created user with ID: {created_user.id}")
-        return created_user
-    except ObjectAlreadyExistsException:
-        logger.warning(f"Attempted to create user with existing email: {user.email}")
-        raise HTTPException(status_code=409, detail=f"Email already registered: {user.email}")
-    except DatabaseException as e:
-        logger.error(f"Database error while creating user: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    user_create = get_user_create_with_hashed_password(user)
+    created_user = crud.user.create(db=db, obj_in=user_create)
+    logger.info(f"Successfully created user with ID: {created_user.id}")
+    return created_user
 
 
 @router.get(
@@ -91,21 +85,15 @@ async def create_user(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_crud_exceptions("user")
 async def admin_read_user(
     user_id: int,
     db: Session = Depends(get_db),
     _=Depends(verify_system_token),
 ) -> models.User:
-    try:
-        user = crud.user.read(db=db, obj_id=user_id)
-        logger.info(f"Successfully retrieved information for user ID: {user_id}")
-        return user
-    except ObjectNotFoundException:
-        logger.warning(f"Attempted to read non-existent user with ID: {user_id}")
-        raise HTTPException(status_code=404, detail=f"User not found for id: {user_id}")
-    except DatabaseException as e:
-        logger.error(f"Database error while reading user: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    user = crud.user.read(db=db, obj_id=user_id)
+    logger.info(f"Successfully retrieved information for user ID: {user_id}")
+    return user
 
 
 @router.get(
@@ -125,20 +113,14 @@ async def admin_read_user(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_crud_exceptions("user")
 async def read_user(
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ) -> models.User:
-    try:
-        user = crud.user.read(db=db, obj_id=user.id)
-        logger.info(f"Successfully retrieved information for user ID: {user.id}")
-        return user
-    except ObjectNotFoundException:
-        logger.warning(f"Attempted to read non-existent user with ID: {user.id}")
-        raise HTTPException(status_code=404, detail=f"User not found for id: {user.id}")
-    except DatabaseException as e:
-        logger.error(f"Database error while reading user: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    user = crud.user.read(db=db, obj_id=user.id)
+    logger.info(f"Successfully retrieved information for user ID: {user.id}")
+    return user
 
 
 @router.put(
@@ -158,6 +140,7 @@ async def read_user(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_crud_exceptions("user")
 async def update_user(
     user: UserUpdateInput,
     db: Session = Depends(get_db),
@@ -173,20 +156,12 @@ async def update_user(
             raise HTTPException(
                 status_code=403, detail="You can only update your own user information."
             )
-    try:
-        db_user = crud.user.get_user_by_email(db, email=user.email)
-        if db_user is None:
-            raise ObjectNotFoundException(f"User with email {user.email} not found")
-        user_create = get_user_create_with_hashed_password(user)
-        updated_user = crud.user.update(db=db, db_obj=db_user, obj_in=user_create)
-        logger.info(f"Successfully updated information for user ID: {updated_user.id}")
-        return updated_user
-    except ObjectNotFoundException:
-        logger.warning(f"Attempt to update non-existent user with email: {user.email}")
-        raise HTTPException(status_code=404, detail=f"User not found for email: {user.email}.")
-    except DatabaseException as e:
-        logger.error(f"Database error while updating user: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    db_user = crud.user.get_user_by_email(db, email=user.email)
+
+    user_create = get_user_create_with_hashed_password(user)
+    updated_user = crud.user.update(db=db, db_obj=db_user, obj_in=user_create)
+    logger.info(f"Successfully updated information for user ID: {updated_user.id}")
+    return updated_user
 
 
 @router.patch(
@@ -203,6 +178,7 @@ async def update_user(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_crud_exceptions("user")
 async def update_user_password(
     password_reset: UserPasswordResetInput,
     db: Session = Depends(get_db),
@@ -214,16 +190,10 @@ async def update_user_password(
             f"Unsuccessful attempt to update user password: User {user.email} entered an incorrect password"
         )
         raise HTTPException(status_code=403, detail="The current password does not match")
-    try:
-        hashed_password = get_password_hash(password_reset.new_password)
-        crud.user.update_user_password(db=db, user_id=user.id, hashed_password=hashed_password)
-        logger.info(f"Successfully updated password for user ID: {user.id}")
-    except ObjectNotFoundException:
-        logger.warning(f"Attempt to update non-existent user with email: {user.email}")
-        raise HTTPException(status_code=404, detail=f"User not found for email: {user.email}.")
-    except DatabaseException as e:
-        logger.error(f"Database error while updating user: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+    hashed_password = get_password_hash(password_reset.new_password)
+    crud.user.update_user_password(db=db, user_id=user.id, hashed_password=hashed_password)
+    logger.info(f"Successfully updated password for user ID: {user.id}")
 
 
 @router.patch(
@@ -240,23 +210,16 @@ async def update_user_password(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_crud_exceptions("user")
 async def admin_update_user_password(
     user_id: int,
     password_reset: PasswordResetInput,
     db: Session = Depends(get_db),
     _: Dict[str, any] = Depends(verify_system_token),
 ) -> None:
-    logger.info(f"Attempting to update password for user with ID: {user_id}")
-    try:
-        hashed_password = get_password_hash(password_reset.new_password)
-        crud.user.update_user_password(db=db, user_id=user_id, hashed_password=hashed_password)
-        logger.info(f"Successfully updated password for user ID: {user_id}")
-    except ObjectNotFoundException:
-        logger.warning(f"Attempt to update non-existent user with ID: {user_id}")
-        raise HTTPException(status_code=404, detail=f"User not found for ID: {user_id}.")
-    except DatabaseException as e:
-        logger.error(f"Database error while updating user: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    hashed_password = get_password_hash(password_reset.new_password)
+    crud.user.update_user_password(db=db, user_id=user_id, hashed_password=hashed_password)
+    logger.info(f"Successfully updated password for user ID: {user_id}")
 
 
 @router.delete(
@@ -273,23 +236,15 @@ async def admin_update_user_password(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_crud_exceptions("user")
 async def admin_delete_user(
     user_id: int,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(verify_system_token),
 ) -> None:
-    logger.info(f"Attempting to delete user with ID: {user_id}")
-    try:
-        # TODO - make this a cascading delete of all their related records
-        crud.user.delete(db=db, obj_id=user_id)
-        logger.info(f"Successfully deleted user with ID: {user_id}")
-        return
-    except ObjectNotFoundException:
-        logger.warning(f"Attempt to delete non-existent user with ID: {user_id}")
-        raise HTTPException(status_code=404, detail=f"User not found for ID: {user_id}.")
-    except DatabaseException as e:
-        logger.error(f"Database error while deleting user: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    # TODO - make this a cascading delete of all their related records
+    crud.user.delete(db=db, obj_id=user_id)
+    logger.info(f"Successfully deleted user with ID: {user_id}")
 
 
 @router.delete(
@@ -306,21 +261,13 @@ async def admin_delete_user(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_crud_exceptions("user")
 async def delete_user(
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ) -> None:
-    logger.info(f"Attempting to delete user with ID: {user.id}")
-    try:
-        crud.user.update_soft_delete(db=db, user_id=user.id, deleted=True)
-        logger.info(f"Successfully deleted user with ID: {user.id}")
-        return
-    except ObjectNotFoundException:
-        logger.warning(f"Attempt to delete non-existent user with ID: {user.id}")
-        raise HTTPException(status_code=404, detail=f"User not found for ID: {user.id}.")
-    except DatabaseException as e:
-        logger.error(f"Database error while deleting user: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    crud.user.update_soft_delete(db=db, user_id=user.id, deleted=True)
+    logger.info(f"Successfully deleted user with ID: {user.id}")
 
 
 @router.get(
@@ -340,18 +287,14 @@ async def delete_user(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
-def get_user_topics(
+@handle_crud_exceptions("user")
+async def get_user_topics(
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ) -> List[models.Topic]:
-    try:
-        logger.info(f"Attempting to retrieve topics for user ID: {user.id}")
-        topics = crud.user.get_user_topics(db=db, user_id=user.id)
-        logger.info(f"Successfully retrieved {len(topics)} topics for user ID: {user.id}")
-        return topics
-    except DatabaseException as e:
-        logger.error(f"Database error while retrieving user topics: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    topics = crud.user.get_user_topics(db=db, user_id=user.id)
+    logger.info(f"Successfully retrieved {len(topics)} topics for user ID: {user.id}")
+    return topics
 
 
 @router.get(
@@ -371,18 +314,14 @@ def get_user_topics(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
-def get_user_bills(
+@handle_crud_exceptions("user")
+async def get_user_bills(
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ) -> List[models.Bill]:
-    logger.info(f"Attempting to retrieve bills for user ID: {user.id}")
-    try:
-        bills = crud.user.get_user_bills(db=db, user_id=user.id)
-        logger.info(f"Successfully retrieved {len(bills)} bills for user ID: {user.id}")
-        return bills
-    except DatabaseException as e:
-        logger.error(f"Database error while retrieving user bills: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    bills = crud.user.get_user_bills(db=db, user_id=user.id)
+    logger.info(f"Successfully retrieved {len(bills)} bills for user ID: {user.id}")
+    return bills
 
 
 @router.get(
@@ -402,18 +341,14 @@ def get_user_bills(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
-def get_user_legislators(
+@handle_crud_exceptions("user")
+async def get_user_legislators(
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ) -> List[models.Legislator]:
-    logger.info(f"Attempting to retrieve legislators for user ID: {user.id}")
-    try:
-        legislators = crud.user.get_user_legislators(db=db, user_id=user.id)
-        logger.info(f"Successfully retrieved {len(legislators)} legislators for user ID: {user.id}")
-        return legislators
-    except DatabaseException as e:
-        logger.error(f"Database error while retrieving user legislators: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    legislators = crud.user.get_user_legislators(db=db, user_id=user.id)
+    logger.info(f"Successfully retrieved {len(legislators)} legislators for user ID: {user.id}")
+    return legislators
 
 
 @router.put(
@@ -429,16 +364,14 @@ def get_user_legislators(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_general_exceptions()
 async def cast_vote(
     vote: schemas.UserVoteCreate,
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ) -> models.UserVote:
-    try:
-        user_vote = schemas.UserVote(**vote.model_dump(), user_id=user.id)
-        return crud.user_vote.cast_vote(db=db, vote=user_vote)
-    except DatabaseException as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    user_vote = schemas.UserVote(**vote.model_dump(), user_id=user.id)
+    return crud.user_vote.cast_vote(db=db, vote=user_vote)
 
 
 @router.get(
@@ -455,16 +388,14 @@ async def cast_vote(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_general_exceptions()
 async def admin_get_user_votes(
     user_id: int,
     bill_id: Optional[int] = None,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(verify_system_token),
 ) -> List[models.UserVote]:
-    try:
-        return crud.user_vote.get_votes_for_user(db=db, user_id=user_id, bill_id=bill_id)
-    except DatabaseException as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    return crud.user_vote.get_votes_for_user(db=db, user_id=user_id, bill_id=bill_id)
 
 
 @router.get(
@@ -481,15 +412,13 @@ async def admin_get_user_votes(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_general_exceptions()
 async def get_user_votes(
     bill_id: Optional[int] = Query(None, alias="billId"),
     db: Session = Depends(get_db),
     user: Dict[str, Any] = Depends(get_current_user),
 ) -> List[models.UserVote]:
-    try:
-        return crud.user_vote.get_votes_for_user(db=db, user_id=user.id, bill_id=bill_id)
-    except DatabaseException as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    return crud.user_vote.get_votes_for_user(db=db, user_id=user.id, bill_id=bill_id)
 
 
 @router.delete(
@@ -502,15 +431,13 @@ async def get_user_votes(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_general_exceptions()
 async def uncast_vote(
     bill_id: int = Query(alias="billId"),
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
-    try:
-        return crud.user_vote.uncast_vote(db=db, bill_id=bill_id, user_id=user.id)
-    except DatabaseException as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    return crud.user_vote.uncast_vote(db=db, bill_id=bill_id, user_id=user.id)
 
 
 @router.post(
@@ -524,22 +451,19 @@ async def uncast_vote(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
-def follow_bill(
+@handle_general_exceptions()
+async def follow_bill(
     bill_id: str,
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ) -> None:
-    logger.info(f"User {user.id} attempting to follow bill {bill_id}")
     try:
         crud.user.follow_bill(db=db, user_id=user.id, bill_id=bill_id)
         logger.info(f"User {user.id} successfully followed bill {bill_id}")
-        return
     except ObjectNotFoundException as e:
-        logger.warning(f"Error following bill: {str(e)}")
-        raise HTTPException(status_code=404, detail=f"Error following: {str(e)}")
-    except DatabaseException as e:
-        logger.error(f"Database error while following bill: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        exception_message = f"User or bill not found"
+        logger.error(f"{exception_message}. Exception: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=404, detail=exception_message)
 
 
 @router.delete(
@@ -553,22 +477,19 @@ def follow_bill(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
-def unfollow_bill(
+@handle_general_exceptions()
+async def unfollow_bill(
     bill_id: str,
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ) -> None:
-    logger.info(f"User {user.id} attempting to unfollow bill {bill_id}")
     try:
         crud.user.unfollow_bill(db=db, user_id=user.id, bill_id=bill_id)
         logger.info(f"User {user.id} successfully unfollowed bill {bill_id}")
-        return
     except ObjectNotFoundException as e:
-        logger.warning(f"Error unfollowing bill: {str(e)}")
-        raise HTTPException(status_code=404, detail=f"Error unfollowing: {str(e)}")
-    except DatabaseException as e:
-        logger.error(f"Database error while unfollowing bill: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        exception_message = f"User or bill not found"
+        logger.error(f"{exception_message}. Exception: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=404, detail=exception_message)
 
 
 @router.post(
@@ -582,22 +503,19 @@ def unfollow_bill(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
-def follow_legislator(
+@handle_general_exceptions()
+async def follow_legislator(
     legislator_id: str,
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ) -> None:
-    logger.info(f"User {user.id} attempting to follow legislator {legislator_id}")
     try:
         crud.user.follow_legislator(db=db, user_id=user.id, legislator_id=legislator_id)
         logger.info(f"User {user.id} successfully followed legislator {legislator_id}")
-        return
     except ObjectNotFoundException as e:
-        logger.warning(f"Error following legislator: {str(e)}")
-        raise HTTPException(status_code=404, detail=f"Error following: {str(e)}")
-    except DatabaseException as e:
-        logger.error(f"Database error while following legislator: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        exception_message = f"User or legislator not found"
+        logger.error(f"{exception_message}. Exception: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=404, detail=exception_message)
 
 
 @router.delete(
@@ -611,22 +529,19 @@ def follow_legislator(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
-def unfollow_legislator(
+@handle_general_exceptions()
+async def unfollow_legislator(
     legislator_id: str,
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ) -> None:
-    logger.info(f"User {user.id} attempting to unfollow legislator {legislator_id}")
     try:
         crud.user.unfollow_legislator(db=db, user_id=user.id, legislator_id=legislator_id)
         logger.info(f"User {user.id} successfully unfollowed legislator {legislator_id}")
-        return
     except ObjectNotFoundException as e:
-        logger.warning(f"Error unfollowing legislator: {str(e)}")
-        raise HTTPException(status_code=404, detail=f"Error unfollowing: {str(e)}")
-    except DatabaseException as e:
-        logger.error(f"Database error while unfollowing legislator: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        exception_message = f"User or legislator not found"
+        logger.error(f"{exception_message}. Exception: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=404, detail=exception_message)
 
 
 @router.post(
@@ -640,22 +555,19 @@ def unfollow_legislator(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
-def follow_topic(
+@handle_general_exceptions()
+async def follow_topic(
     topic_id: int,
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ) -> None:
-    logger.info(f"User {user.id} attempting to follow topic {topic_id}")
     try:
         crud.user.follow_topic(db=db, user_id=user.id, topic_id=topic_id)
         logger.info(f"User {user.id} successfully followed topic {topic_id}")
-        return
     except ObjectNotFoundException as e:
-        logger.warning(f"Error following topic: {str(e)}")
-        raise HTTPException(status_code=404, detail=f"Error following: {str(e)}")
-    except DatabaseException as e:
-        logger.error(f"Database error while following topic: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        exception_message = f"User or topic not found"
+        logger.error(f"{exception_message}. Exception: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=404, detail=exception_message)
 
 
 @router.delete(
@@ -669,22 +581,19 @@ def follow_topic(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
-def unfollow_topic(
+@handle_general_exceptions()
+async def unfollow_topic(
     topic_id: int,
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ) -> None:
-    logger.info(f"User {user.id} attempting to unfollow topic {topic_id}")
     try:
         crud.user.unfollow_topic(db=db, user_id=user.id, topic_id=topic_id)
         logger.info(f"User {user.id} successfully unfollowed topic {topic_id}")
-        return
     except ObjectNotFoundException as e:
-        logger.warning(f"Error unfollowing topic: {str(e)}")
-        raise HTTPException(status_code=404, detail=f"Error unfollowing: {str(e)}")
-    except DatabaseException as e:
-        logger.error(f"Database error while unfollowing topic: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        exception_message = f"User or topic not found"
+        logger.error(f"{exception_message}. Exception: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=404, detail=exception_message)
 
 
 @router.get(
@@ -701,6 +610,7 @@ def unfollow_topic(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_general_exceptions()
 async def get_user_feed(
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user),
@@ -754,6 +664,4 @@ We're glad to have you join the conversation!
             ]
         )
 
-        return feed_items
-    except DatabaseException as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    return feed_items

@@ -92,7 +92,7 @@ async def test_cast_vote_invalid_bill(test_manager: TestManager):
 
     vote_data = {"billId": 9999, "voteChoiceId": YEA_VOTE_ID}
     response = await test_manager.client.put("/users/votes", json=vote_data, headers=user_headers)
-    assert_status_code(response, 500)
+    assert_status_code(response, 400)
     assert "Database error" in response.json()["detail"]
 
 
