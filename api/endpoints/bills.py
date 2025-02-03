@@ -7,7 +7,6 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, joinedload, load_only
 
 from common.database.referendum import crud, models, schemas, utils
-from common.database.referendum.crud import DatabaseException, ObjectNotFoundException
 
 from ..database import get_db
 from ..schemas.resources import (
@@ -22,7 +21,6 @@ from ..schemas.resources import (
 from ..schemas.users import UserBillVotes, CommentDetail
 from ..schemas.interactions import PaginatedResponse, BillPaginationRequestBody, ErrorResponse
 from ..security import (
-    CredentialsException,
     get_current_user_or_verify_system_token,
     verify_system_token,
 )
