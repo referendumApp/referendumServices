@@ -20,9 +20,9 @@ class Settings(BaseSettings):
 
     # AWS
     AWS_REGION: Optional[str] = "us-east-2"
-    ALPHA_BUCKET_NAME: str = "referendum-app-alpha"
     BILL_TEXT_BUCKET_NAME: str
     FEEDBACK_FILE_NAME: str = "feedback.json"
+    FEEDBACK_BUCKET_NAME: str = "referendumapp-beta"
 
     # AI
     MAX_BILL_LENGTH_WORDS: int = 10000
