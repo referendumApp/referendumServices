@@ -33,7 +33,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 s3 = boto3.client("s3")
-ses = boto3.client("ses", region_name="us-east-1")
+ses = boto3.client("ses", region_name=settings.AWS_REGION)
 
 app = FastAPI(root_path=f"/{settings.ENVIRONMENT}")
 app.add_middleware(
