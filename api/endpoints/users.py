@@ -642,26 +642,25 @@ We're glad to have you join the conversation!
             ),
         ),
     ]
-    try:
-        # TODO - restrict this to relevant comments
-        all_comments = crud.comment.read_all(db=db)
-        feed_items.extend(
-            [
-                FeedItem(
-                    type=FeedItemType.Comment,
-                    content=Comment(
-                        id=comment.id,
-                        parent_id=comment.parent_id,
-                        bill_id=comment.bill_id,
-                        bill_identifier=comment.bill.identifier,
-                        user_id=comment.user_id,
-                        comment=comment.comment,
-                        user_name=comment.user.name,
-                        created_at=comment.created_at,
-                    ),
-                )
-                for comment in all_comments
-            ]
-        )
+    # TODO - restrict this to relevant comments
+    all_comments = crud.comment.read_all(db=db)
+    feed_items.extend(
+        [
+            FeedItem(
+                type=FeedItemType.Comment,
+                content=Comment(
+                    id=comment.id,
+                    parent_id=comment.parent_id,
+                    bill_id=comment.bill_id,
+                    bill_identifier=comment.bill.identifier,
+                    user_id=comment.user_id,
+                    comment=comment.comment,
+                    user_name=comment.user.name,
+                    created_at=comment.created_at,
+                ),
+            )
+            for comment in all_comments
+        ]
+    )
 
     return feed_items
