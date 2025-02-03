@@ -1,15 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any
 import logging
 
 from common.database.referendum import crud, schemas
-from common.database.referendum.crud import DatabaseException, ObjectNotFoundException
 
 from ..database import get_db
 from ..schemas.interactions import ErrorResponse
 from ..security import get_current_user_or_verify_system_token, verify_system_token
-from ._core import EndpointGenerator
+from ._core import EndpointGenerator, handle_crud_exceptions
 
 
 logger = logging.getLogger(__name__)
@@ -41,19 +40,13 @@ EndpointGenerator.add_crud_routes(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_crud_exceptions("committee")
 async def get_committee_legislators(
     committee_id: int,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> dict:
-    try:
-        return crud.committee.get_legislators(db=db, committee_id=committee_id)
-    except ObjectNotFoundException:
-        logger.warning(f"Attempt to read non-existent committee with ID: {committee_id}")
-        raise HTTPException(status_code=404, detail=f"Committee not found for id: {committee_id}")
-    except DatabaseException as e:
-        logger.error(f"Database error while retrieving user topics: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    return crud.committee.get_legislators(db=db, committee_id=committee_id)
 
 
 @router.post(
@@ -67,22 +60,16 @@ async def get_committee_legislators(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_crud_exceptions("committee")
 async def add_legislator_membership(
     committee_id: int,
     legislator_id: int,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(verify_system_token),
 ):
-    try:
-        return crud.committee.add_legislator_membership(
-            db=db, committee_id=committee_id, legislator_id=legislator_id
-        )
-    except ObjectNotFoundException:
-        logger.warning(f"Attempt to read non-existent committee with ID: {committee_id}")
-        raise HTTPException(status_code=404, detail=f"Committee not found for id: {committee_id}")
-    except DatabaseException as e:
-        logger.error(f"Database error while retrieving user topics: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    return crud.committee.add_legislator_membership(
+        db=db, committee_id=committee_id, legislator_id=legislator_id
+    )
 
 
 @router.delete(
@@ -96,19 +83,13 @@ async def add_legislator_membership(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_crud_exceptions("committee")
 async def remove_legislator_membership(
     committee_id: int,
     legislator_id: int,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(verify_system_token),
 ):
-    try:
-        return crud.committee.remove_legislator_membership(
-            db=db, committee_id=committee_id, legislator_id=legislator_id
-        )
-    except ObjectNotFoundException:
-        logger.warning(f"Attempt to read non-existent committee with ID: {committee_id}")
-        raise HTTPException(status_code=404, detail=f"Committee not found for id: {committee_id}")
-    except DatabaseException as e:
-        logger.error(f"Database error while retrieving user topics: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    return crud.committee.remove_legislator_membership(
+        db=db, committee_id=committee_id, legislator_id=legislator_id
+    )

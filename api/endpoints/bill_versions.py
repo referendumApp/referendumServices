@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from common.chat.bill import BillChatSessionManager
 from common.chat.service import LLMService, OpenAIException
 from common.database.referendum import crud, schemas
-from common.database.referendum.crud import ObjectNotFoundException
 from common.object_storage.client import ObjectStorageClient
 
 from ..database import get_db
@@ -17,9 +16,9 @@ from ..schemas.interactions import (
     ChatMessageRequest,
     ChatMessageResponse,
 )
-from ..security import CredentialsException, get_current_user_or_verify_system_token
+from ..security import get_current_user_or_verify_system_token
 from ..settings import settings
-from ._core import EndpointGenerator
+from ._core import EndpointGenerator, handle_crud_exceptions, handle_general_exceptions
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -49,30 +48,20 @@ EndpointGenerator.add_crud_routes(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_crud_exceptions("bill_version")
 async def get_bill_text(
     bill_version_id: int,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> dict:
-    try:
-        bill_version = crud.bill_version.read(db=db, obj_id=bill_version_id)
-    except ObjectNotFoundException:
-        raise HTTPException(
-            status_code=404, detail=f"Bill version not found for id: {bill_version_id}"
-        )
+    bill_version = crud.bill_version.read(db=db, obj_id=bill_version_id)
 
-    try:
-        s3_client = ObjectStorageClient()
-        text = s3_client.download_file(
-            bucket=settings.BILL_TEXT_BUCKET_NAME, key=f"{bill_version.hash}.txt"
-        ).decode("utf-8")
+    s3_client = ObjectStorageClient()
+    text = s3_client.download_file(
+        bucket=settings.BILL_TEXT_BUCKET_NAME, key=f"{bill_version.hash}.txt"
+    ).decode("utf-8")
 
-        return {"bill_version_id": bill_version_id, "hash": bill_version.hash, "text": text}
-    except CredentialsException as e:
-        raise e
-    except Exception as e:
-        logger.error(f"Error downloading bill text: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error retrieving bill text: {str(e)}")
+    return {"bill_version_id": bill_version_id, "hash": bill_version.hash, "text": text}
 
 
 @router.get(
@@ -85,17 +74,13 @@ async def get_bill_text(
         404: {"model": ErrorResponse, "description": "Bill not found"},
     },
 )
+@handle_crud_exceptions("bill_version")
 async def get_bill_briefing(
     bill_version_id: int,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> dict:
-    try:
-        bill_version = crud.bill_version.read(db=db, obj_id=bill_version_id)
-    except ObjectNotFoundException:
-        raise HTTPException(
-            status_code=404, detail=f"Bill version not found for id: {bill_version_id}"
-        )
+    bill_version = crud.bill_version.read(db=db, obj_id=bill_version_id)
 
     if bill_version.briefing:
         briefing = bill_version.briefing
@@ -137,35 +122,27 @@ async def get_bill_briefing(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_crud_exceptions("bill_version")
 async def initialize_chat(
     bill_version_id: int,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> dict:
     """Initialize a new chat session for a specific bill version."""
-    try:
-        bill_version = crud.bill_version.read(db=db, obj_id=bill_version_id)
-    except ObjectNotFoundException:
-        raise HTTPException(
-            status_code=404, detail=f"Bill version not found for id {bill_version_id}"
-        )
+    bill_version = crud.bill_version.read(db=db, obj_id=bill_version_id)
 
-    try:
-        # Get bill text
-        s3_client = ObjectStorageClient()
-        text = s3_client.download_file(
-            bucket=settings.BILL_TEXT_BUCKET_NAME, key=f"{bill_version.hash}.txt"
-        ).decode("utf-8")
+    # Get bill text
+    s3_client = ObjectStorageClient()
+    text = s3_client.download_file(
+        bucket=settings.BILL_TEXT_BUCKET_NAME, key=f"{bill_version.hash}.txt"
+    ).decode("utf-8")
 
-        # Create new session
-        session_id = session_manager.create_session(bill_version_id, text)
-        return {
-            "session_id": session_id,
-            "response": "Hi, what can I help you learn about this bill?",
-        }
-    except Exception as e:
-        logger.error(f"Error initializing chat session: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error initializing chat session: {str(e)}")
+    # Create new session
+    session_id = session_manager.create_session(bill_version_id, text)
+    return {
+        "session_id": session_id,
+        "response": "Hi, what can I help you learn about this bill?",
+    }
 
 
 @router.post(
@@ -180,6 +157,7 @@ async def initialize_chat(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_general_exceptions()
 async def message_chat(
     bill_version_id: int,
     message_request: ChatMessageRequest,
@@ -204,15 +182,9 @@ async def message_chat(
         current_user.settings["message_count"] = current_count + 1
         db.commit()
 
-    try:
-        response = session_manager.send_message(message_request.session_id, message_request.message)
+    response = session_manager.send_message(message_request.session_id, message_request.message)
 
-        return ChatMessageResponse(response=response, session_id=message_request.session_id)
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        logger.error(f"Error processing chat message: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error processing chat message: {str(e)}")
+    return ChatMessageResponse(response=response, session_id=message_request.session_id)
 
 
 @router.delete(
@@ -231,11 +203,5 @@ async def terminate_chat(
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> dict:
     """Terminate an existing chat session."""
-    try:
-        session_manager.terminate_session(session_id)
-        return {"message": "Chat session terminated successfully"}
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        logger.error(f"Error terminating chat session: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error terminating chat session: {str(e)}")
+    session_manager.terminate_session(session_id)
+    return {"message": "Chat session terminated successfully"}

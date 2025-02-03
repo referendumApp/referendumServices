@@ -15,7 +15,7 @@ from ..schemas.interactions import (
 )
 from ..schemas.resources import DenormalizedExecutiveOrder
 from ..security import get_current_user_or_verify_system_token
-from ._core import EndpointGenerator
+from ._core import EndpointGenerator, handle_general_exceptions, handle_crud_exceptions
 
 
 logger = logging.getLogger(__name__)
@@ -45,6 +45,7 @@ EndpointGenerator.add_crud_routes(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_crud_exceptions("executive_order")
 async def get_executive_order_details(
     request_body: ExecutiveOrderPaginationRequestBody,
     db: Session = Depends(get_db),
@@ -103,11 +104,6 @@ async def get_executive_order_details(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid filter option: {e}",
         )
-    except DatabaseException as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Database error: {str(e)}",
-        )
 
 
 @router.get(
@@ -123,34 +119,28 @@ async def get_executive_order_details(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_crud_exceptions("executive_order")
 async def get_executive_order_detail(
     executive_order_id: int,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ):
-    try:
-        executive_orders = crud.executive_order.read_denormalized(
-            db=db, executive_order_id=executive_order_id
-        )
-        result = []
-        for eo in executive_orders:
-            eo_dict = {
-                "executive_order_id": eo.id,
-                "identifier": eo.identifier,
-                "title": eo.title,
-                "description": eo.description,
-                "status_id": eo.status.id,
-                "status": eo.status.name,
-                "status_date": eo.status_date,
-                "president_id": eo.president.id,
-                "president_name": eo.president.name,
-                "current_version_id": eo.current_version_id,
-            }
-            result.append(eo_dict)
-        return result
-    except ObjectNotFoundException:
-        raise HTTPException(
-            status_code=404, detail=f"Executive Order not found for id {executive_order_id}"
-        )
-    except DatabaseException as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    executive_orders = crud.executive_order.read_denormalized(
+        db=db, executive_order_id=executive_order_id
+    )
+    result = []
+    for eo in executive_orders:
+        eo_dict = {
+            "executive_order_id": eo.id,
+            "identifier": eo.identifier,
+            "title": eo.title,
+            "description": eo.description,
+            "status_id": eo.status.id,
+            "status": eo.status.name,
+            "status_date": eo.status_date,
+            "president_id": eo.president.id,
+            "president_name": eo.president.name,
+            "current_version_id": eo.current_version_id,
+        }
+        result.append(eo_dict)
+    return result
