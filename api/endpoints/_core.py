@@ -48,7 +48,9 @@ def handle_general_exceptions() -> Callable:
                 logger.error(f"{exception_message}. Exception: {str(e)}", exc_info=True)
                 raise HTTPException(status_code=400, detail=exception_message)
             except Exception as e:
-                exception_message = f"Internal server error. Exception: {str(e)}"
+                exception_message = (
+                    f"Internal server error. Type: {type(e).__name__} Exception: {str(e)}"
+                )
                 logger.error(exception_message, exc_info=True)
                 raise HTTPException(status_code=500, detail=exception_message)
 

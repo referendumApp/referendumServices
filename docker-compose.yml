@@ -149,3 +149,4 @@ services:
         condition: service_completed_successfully
     env_file: .env
     profiles: ["test"]
+    command: ["pytest", "api/tests/test_bills.py"]
