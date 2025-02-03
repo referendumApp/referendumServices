@@ -7,6 +7,7 @@ import logging
 
 from .settings import settings
 from .endpoints import (
+    _core,
     health,
     authentication,
     users,
@@ -74,45 +75,29 @@ app.include_router(vote_choices.router, tags=["vote_choices"], prefix="/vote_cho
 
 
 @app.post("/feedback")
+@_core.handle_general_exceptions()
 async def add_feedback(feedback: dict):
-    try:
-        try:
-            response = s3.get_object(
-                Bucket=settings.FEEDBACK_BUCKET_NAME, Key=settings.FEEDBACK_FILE_NAME
-            )
-            file_content = json.loads(response["Body"].read().decode("utf-8"))
-        except s3.exceptions.NoSuchKey:
-            logger.warning(
-                f"File {settings.FEEDBACK_FILE_NAME} not found in bucket {settings.FEEDBACK_BUCKET_NAME}. Creating new file."
-            )
-            file_content = {"feedbackMessages": []}
+    feedback_filename = f"feedback_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.json"
+    s3.put_object(
+        Bucket=settings.FEEDBACK_BUCKET_NAME,
+        Key=f"feedback/{feedback_filename}",
+        Body=json.dumps(feedback, indent=2),
+        ContentType="application/json",
+    )
+    logger.info(f"Feedback saved to s3 as {feedback_filename}: {feedback}")
 
-        file_content["feedbackMessages"].append(feedback)
-
-        s3.put_object(
-            Bucket=settings.FEEDBACK_BUCKET_NAME,
-            Key=settings.FEEDBACK_FILE_NAME,
-            Body=json.dumps(file_content),
-            ContentType="application/json",
-        )
-        logger.info(f"Feedback added to s3 successfully: {feedback}")
-
-        email_body = json.dumps(feedback, indent=2)
-        ses.send_email(
-            Source="admin@referendumapp.com",
-            Destination={"ToAddresses": ["feedback@referendumapp.com"]},
-            Message={
-                "Subject": {
-                    "Data": f"New User Feedback Received ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})"
-                },
-                "Body": {"Text": {"Data": email_body}},
+    email_body = json.dumps(feedback, indent=2)
+    ses.send_email(
+        Source="admin@referendumapp.com",
+        Destination={"ToAddresses": ["feedback@referendumapp.com"]},
+        Message={
+            "Subject": {
+                "Data": f"New User Feedback Received ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})"
             },
-        )
-        logger.info(f"Feedback email sent")
-
-    except Exception as e:
-        logger.error(f"Error adding feedback: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}.")
+            "Body": {"Text": {"Data": email_body}},
+        },
+    )
+    logger.info(f"Feedback email sent")
 
 
 if __name__ == "__main__":
