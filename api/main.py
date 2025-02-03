@@ -1,4 +1,5 @@
 import boto3
+from datetime import datetime
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import json
@@ -32,6 +33,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 s3 = boto3.client("s3")
+ses = boto3.client("ses")
 
 app = FastAPI(root_path=f"/{settings.ENVIRONMENT}")
 app.add_middleware(
@@ -76,25 +78,38 @@ async def add_feedback(feedback: dict):
     try:
         try:
             response = s3.get_object(
-                Bucket=settings.ALPHA_BUCKET_NAME, Key=settings.FEEDBACK_FILE_NAME
+                Bucket=settings.FEEDBACK_BUCKET_NAME, Key=settings.FEEDBACK_FILE_NAME
             )
             file_content = json.loads(response["Body"].read().decode("utf-8"))
         except s3.exceptions.NoSuchKey:
             logger.warning(
-                f"File {settings.FEEDBACK_FILE_NAME} not found in bucket {settings.ALPHA_BUCKET_NAME}. Creating new file."
+                f"File {settings.FEEDBACK_FILE_NAME} not found in bucket {settings.FEEDBACK_BUCKET_NAME}. Creating new file."
             )
             file_content = {"feedbackMessages": []}
 
         file_content["feedbackMessages"].append(feedback)
 
         s3.put_object(
-            Bucket=settings.ALPHA_BUCKET_NAME,
+            Bucket=settings.FEEDBACK_BUCKET_NAME,
             Key=settings.FEEDBACK_FILE_NAME,
             Body=json.dumps(file_content),
             ContentType="application/json",
         )
-        logger.info(f"Feedback added successfully: {feedback}")
-        return
+        logger.info(f"Feedback added to s3 successfully: {feedback}")
+
+        email_body = json.dumps(feedback, indent=2)
+        ses.send_email(
+            Source="admin@referendumapp.com",
+            Destination={"ToAddresses": ["feedback@referendumapp.com"]},
+            Message={
+                "Subject": {
+                    "Data": f"New User Feedback Received ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})"
+                },
+                "Body": {"Text": {"Data": email_body}},
+            },
+        )
+        logger.info(f"Feedback email sent")
+
     except Exception as e:
         logger.error(f"Error adding feedback: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}.")
