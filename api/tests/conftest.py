@@ -222,7 +222,7 @@ class TestManager:
         return await self.create_resource(
             "/legislators/",
             {
-                "legiscanId": str(random.randint(100, 999)),
+                "legiscanId": str(random.randint(100, 99999)),
                 "name": name or f"Legislator_{generate_random_string()}",
                 "image_url": f"https://example.com/{generate_random_string()}.jpg",
                 "district": f"D-{random.randint(1, 99)}",
