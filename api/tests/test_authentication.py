@@ -90,7 +90,9 @@ async def test_refresh_success(client):
     token_data = response.json()
     assert "refreshToken" in token_data
 
-    refresh_response = await client.post("/auth/refresh", data={"refresh_token": token_data["refreshToken"]})
+    refresh_response = await client.post(
+        "/auth/refresh", json={"refresh_token": token_data["refreshToken"]}
+    )
     assert_status_code(refresh_response, 200)
 
 
@@ -109,7 +111,9 @@ async def test_refresh_failed(client):
     assert_status_code(response, 200)
     token_data = response.json()
 
-    refresh_response = await client.post("/auth/refresh", data={"refresh_token": token_data["accessToken"]})
+    refresh_response = await client.post(
+        "/auth/refresh", json={"refresh_token": token_data["accessToken"]}
+    )
     assert_status_code(refresh_response, 401)
 
 
