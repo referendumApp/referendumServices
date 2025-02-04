@@ -84,7 +84,11 @@ async def get_all_bill_details(
 
             column_filter = and_(*clauses)
 
-        order_by = [getattr(models.Bill, request_body.order_by)] if request_body.order_by else []
+        order_by = (
+            [getattr(models.Bill, request_body.order_by), models.Bill.id]
+            if request_body.order_by
+            else [models.Bill.id]
+        )
         search_filter = None
         if request_body.search_query:
             id_filter = utils.create_search_filter(
@@ -99,7 +103,6 @@ async def get_all_bill_details(
                 fields=[models.Bill.title],
             )
             search_filter = or_(id_filter, title_filter)
-            order_by.append(models.Bill.id)
 
         bills = crud.bill.read_all_denormalized(
             db=db,

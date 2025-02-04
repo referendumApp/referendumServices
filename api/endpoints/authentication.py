@@ -7,14 +7,16 @@ from jose import JWTError
 from sqlalchemy.orm import Session
 
 from common.database.referendum import crud, schemas
-from common.database.referendum.crud import (
-    DatabaseException,
-    ObjectNotFoundException,
-)
+from common.database.referendum.crud import DatabaseException, ObjectNotFoundException
 
 from ..database import get_db
-from ..schemas.users import UserCreateInput, RefreshToken, TokenResponse
-from ..schemas.interactions import FormErrorResponse, ErrorResponse
+from ..schemas.interactions import ErrorResponse, FormErrorResponse
+from ..schemas.users import (
+    RefreshResponse,
+    RefreshToken,
+    TokenResponse,
+    UserCreateInput,
+)
 from ..security import (
     CredentialsException,
     FormException,
@@ -120,10 +122,10 @@ async def login_for_access_token(
 
 @router.post(
     "/refresh",
-    response_model=TokenResponse,
+    response_model=RefreshResponse,
     summary="Refresh Access Token",
     responses={
-        200: {"model": TokenResponse, "description": "Successfully refreshed token"},
+        200: {"model": RefreshResponse, "description": "Successfully refreshed token"},
         401: {"model": ErrorResponse, "description": "Invalid refresh token"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },

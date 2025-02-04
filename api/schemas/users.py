@@ -48,11 +48,13 @@ class RefreshToken(CamelCaseBaseModel):
     refresh_token: str
 
 
-class TokenResponse(CamelCaseBaseModel):
-    user_id: int
+class RefreshResponse(RefreshToken):
     access_token: str
-    refresh_token: str
     token_type: str
+
+
+class TokenResponse(RefreshResponse):
+    user_id: int
 
 
 class TokenData(CamelCaseBaseModel):
