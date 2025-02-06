@@ -87,11 +87,12 @@ class TestManager:
     ) -> Dict:
         """Create a state with optional custom name."""
         return await self.create_resource(
-            "/states/", {
+            "/states/",
+            {
                 "id": id,
                 "name": name or f"State_{generate_random_string()}",
                 "abbr": abbr or f"Abbr_{generate_random_string()}",
-            }
+            },
         )
 
     async def create_committee(
