@@ -4,11 +4,13 @@
     "destination": "states",
     "source_columns": [
       "state_id",
-      "state_name"
+      "state_name",
+      "state_abbr"
     ],
     "destination_columns": [
       "id",
-      "name"
+      "name",
+      "abbr"
     ],
     "transformations": [
       {
@@ -16,7 +18,8 @@
         "parameters": {
           "columns": {
             "state_id": "id",
-            "state_name": "name"
+            "state_name": "name",
+            "state_abbr": "abbr"
           }
         }
       }
