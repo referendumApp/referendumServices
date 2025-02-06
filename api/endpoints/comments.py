@@ -17,6 +17,7 @@ from ..security import (
     get_current_user,
     get_current_user_or_verify_system_token,
 )
+from ._core import handle_general_exceptions, handle_crud_exceptions
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ router = APIRouter()
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_crud_exceptions("comment")
 async def create_comment(
     comment: schemas.Comment.Base,
     db: Session = Depends(get_db),
@@ -49,11 +51,7 @@ async def create_comment(
             status_code=403,
             detail="You can only create your own comments",
         )
-    try:
-        return crud.comment.create(db=db, obj_in=comment)
-    except DatabaseException as e:
-        logger.error(f"Database error while creating comment: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    return crud.comment.create(db=db, obj_in=comment)
 
 
 @router.get(
@@ -69,19 +67,13 @@ async def create_comment(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_crud_exceptions("comment")
 async def read_comment(
     comment_id: int,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> models.User:
-    try:
-        return crud.comment.read(db=db, obj_id=comment_id)
-    except ObjectNotFoundException:
-        logger.warning(f"Comment not found for id: {comment_id}")
-        raise HTTPException(status_code=404, detail=f"Comment not found for id: {comment_id}")
-    except DatabaseException as e:
-        logger.error(f"Database error while reading comment: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    return crud.comment.read(db=db, obj_id=comment_id)
 
 
 @router.put(
@@ -101,6 +93,7 @@ async def read_comment(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_crud_exceptions("comment")
 async def update_comment(
     comment: schemas.Comment.Record,
     db: Session = Depends(get_db),
@@ -113,15 +106,8 @@ async def update_comment(
                 f"Unauthorized attempt to update user comment: User {current_user.id} tried to update comment {comment.id}"
             )
             raise HTTPException(status_code=403, detail="You can only update your own comments")
-    try:
-        db_comment = crud.comment.read(db=db, obj_id=comment.id)
-        return crud.comment.update(db=db, db_obj=db_comment, obj_in=comment)
-    except ObjectNotFoundException:
-        logger.warning(f"Attempt to update non-existent comment with id: {comment.id}")
-        raise HTTPException(status_code=404, detail=f"Comment not found for id: {comment.email}.")
-    except DatabaseException as e:
-        logger.error(f"Database error while updating comment: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    db_comment = crud.comment.read(db=db, obj_id=comment.id)
+    return crud.comment.update(db=db, db_obj=db_comment, obj_in=comment)
 
 
 @router.delete(
@@ -138,16 +124,13 @@ async def update_comment(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_crud_exceptions("comment")
 async def delete_comment(
     comment_id: int,
     db: Session = Depends(get_db),
     auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> None:
-    try:
-        db_comment = crud.comment.read(db=db, obj_id=comment_id)
-    except ObjectNotFoundException:
-        logger.warning(f"Attempt to delete non-existent comment with ID: {comment_id}")
-        raise HTTPException(status_code=404, detail=f"Comment not found for ID: {comment_id}.")
+    db_comment = crud.comment.read(db=db, obj_id=comment_id)
 
     if not auth_info["is_system"]:
         current_user = auth_info["user"]
@@ -160,13 +143,9 @@ async def delete_comment(
     try:
         crud.comment.delete(db=db, obj_id=comment_id)
         logger.info(f"Successfully deleted comment with ID: {comment_id}")
-        return
     except DependencyException:
         logger.error(f"Attempted to delete a comment with replies: {comment_id}")
         raise HTTPException(status_code=403, detail="Comment with replies cannot be deleted")
-    except DatabaseException as e:
-        logger.error(f"Database error while deleting comment: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @router.post(
@@ -180,6 +159,7 @@ async def delete_comment(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_general_exceptions()
 async def like_comment(
     comment_id: int,
     db: Session = Depends(get_db),
@@ -187,12 +167,8 @@ async def like_comment(
 ) -> None:
     try:
         return crud.user.like_comment(db=db, user_id=user.id, comment_id=comment_id)
-    except ObjectNotFoundException:
-        raise HTTPException(status_code=404, detail=f"Comment not found for id {comment_id}")
     except ObjectAlreadyExistsException:
         raise HTTPException(status_code=409, detail="Comment already liked")
-    except DatabaseException as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @router.delete(
@@ -205,6 +181,7 @@ async def like_comment(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_general_exceptions()
 async def unlike_comment(
     comment_id: int,
     db: Session = Depends(get_db),
@@ -214,5 +191,3 @@ async def unlike_comment(
         return crud.user.unlike_comment(db=db, user_id=user.id, comment_id=comment_id)
     except ObjectNotFoundException:
         raise HTTPException(status_code=404, detail="Comment like not found")
-    except DatabaseException as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")

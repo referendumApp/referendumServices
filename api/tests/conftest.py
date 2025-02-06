@@ -79,10 +79,20 @@ class TestManager:
             self.resources_to_cleanup.append((endpoint.strip("/"), resource["id"]))
         return resource
 
-    async def create_state(self, id: Optional[int] = None, name: Optional[str] = None) -> Dict:
+    async def create_state(
+        self,
+        id: Optional[int] = None,
+        name: Optional[str] = None,
+        abbr: Optional[str] = None,
+    ) -> Dict:
         """Create a state with optional custom name."""
         return await self.create_resource(
-            "/states/", {"id": id, "name": name or f"State_{generate_random_string()}"}
+            "/states/",
+            {
+                "id": id,
+                "name": name or f"State_{generate_random_string()}",
+                "abbr": abbr or f"Abbr_{generate_random_string()}",
+            },
         )
 
     async def create_committee(
@@ -222,7 +232,7 @@ class TestManager:
         return await self.create_resource(
             "/legislators/",
             {
-                "legiscanId": str(random.randint(100, 999)),
+                "legiscanId": str(random.randint(100, 99999)),
                 "name": name or f"Legislator_{generate_random_string()}",
                 "image_url": f"https://example.com/{generate_random_string()}.jpg",
                 "district": f"D-{random.randint(1, 99)}",

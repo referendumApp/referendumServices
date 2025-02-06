@@ -22,7 +22,7 @@ async def test_create_user_duplicate_email(test_manager: TestManager):
         "/users/", json=user_data, headers=test_manager.headers
     )
     assert_status_code(response, 409)
-    assert "Email already registered" in response.json()["detail"]
+    assert "user already exists" in response.json()["detail"]
 
 
 async def test_get_user(test_manager: TestManager):

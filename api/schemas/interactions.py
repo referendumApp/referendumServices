@@ -90,6 +90,7 @@ class ExecutiveOrderPaginationRequestBody(BasePaginationRequestBody):
 
 class LegislatorFilterOptions(BaseFilterOptions):
     party_id: Optional[List[int]] = None
+    representing_state_id: Optional[List[int]] = None
 
 
 class LegislatorPaginationRequestBody(BasePaginationRequestBody):

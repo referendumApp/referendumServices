@@ -43,7 +43,7 @@ class LegislatorVote(CamelCaseBaseModel):
     legislator_id: int
     legislator_name: str
     party_name: str
-    state_name: str
+    state_abbr: str
     role_name: str
     vote_choice_id: int
 

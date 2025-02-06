@@ -74,6 +74,51 @@ async def test_login_success(client):
     assert token_data["tokenType"] == "bearer"
 
 
+async def test_refresh_success(client):
+    # First, create a user
+    user_data = {
+        "email": "loginuser@example.com",
+        "name": "Test User",
+        "password": "correctpassword",
+    }
+    await client.post("/auth/signup", json=user_data)
+
+    # Now try to login
+    login_data = {"username": user_data["email"], "password": user_data["password"]}
+    response = await client.post("/auth/login", data=login_data)
+    assert_status_code(response, 200)
+    token_data = response.json()
+    assert "refreshToken" in token_data
+
+    refresh_response = await client.post(
+        "/auth/refresh",
+        json={"refresh_token": token_data["refreshToken"]},
+    )
+    assert_status_code(refresh_response, 200)
+
+
+async def test_refresh_failed(client):
+    # First, create a user
+    user_data = {
+        "email": "loginuser@example.com",
+        "name": "Test User",
+        "password": "correctpassword",
+    }
+    await client.post("/auth/signup", json=user_data)
+
+    # Now try to login
+    login_data = {"username": user_data["email"], "password": user_data["password"]}
+    response = await client.post("/auth/login", data=login_data)
+    assert_status_code(response, 200)
+    token_data = response.json()
+
+    refresh_response = await client.post(
+        "/auth/refresh",
+        json={"refresh_token": token_data["accessToken"]},
+    )
+    assert_status_code(refresh_response, 401)
+
+
 async def test_login_incorrect_password(client):
     # First, create a user
     user_data = {

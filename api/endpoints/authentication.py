@@ -11,16 +11,19 @@ from google.oauth2.id_token import verify_oauth2_token
 from google.auth.transport import requests
 
 from common.database.referendum import crud, schemas
-from common.database.referendum.crud import (
-    DatabaseException,
-    ObjectAlreadyExistsException,
-    ObjectNotFoundException,
-)
+from common.database.referendum.crud import DatabaseException, ObjectNotFoundException
 
 from ..constants import AuthProvider
 from ..database import get_db
-from ..schemas.users import UserCreateInput, RefreshToken, SocialLoginRequest, SocialLoginResponse, TokenResponse
-from ..schemas.interactions import FormErrorResponse, ErrorResponse
+from ..schemas.interactions import ErrorResponse, FormErrorResponse
+from ..schemas.users import (
+    RefreshResponse,
+    RefreshToken,
+    SocialLoginRequest,
+    SocialLoginResponse,
+    TokenResponse,
+    UserCreateInput,
+)
 from ..security import (
     CredentialsException,
     FormException,
@@ -54,24 +57,28 @@ router = APIRouter()
 async def signup(user: UserCreateInput, db: Session = Depends(get_db)) -> schemas.User:
     logger.info(f"Signup attempt for email: {user.email}")
     try:
-        created_user = crud.user.get_user_by_email(db=db, email=user.email)
-        if created_user and created_user.settings.get("deleted"):
-            crud.user.update_soft_delete(db=db, user_id=created_user.id, deleted=False)
-            if not verify_password(user.password, created_user.hashed_password):
+        existing_user = crud.user.get_user_by_email(db=db, email=user.email)
+        if existing_user.settings.get("deleted"):
+            logger.info(f"Reactivating soft deleted user for email {user.email}")
+            crud.user.update_soft_delete(db=db, user_id=existing_user.id, deleted=False)
+            if not verify_password(user.password, existing_user.hashed_password):
                 hashed_password = get_password_hash(user.password)
                 crud.user.update_user_password(
-                    db=db, user_id=created_user.id, hashed_password=hashed_password
+                    db=db, user_id=existing_user.id, hashed_password=hashed_password
                 )
+            return existing_user
         else:
-            user_create = get_user_create_with_hashed_password(user)
-            created_user = crud.user.create(db=db, obj_in=user_create)
+            logger.error(f"Signup failed: Email already registered - {user.email}")
+            raise FormException(
+                status_code=status.HTTP_409_CONFLICT,
+                field="email",
+                message="Email already registered",
+            )
+    except ObjectNotFoundException:
+        user_create = get_user_create_with_hashed_password(user)
+        created_user = crud.user.create(db=db, obj_in=user_create)
         logger.info(f"User created successfully: {created_user.email}")
         return created_user
-    except ObjectAlreadyExistsException:
-        logger.warning(f"Signup failed: Email already registered - {user.email}")
-        raise FormException(
-            status_code=status.HTTP_409_CONFLICT, field="email", message="Email already registered"
-        )
     except DatabaseException as e:
         logger.error(f"Database error during user signup: {str(e)}")
         raise HTTPException(
@@ -106,7 +113,7 @@ async def login_for_access_token(
             "token_type": "bearer",
         }
     except (CredentialsException, ObjectNotFoundException) as e:
-        logger.warning(f"Login failed with exception {e} for user: {form_data.username}")
+        logger.error(f"Login failed with exception '{e}' for user: {form_data.username}")
         raise FormException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             field="username",
@@ -123,10 +130,10 @@ async def login_for_access_token(
 
 @router.post(
     "/refresh",
-    response_model=TokenResponse,
+    response_model=RefreshResponse,
     summary="Refresh Access Token",
     responses={
-        200: {"model": TokenResponse, "description": "Successfully refreshed token"},
+        200: {"model": RefreshResponse, "description": "Successfully refreshed token"},
         401: {"model": ErrorResponse, "description": "Invalid refresh token"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },

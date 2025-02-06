@@ -10,6 +10,7 @@ from common.database.referendum.crud import ObjectNotFoundException, DatabaseExc
 from ..database import get_db
 from ..schemas.interactions import ErrorResponse
 from ..security import verify_system_token
+from ._core import handle_general_exceptions
 
 logger = logging.getLogger(__name__)
 
@@ -34,17 +35,13 @@ router = APIRouter()
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_general_exceptions()
 async def create_or_update_legislator_vote(
     legislator_vote: schemas.LegislatorVote.Base,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(verify_system_token),
 ):
-    try:
-        return crud.legislator_vote.create_or_update_vote(db, legislator_vote)
-    except DatabaseException as e:
-        message = f"Database error while create vote for {legislator_vote.dict()}: {e}"
-        logger.error(message)
-        raise HTTPException(status_code=500, detail=message)
+    return crud.legislator_vote.create_or_update_vote(db, legislator_vote)
 
 
 @router.delete(
@@ -61,6 +58,7 @@ async def create_or_update_legislator_vote(
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
+@handle_general_exceptions()
 async def delete_legislator_vote(
     bill_action_id: int,
     legislator_id: int,
@@ -79,10 +77,3 @@ async def delete_legislator_vote(
             status_code=404,
             detail=message,
         )
-    except DatabaseException as e:
-        message = (
-            f"Database error while deleting vote for bill_action {bill_action_id} for legislator "
-            f"{legislator_id}: {e}"
-        )
-        logger.error(message)
-        raise HTTPException(status_code=500, detail=message)

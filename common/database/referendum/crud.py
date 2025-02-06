@@ -85,8 +85,8 @@ class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         skip: int | None = None,
         limit: int | None = None,
         column_filter: ColumnElement[bool] | None = None,
-        search_filter: BinaryExpression | None = None,
-        order_by: List[str] | None = None,
+        search_filter: ColumnElement[bool] | BinaryExpression | None = None,
+        order_by: List[Column] | None = None,
     ) -> List[ModelType]:
         query = db.query(self.model)
 
@@ -420,6 +420,9 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
                 # .options(noload(models.User.topics), noload(models.User.bills))
                 .filter(models.User.email == email).first()
             )
+            if not db_user:
+                raise ObjectNotFoundException(f"User not found for email: {email}")
+
             return db_user
         except SQLAlchemyError as e:
             raise DatabaseException(f"Database error: {str(e)}")
@@ -442,6 +445,7 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
         db_user = self.read(db=db, obj_id=user_id)
         db_user.hashed_password = hashed_password
         db.commit()
+        db.refresh(db_user)
 
     def update_soft_delete(
         self,
@@ -717,7 +721,7 @@ class ExecutiveOrderCRUD(
     BaseCRUD[models.ExecutiveOrder, schemas.ExecutiveOrder.Base, schemas.ExecutiveOrder.Record]
 ):
     def read_denormalized(self, db: Session, executive_order_id: int) -> models.ExecutiveOrder:
-        return (
+        db_eo = (
             db.query(models.ExecutiveOrder)
             .options(
                 joinedload(models.ExecutiveOrder.president_id),
@@ -725,6 +729,8 @@ class ExecutiveOrderCRUD(
             .filter(models.ExecutiveOrder.id == executive_order_id)
             .first()
         )
+        if not db_eo:
+            raise ObjectNotFoundException(f"Executive Order not found for id: {executive_order_id}")
 
     def read_all_denormalized(
         self,

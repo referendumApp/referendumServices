@@ -70,7 +70,7 @@ Role = create_schema_container(
 
 State = create_schema_container(
     name="State",
-    base_fields={"id": (int, ...), "name": (str, ...)},
+    base_fields={"id": (int, ...), "name": (str, ...), "abbr": (str, ...)},
 )
 
 Status = create_schema_container(
@@ -123,6 +123,7 @@ Legislator = create_schema_container(
     relationship_fields={
         "committees": (List[Committee.Record], []),
         "state": (State.Record, None),
+        "representing_state": (Optional[State.Record], None),
         "party": (Party.Record, None),
         "role": (Role.Record, None),
     },
