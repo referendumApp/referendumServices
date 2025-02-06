@@ -1,10 +1,14 @@
 import logging
 from typing import Dict
+import os
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from jose import JWTError
 from sqlalchemy.orm import Session
+
+from google.oauth2.id_token import verify_oauth2_token
+from google.auth.transport import requests
 
 from common.database.referendum import crud, schemas
 from common.database.referendum.crud import (
@@ -13,8 +17,9 @@ from common.database.referendum.crud import (
     ObjectNotFoundException,
 )
 
+from ..constants import AuthProvider
 from ..database import get_db
-from ..schemas.users import UserCreateInput, RefreshToken, TokenResponse
+from ..schemas.users import UserCreateInput, RefreshToken, SocialLoginRequest, SocialLoginResponse, TokenResponse
 from ..schemas.interactions import FormErrorResponse, ErrorResponse
 from ..security import (
     CredentialsException,
@@ -25,6 +30,7 @@ from ..security import (
     decode_token,
     get_password_hash,
     get_user_create_with_hashed_password,
+    get_social_user_create,
     verify_password,
 )
 
@@ -178,3 +184,61 @@ async def refresh_access_token(
             detail=message,
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+@router.post(
+        f"/{AuthProvider.GOOGLE.value}",
+        response_model=TokenResponse,
+)  # To-Do: do we need a new type of response to account for differentiating between an email user and social user?
+async def google_login(
+    user: SocialLoginRequest,
+    db: Session = Depends(get_db)
+):
+    # Verify the social provider token first
+    # Find user in our database or create user in our system if they don't exist
+    # Create JWT session token and return the token
+
+    # To-Do: handle when verification with authentication server fails
+    try:
+        id_info = verify_oauth2_token(
+            user.id_token,
+            requests.Request(),
+            os.getenv("GOOGLE_CLOUD_WEB_CLIENT_ID"),
+            clock_skew_in_seconds = 60  # Prevents token used too early error by allowing x amount of seconds inconsistency between google and referendum servers's system clock
+            )
+        # To-Do: Handle when name or email is empty
+        google_user_id = id_info.get('sub')
+
+        # Check if user exists based off social provider
+        user = crud.user.get_user_by_social_provider(db=db, social_provider_user_id=google_user_id, social_provider_name=AuthProvider.GOOGLE.value)
+            # handle case if the user was previously deleted
+        
+        if not user:
+            user_data = {
+                'email': id_info.get("email"),
+                "name": id_info.get("name"),
+                "settings": {
+                    "social_provider_user_id": google_user_id, 
+                    'social_provider_name': AuthProvider.GOOGLE.value
+                }
+            }
+            user_create = get_social_user_create(user_data)
+            user = crud.user.create(db=db, obj_in=user_create)
+            logger.info(f"User created from {AuthProvider.GOOGLE.value} successfully: {user.email}")
+            # To-Do: We should return a 201 if a user is created via social provider account instead of 200.
+
+        # Return login response
+        access_token = create_access_token(data={"sub": user.email})
+        refresh_token = create_refresh_token(data={"sub": user.email})
+        logger.info(f"Login successful for user: {user.email}")
+        return {
+            "user_id": user.id,
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+        }
+    except DatabaseException as e:
+        logger.error(f"Database error during social login: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(e)}",
+        )   

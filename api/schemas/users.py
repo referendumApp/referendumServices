@@ -54,6 +54,11 @@ class TokenResponse(CamelCaseBaseModel):
     refresh_token: str
     token_type: str
 
+class SocialLoginResponse(TokenResponse):
+    provider: str
+
+class SocialLoginRequest(CamelCaseBaseModel):
+    id_token: str
 
 class TokenData(CamelCaseBaseModel):
     email: Optional[str] = None

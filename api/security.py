@@ -83,7 +83,6 @@ def authenticate_user(db: Session, email: str, password: str) -> models.User:
     except crud.DatabaseException as e:
         raise CredentialsException(f"Database error during authentication: {str(e)}")
 
-
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -174,3 +173,8 @@ def get_user_create_with_hashed_password(
     hashed_password = get_password_hash(password)
 
     return schemas.UserCreate(**user_data, hashed_password=hashed_password)
+
+
+def get_social_user_create(social_user):  # To-Do: input validation
+    return schemas.SocialUserCreate(**social_user)
+    
