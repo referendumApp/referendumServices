@@ -406,7 +406,7 @@ async def test_voting_history(client, system_headers, test_manager: TestManager)
             "legislatorName",
             "partyName",
             "roleName",
-            "stateName",
+            "stateAbbr",
             "voteChoiceId",
         }
         assert set(legislator_vote.keys()) == required_legislator_vote_keys
