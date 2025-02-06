@@ -12,7 +12,6 @@ from common.database.referendum.crud import DatabaseException, ObjectNotFoundExc
 from ..database import get_db
 from ..schemas.interactions import ErrorResponse, FormErrorResponse
 from ..schemas.users import (
-    RefreshResponse,
     RefreshToken,
     TokenResponse,
     UserCreateInput,
