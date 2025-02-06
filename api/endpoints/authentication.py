@@ -122,10 +122,10 @@ async def login_for_access_token(
 
 @router.post(
     "/refresh",
-    response_model=RefreshResponse,
+    response_model=TokenResponse,
     summary="Refresh Access Token",
     responses={
-        200: {"model": RefreshResponse, "description": "Successfully refreshed token"},
+        200: {"model": TokenResponse, "description": "Successfully refreshed token"},
         401: {"model": ErrorResponse, "description": "Invalid refresh token"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
@@ -151,6 +151,7 @@ async def refresh_access_token(
 
         logger.info(f"Token refreshed successfully for user: {email}")
         return {
+            "user_id": user.id,
             "access_token": access_token,
             "refresh_token": new_refresh_token,
             "token_type": "bearer",
