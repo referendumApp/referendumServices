@@ -20,7 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column("states", sa.Column("abbr", sa.String(), nullable=False))
+    op.add_column("states", sa.Column("abbr", sa.String(), nullable=True))
 
     op.create_foreign_key(
         "fk_representing_state_id",
