@@ -7,7 +7,6 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, joinedload, load_only
 
 from common.database.referendum import crud, models, schemas, utils
-from common.database.referendum.crud import DatabaseException, ObjectNotFoundException
 
 from ..database import get_db
 from ..schemas.interactions import (
@@ -26,7 +25,6 @@ from ..schemas.resources import (
 )
 from ..schemas.users import CommentDetail, UserBillVotes
 from ..security import (
-    CredentialsException,
     get_current_user_or_verify_system_token,
     verify_system_token,
 )
@@ -288,9 +286,12 @@ async def get_bill_comments(
             id=comment.id,
             parent_id=comment.parent_id,
             bill_id=comment.bill_id,
+            bill_identifier=comment.bill.identifier,
             user_id=comment.user_id,
             comment=comment.comment,
             user_name=comment.user.name,
+            created_at=comment.created_at,
+            updated_at=comment.updated_at,
         )
         for comment in bill_comments
     ]
