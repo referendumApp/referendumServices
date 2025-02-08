@@ -620,13 +620,15 @@ async def get_user_feed(
             type=FeedItemType.Announcement,
             content=Announcement(
                 header="Welcome to Referendum and thank you for participating in our beta!",
-                text="""Events that may interest you will appear here in your Feed: comments on bills, votes on bills or by legislators you follow, and other newsworthy notifications.
+                text="""Events that may interest you will appear here in your Feed: for now that is all comments on bills, but eventually all votes, events, and other newsworthy notifications will appear here.
 
-The Catalog tab includes all bills and legislators from the 118th congress.
-You can follow those that interest you and deep dive into the text itself, votes, sponsors, and history here.
+The Catalog tab includes all bills and legislators from 2024-2025.
+You can follow those that interest you and deep dive into the text itself, votes, sponsors, and history from the here, and we will continue to add legislation throughout the beta.
 
-If you have any questions, concerns, or run into any issues, please email us at contact@referendumapp.com.
-iOS users on TestFlight can also submit feedback to us by taking a screenshot.
+If you have any questions, concerns, or run into any issues, please let us know at one of the following:
+- In App: Go to Settings -> Feedback
+- Discord: https://discord.gg/yWvPYKzWZf
+- Email: feedback@referendumapp.com
 
 We're glad to have you join the conversation!
 """,
