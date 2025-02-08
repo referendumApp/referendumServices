@@ -5,9 +5,7 @@ from typing import Dict, Any, List, Optional
 
 from common.database.referendum import crud, schemas, models
 from common.database.referendum.crud import (
-    ObjectAlreadyExistsException,
     ObjectNotFoundException,
-    DatabaseException,
 )
 
 from ..database import get_db

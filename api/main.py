@@ -1,10 +1,13 @@
 import boto3
 from datetime import datetime
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 import json
 import logging
 
+from common.database.referendum import models
+
+from .security import get_current_user
 from .settings import settings
 from .endpoints import (
     _core,
@@ -76,7 +79,12 @@ app.include_router(vote_choices.router, tags=["vote_choices"], prefix="/vote_cho
 
 @app.post("/feedback")
 @_core.handle_general_exceptions()
-async def add_feedback(feedback: dict):
+async def add_feedback(
+    feedback: dict,
+    user: models.User = Depends(get_current_user),
+):
+    feedback = {**feedback, "user": user.email}
+
     feedback_filename = f"feedback_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.json"
     s3.put_object(
         Bucket=settings.FEEDBACK_BUCKET_NAME,
