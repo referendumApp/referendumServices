@@ -85,8 +85,8 @@ class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         skip: int | None = None,
         limit: int | None = None,
         column_filter: ColumnElement[bool] | None = None,
-        search_filter: BinaryExpression | None = None,
-        order_by: List[str] | None = None,
+        search_filter: ColumnElement[bool] | BinaryExpression | None = None,
+        order_by: List[Column] | None = None,
     ) -> List[ModelType]:
         query = db.query(self.model)
 

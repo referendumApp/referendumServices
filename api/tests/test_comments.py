@@ -1,5 +1,6 @@
 from api.tests.conftest import TestManager
 from api.tests.test_utils import assert_status_code
+from datetime import datetime
 
 
 async def test_comment_workflow(test_manager: TestManager):
@@ -36,6 +37,16 @@ async def test_comment_workflow(test_manager: TestManager):
     assert child_comment["comment"] == child_comment_data["comment"]
     assert child_comment["parentId"] == parent_comment["id"]
 
+    # Update parent comment and verify updated_at is set
+    update_data = {**parent_comment, "comment": "Updated parent comment"}
+    response = await test_manager.client.put(f"/comments", json=update_data, headers=user_headers)
+    assert_status_code(response, 200)
+    updated_comment = response.json()
+    assert updated_comment["comment"] == update_data["comment"]
+    assert updated_comment["createdAt"] == parent_comment["createdAt"]
+    assert updated_comment["updatedAt"] is not None
+    assert isinstance(datetime.fromisoformat(updated_comment["updatedAt"]), datetime)
+
     # Verify both comments were added to the bill
     response = await test_manager.client.get(
         f"/bills/{test_bill['id']}/comments", headers=user_headers
@@ -53,7 +64,7 @@ async def test_comment_workflow(test_manager: TestManager):
     # Verify these comments appear in the feed
     response = await test_manager.client.get(f"/users/feed", headers=user_headers)
     assert_status_code(response, 200)
-    assert len(response.json()) == 3
+    assert len(response.json()) == 4  # Include header & pinned bill
 
     # Attempt to remove the parent comment
     response = await test_manager.client.delete(

@@ -1,6 +1,7 @@
-from typing import Optional, List, Generic, TypeVar
-
-from pydantic import model_serializer
+from enum import Enum
+from datetime import datetime
+from pydantic import model_serializer, field_validator
+from typing import Optional, List, Generic, TypeVar, Union
 
 from common.core.schemas import CamelCaseBaseModel
 
@@ -90,6 +91,7 @@ class ExecutiveOrderPaginationRequestBody(BasePaginationRequestBody):
 
 class LegislatorFilterOptions(BaseFilterOptions):
     party_id: Optional[List[int]] = None
+    representing_state_id: Optional[List[int]] = None
 
 
 class LegislatorPaginationRequestBody(BasePaginationRequestBody):
@@ -111,3 +113,55 @@ class ChatMessageRequest(ChatSession):
 
 class ChatMessageResponse(ChatSession):
     response: str
+
+
+####################
+# Feed
+####################
+
+
+class Comment(CamelCaseBaseModel):
+    id: int
+    bill_id: int
+    bill_identifier: str
+    user_id: int
+    user_name: str
+    comment: str
+    parent_id: Optional[int] = None
+    created_at: datetime
+
+
+class Announcement(CamelCaseBaseModel):
+    header: str
+    text: str
+
+
+class BillEvent(CamelCaseBaseModel):
+    bill_id: int
+    bill_identifier: str
+    text: str
+
+
+class FeedItemType(str, Enum):
+    Comment = "comment"
+    Announcement = "announcement"
+    BillEvent = "bill_event"
+
+
+class FeedItem(CamelCaseBaseModel):
+    type: FeedItemType
+    content: Union[Announcement, Comment, BillEvent]
+
+    @field_validator("content")
+    def validate_content_type(cls, v, values):
+        type_to_class = {
+            FeedItemType.Announcement: Announcement,
+            FeedItemType.BillEvent: BillEvent,
+            FeedItemType.Comment: Comment,
+        }
+        expected_type = type_to_class.get(values.data.get("type"))
+        if expected_type and not isinstance(v, expected_type):
+            raise ValueError(
+                f"Content must be of type {expected_type.__name__} when type is {values.data['type']}"
+            )
+        return v

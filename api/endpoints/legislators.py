@@ -2,20 +2,21 @@ import logging
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, text
+from sqlalchemy import or_, select, text
 from sqlalchemy.orm import Session, joinedload, load_only
 
 from common.database.referendum import crud, models, schemas, utils
 
 from ..constants import ABSENT_VOTE_ID, NAY_VOTE_ID, YEA_VOTE_ID
 from ..database import get_db
-from ..schemas.resources import (
-    LegislatorScorecard,
-    LegislatorVotingHistory,
+from ..schemas.interactions import (
+    ErrorResponse,
+    LegislatorPaginationRequestBody,
+    PaginatedResponse,
 )
-from ..schemas.interactions import PaginatedResponse, LegislatorPaginationRequestBody, ErrorResponse
-from ..security import CredentialsException, get_current_user_or_verify_system_token
-from ._core import EndpointGenerator, handle_general_exceptions, handle_crud_exceptions
+from ..schemas.resources import LegislatorScorecard, LegislatorVotingHistory
+from ..security import get_current_user_or_verify_system_token
+from ._core import EndpointGenerator, handle_general_exceptions
 
 logger = logging.getLogger(__name__)
 
@@ -63,16 +64,25 @@ async def get_legislators(
             )
 
         order_by = (
-            [getattr(models.Legislator, request_body.order_by)] if request_body.order_by else []
+            [getattr(models.Legislator, request_body.order_by), models.Legislator.id]
+            if request_body.order_by
+            else [models.Legislator.id]
         )
         search_filter = None
         if request_body.search_query:
-            search_filter = utils.create_search_filter(
+            name_filter = utils.create_search_filter(
                 search_query=request_body.search_query,
                 search_config=utils.SearchConfig.ENGLISH,
                 fields=[models.Legislator.name],
             )
-            order_by.append(models.Legislator.id)
+
+            state_filter = models.Legislator.representing_state.has(
+                or_(
+                    models.State.name == request_body.search_query,
+                    models.State.abbr == request_body.search_query,
+                )
+            )
+            search_filter = or_(name_filter, state_filter)
 
         legislators = crud.legislator.read_all(
             db=db,

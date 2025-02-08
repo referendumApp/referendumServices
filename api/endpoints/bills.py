@@ -7,9 +7,13 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, joinedload, load_only
 
 from common.database.referendum import crud, models, schemas, utils
-from common.database.referendum.crud import DatabaseException, ObjectNotFoundException
 
 from ..database import get_db
+from ..schemas.interactions import (
+    BillPaginationRequestBody,
+    ErrorResponse,
+    PaginatedResponse,
+)
 from ..schemas.resources import (
     BillVotingHistory,
     DenormalizedBill,
@@ -19,10 +23,8 @@ from ..schemas.resources import (
     VoteCountByParty,
     VoteSummary,
 )
-from ..schemas.users import UserBillVotes, CommentDetail
-from ..schemas.interactions import PaginatedResponse, BillPaginationRequestBody, ErrorResponse
+from ..schemas.users import CommentDetail, UserBillVotes
 from ..security import (
-    CredentialsException,
     get_current_user_or_verify_system_token,
     verify_system_token,
 )
@@ -284,9 +286,12 @@ async def get_bill_comments(
             id=comment.id,
             parent_id=comment.parent_id,
             bill_id=comment.bill_id,
+            bill_identifier=comment.bill.identifier,
             user_id=comment.user_id,
             comment=comment.comment,
             user_name=comment.user.name,
+            created_at=comment.created_at,
+            updated_at=comment.updated_at,
         )
         for comment in bill_comments
     ]
@@ -317,7 +322,9 @@ async def get_bill_voting_history(
             joinedload(models.LegislatorVote.vote_choice),
             joinedload(models.LegislatorVote.legislator).joinedload(models.Legislator.party),
             joinedload(models.LegislatorVote.legislator).joinedload(models.Legislator.role),
-            joinedload(models.LegislatorVote.legislator).joinedload(models.Legislator.state),
+            joinedload(models.LegislatorVote.legislator).joinedload(
+                models.Legislator.representing_state
+            ),
         )
         .filter(models.LegislatorVote.bill_id == bill_id)
     )
@@ -338,7 +345,11 @@ async def get_bill_voting_history(
                 legislator_id=vote.legislator.id,
                 legislator_name=vote.legislator.name,
                 party_name=vote.legislator.party.name,
-                state_name=vote.legislator.state.name,
+                state_abbr=(
+                    "N/A"
+                    if vote.legislator.representing_state is None
+                    else vote.legislator.representing_state.abbr
+                ),
                 role_name=vote.legislator.role.name,
                 vote_choice_id=vote.vote_choice.id,
             )

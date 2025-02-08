@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from pydantic import BaseModel, EmailStr, Field, ConfigDict, create_model
 from typing import TypeVar, Generic, List, Type, Dict, Any, Optional
 
@@ -70,7 +70,7 @@ Role = create_schema_container(
 
 State = create_schema_container(
     name="State",
-    base_fields={"id": (int, ...), "name": (str, ...)},
+    base_fields={"id": (int, ...), "name": (str, ...), "abbr": (str, ...)},
 )
 
 Status = create_schema_container(
@@ -123,6 +123,7 @@ Legislator = create_schema_container(
     relationship_fields={
         "committees": (List[Committee.Record], []),
         "state": (State.Record, None),
+        "representing_state": (Optional[State.Record], None),
         "party": (Party.Record, None),
         "role": (Role.Record, None),
     },
@@ -255,7 +256,11 @@ Comment = create_schema_container(
         "parent_id": (Optional[int], None),
         "comment": (str, Field(..., min_length=1)),
     },
-    record_fields={"id": (int, ...)},
+    record_fields={
+        "id": (int, ...),
+        "created_at": (datetime, ...),
+        "updated_at": (Optional[datetime], None),
+    },
     relationship_fields={"likes": (List[UserReference], []), "user": (UserBase, ...)},
 )
 
