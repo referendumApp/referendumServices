@@ -643,7 +643,7 @@ We're glad to have you join the conversation!
         ),
     ]
     # TODO - restrict this to relevant comments
-    all_comments = crud.comment.read_all(db=db)
+    all_comments = crud.comment.read_all(db=db, order_by=["created_at"])
     feed_items.extend(
         [
             FeedItem(
@@ -659,7 +659,7 @@ We're glad to have you join the conversation!
                     created_at=comment.created_at,
                 ),
             )
-            for comment in all_comments
+            for comment in reversed(all_comments)
         ]
     )
 
