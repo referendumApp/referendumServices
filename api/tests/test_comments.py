@@ -12,14 +12,14 @@ async def test_comment_workflow(test_manager: TestManager):
         "userId": user["id"],
         "billId": test_bill["id"],
         "parentId": None,
-        "comment": "This is a parent comment.",
+        "comment": "This is a parent comment.     ",
     }
     response = await test_manager.client.post(
         "/comments/", json=parent_comment_data, headers=user_headers
     )
     assert_status_code(response, 201)
     parent_comment = response.json()
-    assert parent_comment["comment"] == parent_comment_data["comment"]
+    assert parent_comment["comment"] == parent_comment_data["comment"].strip()
     assert parent_comment["parentId"] is None
 
     # Create a child comment
