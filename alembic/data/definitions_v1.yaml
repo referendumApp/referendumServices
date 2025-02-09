@@ -1,0 +1,52 @@
+version: 1
+definitions:
+  bills:
+    description: Proposals in the legislative process, representing potential laws being debated and refined until they become law or are defeated
+
+  bill_versions:
+    description: Iterations of bills as they move through Congress or state legislatures, reflecting changes based on feedback and negotiation
+
+  bill_sponsors:
+    description: Legislators who champion the bill, taking responsibility for its advancement and gathering support
+
+  sessions:
+    description: Designated working periods for Congress or state legislatures, similar to academic semesters
+
+  executive_orders:
+    description: Presidential directives that take immediate effect and carry the force of law, though can be modified by future presidents
+
+  legislators:
+    description: Elected representatives responsible for passing bills
+
+  presidents:
+    description: Head of federal government with power to sign bills into law, veto them, and issue executive orders
+
+  committees:
+    description: Specialized groups of legislators focused on specific topics who review bills in detail before general votes
+
+  legislative_bodies:
+    description: Primary lawmaking groups typically divided into two chambers that must both approve bills
+
+  parties:
+    description: Political organizations uniting legislators with shared views, coordinating voting, fundraising, and election efforts
+
+  states:
+    description: The 50 U.S. states, each maintaining their own legislature and laws
+
+  roles:
+    description: Specific positions legislators can hold, such as Representative or Senator, with distinct responsibilities and election cycles
+
+  topics:
+    description: Categories for tracking bill subjects, such as healthcare, education, or environmental policy
+
+  statuses:
+    description: Current stage of a bill in the legislative process, from introduction to final passage or rejection
+
+  bill_actions:
+    description: Major events in a bill's journey, including votes, changes, and committee movements
+
+  legislator_votes:
+    description: Individual legislator voting records on bills during specific actions
+
+  vote_choices:
+    description: Available voting options for legislators (Yes, No, Abstain, Absent)

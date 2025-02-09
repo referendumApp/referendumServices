@@ -97,6 +97,15 @@ Committee = create_schema_container(
     },
 )
 
+Definition = create_schema_container(
+    name="Definition",
+    base_fields={
+        "id": (int, ...),
+        "name": (str, ...),
+        "description": (str, ...),
+    },
+)
+
 Topic = create_schema_container(
     name="Topic",
     base_fields={"id": (int, ...), "name": (str, ...)},

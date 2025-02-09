@@ -280,6 +280,14 @@ class Comment(Base):
     user = relationship("User")
 
 
+class Definition(Base):
+    __tablename__ = "definitions"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)
+    description = Column(String, nullable=False)
+
+
 class President(Base):
     __tablename__ = "presidents"
 
