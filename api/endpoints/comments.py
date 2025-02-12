@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Dict, Any
 
+from common.chat.service import LLMService
 from common.database.referendum import crud, schemas, models
 from common.database.referendum.crud import (
     ObjectAlreadyExistsException,
@@ -51,6 +52,13 @@ async def create_comment(
             status_code=403,
             detail="You can only create your own comments",
         )
+    # Insert chat comment validation
+    llm_service = LLMService()
+    response = await llm_service.generate_response(
+        system_prompt="Check the comment", user_prompt=comment.text
+    )
+    # Parse response
+
     return crud.comment.create(db=db, obj_in=comment)
 
 
