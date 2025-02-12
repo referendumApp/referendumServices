@@ -52,9 +52,6 @@ class RefreshResponse(RefreshToken):
     access_token: str
     token_type: str
 
-class SocialLoginResponse(TokenResponse):
-    provider: str
-
 class SocialLoginRequest(CamelCaseBaseModel):
     id_token: str
 
