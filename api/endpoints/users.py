@@ -638,7 +638,7 @@ We're glad to have you join the conversation!
             content=BillEvent(
                 bill_id=1860121,
                 bill_identifier="HB7521",
-                text="Referendum's Bill of the Week: The TikTok Ban",
+                text="Spotlight: Banning TikTok",
             ),
         ),
     ]
