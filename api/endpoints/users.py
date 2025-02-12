@@ -5,20 +5,24 @@ from typing import Dict, Any, List, Optional
 
 from common.database.referendum import crud, schemas, models
 from common.database.referendum.crud import (
-    ObjectAlreadyExistsException,
     ObjectNotFoundException,
-    DatabaseException,
 )
 
 from ..database import get_db
 from ..schemas.users import (
     UserCreateInput,
     UserUpdateInput,
-    CommentDetail,
     PasswordResetInput,
     UserPasswordResetInput,
 )
-from ..schemas.interactions import ErrorResponse
+from ..schemas.interactions import (
+    ErrorResponse,
+    Announcement,
+    BillEvent,
+    Comment,
+    FeedItem,
+    FeedItemType,
+)
 from ..security import (
     get_current_user,
     get_current_user_or_verify_system_token,
@@ -592,11 +596,11 @@ async def unfollow_topic(
 
 @router.get(
     "/feed",
-    response_model=List[CommentDetail],
+    response_model=List[FeedItem],
     summary="Gets feed items for user",
     responses={
         200: {
-            "model": List[CommentDetail],
+            "model": List[FeedItem],
             "description": "User feed retrieved successfully",
         },
         401: {"model": ErrorResponse, "description": "Unauthorized"},
@@ -608,40 +612,54 @@ async def unfollow_topic(
 async def get_user_feed(
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user),
-) -> List[CommentDetail]:
+) -> List[FeedItem]:
     feed_items = [
-        CommentDetail(
-            id=-1,
-            user_id=-1,
-            user_name="Referendum",
-            bill_id=-1,
-            comment="""Welcome to Referendum and thank you for participating in our beta!
+        FeedItem(
+            type=FeedItemType.Announcement,
+            content=Announcement(
+                header="Welcome to Referendum and thank you for participating in our beta!",
+                text="""Events that may interest you will appear here in your Feed: for now that is all comments on bills, but eventually all votes, events, and other newsworthy notifications will appear here.
 
-Events that may interest you will appear here in your Feed: comments on bills, votes on bills or by legislators you follow, and other newsworthy notifications.
+The Catalog tab includes all bills and legislators from 2024-2025.
+You can follow those that interest you and deep dive into the text itself, votes, sponsors, and history from the here, and we will continue to add legislation throughout the beta.
 
-The Catalog tab includes all bills and legislators from the 118th congress.
-You can follow those that interest you and deep dive into the text itself, votes, sponsors, and history here.
-
-If you have any questions, concerns, or run into any issues, please email us at contact@referendumapp.com.
-iOS users on TestFlight can also submit feedback to us by taking a screenshot.
+If you have any questions, concerns, or run into any issues, please let us know at one of the following:
+- In App: Go to Settings -> Feedback
+- Discord: https://discord.gg/yWvPYKzWZf
+- Email: feedback@referendumapp.com
 
 We're glad to have you join the conversation!
 """,
-        )
+            ),
+        ),
+        # TODO - derive this from feed items managed outside of code
+        FeedItem(
+            type=FeedItemType.BillEvent,
+            content=BillEvent(
+                bill_id=1860121,
+                bill_identifier="HB7521",
+                text="Spotlight: Banning TikTok",
+            ),
+        ),
     ]
     # TODO - restrict this to relevant comments
-    all_comments = crud.comment.read_all(db=db)
+    all_comments = crud.comment.read_all(db=db, order_by=["created_at"])
     feed_items.extend(
         [
-            CommentDetail(
-                id=comment.id,
-                parent_id=comment.parent_id,
-                bill_id=comment.bill_id,
-                user_id=comment.user_id,
-                comment=comment.comment,
-                user_name=comment.user.name,
+            FeedItem(
+                type=FeedItemType.Comment,
+                content=Comment(
+                    id=comment.id,
+                    parent_id=comment.parent_id,
+                    bill_id=comment.bill_id,
+                    bill_identifier=comment.bill.identifier,
+                    user_id=comment.user_id,
+                    comment=comment.comment,
+                    user_name=comment.user.name,
+                    created_at=comment.created_at,
+                ),
             )
-            for comment in all_comments
+            for comment in reversed(all_comments)
         ]
     )
 

@@ -48,16 +48,13 @@ class RefreshToken(CamelCaseBaseModel):
     refresh_token: str
 
 
-class RefreshResponse(RefreshToken):
+class TokenResponse(RefreshToken):
+    user_id: int
     access_token: str
     token_type: str
 
 class SocialLoginRequest(CamelCaseBaseModel):
     id_token: str
-
-class TokenResponse(RefreshResponse):
-    user_id: int
-
 
 class TokenData(CamelCaseBaseModel):
     email: Optional[str] = None
