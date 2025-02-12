@@ -1,43 +1,52 @@
 version: 1
 definitions:
   bills:
+    name: Bill
     description: Proposals in the legislative process, representing potential laws being debated and refined until they become law or are defeated
 
   bill_versions:
+    name: Bill Version
     description: Iterations of bills as they move through Congress or state legislatures, reflecting changes based on feedback and negotiation
 
   bill_sponsors:
+    name: Bill Sponsor
     description: Legislators who champion the bill, taking responsibility for its advancement and gathering support
 
   sessions:
+    name: Legislative Session
     description: Designated working periods for Congress or state legislatures, similar to academic semesters
 
   executive_orders:
+    name: Executive Order
     description: Presidential directives that take immediate effect and carry the force of law, though can be modified by future presidents
 
   legislators:
+    name: Legislator
     description: Elected representatives responsible for passing bills
 
   presidents:
+    name: President
     description: Head of federal government with power to sign bills into law, veto them, and issue executive orders
 
   committees:
+    name: Legislative Committee
     description: Specialized groups of legislators focused on specific topics who review bills in detail before general votes
 
   legislative_bodies:
+    name: Legislative Body
     description: Primary lawmaking groups typically divided into two chambers that must both approve bills
 
   parties:
+    name: Polical Party
     description: Political organizations uniting legislators with shared views, coordinating voting, fundraising, and election efforts
 
   states:
+    name: State
     description: The 50 U.S. states, each maintaining their own legislature and laws
 
   roles:
+    name: Legislative Role
     description: Specific positions legislators can hold, such as Representative or Senator, with distinct responsibilities and election cycles
-
-  topics:
-    description: Categories for tracking bill subjects, such as healthcare, education, or environmental policy
 
   statuses:
     description: Current stage of a bill in the legislative process, from introduction to final passage or rejection
@@ -46,7 +55,4 @@ definitions:
     description: Major events in a bill's journey, including votes, changes, and committee movements
 
   legislator_votes:
-    description: Individual legislator voting records on bills during specific actions
-
-  vote_choices:
-    description: Available voting options for legislators (Yes, No, Abstain, Absent)
+    description: Individual legislator voting records on bills during specific actions, typically these can be Yes, No, Abstain, or Absent
