@@ -17,7 +17,7 @@ from common.database.referendum import crud, models, schemas
 logger = logging.getLogger(__name__)
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
 api_key_header = APIKeyHeader(name="X-API_Key", auto_error=False)
 
 
