@@ -52,14 +52,29 @@ async def create_comment(
             status_code=403,
             detail="You can only create your own comments",
         )
-    # Insert chat comment validation
     llm_service = LLMService()
-    response = await llm_service.generate_response(
-        system_prompt="Check the comment", user_prompt=comment.text
+    evaluation = await llm_service.generate_response(
+        system_prompt="Evaluate this comment as 'green' (allowed), 'yellow' (flagged for review), or 'red' (blocked). "
+        "Provide only the classification in response.",
+        user_prompt=comment.text,
     )
-    # Parse response
 
-    return crud.comment.create(db=db, obj_in=comment)
+    evaluation = evaluation.strip().lower()
+
+    if evaluation == "red":
+        logger.warning(f"Blocked comment from user {user.id}: {comment.text}")
+        raise HTTPException(
+            status_code=400, detail="This comment was blocked due to inappropriate content."
+        )
+
+    created_comment = crud.comment.create(db=db, obj_in=comment)
+
+    if evaluation == "yellow":
+        logger.info(f"Flagged comment from user {user.id} for review: {comment.text}")
+
+        # Put in potential database for flags
+
+    return created_comment
 
 
 @router.get(
