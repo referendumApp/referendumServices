@@ -656,6 +656,7 @@ We're glad to have you join the conversation!
                     user_id=comment.user_id,
                     comment=comment.comment,
                     user_name=comment.user.name,
+                    endorsements=len(comment.likes),
                     created_at=comment.created_at,
                 ),
             )

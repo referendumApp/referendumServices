@@ -127,6 +127,7 @@ class Comment(CamelCaseBaseModel):
     user_id: int
     user_name: str
     comment: str
+    endorsements: int
     parent_id: Optional[int] = None
     created_at: datetime
 

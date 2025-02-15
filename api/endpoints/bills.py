@@ -13,6 +13,7 @@ from ..schemas.interactions import (
     BillPaginationRequestBody,
     ErrorResponse,
     PaginatedResponse,
+    Comment,
 )
 from ..schemas.resources import (
     BillVotingHistory,
@@ -23,7 +24,7 @@ from ..schemas.resources import (
     VoteCountByParty,
     VoteSummary,
 )
-from ..schemas.users import CommentDetail, UserBillVotes
+from ..schemas.users import UserBillVotes
 from ..security import (
     get_current_user_or_verify_system_token,
     verify_system_token,
@@ -262,11 +263,11 @@ async def get_bill_vote_counts(
 
 @router.get(
     "/{bill_id}/comments",
-    response_model=List[CommentDetail],
+    response_model=List[Comment],
     summary="Get bill comments",
     responses={
         200: {
-            "model": List[CommentDetail],
+            "model": List[Comment],
             "description": "Bill comments successfully retrieved",
         },
         401: {"model": ErrorResponse, "description": "Not authorized"},
@@ -278,11 +279,11 @@ async def get_bill_comments(
     bill_id: int,
     db: Session = Depends(get_db),
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
-) -> List[CommentDetail]:
+) -> List[Comment]:
     bill_comments = crud.bill.get_bill_comments(db, bill_id)
 
     return [
-        CommentDetail(
+        Comment(
             id=comment.id,
             parent_id=comment.parent_id,
             bill_id=comment.bill_id,
@@ -290,8 +291,8 @@ async def get_bill_comments(
             user_id=comment.user_id,
             comment=comment.comment,
             user_name=comment.user.name,
+            endorsements=len(comment.likes),
             created_at=comment.created_at,
-            updated_at=comment.updated_at,
         )
         for comment in bill_comments
     ]
