@@ -278,8 +278,13 @@ async def get_bill_vote_counts(
 async def get_bill_comments(
     bill_id: int,
     db: Session = Depends(get_db),
-    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+    auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ) -> List[Comment]:
+    current_user_id = None
+    if not auth_info["is_system"]:
+        current_user = auth_info["user"]
+        current_user_id = current_user.id
+
     bill_comments = crud.bill.get_bill_comments(db, bill_id)
 
     return [
@@ -293,6 +298,9 @@ async def get_bill_comments(
             user_name=comment.user.name,
             endorsements=len(comment.likes),
             created_at=comment.created_at,
+            current_user_has_liked=any(like.id == current_user_id for like in comment.likes)
+            if current_user_id
+            else False,
         )
         for comment in bill_comments
     ]

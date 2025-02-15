@@ -130,6 +130,7 @@ class Comment(CamelCaseBaseModel):
     endorsements: int
     parent_id: Optional[int] = None
     created_at: datetime
+    current_user_has_liked: bool = False
 
 
 class Announcement(CamelCaseBaseModel):

@@ -119,6 +119,7 @@ async def test_delete_with_likes(test_manager: TestManager):
     response = await test_manager.client.get(f"/users/feed", headers=user_headers)
     comments = [item["content"] for item in response.json() if (item["type"] == "comment")]
     assert comments[0]["endorsements"] > 0
+    assert comments[0]["currentUserHasLiked"] == True
 
     # Delete the comment with likes
     response = await test_manager.client.delete(f"/comments/{comment_id}", headers=user_headers)

@@ -611,7 +611,7 @@ async def unfollow_topic(
 @handle_general_exceptions()
 async def get_user_feed(
     db: Session = Depends(get_db),
-    _: Dict[str, Any] = Depends(get_current_user),
+    current_user: models.User = Depends(get_current_user),
 ) -> List[FeedItem]:
     feed_items = [
         FeedItem(
@@ -658,6 +658,9 @@ We're glad to have you join the conversation!
                     user_name=comment.user.name,
                     endorsements=len(comment.likes),
                     created_at=comment.created_at,
+                    current_user_has_liked=any(
+                        like.id == current_user.id for like in comment.likes
+                    ),
                 ),
             )
             for comment in reversed(all_comments)
