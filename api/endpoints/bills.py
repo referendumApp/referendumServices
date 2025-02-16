@@ -298,7 +298,7 @@ async def get_bill_comments(
             user_name=comment.user.name,
             endorsements=len(comment.likes),
             created_at=comment.created_at,
-            current_user_has_liked=(
+            current_user_has_endorsed=(
                 any(like.id == current_user_id for like in comment.likes)
                 if current_user_id
                 else False

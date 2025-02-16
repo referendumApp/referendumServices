@@ -658,7 +658,7 @@ We're glad to have you join the conversation!
                     user_name=comment.user.name,
                     endorsements=len(comment.likes),
                     created_at=comment.created_at,
-                    current_user_has_liked=any(
+                    current_user_has_endorsed=any(
                         like.id == current_user.id for like in comment.likes
                     ),
                 ),
