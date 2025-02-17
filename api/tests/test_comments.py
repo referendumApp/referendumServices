@@ -111,9 +111,17 @@ async def test_delete_with_likes(test_manager: TestManager):
     assert_status_code(response, 201)
     comment_id = response.json()["id"]
 
-    # Like the comment
-    response = await test_manager.client.post(f"/comments/{comment_id}/like", headers=user_headers)
+    # Endorse the comment
+    response = await test_manager.client.post(
+        f"/comments/{comment_id}/endorsement", headers=user_headers
+    )
     assert_status_code(response, 204)
+
+    # Check that the endorsement shows up in the feed
+    response = await test_manager.client.get(f"/users/feed", headers=user_headers)
+    comments = [item["content"] for item in response.json() if (item["type"] == "comment")]
+    assert comments[0]["endorsements"] > 0
+    assert comments[0]["currentUserHasEndorsed"] == True
 
     # Delete the comment with likes
     response = await test_manager.client.delete(f"/comments/{comment_id}", headers=user_headers)

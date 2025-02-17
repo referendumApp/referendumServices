@@ -149,18 +149,18 @@ async def delete_comment(
 
 
 @router.post(
-    "/{comment_id}/like",
+    "/{comment_id}/endorsement",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Like a comment",
+    summary="Endorse a comment",
     responses={
-        204: {"description": "Comment successfully liked"},
+        204: {"description": "Comment successfully endorsed"},
         404: {"model": ErrorResponse, "description": "Comment not found"},
-        409: {"model": ErrorResponse, "description": "Comment already liked"},
+        409: {"model": ErrorResponse, "description": "Comment already endorsed"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
 @handle_general_exceptions()
-async def like_comment(
+async def endorse_comment(
     comment_id: int,
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
@@ -168,21 +168,21 @@ async def like_comment(
     try:
         return crud.user.like_comment(db=db, user_id=user.id, comment_id=comment_id)
     except ObjectAlreadyExistsException:
-        raise HTTPException(status_code=409, detail="Comment already liked")
+        raise HTTPException(status_code=409, detail="Comment already endorsed")
 
 
 @router.delete(
-    "/{comment_id}/like",
+    "/{comment_id}/endorsement",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Unlike a comment",
+    summary="Unendorse a comment",
     responses={
-        204: {"description": "Comment successfully unliked"},
+        204: {"description": "Comment successfully unendorsed"},
         404: {"model": ErrorResponse, "description": "Comment like not found"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
 @handle_general_exceptions()
-async def unlike_comment(
+async def unendorse_comment(
     comment_id: int,
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
@@ -190,4 +190,4 @@ async def unlike_comment(
     try:
         return crud.user.unlike_comment(db=db, user_id=user.id, comment_id=comment_id)
     except ObjectNotFoundException:
-        raise HTTPException(status_code=404, detail="Comment like not found")
+        raise HTTPException(status_code=404, detail="Comment endorsement not found")
