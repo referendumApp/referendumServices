@@ -35,27 +35,33 @@ class FormErrorResponse(CamelCaseBaseModel):
 T = TypeVar("T")
 
 
-class BaseFilterOptions(CamelCaseBaseModel):
+class NoNullOptions(CamelCaseBaseModel):
+    @model_serializer()
+    def exclude_null_fields(self):
+        return {k: v for k, v in self.__dict__.items() if v is not None}
+
+
+class BaseFilterOptions(NoNullOptions):
     party_id: Optional[List[int]] = None
     role_id: Optional[List[int]] = None
     state_id: Optional[List[int]] = None
     status_id: Optional[List[int]] = None
-
-    @model_serializer()
-    def exclude_null_fields(self):
-        return {k: v for k, v in self.__dict__.items() if v is not None}
 
 
 class BasePaginationRequestBody(CamelCaseBaseModel):
     skip: int = 0
     limit: int = 100
     search_query: Optional[str] = None
-    order_by: Optional[str] = None
 
 
 class PaginatedResponse(CamelCaseBaseModel, Generic[T]):
     has_more: bool
     items: List[T]
+
+
+class SortingControllerEnum(str, Enum):
+    ASC = "ascending"
+    DESC = "descending"
 
 
 ####################
@@ -67,8 +73,15 @@ class BillFilterOptions(BaseFilterOptions):
     status_id: Optional[List[int]] = None
 
 
+class BillSortingOptions(NoNullOptions):
+    identifier: Optional[SortingControllerEnum] = None
+    title: Optional[SortingControllerEnum] = None
+    status_date: Optional[SortingControllerEnum] = None
+
+
 class BillPaginationRequestBody(BasePaginationRequestBody):
     filter_options: Optional[BillFilterOptions] = None
+    order_by: Optional[BillSortingOptions] = None
 
 
 ####################
@@ -94,8 +107,13 @@ class LegislatorFilterOptions(BaseFilterOptions):
     representing_state_id: Optional[List[int]] = None
 
 
+class LegislatorSortingOptions(NoNullOptions):
+    name: Optional[SortingControllerEnum] = None
+
+
 class LegislatorPaginationRequestBody(BasePaginationRequestBody):
     filter_options: Optional[LegislatorFilterOptions] = None
+    order_by: Optional[LegislatorSortingOptions] = None
 
 
 ####################
