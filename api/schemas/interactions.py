@@ -1,7 +1,7 @@
 from enum import Enum
 from datetime import datetime
 from pydantic import model_serializer, field_validator
-from typing import Optional, List, Generic, TypeVar, Union
+from typing import Dict, Optional, List, Generic, TypeVar, Union
 
 from common.core.schemas import CamelCaseBaseModel
 
@@ -95,6 +95,7 @@ class ExecutiveOrderFilterOptions(BaseFilterOptions):
 
 class ExecutiveOrderPaginationRequestBody(BasePaginationRequestBody):
     filter_options: Optional[BillFilterOptions] = None
+    order_by: Optional[Dict] = None
 
 
 ####################
