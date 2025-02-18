@@ -87,11 +87,13 @@ async def get_all_bill_details(
 
             column_filter = and_(*clauses)
 
-        order_by = (
-            [getattr(models.Bill, request_body.order_by), models.Bill.id]
-            if request_body.order_by
-            else [models.Bill.id]
-        )
+        order_by = []
+        if request_body.order_by:
+            sort_option = request_body.order_by.model_dump()
+            order_by = utils.create_sort_column_list(model=models.Bill, sort_option=sort_option)
+
+        order_by.append(models.Bill.id)
+
         search_filter = None
         if request_body.search_query:
             id_filter = utils.create_search_filter(
