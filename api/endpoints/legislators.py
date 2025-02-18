@@ -66,7 +66,10 @@ async def get_legislators(
         order_by = []
         if request_body.order_by:
             sort_option = request_body.order_by.model_dump()
-            order_by = utils.create_sort_column_list(model=models.Legislator, sort_option=sort_option)
+            order_by = utils.create_sort_column_list(
+                model=models.Legislator,
+                sort_option=sort_option,
+            )
 
         order_by.append(models.Legislator.id)
 
