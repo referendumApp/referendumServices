@@ -42,10 +42,8 @@ class NoNullOptions(CamelCaseBaseModel):
 
 
 class BaseFilterOptions(NoNullOptions):
-    party_id: Optional[List[int]] = None
     role_id: Optional[List[int]] = None
     state_id: Optional[List[int]] = None
-    status_id: Optional[List[int]] = None
 
 
 class BasePaginationRequestBody(CamelCaseBaseModel):
@@ -71,6 +69,7 @@ class SortingControllerEnum(str, Enum):
 
 class BillFilterOptions(BaseFilterOptions):
     status_id: Optional[List[int]] = None
+    session_id: Optional[List[int]] = None
 
 
 class BillSortingOptions(NoNullOptions):
