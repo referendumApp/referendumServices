@@ -69,7 +69,7 @@ async def test_invalid_list_legislators_filter(test_manager: TestManager):
         headers=test_manager.headers,
         json={"filter_options": {"status_id": [1]}},
     )
-    assert_status_code(response, 400)
+    assert_status_code(response, 422)
 
 
 async def test_list_legislators_sort(test_manager: TestManager):
