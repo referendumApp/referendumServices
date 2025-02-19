@@ -1,6 +1,6 @@
 from enum import Enum
 from datetime import datetime
-from pydantic import model_serializer, field_validator
+from pydantic import ConfigDict, model_serializer, field_validator
 from typing import Dict, Optional, List, Generic, TypeVar, Union
 
 from common.core.schemas import CamelCaseBaseModel
@@ -36,6 +36,8 @@ T = TypeVar("T")
 
 
 class NoNullOptions(CamelCaseBaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     @model_serializer()
     def exclude_null_fields(self):
         return {k: v for k, v in self.__dict__.items() if v is not None}
