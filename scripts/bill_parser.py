@@ -1,7 +1,7 @@
 import re
 import uuid
 from pathlib import Path
-from typing import Dict, Union, List, Optional, Tuple
+from typing import Dict, Union, List, Optional, Tuple, Set
 import sys
 import json
 from functools import lru_cache
@@ -56,6 +56,21 @@ class ContentBlock(BaseModel):
         populate_by_name = True
 
 
+class BillSubcategory(BaseModel):
+    """Represent a subcategory assigned to a bill."""
+
+    id: str
+    keywords_matched: List[str] = []
+
+
+class BillCategory(BaseModel):
+    """Represent a category assigned to a bill."""
+
+    id: str
+    keywords_matched: List[str] = []
+    subcategories: List[BillSubcategory] = []
+
+
 class Section(BaseModel):
     """Represent a section of the bill."""
 
@@ -65,6 +80,7 @@ class Section(BaseModel):
     type: str = "section"
     content: List[ContentBlock] = []
     annotations: List[Annotation] = []
+    categories: List[BillCategory] = []
 
 
 class BillData(BaseModel):
@@ -72,27 +88,660 @@ class BillData(BaseModel):
 
     long_title: str = Field("", alias="longTitle")
     sections: List[Section] = []
+    categories: List[BillCategory] = []
 
     class Config:
         populate_by_name = True
 
-    def to_dict(self) -> Dict:
-        """Convert to dictionary for serialization with customizations."""
-        raw_dict = self.model_dump(by_alias=True)
 
-        # Handle nested structures we want to customize beyond model_dump
-        for section_idx, section in enumerate(self.sections):
-            # Clean up y_position in content blocks
-            for block_idx, block in enumerate(section.content):
-                if "y_position" in raw_dict["sections"][section_idx]["content"][block_idx]:
-                    del raw_dict["sections"][section_idx]["content"][block_idx]["y_position"]
+class BillCategorizer:
+    def __init__(self, use_model=True):
+        self.use_model = use_model
+        self.classifier = None
 
-            # Clean up annotations
-            for ann_idx in range(len(section.annotations)):
-                if "y_position" in raw_dict["sections"][section_idx]["annotations"][ann_idx]:
-                    del raw_dict["sections"][section_idx]["annotations"][ann_idx]["y_position"]
+        self.categories = [
+            "healthcare",
+            "education",
+            "infrastructure",
+            "economy",
+            "defense",
+            "justice",
+            "environment",
+        ]
 
-        return raw_dict
+    def categorize_bill(self, bill_data: BillData):
+        """Enhanced keyword-based categorization with subcategories."""
+        text = bill_data.long_title
+        categories = []
+        keywords = {
+            "government_operation": {
+                "appropriations": [
+                    "appropriation",
+                    "funding",
+                    "allocation",
+                    "budget authorization",
+                    "spending bill",
+                    "fiscal year",
+                ],
+                "federal_agencies": [
+                    "agency",
+                    "department",
+                    "bureau",
+                    "commission",
+                    "federal entity",
+                    "government body",
+                ],
+                "government_oversight": [
+                    "oversight",
+                    "accountability",
+                    "inspector general",
+                    "government audit",
+                    "investigation",
+                ],
+                "government_reform": [
+                    "reform",
+                    "reorganization",
+                    "modernization",
+                    "efficiency",
+                    "government improvement",
+                ],
+                "federal_employment": [
+                    "federal employee",
+                    "civil service",
+                    "personnel",
+                    "government workforce",
+                    "public servant",
+                ],
+                "public_administration": [
+                    "administrative",
+                    "bureaucracy",
+                    "procedure",
+                    "regulatory process",
+                    "public management",
+                ],
+                "government_transparency": [
+                    "transparency",
+                    "disclosure",
+                    "open government",
+                    "freedom of information",
+                    "public record",
+                ],
+            },
+            "healthcare": {
+                "public_health": [
+                    "public health",
+                    "disease",
+                    "epidemic",
+                    "pandemic",
+                    "prevention",
+                    "vaccination",
+                ],
+                "insurance": [
+                    "insurance",
+                    "coverage",
+                    "premium",
+                    "medicaid",
+                    "medicare",
+                    "affordable care",
+                ],
+                "mental_health": [
+                    "mental health",
+                    "psychology",
+                    "psychiatry",
+                    "counseling",
+                    "therapy",
+                ],
+                "pharmaceuticals": [
+                    "drug",
+                    "pharmaceutical",
+                    "medication",
+                    "prescription",
+                    "pharmacy",
+                ],
+                "medical_research": [
+                    "research",
+                    "clinical trial",
+                    "biotechnology",
+                    "innovation",
+                    "development",
+                ],
+                "healthcare_workforce": [
+                    "doctor",
+                    "nurse",
+                    "physician",
+                    "provider",
+                    "practitioner",
+                    "workforce",
+                    "hospital",
+                ],
+                "patient_rights": [
+                    "patient rights",
+                    "privacy",
+                    "consent",
+                    "autonomy",
+                    "protection",
+                    "telehealth",
+                ],
+            },
+            "education": {
+                "k12": [
+                    "elementary",
+                    "middle school",
+                    "high school",
+                    "k-12",
+                    "primary education",
+                    "secondary education",
+                ],
+                "higher_education": [
+                    "university",
+                    "college",
+                    "higher education",
+                    "campus",
+                    "degree",
+                    "undergraduate",
+                    "graduate",
+                ],
+                "vocational": [
+                    "vocational",
+                    "technical",
+                    "trade school",
+                    "apprenticeship",
+                    "certification",
+                    "skill development",
+                ],
+                "special_education": [
+                    "special education",
+                    "disability",
+                    "inclusive",
+                    "accommodation",
+                    "individualized education",
+                ],
+                "educational_technology": [
+                    "educational technology",
+                    "digital learning",
+                    "online education",
+                    "e-learning",
+                ],
+                "teacher_development": [
+                    "teacher",
+                    "faculty",
+                    "professor",
+                    "educator",
+                    "professional development",
+                ],
+                "student_support": [
+                    "student loan",
+                    "financial aid",
+                    "scholarship",
+                    "grant",
+                    "student assistance",
+                ],
+            },
+            "infrastructure": {
+                "transportation": [
+                    "highway",
+                    "road",
+                    "bridge",
+                    "transit",
+                    "railway",
+                    "airport",
+                    "port",
+                    "transportation",
+                ],
+                "energy": ["energy", "power", "grid", "electricity", "utility", "transmission"],
+                "water": [
+                    "water",
+                    "sewage",
+                    "sanitation",
+                    "clean water",
+                    "wastewater",
+                    "drinking water",
+                ],
+                "telecommunications": [
+                    "broadband",
+                    "internet",
+                    "telecommunication",
+                    "connectivity",
+                    "network",
+                    "digital infrastructure",
+                ],
+                "urban_development": [
+                    "urban",
+                    "city",
+                    "municipal",
+                    "community development",
+                    "housing",
+                    "public space",
+                ],
+                "rural_development": [
+                    "rural",
+                    "agricultural infrastructure",
+                    "rural development",
+                    "community facilities",
+                ],
+                "public_facilities": [
+                    "public building",
+                    "facility",
+                    "government property",
+                    "public works",
+                ],
+            },
+            "economy": {
+                "taxation": ["tax", "revenue", "exemption", "deduction", "credit", "taxpayer"],
+                "trade": ["trade", "export", "import", "tariff", "commerce", "international trade"],
+                "labor": [
+                    "labor",
+                    "employment",
+                    "worker",
+                    "wage",
+                    "compensation",
+                    "collective bargaining",
+                    "workforce",
+                ],
+                "small_business": [
+                    "small business",
+                    "entrepreneur",
+                    "startup",
+                    "business owner",
+                    "enterprise",
+                ],
+                "financial_regulation": [
+                    "regulation",
+                    "banking",
+                    "securities",
+                    "investor protection",
+                    "market oversight",
+                ],
+                "monetary_policy": [
+                    "federal reserve",
+                    "interest rate",
+                    "monetary",
+                    "inflation",
+                    "currency",
+                ],
+                "economic_development": [
+                    "economic growth",
+                    "development",
+                    "investment",
+                    "revitalization",
+                    "opportunity zone",
+                ],
+            },
+            "defense": {
+                "armed_forces": [
+                    "military",
+                    "army",
+                    "navy",
+                    "air force",
+                    "marine",
+                    "armed forces",
+                    "defense department",
+                ],
+                "veterans": [
+                    "veteran",
+                    "service member",
+                    "military personnel",
+                    "veteran affairs",
+                    "benefits",
+                ],
+                "national_security": [
+                    "national security",
+                    "homeland security",
+                    "intelligence",
+                    "counterterrorism",
+                ],
+                "cybersecurity": [
+                    "cybersecurity",
+                    "cyber defense",
+                    "cyber warfare",
+                    "information security",
+                ],
+                "defense_procurement": [
+                    "procurement",
+                    "acquisition",
+                    "contractor",
+                    "defense industry",
+                    "weapons system",
+                ],
+                "military_operations": [
+                    "deployment",
+                    "operation",
+                    "combat",
+                    "mission",
+                    "readiness",
+                    "training",
+                ],
+                "international_alliances": [
+                    "nato",
+                    "alliance",
+                    "treaty",
+                    "cooperation",
+                    "mutual defense",
+                ],
+            },
+            "justice": {
+                "criminal_justice": [
+                    "criminal",
+                    "prosecution",
+                    "offender",
+                    "sentencing",
+                    "prison",
+                    "jail",
+                    "incarceration",
+                ],
+                "civil_rights": [
+                    "civil rights",
+                    "discrimination",
+                    "equality",
+                    "minority",
+                    "protected class",
+                ],
+                "judicial_system": [
+                    "court",
+                    "judge",
+                    "judiciary",
+                    "judicial system",
+                    "supreme court",
+                    "appellate",
+                ],
+                "law_enforcement": [
+                    "police",
+                    "law enforcement",
+                    "officer",
+                    "federal bureau",
+                    "investigation",
+                ],
+                "immigration": [
+                    "immigration",
+                    "immigrant",
+                    "asylum",
+                    "refugee",
+                    "border",
+                    "citizenship",
+                ],
+                "juvenile_justice": [
+                    "juvenile",
+                    "youth",
+                    "minor",
+                    "juvenile detention",
+                    "rehabilitation",
+                ],
+                "legal_services": [
+                    "legal aid",
+                    "public defender",
+                    "legal assistance",
+                    "access to justice",
+                ],
+            },
+            "environment": {
+                "climate_change": [
+                    "climate change",
+                    "global warming",
+                    "greenhouse gas",
+                    "carbon emission",
+                    "paris agreement",
+                ],
+                "conservation": [
+                    "conservation",
+                    "protected land",
+                    "wildlife",
+                    "habitat",
+                    "biodiversity",
+                    "preservation",
+                ],
+                "pollution": [
+                    "pollution",
+                    "contaminant",
+                    "clean air",
+                    "clean water",
+                    "waste management",
+                    "toxic",
+                ],
+                "renewable_energy": [
+                    "renewable",
+                    "solar",
+                    "wind",
+                    "geothermal",
+                    "alternative energy",
+                    "clean energy",
+                ],
+                "natural_resources": [
+                    "natural resource",
+                    "mineral",
+                    "forest",
+                    "land management",
+                    "public land",
+                    "extraction",
+                ],
+                "environmental_regulation": [
+                    "environmental protection",
+                    "regulation",
+                    "standard",
+                    "compliance",
+                    "permit",
+                ],
+                "sustainability": [
+                    "sustainable",
+                    "sustainability",
+                    "green",
+                    "eco-friendly",
+                    "environmental stewardship",
+                ],
+            },
+            "technology": {
+                "digital_privacy": [
+                    "data privacy",
+                    "personal information",
+                    "data protection",
+                    "privacy rights",
+                ],
+                "artificial_intelligence": [
+                    "artificial intelligence",
+                    "ai",
+                    "machine learning",
+                    "neural network",
+                    "algorithm",
+                ],
+                "biotechnology": [
+                    "biotechnology",
+                    "genetic",
+                    "biological research",
+                    "biological innovation",
+                ],
+                "space": ["space", "nasa", "satellite", "aerospace", "orbital", "launch"],
+                "research_funding": [
+                    "research funding",
+                    "science funding",
+                    "grant",
+                    "laboratory",
+                    "innovation funding",
+                ],
+                "tech_regulation": [
+                    "technology regulation",
+                    "platform regulation",
+                    "antitrust",
+                    "tech policy",
+                ],
+                "digital_governance": [
+                    "digital governance",
+                    "internet policy",
+                    "digital rights",
+                    "cyber law",
+                ],
+            },
+            "agriculture": {
+                "farming": ["farm", "agricultural", "crop", "livestock", "ranch", "farmer"],
+                "food_safety": [
+                    "food safety",
+                    "inspection",
+                    "contamination",
+                    "foodborne illness",
+                    "processing",
+                ],
+                "rural_communities": ["rural community", "rural economy", "agricultural community"],
+                "agricultural_trade": [
+                    "agricultural export",
+                    "agricultural import",
+                    "farm trade",
+                    "commodity",
+                ],
+                "conservation": [
+                    "conservation",
+                    "sustainable agriculture",
+                    "soil",
+                    "water conservation",
+                ],
+                "food_assistance": [
+                    "food assistance",
+                    "nutrition program",
+                    "food insecurity",
+                    "hunger",
+                ],
+                "agricultural_research": [
+                    "agricultural research",
+                    "crop science",
+                    "animal science",
+                    "agricultural technology",
+                ],
+            },
+            "social_welfare": {
+                "poverty_reduction": [
+                    "poverty",
+                    "low-income",
+                    "disadvantaged",
+                    "economic security",
+                    "safety net",
+                ],
+                "housing": [
+                    "housing",
+                    "homelessness",
+                    "affordable housing",
+                    "shelter",
+                    "public housing",
+                    "rental",
+                ],
+                "child_welfare": [
+                    "child welfare",
+                    "foster care",
+                    "adoption",
+                    "child protection",
+                    "abuse",
+                    "neglect",
+                ],
+                "elder_care": [
+                    "elderly",
+                    "senior",
+                    "aging",
+                    "nursing home",
+                    "long-term care",
+                    "retirement",
+                ],
+                "disability_services": [
+                    "disability",
+                    "disabled",
+                    "accessibility",
+                    "accommodation",
+                    "support services",
+                ],
+                "income_security": [
+                    "social security",
+                    "supplemental income",
+                    "income support",
+                    "welfare",
+                    "benefits",
+                ],
+                "community_development": [
+                    "community development",
+                    "neighborhood",
+                    "local initiative",
+                    "revitalization",
+                ],
+            },
+            "foreign_policy": {
+                "diplomacy": [
+                    "diplomatic",
+                    "embassy",
+                    "international relations",
+                    "foreign service",
+                    "state department",
+                ],
+                "international_aid": [
+                    "foreign aid",
+                    "development assistance",
+                    "humanitarian aid",
+                    "relief",
+                ],
+                "sanctions": [
+                    "sanction",
+                    "embargo",
+                    "restriction",
+                    "economic pressure",
+                    "foreign policy tool",
+                ],
+                "treaties": [
+                    "treaty",
+                    "agreement",
+                    "convention",
+                    "protocol",
+                    "international law",
+                    "ratification",
+                ],
+                "international_organizations": [
+                    "united nations",
+                    "world health",
+                    "international monetary",
+                    "world bank",
+                ],
+                "human_rights": [
+                    "human rights",
+                    "democracy promotion",
+                    "freedom",
+                    "political freedom",
+                    "oppression",
+                ],
+                "conflict_resolution": [
+                    "peace process",
+                    "mediation",
+                    "conflict resolution",
+                    "peacekeeping",
+                    "stabilization",
+                ],
+            },
+        }
+
+        # Track matched keywords for reporting
+        matched_terms = {}
+
+        text = text.lower()
+        for main_category, subcategories in keywords.items():
+            for subcategory, terms in subcategories.items():
+                for term in terms:
+                    if term in text:
+                        # Track which subcategory was matched
+                        if main_category not in matched_terms:
+                            matched_terms[main_category] = {}
+                        if subcategory not in matched_terms[main_category]:
+                            matched_terms[main_category][subcategory] = []
+                        matched_terms[main_category][subcategory].append(term)
+
+        # Convert the matched terms into the required output structure
+        for main_category, subcats in matched_terms.items():
+            # For each matched main category
+            main_cat_entry = BillCategory(id=main_category, keywords_matched=[], subcategories=[])
+
+            # Add all matched subcategories
+            for subcat, terms in subcats.items():
+                main_cat_entry.keywords_matched.extend(terms)
+                subcat_entry = BillSubcategory(
+                    id=subcat,
+                    keywords_matched=terms,
+                )
+                main_cat_entry.subcategories.append(subcat_entry)
+
+            categories.append(main_cat_entry)
+
+        bill_data.categories = categories
+        return bill_data
 
 
 class BillPDFParser:
@@ -229,11 +878,16 @@ class BillPDFParser:
 
         return is_left_of_main_text or is_right_of_main_text
 
-    def parse(self) -> Dict:
+    def parse(self) -> BillData:
         """Parse the full bill and return structured data."""
         self._parse_header()
         self._parse_sections()
-        return self.bill_data.to_dict()
+
+        # Apply categorization with safer defaults
+        categorizer = BillCategorizer(use_model=True)
+        categorized_bill = categorizer.categorize_bill(self.bill_data)
+
+        return categorized_bill
 
     def _parse_header(self) -> None:
         """Extract bill metadata from the header section."""
@@ -494,7 +1148,10 @@ class BillHTMLGenerator:
 
         sections_html = "\n".join(self._generate_section(section) for section in sections)
 
-        long_title = self.bill_data.get("longTitle", "")
+        long_title = self.bill_data.get("long_title", "")
+
+        # Generate categories HTML
+        categories_html = self._generate_categories_section(self.bill_data.get("categories", []))
 
         return f"""
         <!DOCTYPE html>
@@ -508,10 +1165,37 @@ class BillHTMLGenerator:
         <body>
             <div class="container">
                 <h1>{long_title}</h1>
+                {categories_html}
                 {sections_html}
             </div>
         </body>
         </html>
+        """
+
+    def _generate_categories_section(self, categories):
+        """Generate HTML for categories section."""
+        if not categories:
+            return ""
+
+        categories_html = []
+        for category in categories:
+            name = category.get("id", "")
+
+            categories_html.append(
+                f"""
+            <div class="category">
+                <span class="category-id">{name}</span>
+            </div>
+            """
+            )
+
+        return f"""
+        <div class="categories-section">
+            <h2>Categories</h2>
+            <div class="categories-container">
+                {"".join(categories_html)}
+            </div>
+        </div>
         """
 
     @staticmethod
@@ -593,6 +1277,34 @@ class BillHTMLGenerator:
 
             .text-emphasized { font-weight: bold; }
             .text-heading { font-size: 1.125rem; }
+
+            .categories-section {
+                margin-bottom: 2rem;
+                border-bottom: 1px solid #E5E7EB;
+                padding-bottom: 1rem;
+            }
+
+            .categories-container {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+
+            .category {
+                background-color: #F3F4F6;
+                padding: 0.25rem 0.75rem;
+                border-radius: 1rem;
+                font-size: 0.875rem;
+            }
+
+            .category-name {
+                font-weight: bold;
+            }
+
+            .category-confidence {
+                color: #6B7280;
+                font-size: 0.75rem;
+            }
 
             /* Handle annotations on small screens */
             @media (max-width: 768px) {
@@ -720,15 +1432,17 @@ def parse_bill_pdf(pdf_path: Union[str, Path], html_output_path: Union[str, Path
     parser = BillPDFParser(pdf_path)
     bill_data = parser.parse()
 
+    bill_json = bill_data.model_dump()
     if html_output_path and bill_data:
         try:
-            html_content = BillHTMLGenerator(bill_data).generate_html()
+            html_generator = BillHTMLGenerator(bill_json)
+            html_content = html_generator.generate_html()
             Path(html_output_path).write_text(html_content, encoding="utf-8")
         except Exception as e:
             print(f"Warning: Error generating HTML: {str(e)}")
             print("Continuing with JSON output generation...")
 
-    return bill_data
+    return bill_json
 
 
 def main():
