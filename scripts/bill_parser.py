@@ -1,7 +1,7 @@
 import re
 import uuid
 from pathlib import Path
-from typing import Dict, Union, List, Optional, Tuple, Any
+from typing import Dict, Union, List, Optional, Tuple
 import sys
 import json
 from functools import lru_cache
@@ -37,7 +37,7 @@ class Annotation(BaseModel):
     type: str = "annotation"
     content: str = ""
     y_position: float = 0
-    margin_position: str = "right_margin"  # Default to right margin
+    margin_position: str = "right_margin"
 
 
 class ContentBlock(BaseModel):
@@ -104,6 +104,8 @@ class BillPDFParser:
     INDENT_STEP = 20
     ANNOTATION_MATCH_THRESHOLD = 30
 
+    MIN_LEFT_MARGIN = 40
+
     def __init__(self, pdf_path: Union[str, Path]):
         """Initialize parser with path to PDF file.
 
@@ -114,9 +116,12 @@ class BillPDFParser:
         self.bill_data = BillData()
         self.pages_content: List[List[TextElement]] = []
         self._extract_pdf_content()
+        self.common_left_margin = self.MIN_LEFT_MARGIN
 
     def _extract_pdf_content(self) -> None:
         """Extract text and layout information from PDF."""
+        all_text_elements = []
+
         for page_layout in extract_pages(self.pdf_path):
             page_content = []
             for element in page_layout:
@@ -125,17 +130,28 @@ class BillPDFParser:
                     if text:
                         bbox = element.bbox
                         font_info = self._extract_font_info(element)
-                        page_content.append(
-                            TextElement(
-                                text=text,
-                                x0=bbox[0],
-                                y0=bbox[1],
-                                x1=bbox[2],
-                                y1=bbox[3],
-                                font=font_info,
-                            )
+                        text_element = TextElement(
+                            text=text,
+                            x0=bbox[0],
+                            y0=bbox[1],
+                            x1=bbox[2],
+                            y1=bbox[3],
+                            font=font_info,
                         )
+                        page_content.append(text_element)
+                        all_text_elements.append(text_element)
             self.pages_content.append(page_content)
+
+        # Calculate the most common left margin from all text elements
+        # This helps normalize inconsistent scanning
+        if all_text_elements:
+            left_edges = [
+                int(elem.x0)
+                for elem in all_text_elements
+                if len(elem.text) > 10 and not self._is_section_header(elem.text, elem.font)
+            ]
+            if left_edges:
+                self.common_left_margin = max(self.MIN_LEFT_MARGIN, self._get_mode(left_edges))
 
     @staticmethod
     def _extract_font_info(element) -> FontInfo:
@@ -373,8 +389,14 @@ class BillPDFParser:
         """Add a content block to the current section."""
         block_id = f"{section.id}-block-{uuid.uuid4().hex[:8]}"
 
-        # Calculate indent level based on x position
-        indent_level = max(0, round((text_element.x0 - self.MAIN_TEXT_MARGIN) / self.INDENT_STEP))
+        # Calculate indent level based on x position relative to the common margin
+        # This normalizes the indentation across inconsistently scanned pages
+        base_margin = self.common_left_margin
+        indent_level = max(0, round((text_element.x0 - base_margin) / self.INDENT_STEP))
+
+        # For section headers, always use indent level 0
+        if self._is_section_header(text_element.text, text_element.font):
+            indent_level = 0
 
         # Determine text properties
         text_properties = []
@@ -404,7 +426,7 @@ class BillPDFParser:
                 id=annotation_id,
                 content=annotation_element.text,
                 y_position=annotation_element.y0,
-                margin_position="right_margin",  # Set all annotations to right margin
+                margin_position="right_margin",
             )
 
             # Store annotation at section level
@@ -434,7 +456,7 @@ class BillPDFParser:
                 "id": annotation.id,
                 "type": annotation.type,
                 "content": annotation.content,
-                "margin_position": "right_margin",  # Force right margin position
+                "margin_position": "right_margin",
             }
 
             # If block already has an annotation, append to it
