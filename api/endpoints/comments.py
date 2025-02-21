@@ -1,4 +1,5 @@
 import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Dict, Any
@@ -41,6 +42,7 @@ router = APIRouter()
 @handle_crud_exceptions("comment")
 async def create_comment(
     comment: schemas.Comment.Base,
+    background_tasks: BackgroundTasks,  # Moved before dependency-based arguments
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ) -> models.Comment:
@@ -52,6 +54,8 @@ async def create_comment(
             status_code=403,
             detail="You can only create your own comments",
         )
+
+    # LLM moderation system
     llm_service = LLMService()
     evaluation = await llm_service.generate_response(
         system_prompt="Evaluate this comment as 'green' (allowed), 'yellow' (flagged for review), or 'red' (blocked). "
@@ -61,18 +65,37 @@ async def create_comment(
 
     evaluation = evaluation.strip().lower()
 
+    # Send email if comment is flagged or blocked
+    if evaluation in {"yellow", "red"}:
+        email_body = json.dumps(
+            {"User ID": user.id, "Evaluation": evaluation, "Comment": comment.text}, indent=2
+        )
+
+        background_tasks.add_task(
+            ses.send_email,
+            Source="admin@referendumapp.com",
+            Destination={"ToAddresses": ["moderation@referendumapp.com"]},
+            Message={
+                "Subject": {
+                    "Data": f"Moderation Alert: {evaluation.capitalize()} Comment Detected"
+                },
+                "Body": {"Text": {"Data": email_body}},
+            },
+        )
+
+        logger.info(f"Moderation alert email sent for {evaluation} comment from user {user.id}")
+
     if evaluation == "red":
         logger.warning(f"Blocked comment from user {user.id}: {comment.text}")
         raise HTTPException(
             status_code=400, detail="This comment was blocked due to inappropriate content."
         )
 
+    # Create the comment in DB if allowed
     created_comment = crud.comment.create(db=db, obj_in=comment)
 
     if evaluation == "yellow":
         logger.info(f"Flagged comment from user {user.id} for review: {comment.text}")
-
-        # Put in potential database for flags
 
     return created_comment
 
