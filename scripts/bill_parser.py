@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import re
 import uuid
 from pathlib import Path
 from typing import Dict, Union, List, Optional, Tuple, Set
 import sys
 import json
+from enum import Enum
 from functools import lru_cache
 
 from pydantic import BaseModel, Field
@@ -40,20 +43,25 @@ class Annotation(BaseModel):
     margin_position: str = "right_margin"
 
 
+class ContentBlockType(str, Enum):
+    """Types of content blocks."""
+
+    TEXT = "text"
+    SECTION = "section"
+    DIVISION = "division"
+
+
 class ContentBlock(BaseModel):
     """Represent a parsed content block within a section."""
 
     id: str
-    type: str = "text"
-    content: str = ""
-    indent_level: int = Field(0, alias="indentLevel")
-    order_index: int = Field(0, alias="orderIndex")
-    properties: List[str] = []
-    y_position: Optional[float] = None
-    annotation: Optional[Dict] = None
+    type: ContentBlockType
+    text: str
+    content: List[ContentBlock] = Field(default_factory=list)
+    indent_level: int = 0
 
-    class Config:
-        populate_by_name = True
+    y_position: Optional[float] = None
+    annotations: List[Annotation] = Field(default_factory=list)
 
 
 class BillSubcategory(BaseModel):
@@ -71,23 +79,11 @@ class BillCategory(BaseModel):
     subcategories: List[BillSubcategory] = []
 
 
-class Section(BaseModel):
-    """Represent a section of the bill."""
-
-    id: str
-    number: str
-    title: str
-    type: str = "section"
-    content: List[ContentBlock] = []
-    annotations: List[Annotation] = []
-    categories: List[BillCategory] = []
-
-
 class BillData(BaseModel):
     """Store structured bill data."""
 
     long_title: str = Field("", alias="longTitle")
-    sections: List[Section] = []
+    sections: List[ContentBlock] = []
     categories: List[BillCategory] = []
 
     class Config:
@@ -991,8 +987,8 @@ class BillPDFParser:
         return annotations, main_content
 
     def _process_content_element(
-        self, text_element: TextElement, current_section: Optional[Section]
-    ) -> Optional[Section]:
+        self, text_element: TextElement, current_section: Optional[ContentBlock]
+    ) -> Optional[ContentBlock]:
         """Process a content element and update the current section."""
         text = text_element.text
         font_info = text_element.font
@@ -1001,19 +997,16 @@ class BillPDFParser:
             # Start new section
             section_match = re.match(r"SEC(?:TION)?\.?\s*(\d+)\.\s*(.+)", text, re.IGNORECASE)
             if section_match:
-                return Section(
+                return ContentBlock(
                     id=f"sec-{section_match.group(1)}",
-                    number=section_match.group(1),
-                    title=section_match.group(2).strip(),
-                    type="section",
+                    text=f"Section {section_match.group(1)}",
+                    type=ContentBlockType.SECTION,
                 )
             else:
-                # Handle case where title might be on the next line
-                return Section(
+                return ContentBlock(
                     id=f"sec-unknown-{uuid.uuid4().hex[:8]}",
-                    number="unknown",
-                    title="",
-                    type="section",
+                    text=f"Section",
+                    type=ContentBlockType.SECTION,
                 )
         elif current_section is not None and text.strip():
             # Skip stat numbers (often appear as page headers/footers)
@@ -1023,11 +1016,10 @@ class BillPDFParser:
             # Check if this is a division header
             if text.strip().startswith("DIVISION") and font_info.bold:
                 # Return as a new section
-                return Section(
+                return ContentBlock(
                     id=f"division-{uuid.uuid4().hex[:8]}",
-                    number="DIVISION",
-                    title=text.strip(),
-                    type="division",
+                    text=text.strip(),
+                    type=ContentBlockType.DIVISION,
                 )
 
             # Add content to current section
@@ -1039,17 +1031,15 @@ class BillPDFParser:
 
         return current_section
 
-    def _add_content_block(self, section: Section, text_element: TextElement) -> None:
+    def _add_content_block(self, section: ContentBlock, text_element: TextElement) -> None:
         """Add a content block to the current section."""
         block_id = f"{section.id}-block-{uuid.uuid4().hex[:8]}"
 
-        # Calculate indent level based on x position relative to the common margin
-        # This normalizes the indentation across inconsistently scanned pages
-        base_margin = self.common_left_margin
-        indent_level = max(0, round((text_element.x0 - base_margin) / self.INDENT_STEP))
-
         # For section headers, always use indent level 0
+        # TODO - implement indent level parsing
         if self._is_section_header(text_element.text, text_element.font):
+            indent_level = 0
+        else:
             indent_level = 0
 
         # Determine text properties
@@ -1062,17 +1052,15 @@ class BillPDFParser:
         # Create content block
         content_block = ContentBlock(
             id=block_id,
-            type="text",
-            content=text_element.text,
-            indentLevel=indent_level,
-            orderIndex=len(section.content),
-            properties=text_properties,
+            type=ContentBlockType.TEXT,
+            text=text_element.text,
+            indent_level=indent_level,
             y_position=text_element.y0,
         )
 
         section.content.append(content_block)
 
-    def _process_annotations(self, annotations: List[TextElement], section: Section) -> None:
+    def _process_annotations(self, annotations: List[TextElement], section: ContentBlock) -> None:
         """Process annotations and match them to content blocks."""
         for annotation_element in annotations:
             annotation_id = f"{section.id}-annotation-{uuid.uuid4().hex[:8]}"
@@ -1089,7 +1077,7 @@ class BillPDFParser:
             # Find the closest content block by Y position
             self._match_annotation_to_content(annotation, section)
 
-    def _match_annotation_to_content(self, annotation: Annotation, section: Section) -> None:
+    def _match_annotation_to_content(self, annotation: Annotation, section: ContentBlock) -> None:
         """Match an annotation to the closest content block."""
         if not section.content:
             return
@@ -1106,18 +1094,7 @@ class BillPDFParser:
 
         # Only attach if reasonably close
         if closest_block and min_distance < self.ANNOTATION_MATCH_THRESHOLD:
-            annotation_dict = {
-                "id": annotation.id,
-                "type": annotation.type,
-                "content": annotation.content,
-                "margin_position": "right_margin",
-            }
-
-            # If block already has an annotation, append to it
-            if closest_block.annotation:
-                closest_block.annotation["content"] += " " + annotation.content
-            else:
-                closest_block.annotation = annotation_dict
+            section.annotations.append(annotation)
 
     def _clean_up_sections(self) -> None:
         """Clean up empty sections and remove temporary data."""
@@ -1355,7 +1332,7 @@ class BillHTMLGenerator:
         annotations_html = "\n".join(annotation_blocks)
 
         section_type = section.get("type", "")
-        section_title = section.get("title", "")
+        section_title = section.get("text", "")
 
         # Handle division headers differently
         if section_type == "division":
@@ -1368,7 +1345,7 @@ class BillHTMLGenerator:
             section_number = section.get("number", "")
             header_html = f"""
             <div class="section-header">
-                SECTION {section_number}. {section_title}
+                {section_title}
             </div>
             """
 
@@ -1389,7 +1366,7 @@ class BillHTMLGenerator:
     def _generate_main_content(self, block: Dict) -> str:
         """Generate HTML for the main content of a block (without annotations)."""
         # Generate classes based on properties and indentation
-        indent_level = block.get("indentLevel", 0)
+        indent_level = 0
         classes = [f"indent-{min(indent_level, 5)}"]
 
         # Apply styles based on the content properties
@@ -1402,7 +1379,7 @@ class BillHTMLGenerator:
 
         return f"""
         <div class="content-block {' '.join(classes)}">
-            {block.get('content', '')}
+            {block.get('text', '')}
         </div>
         """
 
