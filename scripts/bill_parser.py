@@ -11,7 +11,7 @@ from functools import lru_cache
 
 from pydantic import BaseModel, Field
 from pdfminer.high_level import extract_pages
-from pdfminer.layout import LTTextContainer, LTChar, LTTextBox, LTTextLine
+from pdfminer.layout import LTTextContainer, LTChar, LTTextLine
 
 
 class FontInfo(BaseModel):
@@ -1174,6 +1174,65 @@ class BillHTMLGenerator:
         </div>
         """
 
+    def _generate_categories_section(self, categories):
+        """Generate HTML for categories section with subcategories."""
+        if not categories:
+            return ""
+
+        categories_html = []
+        for category in categories:
+            category_id = category.get("id", "")
+            keywords = category.get("keywords_matched", [])
+            subcategories = category.get("subcategories", [])
+
+            # Generate subcategories HTML
+            subcategories_html = ""
+            if subcategories:
+                subcats_list = []
+                for subcat in subcategories:
+                    subcat_id = subcat.get("id", "")
+                    subcat_keywords = subcat.get("keywords_matched", [])
+
+                    # Format keywords as a comma-separated string if present
+                    keywords_str = ""
+                    if subcat_keywords:
+                        keywords_str = f" (matched: {', '.join(subcat_keywords)})"
+
+                    subcats_list.append(
+                        f"""<div class="subcategory">
+                            <span class="subcategory-id">{subcat_id.replace('_', ' ').title()}</span>
+                            <span class="subcategory-keywords">{keywords_str}</span>
+                        </div>"""
+                    )
+
+                # Wrap all subcategories in a container
+                if subcats_list:
+                    subcategories_html = f"""
+                    <div class="subcategories-container">
+                        {"".join(subcats_list)}
+                    </div>
+                    """
+
+            categories_html.append(
+                f"""
+                <div class="category">
+                    <div class="category-header">
+                        <span class="category-id">{category_id.replace('_', ' ').title()}</span>
+                    </div>
+                    {subcategories_html}
+                </div>
+                """
+            )
+
+        return f"""
+        <div class="categories-section">
+            <h2>Categories</h2>
+            <div class="categories-container">
+                {"".join(categories_html)}
+            </div>
+        </div>
+        """
+
     @staticmethod
     @lru_cache(maxsize=1)
     def _generate_styles() -> str:
@@ -1263,21 +1322,47 @@ class BillHTMLGenerator:
             .categories-container {
                 display: flex;
                 flex-wrap: wrap;
-                gap: 0.5rem;
+                gap: 1rem;
             }
 
             .category {
+                background-color: #F9FAFB;
+                border: 1px solid #E5E7EB;
+                border-radius: 0.5rem;
+                padding: 0.75rem;
+                width: calc(33.333% - 1rem);
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            }
+
+            .category-header {
+                margin-bottom: 0.5rem;
+                border-bottom: 1px solid #E5E7EB;
+                padding-bottom: 0.5rem;
+            }
+
+            .category-id {
+                font-weight: bold;
+                color: #1F2937;
+            }
+
+            .subcategories-container {
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .subcategory {
                 background-color: #F3F4F6;
-                padding: 0.25rem 0.75rem;
-                border-radius: 1rem;
+                padding: 0.5rem;
+                border-radius: 0.25rem;
                 font-size: 0.875rem;
             }
 
-            .category-name {
-                font-weight: bold;
+            .subcategory-id {
+                font-weight: 500;
             }
 
-            .category-confidence {
+            .subcategory-keywords {
                 color: #6B7280;
                 font-size: 0.75rem;
             }
@@ -1297,6 +1382,10 @@ class BillHTMLGenerator:
 
                 .annotation-block {
                     margin-left: 1rem;
+                }
+
+                .category {
+                    width: 100%;
                 }
             }
         </style>

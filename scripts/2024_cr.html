@@ -91,21 +91,47 @@
             .categories-container {
                 display: flex;
                 flex-wrap: wrap;
-                gap: 0.5rem;
+                gap: 1rem;
             }
 
             .category {
+                background-color: #F9FAFB;
+                border: 1px solid #E5E7EB;
+                border-radius: 0.5rem;
+                padding: 0.75rem;
+                width: calc(33.333% - 1rem);
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            }
+
+            .category-header {
+                margin-bottom: 0.5rem;
+                border-bottom: 1px solid #E5E7EB;
+                padding-bottom: 0.5rem;
+            }
+
+            .category-id {
+                font-weight: bold;
+                color: #1F2937;
+            }
+
+            .subcategories-container {
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .subcategory {
                 background-color: #F3F4F6;
-                padding: 0.25rem 0.75rem;
-                border-radius: 1rem;
+                padding: 0.5rem;
+                border-radius: 0.25rem;
                 font-size: 0.875rem;
             }
 
-            .category-name {
-                font-weight: bold;
+            .subcategory-id {
+                font-weight: 500;
             }
 
-            .category-confidence {
+            .subcategory-keywords {
                 color: #6B7280;
                 font-size: 0.75rem;
             }
@@ -126,6 +152,10 @@
                 .annotation-block {
                     margin-left: 1rem;
                 }
+
+                .category {
+                    width: 100%;
+                }
             }
         </style>
         
@@ -139,10 +169,20 @@
             <h2>Categories</h2>
             <div class="categories-container">
                 
-            <div class="category">
-                <span class="category-id">government_operation</span>
-            </div>
-            
+                <div class="category">
+                    <div class="category-header">
+                        <span class="category-id">Government Operation</span>
+                    </div>
+                    
+                    <div class="subcategories-container">
+                        <div class="subcategory">
+                            <span class="subcategory-id">Appropriations</span>
+                            <span class="subcategory-keywords"> (matched: appropriation, fiscal year)</span>
+                        </div>
+                    </div>
+                    
+                </div>
+                
             </div>
         </div>
         
