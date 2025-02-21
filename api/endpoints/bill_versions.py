@@ -179,7 +179,11 @@ async def message_chat(
         current_count = current_user.settings.get("message_count", 0)
         if current_count >= settings.MAX_MESSAGES_PER_MONTH:
             raise HTTPException(status_code=429, detail="Monthly message limit exceeded")
-        current_user.settings["message_count"] = current_count + 1
+        settings_update = {
+            "message_count": current_count + 1,
+            "message_count_reset_date": current_month,
+        }
+        current_user.settings = {**current_user.settings, **settings_update}
         db.commit()
 
     response = session_manager.send_message(message_request.session_id, message_request.message)
