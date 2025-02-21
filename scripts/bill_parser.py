@@ -803,15 +803,14 @@ class BillPDFParser:
         """Extract font information from PDF element."""
         font_info = FontInfo()
 
-        if isinstance(element, LTTextBox):
-            for line in element:
-                if isinstance(line, LTTextLine):
-                    for char in line:
-                        if isinstance(char, LTChar):
-                            font_info.size = char.size
-                            font_info.name = char.fontname
-                            font_info.bold = "Bold" in char.fontname
-                            return font_info
+        for obj in element._objs:
+            if isinstance(obj, LTTextLine):
+                for char in obj:
+                    if isinstance(char, LTChar):
+                        font_info.size = char.size
+                        font_info.name = char.fontname
+                        font_info.bold = "Bold" in char.fontname
+                        return font_info
         return font_info
 
     @staticmethod
@@ -1423,56 +1422,32 @@ def parse_bill_pdf(pdf_path: Union[str, Path], html_output_path: Union[str, Path
 
 
 def main():
-    """Main function to process PDFs from command line."""
     import argparse
-    import traceback
 
-    parser = argparse.ArgumentParser(description="Parse bill PDFs into structured data and HTML")
-    parser.add_argument("pdf_paths", nargs="+", help="Path(s) to PDF file(s) to parse")
-    parser.add_argument("--no-html", action="store_true", help="Skip HTML generation")
-    parser.add_argument(
-        "--output-dir", type=str, default=".", help="Directory to save output files"
-    )
-    parser.add_argument("--debug", action="store_true", help="Enable debug output")
-
+    parser = argparse.ArgumentParser(description="Parse bill PDFs into structured data")
+    parser.add_argument("pdf_path", help="Path to PDF file to parse")
     args = parser.parse_args()
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(exist_ok=True)
 
-    for pdf_path in args.pdf_paths:
-        # Generate output paths based on input filename
-        pdf_path = Path(pdf_path)
-        if not pdf_path.exists():
-            print(f"Error: File not found: {pdf_path}", file=sys.stderr)
-            continue
+    try:
+        # Generate default output paths if not specified
+        output_json = Path(args.pdf_path).with_suffix(".json")
+        output_html = Path(args.pdf_path).with_suffix(".html")
 
-        base_path = pdf_path.stem
-        json_output = output_dir / f"{base_path}.json"
-        html_output = None if args.no_html else output_dir / f"{base_path}.html"
+        # Parse bill
+        print(f"Parsing {args.pdf_path}...")
+        bill_data = parse_bill_pdf(args.pdf_path, output_html)
 
-        try:
-            # Parse PDF and generate outputs
-            print(f"Processing {pdf_path}...")
-            bill_data = parse_bill_pdf(pdf_path, html_output_path=html_output)
+        # Save JSON output
+        with open(output_json, "w", encoding="utf-8") as f:
+            json.dump(bill_data, f, indent=2, ensure_ascii=False)
 
-            if not bill_data:
-                print(f"Warning: No data extracted from {pdf_path}")
-                continue
+        print(f"Successfully saved JSON to {output_json}")
+        if output_html:
+            print(f"Successfully saved HTML to {output_html}")
 
-            # Save JSON output
-            with open(json_output, "w", encoding="utf-8") as f:
-                json.dump(bill_data, f, indent=2, ensure_ascii=False)
-
-            print(f"Successfully processed {pdf_path}")
-            print(f"JSON output saved to: {json_output}")
-            if html_output and html_output.exists():
-                print(f"HTML output saved to: {html_output}")
-
-        except Exception as e:
-            print(f"Error processing {pdf_path}: {str(e)}", file=sys.stderr)
-            if args.debug:
-                traceback.print_exc()
-            return 1
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        return 1
 
     return 0
 
