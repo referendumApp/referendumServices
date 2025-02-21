@@ -499,7 +499,6 @@ class BillHTMLGenerator:
         return """
         <style>
             body {
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
                 line-height: 1.5;
                 margin: 0;
                 padding: 0;
