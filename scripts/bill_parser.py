@@ -96,21 +96,10 @@ class BillData(BaseModel):
 
 
 class BillCategorizer:
-    def __init__(self, use_model=True):
-        self.use_model = use_model
-        self.classifier = None
+    # TODO - implement this with NLP
 
-        self.categories = [
-            "healthcare",
-            "education",
-            "infrastructure",
-            "economy",
-            "defense",
-            "justice",
-            "environment",
-        ]
-
-    def categorize_bill(self, bill_data: BillData) -> BillData:
+    @staticmethod
+    def categorize_bill(bill_data: BillData) -> BillData:
         """Enhanced keyword-based categorization with subcategories."""
         text = bill_data.long_title.lower()
 
@@ -151,7 +140,6 @@ class BillPDFParser:
     """Parse PDF bills into structured data."""
 
     PAGE_WIDTH = 612
-    MAIN_TEXT_MARGIN = 50
     INDENT_STEP = 20
     ANNOTATION_MATCH_THRESHOLD = 30
     MAX_INDENT_LEVEL = 10
@@ -309,7 +297,7 @@ class BillPDFParser:
         self._parse_sections()
 
         # Apply categorization
-        categorizer = BillCategorizer(use_model=True)
+        categorizer = BillCategorizer()
         categorized_bill = categorizer.categorize_bill(self.bill_data)
 
         return categorized_bill
@@ -527,9 +515,6 @@ class BillHTMLGenerator:
 
     def generate_html(self) -> str:
         """Generate complete HTML document for the bill."""
-        if not isinstance(self.bill_data, dict):
-            raise TypeError(f"Expected bill_data to be a dictionary, got {type(self.bill_data)}")
-
         sections = self.bill_data.get("content")
         if not isinstance(sections, list):
             sections = []
