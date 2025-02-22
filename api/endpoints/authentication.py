@@ -216,7 +216,7 @@ def verify_google_token(id_token, http_request):
         logger.error(f"Verifying id token with Google authentication server failed: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Server failed to verify id token with Google."  # Hide server-side error details from malicious client-side actor
+            detail="Server failed to verify id token with Google."
         )
     
     required_fields = {'sub', 'email', 'name'}
@@ -230,24 +230,22 @@ def verify_google_token(id_token, http_request):
     return id_token 
 
 @router.post(
-    f"/{AuthProvider.GOOGLE.value}",
+    f"/{AuthProvider.GOOGLE.value}/signup",
     response_model=TokenResponse,
 )
-async def google_login(
+async def google_signup(
     user: SocialLoginRequest,
     http_request: Request,
     db: Session = Depends(get_db)
 ) -> Dict[str, str]:
-    # Verify the social provider token first
-    # Find user in our database or create user in our system if they don't exist
-    # Create JWT session token and return the token
+    # Creates a Referendum user account for a user with a Google account and automatically logs them into Referndum by creating JWT
+    # In the future there will be extra steps for the user during the signup process, but for now the user will automatically get logged in after the signup
 
     id_info = verify_google_token(user.id_token, http_request)
+    google_user_id = id_info.get('sub')
     
     try:
-        google_user_id = id_info.get('sub')
         user = crud.user.get_user_by_social_provider(db=db, social_provider_user_id=google_user_id, social_provider_name=AuthProvider.GOOGLE.value)
-        
         if not user:
             user_data = {
                 'email': id_info.get("email"),
@@ -260,25 +258,76 @@ async def google_login(
             user_create = get_social_user_create(user_data)
             user = crud.user.create(db=db, obj_in=user_create)
             logger.info(f"User created from {AuthProvider.GOOGLE.value} successfully: {user.email}")
-            # To-Do: Do we need to return a 201 if a user is created via social provider account instead of 200?
-        elif user.settings.get("deleted"):  # If the social login user was previously deleted
+        
+        is_deleted = settings_deleted = user.settings.get('deleted')
+        if is_deleted is True:
             logger.info(f"Reactivating soft deleted user for email {user.email}")
             crud.user.update_soft_delete(db=db, user_id=user.id, deleted=False)
-        
-        access_token = create_access_token(data={"sub": user.email})
-        refresh_token = create_refresh_token(data={"sub": user.email})
-        logger.info(f"Login successful for user: {user.email}")
-
-        # To-Do: Standardize an response schema for login reponses?
-        return {
-            "user_id": user.id,
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "token_type": "bearer",
-        }
+        elif is_deleted is False:
+            logger.error(f"Signup failed: Google account already registered - {user.email}")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Your Google account is already signed up. Please login instead.",
+            )
     except DatabaseException as e:
         logger.error(f"Database error during social login: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database error",
-        )   
+        )
+    
+    access_token = create_access_token(data={"sub": user.email})
+    refresh_token = create_refresh_token(data={"sub": user.email})
+    logger.info(f"Login successful for user: {user.email}")
+
+    # To-Do: Standardize an response schema for login reponses?
+    return {
+        "user_id": user.id,
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+    }
+
+
+@router.post(
+    f"/{AuthProvider.GOOGLE.value}/login",
+    response_model=TokenResponse,
+)
+async def google_login(
+    user: SocialLoginRequest,
+    http_request: Request,
+    db: Session = Depends(get_db)
+) -> Dict[str, str]:
+
+    id_info = verify_google_token(user.id_token, http_request)
+    google_user_id = id_info.get('sub')
+    
+    try:
+        user = crud.user.get_user_by_social_provider(db=db, social_provider_user_id=google_user_id, social_provider_name=AuthProvider.GOOGLE.value)
+        if not user:
+            logger.error(f"Login failed. User must create an account first. Google token= {id_info}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Login failed. Please create an account first.",
+            )
+        elif user.settings.get("deleted"):
+            logger.info(f"Reactivating soft deleted user for email {user.email}")
+            crud.user.update_soft_delete(db=db, user_id=user.id, deleted=False)
+    except DatabaseException as e:
+        logger.error(f"Database error during social login: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error",
+        )
+    
+    access_token = create_access_token(data={"sub": user.email})
+    refresh_token = create_refresh_token(data={"sub": user.email})
+    logger.info(f"Login successful for user: {user.email}")
+
+    # To-Do: Standardize an response schema for login reponses?
+    return {
+        "user_id": user.id,
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+    }
