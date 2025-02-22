@@ -194,7 +194,7 @@ class BillPDFParser:
         self.bill_data = BillData()
         self.pages_content: List[List[TextElement]] = []
         self.page_margins: Dict[int, float] = {}
-        self.start_page_idx: int = 0
+        self.start_page_idx: int = 1
 
         # Initialize parser state
         self._extract_pdf_content()
