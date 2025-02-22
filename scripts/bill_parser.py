@@ -88,11 +88,10 @@ class TextElement(BaseModel):
         return self.text.strip().startswith("DIVISION") and self.font.bold
 
 
-class Annotation(BaseModel):
+class AnnotationBlock(BaseModel):
     """A margin note or annotation."""
 
     id: str
-    type: str = "annotation"
     content: str = ""
 
 
@@ -104,7 +103,7 @@ class ContentBlock(BaseModel):
     text: str
     content: List[ContentBlock] = Field(default_factory=list)
     indent_level: int = 0
-    annotations: List[Annotation] = Field(default_factory=list)
+    annotations: List[AnnotationBlock] = Field(default_factory=list)
     y_position: Optional[float] = None
 
     class Config:
@@ -126,7 +125,7 @@ class BillCategory(BaseModel):
     subcategories: List[BillSubcategory] = Field(default_factory=list)
 
 
-class BillData(BaseModel):
+class StructuredBillText(BaseModel):
     """Complete structured representation of a parsed bill."""
 
     long_title: str = Field("", alias="longTitle")
@@ -141,7 +140,7 @@ class BillCategorizer:
     # TODO - implement this with NLP
 
     @staticmethod
-    def categorize_bill(bill_data: BillData) -> BillData:
+    def categorize_bill(bill_data: StructuredBillText) -> StructuredBillText:
         """Enhanced keyword-based categorization with subcategories."""
         text = bill_data.long_title.lower()
 
@@ -190,7 +189,7 @@ class BillPDFParser:
 
     def __init__(self, pdf_path: Union[str, Path]):
         self.pdf_path = Path(pdf_path)
-        self.bill_data = BillData()
+        self.bill_data = StructuredBillText()
         self.pages_content: List[List[TextElement]] = []
         self.page_margins: Dict[int, float] = {}
         self.start_page_idx: int = 1
@@ -199,7 +198,7 @@ class BillPDFParser:
         self._extract_pdf_content()
         self._calculate_page_margins()
 
-    def parse(self) -> BillData:
+    def parse(self) -> StructuredBillText:
         """Parse the full bill into structured data."""
         self._parse_header()
         self._parse_sections()
@@ -322,9 +321,9 @@ class BillPDFParser:
                 continue
 
             try:
-                annotations, content = self._separate_content(page)
+                annotation_content, body_content = self._separate_content(page)
 
-                for element in content:
+                for element in body_content:
                     section = self._process_content_element(element, current_section, page_idx)
 
                     if section is not None:
@@ -332,8 +331,8 @@ class BillPDFParser:
                             self.bill_data.content.append(current_section)
                         current_section = section
 
-                if current_section and annotations:
-                    self._process_annotations(annotations, current_section)
+                if current_section and annotation_content:
+                    self._process_annotations(annotation_content, current_section)
 
             except Exception as e:
                 print(f"Warning: Error processing page {page_idx}: {e}")
@@ -347,7 +346,7 @@ class BillPDFParser:
         self, page: List[TextElement]
     ) -> Tuple[List[TextElement], List[TextElement]]:
         """Separate annotations from main content."""
-        annotations = []
+        annotation_content = []
         main_content = []
 
         for element in page:
@@ -355,11 +354,11 @@ class BillPDFParser:
                 continue
 
             if self._is_side_annotation(element, page):
-                annotations.append(element)
+                annotation_content.append(element)
             else:
                 main_content.append(element)
 
-        return annotations, main_content
+        return annotation_content, main_content
 
     def _process_content_element(
         self, element: TextElement, current_section: Optional[ContentBlock], page_idx: int
@@ -418,10 +417,12 @@ class BillPDFParser:
 
         section.content.append(content_block)
 
-    def _process_annotations(self, annotations: List[TextElement], section: ContentBlock) -> None:
+    def _process_annotations(
+        self, annotation_elements: List[TextElement], section: ContentBlock
+    ) -> None:
         """Process and attach annotations to content blocks."""
-        for element in annotations:
-            annotation = Annotation(
+        for element in annotation_elements:
+            annotation = AnnotationBlock(
                 id=f"{section.id}-annotation-{uuid.uuid4().hex[:8]}",
                 content=element.text,
             )
@@ -430,7 +431,7 @@ class BillPDFParser:
             self._match_annotation_to_content(annotation, element.y0, section)
 
     def _match_annotation_to_content(
-        self, annotation: Annotation, annotation_y: float, section: ContentBlock
+        self, annotation: AnnotationBlock, annotation_y: float, section: ContentBlock
     ) -> None:
         """Match annotation to nearest content block by position."""
         if not section.content:
@@ -459,11 +460,11 @@ class BillPDFParser:
 class BillHTMLGenerator:
     """Generator for creating HTML representations of parsed bills."""
 
-    def __init__(self, bill_data: Dict):
+    def __init__(self, data: Dict):
         """Initialize generator with parsed bill data."""
-        if not isinstance(bill_data, dict):
-            raise TypeError(f"Expected dict, got {type(bill_data)}")
-        self.bill_data = bill_data
+        if not isinstance(data, dict):
+            raise TypeError(f"Expected dict, got {type(data)}")
+        self.data = data
 
     def generate_html(self) -> str:
         """Generate complete HTML document for the bill."""
@@ -476,12 +477,12 @@ class BillHTMLGenerator:
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>{self.bill_data.get('long_title', 'Bill Text')}</title>
+            <title>{self.data.get('long_title', 'Bill Text')}</title>
             {self._get_styles()}
         </head>
         <body>
             <div class="container">
-                <h1>{self.bill_data.get('long_title', '')}</h1>
+                <h1>{self.data.get('long_title', '')}</h1>
                 {categories_html}
                 {sections_html}
             </div>
@@ -491,7 +492,7 @@ class BillHTMLGenerator:
 
     def _generate_sections(self) -> str:
         """Generate HTML for all bill sections."""
-        sections = self.bill_data.get("content", [])
+        sections = self.data.get("content", [])
         return "\n".join(self._generate_section(section) for section in sections)
 
     @lru_cache(maxsize=1)
@@ -670,15 +671,15 @@ class BillHTMLGenerator:
             main_blocks.append(self._generate_content_block(block))
 
             # Handle annotations
-            annotations = block.get("annotations", [])
-            if annotations:
-                for annotation in annotations:
+            block_annotations = block.get("annotations", [])
+            if block_annotations:
+                for annotation in block_annotations:
                     annotation_blocks.append(self._generate_annotation_block(annotation))
             else:
                 annotation_blocks.append('<div class="annotation-placeholder"></div>')
 
         main_content = "\n".join(main_blocks)
-        annotations = "\n".join(annotation_blocks)
+        annotation_content = "\n".join(annotation_blocks)
 
         # Generate section header based on type
         if section.get("type") == "division":
@@ -694,7 +695,7 @@ class BillHTMLGenerator:
                     {main_content}
                 </div>
                 <div class="annotations-column">
-                    {annotations}
+                    {annotation_content}
                 </div>
             </div>
         </div>
@@ -748,7 +749,7 @@ class BillHTMLGenerator:
 
     def _generate_categories(self) -> str:
         """Generate HTML for bill categories section."""
-        categories = self.bill_data.get("categories", [])
+        categories = self.data.get("categories", [])
         if not categories:
             return ""
 
@@ -802,19 +803,19 @@ def parse_bill_pdf(
     Returns:
         Dict containing structured bill data
     """
-    parser = BillPDFParser(pdf_path)
-    bill_data = parser.parse()
-    bill_json = bill_data.model_dump()
+    bill_parser = BillPDFParser(pdf_path)
+    parsed_data = bill_parser.parse()
+    json_data = parsed_data.model_dump()
 
     if html_output_path:
         try:
-            html_generator = BillHTMLGenerator(bill_json)
+            html_generator = BillHTMLGenerator(json_data)
             html_content = html_generator.generate_html()
             Path(html_output_path).write_text(html_content, encoding="utf-8")
         except Exception as e:
             print(f"Warning: Error generating HTML: {e}", file=sys.stderr)
 
-    return bill_json
+    return json_data
 
 
 if __name__ == "__main__":
@@ -829,10 +830,10 @@ if __name__ == "__main__":
         output_html = Path(args.pdf_path).with_suffix(".html")
 
         print(f"Parsing {args.pdf_path}...")
-        bill_data = parse_bill_pdf(args.pdf_path, output_html)
+        structured_bill_text = parse_bill_pdf(args.pdf_path, output_html)
 
         with open(output_json, "w", encoding="utf-8") as f:
-            json.dump(bill_data, f, indent=2, ensure_ascii=False)
+            json.dump(structured_bill_text, f, indent=2, ensure_ascii=False)
 
         print(f"Successfully saved JSON to {output_json}")
         print(f"Successfully saved HTML to {output_html}")
