@@ -155,7 +155,7 @@ class BillPDFParser:
     MAIN_TEXT_MARGIN = 50
     INDENT_STEP = 20
     ANNOTATION_MATCH_THRESHOLD = 30
-    MIN_LEFT_MARGIN = 40
+    MAX_INDENT_LEVEL = 10
     SECTION_PATTERN = r"^SEC(?:TION)?\.?\s*\d+\."
 
     def __init__(self, pdf_path: Union[str, Path]):
@@ -168,7 +168,6 @@ class BillPDFParser:
         self.bill_data = BillData()
         self.pages_content: List[List[TextElement]] = []
         self._extract_pdf_content()
-        self.common_left_margin = self.MIN_LEFT_MARGIN
 
     def _extract_pdf_content(self) -> None:
         """Extract text and layout information from PDF."""
@@ -193,17 +192,6 @@ class BillPDFParser:
                         page_content.append(text_element)
                         all_text_elements.append(text_element)
             self.pages_content.append(page_content)
-
-        # Calculate the most common left margin from all text elements
-        # This helps normalize inconsistent scanning
-        if all_text_elements:
-            left_edges = [
-                int(elem.x0)
-                for elem in all_text_elements
-                if len(elem.text) > 10 and not self._is_section_header(elem.text, elem.font)
-            ]
-            if left_edges:
-                self.common_left_margin = max(self.MIN_LEFT_MARGIN, self._get_mode(left_edges))
 
     @staticmethod
     def _extract_font_info(element) -> FontInfo:
@@ -323,6 +311,8 @@ class BillPDFParser:
                 continue
 
             try:
+                # Define the main body of the page
+
                 # Separate annotations from main content
                 annotations, main_content = self._separate_annotations_and_content(page)
 
@@ -427,11 +417,14 @@ class BillPDFParser:
         block_id = f"{section.id}-block-{uuid.uuid4().hex[:8]}"
 
         # For section headers, always use indent level 0
-        # TODO - implement indent level parsing
         if self._is_section_header(text_element.text, text_element.font):
             indent_level = 0
         else:
-            indent_level = 0
+            current_margin = text_element.x0
+            indent_step = self.INDENT_STEP
+
+            indent_level = int(current_margin / indent_step)
+            indent_level = min(indent_level, self.MAX_INDENT_LEVEL)
 
         # Create content block
         content_block = ContentBlock(
@@ -444,9 +437,11 @@ class BillPDFParser:
 
         section.content.append(content_block)
 
-    def _process_annotations(self, annotations: List[TextElement], section: ContentBlock) -> None:
+    def _process_annotations(
+        self, annotation_elements: List[TextElement], section: ContentBlock
+    ) -> None:
         """Process annotations and match them to content blocks."""
-        for annotation_element in annotations:
+        for annotation_element in annotation_elements:
             annotation_id = f"{section.id}-annotation-{uuid.uuid4().hex[:8]}"
             annotation = Annotation(
                 id=annotation_id,
@@ -557,65 +552,6 @@ class BillHTMLGenerator:
                 f"""
                 <div class="category">
                     <span class="category-id">{name}</span>
-                    {subcategories_html}
-                </div>
-                """
-            )
-
-        return f"""
-        <div class="categories-section">
-            <h2>Categories</h2>
-            <div class="categories-container">
-                {"".join(categories_html)}
-            </div>
-        </div>
-        """
-
-    def _generate_categories_section(self, categories):
-        """Generate HTML for categories section with subcategories."""
-        if not categories:
-            return ""
-
-        categories_html = []
-        for category in categories:
-            category_id = category.get("id", "")
-            keywords = category.get("keywords_matched", [])
-            subcategories = category.get("subcategories", [])
-
-            # Generate subcategories HTML
-            subcategories_html = ""
-            if subcategories:
-                subcats_list = []
-                for subcat in subcategories:
-                    subcat_id = subcat.get("id", "")
-                    subcat_keywords = subcat.get("keywords_matched", [])
-
-                    # Format keywords as a comma-separated string if present
-                    keywords_str = ""
-                    if subcat_keywords:
-                        keywords_str = f" (matched: {', '.join(subcat_keywords)})"
-
-                    subcats_list.append(
-                        f"""<div class="subcategory">
-                            <span class="subcategory-id">{subcat_id.replace('_', ' ').title()}</span>
-                            <span class="subcategory-keywords">{keywords_str}</span>
-                        </div>"""
-                    )
-
-                # Wrap all subcategories in a container
-                if subcats_list:
-                    subcategories_html = f"""
-                    <div class="subcategories-container">
-                        {"".join(subcats_list)}
-                    </div>
-                    """
-
-            categories_html.append(
-                f"""
-                <div class="category">
-                    <div class="category-header">
-                        <span class="category-id">{category_id.replace('_', ' ').title()}</span>
-                    </div>
                     {subcategories_html}
                 </div>
                 """
@@ -856,7 +792,7 @@ class BillHTMLGenerator:
     def _generate_main_content(self, block: Dict) -> str:
         """Generate HTML for the main content of a block (without annotations)."""
         # Generate classes based on properties and indentation
-        indent_level = 0
+        indent_level = block.get("indent_level", 0)
         classes = [f"indent-{min(indent_level, 5)}"]
 
         # Apply styles based on the text element's font info
