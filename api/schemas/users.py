@@ -2,7 +2,7 @@ from typing import Optional, Dict
 
 from pydantic import field_validator
 
-from common.core.schemas import CamelCaseBaseModel
+from common.schemas.base import CamelCaseBaseModel
 from common.database.referendum.schemas import UserBase
 
 

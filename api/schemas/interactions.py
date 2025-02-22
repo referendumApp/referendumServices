@@ -3,7 +3,7 @@ from datetime import datetime
 from pydantic import ConfigDict, model_serializer, field_validator
 from typing import Dict, Optional, List, Generic, TypeVar, Union
 
-from common.core.schemas import CamelCaseBaseModel
+from common.schemas.base import CamelCaseBaseModel
 
 
 ####################
