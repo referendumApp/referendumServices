@@ -33,15 +33,15 @@ from categorization_keywords import CATEGORIZATION_KEYWORDS
 
 
 class ContentBlockType(str, Enum):
-    """Types of content blocks within a bill."""
+    """Types of content blocks found in legislative documents."""
 
-    TEXT = "text"
-    SECTION = "section"
-    DIVISION = "division"
+    TEXT = "text"  # Regular paragraph text
+    SECTION = "section"  # Major section headers (e.g., "SECTION 1.")
+    DIVISION = "division"  # Division markers (e.g., "DIVISION A")
 
 
 class FontInfo(BaseModel):
-    """Font information extracted from PDF elements."""
+    """Font metadata extracted from PDF elements."""
 
     size: Optional[float] = None
     name: Optional[str] = None
@@ -49,11 +49,13 @@ class FontInfo(BaseModel):
 
     @classmethod
     def from_pdf_element(cls, element: LTTextContainer) -> "FontInfo":
-        """Create FontInfo from a PDF text container element."""
+        """Extract font information from a PDF text container."""
         font_info = cls()
-        for obj in element._objs:
-            if isinstance(obj, LTTextLine):
-                for char in obj:
+
+        # Only need to check first character since font usually consistent within element
+        for text_line in element._objs:
+            if isinstance(text_line, LTTextLine):
+                for char in text_line:
                     if isinstance(char, LTChar):
                         font_info.size = char.size
                         font_info.name = char.fontname
@@ -63,18 +65,18 @@ class FontInfo(BaseModel):
 
 
 class TextElement(BaseModel):
-    """A text element with positioning and font information."""
+    """A positioned text element with font information."""
 
     text: str
-    x0: float
-    y0: float
-    x1: float
-    y1: float
+    x0: float  # Left position
+    y0: float  # Bottom position
+    x1: float  # Right position
+    y1: float  # Top position
     font: FontInfo
 
     @property
     def is_section_header(self) -> bool:
-        """Check if this element represents a section header."""
+        """Check if text matches section header pattern and formatting."""
         section_pattern = r"^SEC(?:TION)?\.?\s*\d+\."
         return bool(re.match(section_pattern, self.text, re.IGNORECASE)) and (
             self.font.bold or (self.font.size and self.font.size > 10)
@@ -82,12 +84,12 @@ class TextElement(BaseModel):
 
     @property
     def is_division_header(self) -> bool:
-        """Check if this element represents a division header."""
+        """Check if text appears to be a division header."""
         return self.text.strip().startswith("DIVISION") and self.font.bold
 
 
 class Annotation(BaseModel):
-    """A margin annotation within the bill."""
+    """A margin note or annotation."""
 
     id: str
     type: str = "annotation"
@@ -96,7 +98,7 @@ class Annotation(BaseModel):
 
 
 class ContentBlock(BaseModel):
-    """A parsed content block within a section."""
+    """A block of content within the bill."""
 
     id: str
     type: ContentBlockType
@@ -111,14 +113,14 @@ class ContentBlock(BaseModel):
 
 
 class BillSubcategory(BaseModel):
-    """A subcategory classification for a bill."""
+    """A specific subcategory classification."""
 
     id: str
     keywords_matched: List[str] = Field(default_factory=list)
 
 
 class BillCategory(BaseModel):
-    """A category classification for a bill."""
+    """A high-level category with subcategories."""
 
     id: str
     keywords_matched: List[str] = Field(default_factory=list)
@@ -126,7 +128,7 @@ class BillCategory(BaseModel):
 
 
 class BillData(BaseModel):
-    """Complete structured representation of a bill."""
+    """Complete structured representation of a parsed bill."""
 
     long_title: str = Field("", alias="longTitle")
     content: List[ContentBlock] = Field(default_factory=list)
@@ -178,39 +180,39 @@ class BillCategorizer:
 
 
 class BillPDFParser:
-    """Parser for extracting structured data from PDF bills."""
+    """Extracts structured content from legislative PDFs."""
 
-    # Configuration constants
-    PAGE_WIDTH = 612
-    INDENT_STEP = 20
-    ANNOTATION_MATCH_THRESHOLD = 30
-    MAX_INDENT_LEVEL = 10
-    MIN_BODY_TEXT_CONTENT_LENGTH = 10
+    # Configurable parsing parameters
+    PAGE_WIDTH = 612  # Standard US Letter width in points
+    INDENT_STEP = 20  # Points per indent level
+    MAX_ANNOTATION_DISTANCE = 30  # Maximum distance to match annotations
+    MAX_INDENT = 10  # Maximum allowed indent level
+    MIN_CONTENT_LENGTH = 10  # Minimum length for main content
 
     def __init__(self, pdf_path: Union[str, Path]):
-        """Initialize parser with path to PDF file."""
         self.pdf_path = Path(pdf_path)
         self.bill_data = BillData()
         self.pages_content: List[List[TextElement]] = []
         self.page_margins: Dict[int, float] = {}
         self.start_page_idx: int = 0
 
+        # Initialize parser state
         self._extract_pdf_content()
         self._calculate_page_margins()
 
     def parse(self) -> BillData:
-        """Parse the full bill and return structured data."""
+        """Parse the full bill into structured data."""
         self._parse_header()
         self._parse_sections()
         return BillCategorizer.categorize_bill(self.bill_data)
 
     def _extract_pdf_content(self) -> None:
-        """Extract text and layout information from PDF."""
-        self.start_page_idx = 1  # TODO - determine this from the content
-
+        """Extract all text elements and their positioning from the PDF."""
         pages = extract_pages(self.pdf_path)
+
         for page_layout in pages:
-            page_content = []
+            page_elements = []
+
             for element in page_layout:
                 if isinstance(element, LTTextContainer):
                     text = element.get_text().strip()
@@ -223,29 +225,32 @@ class BillPDFParser:
                             y1=element.bbox[3],
                             font=FontInfo.from_pdf_element(element),
                         )
-                        page_content.append(text_element)
-            self.pages_content.append(page_content)
+                        page_elements.append(text_element)
+
+            self.pages_content.append(page_elements)
 
     def _calculate_page_margins(self) -> None:
-        """Calculate the left margin for each page based on content analysis."""
+        """Determine the base left margin for each page."""
         for page_idx, page in enumerate(self.pages_content):
             if not page:
                 continue
 
+            # Filter for main content elements
             content_elements = [
                 elem
                 for elem in page
-                if len(elem.text) > self.MIN_BODY_TEXT_CONTENT_LENGTH
+                if len(elem.text) > self.MIN_CONTENT_LENGTH
                 and not self._is_metadata(elem)
                 and not self._is_side_annotation(elem, page)
             ]
 
             if content_elements:
+                # Use most common left margin as the base
                 left_margins = [int(elem.x0) for elem in content_elements]
                 self.page_margins[page_idx] = Counter(left_margins).most_common(1)[0][0]
 
     def _is_metadata(self, element: TextElement) -> bool:
-        """Check if element contains metadata like page numbers."""
+        """Identify page metadata like numbers and stats."""
         text = element.text
         is_stat = bool(re.match(r"^\d+\s+STAT\.\s+\d+$", text, re.IGNORECASE))
         is_page_num = element.x0 > (self.PAGE_WIDTH * 0.8) and re.match(r"^\d+$", text)
@@ -260,7 +265,7 @@ class BillPDFParser:
 
         # Calculate mode edges for main content
         content_elements = [
-            elem for elem in page_elements if len(elem.text) > self.MIN_BODY_TEXT_CONTENT_LENGTH
+            elem for elem in page_elements if len(elem.text) > self.MIN_CONTENT_LENGTH
         ]
         if not content_elements:
             return False
@@ -282,7 +287,7 @@ class BillPDFParser:
         relative_margin = text_element.x0 - base_margin
         indent_level = max(0, int(relative_margin / self.INDENT_STEP))
 
-        return min(indent_level, self.MAX_INDENT_LEVEL)
+        return min(indent_level, self.MAX_INDENT)
 
     def _parse_header(self) -> None:
         """Extract bill metadata from the header section."""
@@ -443,7 +448,7 @@ class BillPDFParser:
                 min_distance = distance
                 closest_block = block
 
-        if closest_block and min_distance < self.ANNOTATION_MATCH_THRESHOLD:
+        if closest_block and min_distance < self.MAX_ANNOTATION_DISTANCE:
             closest_block.annotations.append(annotation)
 
     def _clean_up_sections(self) -> None:
@@ -789,10 +794,11 @@ class BillHTMLGenerator:
 def parse_bill_pdf(
     pdf_path: Union[str, Path], html_output_path: Optional[Union[str, Path]] = None
 ) -> Dict:
-    """Parse a bill PDF and optionally generate HTML output.
+    """
+    Parse a legislative PDF and optionally generate HTML visualization.
 
     Args:
-        pdf_path: Path to the PDF file
+        pdf_path: Path to the input PDF file
         html_output_path: Optional path to save generated HTML
 
     Returns:
@@ -808,7 +814,7 @@ def parse_bill_pdf(
             html_content = html_generator.generate_html()
             Path(html_output_path).write_text(html_content, encoding="utf-8")
         except Exception as e:
-            print(f"Warning: Error generating HTML: {e}")
+            print(f"Warning: Error generating HTML: {e}", file=sys.stderr)
 
     return bill_json
 
@@ -834,5 +840,5 @@ if __name__ == "__main__":
         print(f"Successfully saved HTML to {output_html}")
 
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
