@@ -94,7 +94,6 @@ class Annotation(BaseModel):
     id: str
     type: str = "annotation"
     content: str = ""
-    y_position: float = 0
 
 
 class ContentBlock(BaseModel):
@@ -425,13 +424,14 @@ class BillPDFParser:
             annotation = Annotation(
                 id=f"{section.id}-annotation-{uuid.uuid4().hex[:8]}",
                 content=element.text,
-                y_position=element.y0,
             )
 
             section.annotations.append(annotation)
-            self._match_annotation_to_content(annotation, section)
+            self._match_annotation_to_content(annotation, element.y0, section)
 
-    def _match_annotation_to_content(self, annotation: Annotation, section: ContentBlock) -> None:
+    def _match_annotation_to_content(
+        self, annotation: Annotation, annotation_y: float, section: ContentBlock
+    ) -> None:
         """Match annotation to nearest content block by position."""
         if not section.content:
             return
@@ -443,7 +443,7 @@ class BillPDFParser:
             if block.y_position is None:
                 continue
 
-            distance = abs(block.y_position - annotation.y_position)
+            distance = abs(block.y_position - annotation_y)
             if distance < min_distance:
                 min_distance = distance
                 closest_block = block
@@ -673,9 +673,7 @@ class BillHTMLGenerator:
             annotations = block.get("annotations", [])
             if annotations:
                 for annotation in annotations:
-                    annotation_blocks.append(
-                        self._generate_annotation_block(annotation, block.get("y_position", 0))
-                    )
+                    annotation_blocks.append(self._generate_annotation_block(annotation))
             else:
                 annotation_blocks.append('<div class="annotation-placeholder"></div>')
 
@@ -720,14 +718,14 @@ class BillHTMLGenerator:
         </div>
         """
 
-    def _generate_annotation_block(self, annotation: Dict, y_position: float) -> str:
+    def _generate_annotation_block(self, annotation: Dict) -> str:
         """Generate HTML for an annotation block."""
         content = annotation.get("content", "")
         if not content:
             return '<div class="annotation-placeholder"></div>'
 
         return f"""
-        <div class="annotation-block" data-y-position="{y_position}">
+        <div class="annotation-block">
             {content}
         </div>
         """
