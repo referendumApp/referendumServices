@@ -1,14 +1,29 @@
+"""
+Bill Parser - A tool for parsing and analyzing legislative documents.
+
+This module provides functionality to parse PDF bills into structured data,
+categorize their content, and generate HTML representations.
+
+Key components:
+- BillPDFParser: Extracts and structures content from PDF bills
+- BillCategorizer: Categorizes bill content using keyword analysis
+- BillHTMLGenerator: Generates HTML representations of parsed bills
+
+Example usage:
+    bill_data = parse_bill_pdf("path/to/bill.pdf", "output.html")
+"""
+
 from __future__ import annotations
 
 import re
 import uuid
-from pathlib import Path
-from typing import Dict, Union, List, Optional, Tuple, Set
 import sys
 import json
 from enum import Enum
 from functools import lru_cache
 from collections import Counter
+from pathlib import Path
+from typing import Dict, Union, List, Optional, Tuple
 
 from pydantic import BaseModel, Field
 from pdfminer.high_level import extract_pages
@@ -17,16 +32,38 @@ from pdfminer.layout import LTTextContainer, LTChar, LTTextLine
 from categorization_keywords import CATEGORIZATION_KEYWORDS
 
 
+class ContentBlockType(str, Enum):
+    """Types of content blocks within a bill."""
+
+    TEXT = "text"
+    SECTION = "section"
+    DIVISION = "division"
+
+
 class FontInfo(BaseModel):
-    """Store font information from PDF elements."""
+    """Font information extracted from PDF elements."""
 
     size: Optional[float] = None
     name: Optional[str] = None
     bold: bool = False
 
+    @classmethod
+    def from_pdf_element(cls, element: LTTextContainer) -> "FontInfo":
+        """Create FontInfo from a PDF text container element."""
+        font_info = cls()
+        for obj in element._objs:
+            if isinstance(obj, LTTextLine):
+                for char in obj:
+                    if isinstance(char, LTChar):
+                        font_info.size = char.size
+                        font_info.name = char.fontname
+                        font_info.bold = "Bold" in char.fontname
+                        return font_info
+        return font_info
+
 
 class TextElement(BaseModel):
-    """Represent a text element with positioning and font information."""
+    """A text element with positioning and font information."""
 
     text: str
     x0: float
@@ -35,9 +72,22 @@ class TextElement(BaseModel):
     y1: float
     font: FontInfo
 
+    @property
+    def is_section_header(self) -> bool:
+        """Check if this element represents a section header."""
+        section_pattern = r"^SEC(?:TION)?\.?\s*\d+\."
+        return bool(re.match(section_pattern, self.text, re.IGNORECASE)) and (
+            self.font.bold or (self.font.size and self.font.size > 10)
+        )
+
+    @property
+    def is_division_header(self) -> bool:
+        """Check if this element represents a division header."""
+        return self.text.strip().startswith("DIVISION") and self.font.bold
+
 
 class Annotation(BaseModel):
-    """Represent a margin annotation."""
+    """A margin annotation within the bill."""
 
     id: str
     type: str = "annotation"
@@ -46,16 +96,8 @@ class Annotation(BaseModel):
     margin_position: str = "right_margin"
 
 
-class ContentBlockType(str, Enum):
-    """Types of content blocks."""
-
-    TEXT = "text"
-    SECTION = "section"
-    DIVISION = "division"
-
-
 class ContentBlock(BaseModel):
-    """Represent a parsed content block within a section."""
+    """A parsed content block within a section."""
 
     id: str
     type: ContentBlockType
@@ -70,14 +112,14 @@ class ContentBlock(BaseModel):
 
 
 class BillSubcategory(BaseModel):
-    """Represent a subcategory assigned to a bill."""
+    """A subcategory classification for a bill."""
 
     id: str
     keywords_matched: List[str] = Field(default_factory=list)
 
 
 class BillCategory(BaseModel):
-    """Represent a category assigned to a bill."""
+    """A category classification for a bill."""
 
     id: str
     keywords_matched: List[str] = Field(default_factory=list)
@@ -85,7 +127,7 @@ class BillCategory(BaseModel):
 
 
 class BillData(BaseModel):
-    """Store structured bill data."""
+    """Complete structured representation of a bill."""
 
     long_title: str = Field("", alias="longTitle")
     content: List[ContentBlock] = Field(default_factory=list)
@@ -137,27 +179,49 @@ class BillCategorizer:
 
 
 class BillPDFParser:
-    """Parse PDF bills into structured data."""
+    """Parser for extracting structured data from PDF bills."""
 
+    # Configuration constants
     PAGE_WIDTH = 612
     INDENT_STEP = 20
     ANNOTATION_MATCH_THRESHOLD = 30
     MAX_INDENT_LEVEL = 10
     MIN_BODY_TEXT_CONTENT_LENGTH = 10
-    SECTION_PATTERN = r"^SEC(?:TION)?\.?\s*\d+\."
 
     def __init__(self, pdf_path: Union[str, Path]):
-        """Initialize parser with path to PDF file.
-
-        Args:
-            pdf_path: Path to the PDF file
-        """
+        """Initialize parser with path to PDF file."""
         self.pdf_path = Path(pdf_path)
         self.bill_data = BillData()
         self.pages_content: List[List[TextElement]] = []
         self.page_margins: Dict[int, float] = {}
+
         self._extract_pdf_content()
         self._calculate_page_margins()
+
+    def parse(self) -> BillData:
+        """Parse the full bill and return structured data."""
+        self._parse_header()
+        self._parse_sections()
+        return BillCategorizer.categorize_bill(self.bill_data)
+
+    def _extract_pdf_content(self) -> None:
+        """Extract text and layout information from PDF."""
+        for page_layout in extract_pages(self.pdf_path):
+            page_content = []
+            for element in page_layout:
+                if isinstance(element, LTTextContainer):
+                    text = element.get_text().strip()
+                    if text:
+                        text_element = TextElement(
+                            text=text,
+                            x0=element.bbox[0],
+                            y0=element.bbox[1],
+                            x1=element.bbox[2],
+                            y1=element.bbox[3],
+                            font=FontInfo.from_pdf_element(element),
+                        )
+                        page_content.append(text_element)
+            self.pages_content.append(page_content)
 
     def _calculate_page_margins(self) -> None:
         """Calculate the left margin for each page based on content analysis."""
@@ -165,323 +229,204 @@ class BillPDFParser:
             if not page:
                 continue
 
-            # Filter for substantial content elements
             content_elements = [
                 elem
                 for elem in page
                 if len(elem.text) > self.MIN_BODY_TEXT_CONTENT_LENGTH
-                and not self._is_page_number(elem.text, elem.x0)
+                and not self._is_metadata(elem)
                 and not self._is_side_annotation(elem, page)
             ]
 
-            if not content_elements:
-                continue
+            if content_elements:
+                left_margins = [int(elem.x0) for elem in content_elements]
+                self.page_margins[page_idx] = Counter(left_margins).most_common(1)[0][0]
 
-            # Calculate the most common left margin
-            left_margins = [int(elem.x0) for elem in content_elements]
-            if left_margins:
-                # Use mode for most common margin
-                self.page_margins[page_idx] = self._get_mode(left_margins)
-
-    def _calculate_indent_level(self, text_element: TextElement, page_idx: int) -> int:
-        """Calculate indent level relative to the page's base margin."""
-        # For section headers, always use indent level 0
-        if self._is_section_header(text_element.text, text_element.font):
-            return 0
-
-        # Get the base margin for this page
-        base_margin = self.page_margins.get(page_idx, self.INDENT_STEP)
-
-        # Convert to indent level
-        relative_margin = text_element.x0 - base_margin
-        indent_level = max(0, int(relative_margin / self.INDENT_STEP))
-
-        return min(indent_level, self.MAX_INDENT_LEVEL)
-
-    def _extract_pdf_content(self) -> None:
-        """Extract text and layout information from PDF."""
-        all_text_elements = []
-
-        for page_layout in extract_pages(self.pdf_path):
-            page_content = []
-            for element in page_layout:
-                if isinstance(element, LTTextContainer):
-                    text = element.get_text().strip()
-                    if text:
-                        bbox = element.bbox
-                        font_info = self._extract_font_info(element)
-                        text_element = TextElement(
-                            text=text,
-                            x0=bbox[0],
-                            y0=bbox[1],
-                            x1=bbox[2],
-                            y1=bbox[3],
-                            font=font_info,
-                        )
-                        page_content.append(text_element)
-                        all_text_elements.append(text_element)
-            self.pages_content.append(page_content)
-
-    @staticmethod
-    def _extract_font_info(element) -> FontInfo:
-        """Extract font information from PDF element."""
-        font_info = FontInfo()
-
-        for obj in element._objs:
-            if isinstance(obj, LTTextLine):
-                for char in obj:
-                    if isinstance(char, LTChar):
-                        font_info.size = char.size
-                        font_info.name = char.fontname
-                        font_info.bold = "Bold" in char.fontname
-                        return font_info
-        return font_info
-
-    @staticmethod
-    def _is_section_header(text: str, font_info: FontInfo) -> bool:
-        """Determine if text is a section header based on content and styling."""
-        section_pattern = r"^SEC(?:TION)?\.?\s*\d+\."
-        return bool(re.match(section_pattern, text, re.IGNORECASE)) and (
-            font_info.bold or (font_info.size and font_info.size > 10)
-        )
-
-    def _is_page_number(self, text: str, x_position: float) -> bool:
-        """Determine if text is likely a page number."""
-        # Check for stat page numbers (e.g., "138 STAT. 1724")
-        if re.match(r"^\d+\s+STAT\.\s+\d+$", text, re.IGNORECASE):
-            return True
-
-        # Check for page numbers aligned to the right margin
-        right_aligned = x_position > (self.PAGE_WIDTH * 0.8)
-        return right_aligned and re.match(r"^\d+$", text)
-
-    @staticmethod
-    def _get_mode(values: List[int]) -> Optional[int]:
-        """Calculate the mode (most frequent value) from a list of values."""
-        if not values:
-            return None
-
-        return Counter(values).most_common(1)[0][0]
+    def _is_metadata(self, element: TextElement) -> bool:
+        """Check if element contains metadata like page numbers."""
+        text = element.text
+        is_stat = bool(re.match(r"^\d+\s+STAT\.\s+\d+$", text, re.IGNORECASE))
+        is_page_num = element.x0 > (self.PAGE_WIDTH * 0.8) and re.match(r"^\d+$", text)
+        return is_stat or is_page_num
 
     def _is_side_annotation(
         self, text_element: TextElement, page_elements: List[TextElement]
     ) -> bool:
-        """Determine if a text element is a side annotation based on edge positioning."""
-        if not page_elements or len(page_elements) <= 1:
+        """Determine if element is a margin annotation based on positioning."""
+        if len(page_elements) <= 1:
             return False
 
-        # Calculate mode left edge and mode right edge for main content
-        # Use only elements with substantial text to avoid small fragments
-        content_elements = [elem for elem in page_elements if len(elem.text) > 10]
+        # Calculate mode edges for main content
+        content_elements = [
+            elem for elem in page_elements if len(elem.text) > self.MIN_BODY_TEXT_CONTENT_LENGTH
+        ]
         if not content_elements:
             return False
 
         left_edges = [int(elem.x0) for elem in content_elements]
         right_edges = [int(elem.x1) for elem in content_elements]
 
-        mode_left_edge = self._get_mode(left_edges)
-        mode_right_edge = self._get_mode(right_edges)
+        mode_left = Counter(left_edges).most_common(1)[0][0]
+        mode_right = Counter(right_edges).most_common(1)[0][0]
 
-        if mode_left_edge is None or mode_right_edge is None:
-            return False
+        return text_element.x1 <= mode_left or text_element.x0 >= mode_right
 
-        # Check edge positioning criteria
-        is_left_of_main_text = text_element.x1 <= mode_left_edge
-        is_right_of_main_text = text_element.x0 >= mode_right_edge
+    def _calculate_indent_level(self, text_element: TextElement, page_idx: int) -> int:
+        """Calculate indent level relative to page's base margin."""
+        if text_element.is_section_header:
+            return 0
 
-        return is_left_of_main_text or is_right_of_main_text
+        base_margin = self.page_margins.get(page_idx, self.INDENT_STEP)
+        relative_margin = text_element.x0 - base_margin
+        indent_level = max(0, int(relative_margin / self.INDENT_STEP))
 
-    def parse(self) -> BillData:
-        """Parse the full bill and return structured data."""
-        self._parse_header()
-        self._parse_sections()
-
-        # Apply categorization
-        categorizer = BillCategorizer()
-        categorized_bill = categorizer.categorize_bill(self.bill_data)
-
-        return categorized_bill
+        return min(indent_level, self.MAX_INDENT_LEVEL)
 
     def _parse_header(self) -> None:
         """Extract bill metadata from the header section."""
         if not self.pages_content:
             return
 
-        # TODO - determine which page actually starts the bill, CR_2024.pdf starts on the second
-        first_page = self.pages_content[1]
+        first_page = self.pages_content[1]  # Bill typically starts on second page
 
-        # Extract title
-        for text_element_idx, text_element in enumerate(first_page):
-            if "An Act" in text_element.text:
-                title_text = text_element.text
-                # Get next few lines until "Be it enacted"
-                for next_text_element in first_page[text_element_idx + 1 :]:
-                    if any(
-                        phrase in next_text_element.text
-                        for phrase in ("Be it enacted", "Be  it  enacted")
-                    ):
-                        break
-                    if self._is_side_annotation(next_text_element, first_page):
-                        continue
-                    title_text += " " + next_text_element.text
-                self.bill_data.long_title = title_text.replace("An Act", "").strip()
-                break
+        for idx, element in enumerate(first_page):
+            if "An Act" not in element.text:
+                continue
+
+            title_parts = [element.text]
+
+            # Collect subsequent lines until "Be it enacted"
+            for next_elem in first_page[idx + 1 :]:
+                if any(phrase in next_elem.text for phrase in ("Be it enacted", "Be  it  enacted")):
+                    break
+
+                if not self._is_side_annotation(next_elem, first_page):
+                    title_parts.append(next_elem.text)
+
+            title = " ".join(title_parts)
+            self.bill_data.long_title = title.replace("An Act", "").strip()
+            break
 
     def _parse_sections(self) -> None:
         """Parse all sections of the bill."""
         current_section = None
-
-        # Skip first page if it's empty or has only metadata
         start_page = 1 if len(self.pages_content) > 1 else 0
 
         for page_idx, page in enumerate(self.pages_content[start_page:], start=start_page):
-            # Skip empty pages
             if not page:
                 continue
 
             try:
-                # Separate annotations from main content
-                annotations, main_content = self._separate_annotations_and_content(page)
+                annotations, content = self._separate_content(page)
 
-                # Process main content to establish sections and blocks
-                for text_element in main_content:
-                    section_updated = self._process_content_element(
-                        text_element, current_section, page_idx
-                    )
+                for element in content:
+                    section = self._process_content_element(element, current_section, page_idx)
 
-                    # Check if we got a new section
-                    new_section_created = section_updated is not None and (
-                        current_section is None or section_updated.id != current_section.id
-                    )
-
-                    if new_section_created:
-                        # New section created
-                        if current_section:
+                    if section is not None:
+                        if current_section and section.id != current_section.id:
                             self.bill_data.content.append(current_section)
-                        current_section = section_updated
+                        current_section = section
 
-                # Process annotations and match them to content blocks
                 if current_section and annotations:
                     self._process_annotations(annotations, current_section)
-            except Exception as e:
-                print(f"Warning: Error processing page {page_idx}: {str(e)}")
-                continue
 
-        # Add final section
+            except Exception as e:
+                print(f"Warning: Error processing page {page_idx}: {e}")
+
         if current_section:
             self.bill_data.content.append(current_section)
 
-        # Clean up sections
         self._clean_up_sections()
 
-    def _separate_annotations_and_content(
+    def _separate_content(
         self, page: List[TextElement]
     ) -> Tuple[List[TextElement], List[TextElement]]:
-        """Separate annotations from main content on a page."""
+        """Separate annotations from main content."""
         annotations = []
         main_content = []
 
-        for text_element in page:
-            # Skip irrelevant elements
-            if self._is_page_number(text_element.text, text_element.x0) or (
-                text_element.text.startswith("PUBLIC LAW")
-                and any(year in text_element.text for year in ["2024", "2025"])
-            ):
+        for element in page:
+            if self._is_metadata(element):
                 continue
 
-            if self._is_side_annotation(text_element, page):
-                annotations.append(text_element)
+            if self._is_side_annotation(element, page):
+                annotations.append(element)
             else:
-                main_content.append(text_element)
+                main_content.append(element)
 
         return annotations, main_content
 
     def _process_content_element(
-        self, text_element: TextElement, current_section: Optional[ContentBlock], page_idx: int
+        self, element: TextElement, current_section: Optional[ContentBlock], page_idx: int
     ) -> Optional[ContentBlock]:
-        """Process a content element and update the current section."""
-        text = text_element.text
-        font_info = text_element.font
+        """Process a content element and update section structure."""
+        if element.is_section_header:
+            return self._create_section_block(element)
 
-        if self._is_section_header(text, font_info):
-            # Start new section
-            section_match = re.match(r"SEC(?:TION)?\.?\s*(\d+)\.\s*(.+)", text, re.IGNORECASE)
-            if section_match:
-                return ContentBlock(
-                    id=f"sec-{section_match.group(1)}",
-                    text=f"Section {section_match.group(1)}. {section_match.group(2).strip()}",
-                    type=ContentBlockType.SECTION,
-                )
-            else:
-                return ContentBlock(
-                    id=f"sec-unknown-{uuid.uuid4().hex[:8]}",
-                    text=f"Section",
-                    type=ContentBlockType.SECTION,
-                )
-        elif current_section is not None and text.strip():
-            # Skip stat numbers (often appear as page headers/footers)
-            if re.match(r"^\d+\s+STAT", text):
-                return current_section
+        if current_section is None or not element.text.strip():
+            return None
 
-            # Check if this is a division header
-            if text.strip().startswith("DIVISION") and font_info.bold:
-                # Return as a new section
-                return ContentBlock(
-                    id=f"division-{uuid.uuid4().hex[:8]}",
-                    text=text.strip(),
-                    type=ContentBlockType.DIVISION,
-                )
+        if element.is_division_header:
+            return self._create_division_block(element)
 
-            # Add content to current section with page-specific indentation
-            try:
-                self._add_content_block(current_section, text_element, page_idx)
-            except Exception as e:
-                print(f"Warning: Error adding content block: {str(e)}")
-                print(f"Content: {text}")
-
+        self._add_content_block(current_section, element, page_idx)
         return current_section
 
+    def _create_section_block(self, element: TextElement) -> ContentBlock:
+        """Create a new section block from a section header."""
+        match = re.match(r"SEC(?:TION)?\.?\s*(\d+)\.\s*(.+)", element.text, re.IGNORECASE)
+
+        if match:
+            section_num, section_text = match.groups()
+            return ContentBlock(
+                id=f"sec-{section_num}",
+                text=f"Section {section_num}. {section_text.strip()}",
+                type=ContentBlockType.SECTION,
+            )
+
+        return ContentBlock(
+            id=f"sec-unknown-{uuid.uuid4().hex[:8]}", text="Section", type=ContentBlockType.SECTION
+        )
+
+    def _create_division_block(self, element: TextElement) -> ContentBlock:
+        """Create a new division block."""
+        return ContentBlock(
+            id=f"division-{uuid.uuid4().hex[:8]}",
+            text=element.text.strip(),
+            type=ContentBlockType.DIVISION,
+        )
+
     def _add_content_block(
-        self, section: ContentBlock, text_element: TextElement, page_idx: int
+        self, section: ContentBlock, element: TextElement, page_idx: int
     ) -> None:
         """Add a content block to the current section."""
         block_id = f"{section.id}-block-{uuid.uuid4().hex[:8]}"
+        indent_level = self._calculate_indent_level(element, page_idx)
 
-        # For section headers, always use indent level 0
-        indent_level = self._calculate_indent_level(text_element, page_idx)
-
-        # Create content block
         content_block = ContentBlock(
             id=block_id,
             type=ContentBlockType.TEXT,
-            text=text_element.text,
+            text=element.text,
             indent_level=indent_level,
-            y_position=text_element.y0,
+            y_position=element.y0,
         )
 
         section.content.append(content_block)
 
-    def _process_annotations(
-        self, annotation_elements: List[TextElement], section: ContentBlock
-    ) -> None:
-        """Process annotations and match them to content blocks."""
-        for annotation_element in annotation_elements:
-            annotation_id = f"{section.id}-annotation-{uuid.uuid4().hex[:8]}"
+    def _process_annotations(self, annotations: List[TextElement], section: ContentBlock) -> None:
+        """Process and attach annotations to content blocks."""
+        for element in annotations:
             annotation = Annotation(
-                id=annotation_id,
-                content=annotation_element.text,
-                y_position=annotation_element.y0,
+                id=f"{section.id}-annotation-{uuid.uuid4().hex[:8]}",
+                content=element.text,
+                y_position=element.y0,
                 margin_position="right_margin",
             )
 
-            # Store annotation at section level
             section.annotations.append(annotation)
-
-            # Find the closest content block by Y position
             self._match_annotation_to_content(annotation, section)
 
     def _match_annotation_to_content(self, annotation: Annotation, section: ContentBlock) -> None:
-        """Match an annotation to the closest content block."""
+        """Match annotation to nearest content block by position."""
         if not section.content:
             return
 
@@ -489,42 +434,35 @@ class BillPDFParser:
         min_distance = float("inf")
 
         for block in section.content:
-            if block.y_position is not None:
-                distance = abs(block.y_position - annotation.y_position)
-                if distance < min_distance:
-                    min_distance = distance
-                    closest_block = block
+            if block.y_position is None:
+                continue
 
-        # Only attach if reasonably close
+            distance = abs(block.y_position - annotation.y_position)
+            if distance < min_distance:
+                min_distance = distance
+                closest_block = block
+
         if closest_block and min_distance < self.ANNOTATION_MATCH_THRESHOLD:
             closest_block.annotations.append(annotation)
 
     def _clean_up_sections(self) -> None:
-        """Clean up empty sections and remove temporary data."""
+        """Remove empty sections and temporary data."""
         self.bill_data.content = [block for block in self.bill_data.content if block.content]
 
 
 class BillHTMLGenerator:
-    """Generate HTML from parsed bill data."""
+    """Generator for creating HTML representations of parsed bills."""
 
     def __init__(self, bill_data: Dict):
         """Initialize generator with parsed bill data."""
         if not isinstance(bill_data, dict):
-            raise TypeError(f"Expected bill_data to be a dictionary, got {type(bill_data)}")
+            raise TypeError(f"Expected dict, got {type(bill_data)}")
         self.bill_data = bill_data
 
     def generate_html(self) -> str:
         """Generate complete HTML document for the bill."""
-        sections = self.bill_data.get("content")
-        if not isinstance(sections, list):
-            sections = []
-
-        sections_html = "\n".join(self._generate_section(section) for section in sections)
-
-        long_title = self.bill_data.get("long_title", "")
-
-        # Generate categories HTML
-        categories_html = self._generate_categories_section(self.bill_data.get("categories", []))
+        sections_html = self._generate_sections()
+        categories_html = self._generate_categories()
 
         return f"""
         <!DOCTYPE html>
@@ -532,12 +470,12 @@ class BillHTMLGenerator:
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>{long_title or 'Bill Text'}</title>
-            {self._generate_styles()}
+            <title>{self.bill_data.get('long_title', 'Bill Text')}</title>
+            {self._get_styles()}
         </head>
         <body>
             <div class="container">
-                <h1>{long_title}</h1>
+                <h1>{self.bill_data.get('long_title', '')}</h1>
                 {categories_html}
                 {sections_html}
             </div>
@@ -545,51 +483,13 @@ class BillHTMLGenerator:
         </html>
         """
 
-    def _generate_categories_section(self, categories):
-        """Generate HTML for categories section."""
-        if not categories:
-            return ""
+    def _generate_sections(self) -> str:
+        """Generate HTML for all bill sections."""
+        sections = self.bill_data.get("content", [])
+        return "\n".join(self._generate_section(section) for section in sections)
 
-        categories_html = []
-        for category in categories:
-            name = category.get("id", "")
-            subcategories_html = ""
-
-            # Add subcategories if they exist
-            if "subcategories" in category and category["subcategories"]:
-                subcats = []
-                for subcat in category["subcategories"]:
-                    subcat_id = subcat.get("id", "")
-                    subcats.append(f'<span class="subcategory">{subcat_id}</span>')
-
-                if subcats:
-                    subcategories_html = f"""
-                    <div class="subcategories">
-                        {"".join(subcats)}
-                    </div>
-                    """
-
-            categories_html.append(
-                f"""
-                <div class="category">
-                    <span class="category-id">{name}</span>
-                    {subcategories_html}
-                </div>
-                """
-            )
-
-        return f"""
-        <div class="categories-section">
-            <h2>Categories</h2>
-            <div class="categories-container">
-                {"".join(categories_html)}
-            </div>
-        </div>
-        """
-
-    @staticmethod
     @lru_cache(maxsize=1)
-    def _generate_styles() -> str:
+    def _get_styles(self) -> str:
         """Generate CSS styles for the bill display (cached for efficiency)."""
         return """
         <style>
@@ -750,76 +650,62 @@ class BillHTMLGenerator:
         """
 
     def _generate_section(self, section: Dict) -> str:
-        """Generate HTML for a bill section."""
+        """Generate HTML for a single bill section."""
         content = section.get("content", [])
 
-        # Collect all blocks and their annotations
-        main_content_blocks = []
+        # Generate main content and annotation blocks
+        main_blocks = []
         annotation_blocks = []
 
         for block in content:
             if not isinstance(block, dict):
                 continue
 
-            # Generate the main content HTML
-            main_content_blocks.append(self._generate_main_content(block))
+            main_blocks.append(self._generate_content_block(block))
 
-            # If there's an annotation, add it to annotations column
-            block_annotations = block.get("annotations")
-            if block_annotations:
-                y_position = block.get("y_position", 0)
-                for block_annotation in block_annotations:
+            # Handle annotations
+            annotations = block.get("annotations", [])
+            if annotations:
+                for annotation in annotations:
                     annotation_blocks.append(
-                        self._generate_annotation_block(block_annotation, y_position)
+                        self._generate_annotation_block(annotation, block.get("y_position", 0))
                     )
             else:
                 annotation_blocks.append('<div class="annotation-placeholder"></div>')
 
-        # Join all blocks
-        main_content_html = "\n".join(main_content_blocks)
-        annotations_html = "\n".join(annotation_blocks)
+        main_content = "\n".join(main_blocks)
+        annotations = "\n".join(annotation_blocks)
 
-        section_type = section.get("type", "")
-        section_title = section.get("text", "")
-
-        # Handle division headers differently
-        if section_type == "division":
-            header_html = f"""
-            <div class="division-header">
-                {section_title}
-            </div>
-            """
+        # Generate section header based on type
+        if section.get("type") == "division":
+            header = self._generate_division_header(section)
         else:
-            header_html = f"""
-            <div class="section-header">
-                {section_title}
-            </div>
-            """
+            header = self._generate_section_header(section)
 
         return f"""
         <div class="section">
-            {header_html}
+            {header}
             <div class="bill-content">
                 <div class="main-text">
-                    {main_content_html}
+                    {main_content}
                 </div>
                 <div class="annotations-column">
-                    {annotations_html}
+                    {annotations}
                 </div>
             </div>
         </div>
         """
 
-    def _generate_main_content(self, block: Dict) -> str:
-        """Generate HTML for the main content of a block (without annotations)."""
-        # Generate classes based on properties and indentation
-        indent_level = block.get("indent_level", 0)
-        classes = [f"indent-{min(indent_level, 5)}"]
+    def _generate_content_block(self, block: Dict) -> str:
+        """Generate HTML for a content block."""
+        indent_level = min(block.get("indent_level", 0), 5)
+        classes = [f"indent-{indent_level}"]
 
-        # Apply styles based on the text element's font info
-        if block.get("font", {}).get("bold", False):
+        # Add additional styling classes based on font properties
+        font = block.get("font", {})
+        if font.get("bold"):
             classes.append("text-emphasized")
-        if block.get("font", {}).get("size", 0) > 11:
+        if font.get("size", 0) > 11:
             classes.append("text-heading")
 
         return f"""
@@ -832,7 +718,7 @@ class BillHTMLGenerator:
         """Generate HTML for an annotation block."""
         content = annotation.get("content", "")
         if not content:
-            return ""
+            return '<div class="annotation-placeholder"></div>'
 
         return f"""
         <div class="annotation-block" data-y-position="{y_position}">
@@ -840,34 +726,93 @@ class BillHTMLGenerator:
         </div>
         """
 
+    def _generate_division_header(self, section: Dict) -> str:
+        """Generate HTML for a division header."""
+        return f"""
+        <div class="division-header">
+            {section.get('text', '')}
+        </div>
+        """
 
-def parse_bill_pdf(pdf_path: Union[str, Path], html_output_path: Union[str, Path] = None) -> Dict:
-    """Parse a bill PDF and return structured data.
+    def _generate_section_header(self, section: Dict) -> str:
+        """Generate HTML for a section header."""
+        return f"""
+        <div class="section-header">
+            {section.get('text', '')}
+        </div>
+        """
+
+    def _generate_categories(self) -> str:
+        """Generate HTML for bill categories section."""
+        categories = self.bill_data.get("categories", [])
+        if not categories:
+            return ""
+
+        category_blocks = []
+        for category in categories:
+            name = category.get("id", "")
+
+            # Generate subcategories HTML
+            subcategories = []
+            for subcat in category.get("subcategories", []):
+                subcat_id = subcat.get("id", "")
+                subcategories.append(f'<span class="subcategory">{subcat_id}</span>')
+
+            subcategories_html = ""
+            if subcategories:
+                subcategories_html = f"""
+                <div class="subcategories">
+                    {"".join(subcategories)}
+                </div>
+                """
+
+            category_blocks.append(
+                f"""
+            <div class="category">
+                <span class="category-id">{name}</span>
+                {subcategories_html}
+            </div>
+            """
+            )
+
+        return f"""
+        <div class="categories-section">
+            <h2>Categories</h2>
+            <div class="categories-container">
+                {"".join(category_blocks)}
+            </div>
+        </div>
+        """
+
+
+def parse_bill_pdf(
+    pdf_path: Union[str, Path], html_output_path: Optional[Union[str, Path]] = None
+) -> Dict:
+    """Parse a bill PDF and optionally generate HTML output.
 
     Args:
         pdf_path: Path to the PDF file
         html_output_path: Optional path to save generated HTML
 
     Returns:
-        Dict: Structured bill data
+        Dict containing structured bill data
     """
     parser = BillPDFParser(pdf_path)
     bill_data = parser.parse()
-
     bill_json = bill_data.model_dump()
-    if html_output_path and bill_data:
+
+    if html_output_path:
         try:
             html_generator = BillHTMLGenerator(bill_json)
             html_content = html_generator.generate_html()
             Path(html_output_path).write_text(html_content, encoding="utf-8")
         except Exception as e:
-            print(f"Warning: Error generating HTML: {str(e)}")
-            print("Continuing with JSON output generation...")
+            print(f"Warning: Error generating HTML: {e}")
 
     return bill_json
 
 
-def main():
+if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Parse bill PDFs into structured data")
@@ -875,28 +820,18 @@ def main():
     args = parser.parse_args()
 
     try:
-        # Generate default output paths if not specified
         output_json = Path(args.pdf_path).with_suffix(".json")
         output_html = Path(args.pdf_path).with_suffix(".html")
 
-        # Parse bill
         print(f"Parsing {args.pdf_path}...")
         bill_data = parse_bill_pdf(args.pdf_path, output_html)
 
-        # Save JSON output
         with open(output_json, "w", encoding="utf-8") as f:
             json.dump(bill_data, f, indent=2, ensure_ascii=False)
 
         print(f"Successfully saved JSON to {output_json}")
-        if output_html:
-            print(f"Successfully saved HTML to {output_html}")
+        print(f"Successfully saved HTML to {output_html}")
 
     except Exception as e:
-        print(f"Error: {str(e)}")
-        return 1
-
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())
+        print(f"Error: {e}")
+        sys.exit(1)
