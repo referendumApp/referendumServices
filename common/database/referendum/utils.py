@@ -1,9 +1,10 @@
-from typing import Dict, List, Type
 from enum import Enum
+from typing import Dict, List, Type
 
 from sqlalchemy import Column, and_, func
 from sqlalchemy.sql.elements import BinaryExpression, ColumnElement
 
+from api.schemas.interactions import SortingControllerEnum
 from common.database.referendum.crud import ModelType
 
 
@@ -34,3 +35,17 @@ def create_search_filter(
     return func.to_tsvector(search_config.value, model_fields).op("@@")(
         query_func(search_config.value, search_text)
     )
+
+
+def create_sort_column_list(
+    model: Type[ModelType],
+    sort_option: Dict[str, SortingControllerEnum],
+) -> List[Column]:
+    return [
+        (
+            getattr(model, field).desc()
+            if control == SortingControllerEnum.DESC
+            else getattr(model, field)
+        )
+        for field, control in sort_option.items()
+    ]

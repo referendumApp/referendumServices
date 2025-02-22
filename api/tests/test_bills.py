@@ -138,7 +138,7 @@ async def test_invalid_list_bills_filter(test_manager: TestManager):
         headers=test_manager.headers,
         json={"filter_options": {"party_id": [1]}},
     )
-    assert_status_code(response, 400)
+    assert_status_code(response, 422)
 
 
 async def test_list_bill_details_sort(test_manager: TestManager):
@@ -149,7 +149,7 @@ async def test_list_bill_details_sort(test_manager: TestManager):
     response = await test_manager.client.post(
         "/bills/details",
         headers=test_manager.headers,
-        json={"order_by": "title"},
+        json={"order_by": {"title": "ascending"}},
     )
     assert_status_code(response, 200)
     bills = response.json()

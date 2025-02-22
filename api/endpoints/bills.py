@@ -13,6 +13,7 @@ from ..schemas.interactions import (
     BillPaginationRequestBody,
     ErrorResponse,
     PaginatedResponse,
+    Comment,
 )
 from ..schemas.resources import (
     BillVotingHistory,
@@ -23,7 +24,7 @@ from ..schemas.resources import (
     VoteCountByParty,
     VoteSummary,
 )
-from ..schemas.users import CommentDetail, UserBillVotes
+from ..schemas.users import UserBillVotes
 from ..security import (
     get_current_user_or_verify_system_token,
     verify_system_token,
@@ -86,11 +87,13 @@ async def get_all_bill_details(
 
             column_filter = and_(*clauses)
 
-        order_by = (
-            [getattr(models.Bill, request_body.order_by), models.Bill.id]
-            if request_body.order_by
-            else [models.Bill.id]
-        )
+        order_by = []
+        if request_body.order_by:
+            sort_option = request_body.order_by.model_dump()
+            order_by = utils.create_sort_column_list(model=models.Bill, sort_option=sort_option)
+
+        order_by.append(models.Bill.id)
+
         search_filter = None
         if request_body.search_query:
             id_filter = utils.create_search_filter(
@@ -262,11 +265,11 @@ async def get_bill_vote_counts(
 
 @router.get(
     "/{bill_id}/comments",
-    response_model=List[CommentDetail],
+    response_model=List[Comment],
     summary="Get bill comments",
     responses={
         200: {
-            "model": List[CommentDetail],
+            "model": List[Comment],
             "description": "Bill comments successfully retrieved",
         },
         401: {"model": ErrorResponse, "description": "Not authorized"},
@@ -277,12 +280,17 @@ async def get_bill_vote_counts(
 async def get_bill_comments(
     bill_id: int,
     db: Session = Depends(get_db),
-    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
-) -> List[CommentDetail]:
+    auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+) -> List[Comment]:
+    current_user_id = None
+    if not auth_info["is_system"]:
+        current_user = auth_info["user"]
+        current_user_id = current_user.id
+
     bill_comments = crud.bill.get_bill_comments(db, bill_id)
 
     return [
-        CommentDetail(
+        Comment(
             id=comment.id,
             parent_id=comment.parent_id,
             bill_id=comment.bill_id,
@@ -290,8 +298,13 @@ async def get_bill_comments(
             user_id=comment.user_id,
             comment=comment.comment,
             user_name=comment.user.name,
+            endorsements=len(comment.likes),
             created_at=comment.created_at,
-            updated_at=comment.updated_at,
+            current_user_has_endorsed=(
+                any(like.id == current_user_id for like in comment.likes)
+                if current_user_id
+                else False
+            ),
         )
         for comment in bill_comments
     ]
