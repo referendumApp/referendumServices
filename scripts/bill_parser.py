@@ -150,12 +150,12 @@ class BillCategorizer:
 class BillPDFParser:
     """Parse PDF bills into structured data."""
 
-    # Constants for PDF layout analysis
-    PAGE_WIDTH = 612  # Standard letter width in points
+    PAGE_WIDTH = 612
     MAIN_TEXT_MARGIN = 50
     INDENT_STEP = 20
     ANNOTATION_MATCH_THRESHOLD = 30
     MAX_INDENT_LEVEL = 10
+    MIN_BODY_TEXT_CONTENT_LENGTH = 10
     SECTION_PATTERN = r"^SEC(?:TION)?\.?\s*\d+\."
 
     def __init__(self, pdf_path: Union[str, Path]):
@@ -167,7 +167,48 @@ class BillPDFParser:
         self.pdf_path = Path(pdf_path)
         self.bill_data = BillData()
         self.pages_content: List[List[TextElement]] = []
+        self.page_margins: Dict[int, float] = {}
         self._extract_pdf_content()
+        self._calculate_page_margins()
+
+    def _calculate_page_margins(self) -> None:
+        """Calculate the left margin for each page based on content analysis."""
+        for page_idx, page in enumerate(self.pages_content):
+            if not page:
+                continue
+
+            # Filter for substantial content elements
+            content_elements = [
+                elem
+                for elem in page
+                if len(elem.text) > self.MIN_BODY_TEXT_CONTENT_LENGTH
+                and not self._is_page_number(elem.text, elem.x0)
+                and not self._is_side_annotation(elem, page)
+            ]
+
+            if not content_elements:
+                continue
+
+            # Calculate the most common left margin
+            left_margins = [int(elem.x0) for elem in content_elements]
+            if left_margins:
+                # Use mode for most common margin
+                self.page_margins[page_idx] = self._get_mode(left_margins)
+
+    def _calculate_indent_level(self, text_element: TextElement, page_idx: int) -> int:
+        """Calculate indent level relative to the page's base margin."""
+        # For section headers, always use indent level 0
+        if self._is_section_header(text_element.text, text_element.font):
+            return 0
+
+        # Get the base margin for this page
+        base_margin = self.page_margins.get(page_idx, self.INDENT_STEP)
+
+        # Convert to indent level
+        relative_margin = text_element.x0 - base_margin
+        indent_level = max(0, int(relative_margin / self.INDENT_STEP))
+
+        return min(indent_level, self.MAX_INDENT_LEVEL)
 
     def _extract_pdf_content(self) -> None:
         """Extract text and layout information from PDF."""
@@ -311,14 +352,14 @@ class BillPDFParser:
                 continue
 
             try:
-                # Define the main body of the page
-
                 # Separate annotations from main content
                 annotations, main_content = self._separate_annotations_and_content(page)
 
                 # Process main content to establish sections and blocks
                 for text_element in main_content:
-                    section_updated = self._process_content_element(text_element, current_section)
+                    section_updated = self._process_content_element(
+                        text_element, current_section, page_idx
+                    )
 
                     # Check if we got a new section
                     new_section_created = section_updated is not None and (
@@ -368,7 +409,7 @@ class BillPDFParser:
         return annotations, main_content
 
     def _process_content_element(
-        self, text_element: TextElement, current_section: Optional[ContentBlock]
+        self, text_element: TextElement, current_section: Optional[ContentBlock], page_idx: int
     ) -> Optional[ContentBlock]:
         """Process a content element and update the current section."""
         text = text_element.text
@@ -403,28 +444,23 @@ class BillPDFParser:
                     type=ContentBlockType.DIVISION,
                 )
 
-            # Add content to current section
+            # Add content to current section with page-specific indentation
             try:
-                self._add_content_block(current_section, text_element)
+                self._add_content_block(current_section, text_element, page_idx)
             except Exception as e:
                 print(f"Warning: Error adding content block: {str(e)}")
                 print(f"Content: {text}")
 
         return current_section
 
-    def _add_content_block(self, section: ContentBlock, text_element: TextElement) -> None:
+    def _add_content_block(
+        self, section: ContentBlock, text_element: TextElement, page_idx: int
+    ) -> None:
         """Add a content block to the current section."""
         block_id = f"{section.id}-block-{uuid.uuid4().hex[:8]}"
 
         # For section headers, always use indent level 0
-        if self._is_section_header(text_element.text, text_element.font):
-            indent_level = 0
-        else:
-            current_margin = text_element.x0
-            indent_step = self.INDENT_STEP
-
-            indent_level = int(current_margin / indent_step)
-            indent_level = min(indent_level, self.MAX_INDENT_LEVEL)
+        indent_level = self._calculate_indent_level(text_element, page_idx)
 
         # Create content block
         content_block = ContentBlock(
