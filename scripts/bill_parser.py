@@ -93,7 +93,6 @@ class Annotation(BaseModel):
     type: str = "annotation"
     content: str = ""
     y_position: float = 0
-    margin_position: str = "right_margin"
 
 
 class ContentBlock(BaseModel):
@@ -422,7 +421,6 @@ class BillPDFParser:
                 id=f"{section.id}-annotation-{uuid.uuid4().hex[:8]}",
                 content=element.text,
                 y_position=element.y0,
-                margin_position="right_margin",
             )
 
             section.annotations.append(annotation)
