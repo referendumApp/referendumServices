@@ -8,6 +8,7 @@ import sys
 import json
 from enum import Enum
 from functools import lru_cache
+from collections import Counter
 
 from pydantic import BaseModel, Field
 from pdfminer.high_level import extract_pages
@@ -59,32 +60,34 @@ class ContentBlock(BaseModel):
     text: str
     content: List[ContentBlock] = Field(default_factory=list)
     indent_level: int = 0
-
     y_position: Optional[float] = None
     annotations: List[Annotation] = Field(default_factory=list)
+
+    class Config:
+        populate_by_name = True
 
 
 class BillSubcategory(BaseModel):
     """Represent a subcategory assigned to a bill."""
 
     id: str
-    keywords_matched: List[str] = []
+    keywords_matched: List[str] = Field(default_factory=list)
 
 
 class BillCategory(BaseModel):
     """Represent a category assigned to a bill."""
 
     id: str
-    keywords_matched: List[str] = []
-    subcategories: List[BillSubcategory] = []
+    keywords_matched: List[str] = Field(default_factory=list)
+    subcategories: List[BillSubcategory] = Field(default_factory=list)
 
 
 class BillData(BaseModel):
     """Store structured bill data."""
 
     long_title: str = Field("", alias="longTitle")
-    sections: List[ContentBlock] = []
-    categories: List[BillCategory] = []
+    content: List[ContentBlock] = Field(default_factory=list)
+    categories: List[BillCategory] = Field(default_factory=list)
 
     class Config:
         populate_by_name = True
@@ -105,10 +108,10 @@ class BillCategorizer:
             "environment",
         ]
 
-    def categorize_bill(self, bill_data: BillData):
+    def categorize_bill(self, bill_data: BillData) -> BillData:
         """Enhanced keyword-based categorization with subcategories."""
-        text = bill_data.long_title
-        categories = []
+        text = bill_data.long_title.lower()
+
         keywords = {
             "government_operation": {
                 "appropriations": [
@@ -707,8 +710,6 @@ class BillCategorizer:
 
         # Track matched keywords for reporting
         matched_terms = {}
-
-        text = text.lower()
         for main_category, subcategories in keywords.items():
             for subcategory, terms in subcategories.items():
                 for term in terms:
@@ -720,7 +721,7 @@ class BillCategorizer:
                             matched_terms[main_category][subcategory] = []
                         matched_terms[main_category][subcategory].append(term)
 
-        # Convert the matched terms into the required output structure
+        categories = []
         for main_category, subcats in matched_terms.items():
             # For each matched main category
             main_cat_entry = BillCategory(id=main_category, keywords_matched=[], subcategories=[])
@@ -748,8 +749,8 @@ class BillPDFParser:
     MAIN_TEXT_MARGIN = 50
     INDENT_STEP = 20
     ANNOTATION_MATCH_THRESHOLD = 30
-
     MIN_LEFT_MARGIN = 40
+    SECTION_PATTERN = r"^SEC(?:TION)?\.?\s*\d+\."
 
     def __init__(self, pdf_path: Union[str, Path]):
         """Initialize parser with path to PDF file.
@@ -837,13 +838,7 @@ class BillPDFParser:
         if not values:
             return None
 
-        # Count frequency of each value
-        frequency = {}
-        for value in values:
-            frequency[value] = frequency.get(value, 0) + 1
-
-        # Find the most frequent value
-        return max(frequency.items(), key=lambda x: x[1])[0]
+        return Counter(values).most_common(1)[0][0]
 
     def _is_side_annotation(
         self, text_element: TextElement, page_elements: List[TextElement]
@@ -878,7 +873,7 @@ class BillPDFParser:
         self._parse_header()
         self._parse_sections()
 
-        # Apply categorization with safer defaults
+        # Apply categorization
         categorizer = BillCategorizer(use_model=True)
         categorized_bill = categorizer.categorize_bill(self.bill_data)
 
@@ -886,9 +881,10 @@ class BillPDFParser:
 
     def _parse_header(self) -> None:
         """Extract bill metadata from the header section."""
-        if not self.pages_content or len(self.pages_content) < 2:
+        if not self.pages_content:
             return
 
+        # TODO - determine which page actually starts the bill, CR_2024.pdf starts on the second
         first_page = self.pages_content[1]
 
         # Extract title
@@ -926,39 +922,29 @@ class BillPDFParser:
 
                 # Process main content to establish sections and blocks
                 for text_element in main_content:
-                    try:
-                        section_updated = self._process_content_element(
-                            text_element, current_section
-                        )
-                        # Check if we got a new section (strict comparison)
-                        new_section_created = section_updated is not None and (
-                            current_section is None or section_updated.id != current_section.id
-                        )
+                    section_updated = self._process_content_element(text_element, current_section)
 
-                        if new_section_created:
-                            # New section created
-                            if current_section:
-                                self.bill_data.sections.append(current_section)
-                            current_section = section_updated
-                    except Exception as e:
-                        print(
-                            f"Warning: Error processing text element on page {page_idx}: {str(e)}"
-                        )
-                        continue
+                    # Check if we got a new section
+                    new_section_created = section_updated is not None and (
+                        current_section is None or section_updated.id != current_section.id
+                    )
+
+                    if new_section_created:
+                        # New section created
+                        if current_section:
+                            self.bill_data.content.append(current_section)
+                        current_section = section_updated
 
                 # Process annotations and match them to content blocks
                 if current_section and annotations:
-                    try:
-                        self._process_annotations(annotations, current_section)
-                    except Exception as e:
-                        print(f"Warning: Error processing annotations on page {page_idx}: {str(e)}")
+                    self._process_annotations(annotations, current_section)
             except Exception as e:
                 print(f"Warning: Error processing page {page_idx}: {str(e)}")
                 continue
 
         # Add final section
         if current_section:
-            self.bill_data.sections.append(current_section)
+            self.bill_data.content.append(current_section)
 
         # Clean up sections
         self._clean_up_sections()
@@ -998,7 +984,7 @@ class BillPDFParser:
             if section_match:
                 return ContentBlock(
                     id=f"sec-{section_match.group(1)}",
-                    text=f"Section {section_match.group(1)}",
+                    text=f"Section {section_match.group(1)}. {section_match.group(2).strip()}",
                     type=ContentBlockType.SECTION,
                 )
             else:
@@ -1040,13 +1026,6 @@ class BillPDFParser:
             indent_level = 0
         else:
             indent_level = 0
-
-        # Determine text properties
-        text_properties = []
-        if text_element.font.bold:
-            text_properties.append("emphasized")
-        if text_element.font.size and text_element.font.size > 11:
-            text_properties.append("heading")
 
         # Create content block
         content_block = ContentBlock(
@@ -1093,14 +1072,11 @@ class BillPDFParser:
 
         # Only attach if reasonably close
         if closest_block and min_distance < self.ANNOTATION_MATCH_THRESHOLD:
-            section.annotations.append(annotation)
+            closest_block.annotations.append(annotation)
 
     def _clean_up_sections(self) -> None:
         """Clean up empty sections and remove temporary data."""
-        # Filter out empty sections
-        self.bill_data.sections = [
-            section for section in self.bill_data.sections if section.content
-        ]
+        self.bill_data.content = [block for block in self.bill_data.content if block.content]
 
 
 class BillHTMLGenerator:
@@ -1114,11 +1090,10 @@ class BillHTMLGenerator:
 
     def generate_html(self) -> str:
         """Generate complete HTML document for the bill."""
-        # Ensure bill_data is a dictionary and has 'sections' key
         if not isinstance(self.bill_data, dict):
             raise TypeError(f"Expected bill_data to be a dictionary, got {type(self.bill_data)}")
 
-        sections = self.bill_data.get("sections", [])
+        sections = self.bill_data.get("content")
         if not isinstance(sections, list):
             sections = []
 
@@ -1156,13 +1131,29 @@ class BillHTMLGenerator:
         categories_html = []
         for category in categories:
             name = category.get("id", "")
+            subcategories_html = ""
+
+            # Add subcategories if they exist
+            if "subcategories" in category and category["subcategories"]:
+                subcats = []
+                for subcat in category["subcategories"]:
+                    subcat_id = subcat.get("id", "")
+                    subcats.append(f'<span class="subcategory">{subcat_id}</span>')
+
+                if subcats:
+                    subcategories_html = f"""
+                    <div class="subcategories">
+                        {"".join(subcats)}
+                    </div>
+                    """
 
             categories_html.append(
                 f"""
-            <div class="category">
-                <span class="category-id">{name}</span>
-            </div>
-            """
+                <div class="category">
+                    <span class="category-id">{name}</span>
+                    {subcategories_html}
+                </div>
+                """
             )
 
         return f"""
@@ -1367,6 +1358,10 @@ class BillHTMLGenerator:
                 font-size: 0.75rem;
             }
 
+            .annotation-placeholder {
+                min-height: 1rem;
+            }
+
             /* Handle annotations on small screens */
             @media (max-width: 768px) {
                 .bill-content {
@@ -1407,12 +1402,14 @@ class BillHTMLGenerator:
             main_content_blocks.append(self._generate_main_content(block))
 
             # If there's an annotation, add it to annotations column
-            annotation = block.get("annotation")
-            if annotation:
-                y_position = block.get("orderIndex", 0)  # Use order index for alignment
-                annotation_blocks.append(self._generate_annotation_block(annotation, y_position))
+            block_annotations = block.get("annotations")
+            if block_annotations:
+                y_position = block.get("y_position", 0)
+                for block_annotation in block_annotations:
+                    annotation_blocks.append(
+                        self._generate_annotation_block(block_annotation, y_position)
+                    )
             else:
-                # Add an empty placeholder to maintain alignment
                 annotation_blocks.append('<div class="annotation-placeholder"></div>')
 
         # Join all blocks
@@ -1430,7 +1427,6 @@ class BillHTMLGenerator:
             </div>
             """
         else:
-            section_number = section.get("number", "")
             header_html = f"""
             <div class="section-header">
                 {section_title}
@@ -1457,13 +1453,11 @@ class BillHTMLGenerator:
         indent_level = 0
         classes = [f"indent-{min(indent_level, 5)}"]
 
-        # Apply styles based on the content properties
-        properties = block.get("properties", [])
-        if properties:
-            if "emphasized" in properties:
-                classes.append("text-emphasized")
-            if "heading" in properties:
-                classes.append("text-heading")
+        # Apply styles based on the text element's font info
+        if block.get("font", {}).get("bold", False):
+            classes.append("text-emphasized")
+        if block.get("font", {}).get("size", 0) > 11:
+            classes.append("text-heading")
 
         return f"""
         <div class="content-block {' '.join(classes)}">
@@ -1471,7 +1465,7 @@ class BillHTMLGenerator:
         </div>
         """
 
-    def _generate_annotation_block(self, annotation: Dict, y_position: int) -> str:
+    def _generate_annotation_block(self, annotation: Dict, y_position: float) -> str:
         """Generate HTML for an annotation block."""
         content = annotation.get("content", "")
         if not content:
