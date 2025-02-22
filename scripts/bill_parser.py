@@ -194,6 +194,7 @@ class BillPDFParser:
         self.bill_data = BillData()
         self.pages_content: List[List[TextElement]] = []
         self.page_margins: Dict[int, float] = {}
+        self.start_page_idx: int = 0
 
         self._extract_pdf_content()
         self._calculate_page_margins()
@@ -206,7 +207,10 @@ class BillPDFParser:
 
     def _extract_pdf_content(self) -> None:
         """Extract text and layout information from PDF."""
-        for page_layout in extract_pages(self.pdf_path):
+        self.start_page_idx = 1  # TODO - determine this from the content
+
+        pages = extract_pages(self.pdf_path)
+        for page_layout in pages:
             page_content = []
             for element in page_layout:
                 if isinstance(element, LTTextContainer):
@@ -286,20 +290,19 @@ class BillPDFParser:
         if not self.pages_content:
             return
 
-        first_page = self.pages_content[1]  # Bill typically starts on second page
-
-        for idx, element in enumerate(first_page):
+        start_page = self.pages_content[self.start_page_idx]
+        for idx, element in enumerate(start_page):
             if "An Act" not in element.text:
                 continue
 
             title_parts = [element.text]
 
             # Collect subsequent lines until "Be it enacted"
-            for next_elem in first_page[idx + 1 :]:
+            for next_elem in start_page[idx + 1 :]:
                 if any(phrase in next_elem.text for phrase in ("Be it enacted", "Be  it  enacted")):
                     break
 
-                if not self._is_side_annotation(next_elem, first_page):
+                if not self._is_side_annotation(next_elem, start_page):
                     title_parts.append(next_elem.text)
 
             title = " ".join(title_parts)
@@ -309,9 +312,9 @@ class BillPDFParser:
     def _parse_sections(self) -> None:
         """Parse all sections of the bill."""
         current_section = None
-        start_page = 1 if len(self.pages_content) > 1 else 0
-
-        for page_idx, page in enumerate(self.pages_content[start_page:], start=start_page):
+        for page_idx, page in enumerate(
+            self.pages_content[self.start_page_idx :], start=self.start_page_idx
+        ):
             if not page:
                 continue
 
