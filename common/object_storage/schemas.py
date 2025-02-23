@@ -1,30 +1,24 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional, List
+from typing import List
 from pydantic import BaseModel
 from pydantic.fields import Field
 
 
 class ContentBlockType(str, Enum):
-    TITLE = ("title",)
-    DIVISION = ("division",)
-    SECTION = ("section",)
-    SUBSECTION = ("subsection",)
+    TITLE = "title"
+    DIVISION = "division"
+    SECTION = "section"
+    SUBSECTION = "subsection"
 
-    PARAGRAPH = ("paragraph",)
-    DEFINITION = ("definition",)
-    LIST_ITEM = ("list-item",)
-    AMENDMENT = ("amendment",)
+    PARAGRAPH = "paragraph"
+    DEFINITION = "definition"
+    LIST_ITEM = "list-item"
+    AMENDMENT = "amendment"
 
-    REFERENCE = ("reference",)
+    REFERENCE = "reference"
     ANNOTATION = "annotation"
-
-
-class FontInfo(BaseModel):
-    size: Optional[float] = None
-    name: Optional[str] = None
-    bold: bool = False
 
 
 class AnnotationBlock(BaseModel):
