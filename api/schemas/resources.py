@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from pydantic import Field
 
-from common.schemas.base import CamelCaseBaseModel
+from common.core.schemas import CamelCaseBaseModel
 
 
 ####################

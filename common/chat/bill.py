@@ -2,7 +2,7 @@ from typing import Optional, List, Dict
 from datetime import datetime
 from uuid import uuid4
 
-from common.schemas.base import CamelCaseBaseModel
+from common.core.schemas import CamelCaseBaseModel
 from common.chat.service import OpenAIException, LLMService
 
 

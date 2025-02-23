@@ -2,7 +2,7 @@ from datetime import date, datetime
 from pydantic import BaseModel, EmailStr, Field, ConfigDict, create_model
 from typing import TypeVar, Generic, List, Type, Dict, Any, Optional
 
-from common.schemas.base import CamelCaseBaseModel
+from common.core.schemas import CamelCaseBaseModel
 
 T = TypeVar("T")
 
