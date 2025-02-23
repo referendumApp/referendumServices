@@ -78,7 +78,7 @@ async def get_bill_text(
                 content=[
                     ContentBlock(
                         id="root",
-                        type=ContentBlockType.TEXT,
+                        type=ContentBlockType.PARAGRAPH,
                         text=plain_text,
                         content=[],
                         indent_level=0,

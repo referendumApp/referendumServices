@@ -7,9 +7,18 @@ from pydantic.fields import Field
 
 
 class ContentBlockType(str, Enum):
-    TEXT = "text"  # Regular paragraph text
-    SECTION = "section"  # Major section headers (e.g., "SECTION 1.")
-    DIVISION = "division"  # Division markers (e.g., "DIVISION A")
+    TITLE = ("title",)
+    DIVISION = ("division",)
+    SECTION = ("section",)
+    SUBSECTION = ("subsection",)
+
+    PARAGRAPH = ("paragraph",)
+    DEFINITION = ("definition",)
+    LIST_ITEM = ("list-item",)
+    AMENDMENT = ("amendment",)
+
+    REFERENCE = ("reference",)
+    ANNOTATION = "annotation"
 
 
 class FontInfo(BaseModel):
