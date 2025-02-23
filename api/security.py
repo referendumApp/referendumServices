@@ -175,6 +175,6 @@ def get_user_create_with_hashed_password(
     return schemas.UserCreate(**user_data, hashed_password=hashed_password)
 
 
-def get_social_user_create(social_user):  # To-Do: input validation
+def get_social_user_create(social_user: dict) -> schemas.SocialUserCreate:
     return schemas.SocialUserCreate(**social_user)
     

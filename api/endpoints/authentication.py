@@ -191,7 +191,7 @@ async def refresh_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-def detect_platform(platform: str) -> PlatformType:    
+def detect_mobile_platform(platform: str) -> PlatformType:
     if PlatformType.ANDROID in platform:
         return PlatformType.ANDROID
     elif PlatformType.IOS in platform:
@@ -199,14 +199,14 @@ def detect_platform(platform: str) -> PlatformType:
     else:
         raise HTTPException(
             status_code=400,
-            detail="Unsupported platform"
+            detail=f"Unsupported platform: {platform}"
         )
     
-def verify_google_token(id_token, http_request):
-    platform = detect_platform(http_request.headers.get("x-platform", ""))
+def verify_google_token(id_token: str, http_request: Request):
+    platform = detect_mobile_platform(http_request.headers.get("x-platform", ""))
     try:
         client_id = os.getenv("GOOGLE_CLOUD_IOS_CLIENT_ID") if platform == "ios" else os.getenv("GOOGLE_CLOUD_ANDROID_CLIENT_ID")
-        id_token = verify_oauth2_token(
+        google_jwt = verify_oauth2_token(
             id_token,
             requests.Request(),
             client_id,
@@ -220,14 +220,14 @@ def verify_google_token(id_token, http_request):
         )
     
     required_fields = {'sub', 'email', 'name'}
-    missing_fields = required_fields - id_token.keys()
+    missing_fields = required_fields - google_jwt.keys()
     if missing_fields:
         logger.error(f"Missing required fields from Google authentication server: {missing_fields}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Missing required fields from Google authentication server: {', '.join(missing_fields)}"
         )
-    return id_token 
+    return google_jwt
 
 @router.post(
     f"/{AuthProvider.GOOGLE.value}/signup",
@@ -259,7 +259,7 @@ async def google_signup(
             user = crud.user.create(db=db, obj_in=user_create)
             logger.info(f"User created from {AuthProvider.GOOGLE.value} successfully: {user.email}")
         
-        is_deleted = settings_deleted = user.settings.get('deleted')
+        is_deleted = user.settings.get('deleted')
         if is_deleted is True:
             logger.info(f"Reactivating soft deleted user for email {user.email}")
             crud.user.update_soft_delete(db=db, user_id=user.id, deleted=False)
