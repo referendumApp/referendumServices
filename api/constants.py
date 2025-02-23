@@ -8,8 +8,8 @@ ABSENT_VOTE_ID = 4
 class AuthProvider(str, Enum):
     EMAIL = "email"
     GOOGLE = "google"
-    FACEBOOK = "facebook"
-    APPLE = "apple"
+    # FACEBOOK = "facebook"
+    # APPLE = "apple"
 
 class PlatformType(str, Enum):
     IOS = "ios"
