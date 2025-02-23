@@ -1,43 +1,19 @@
-"""
-Bill Parser - A tool for parsing and analyzing legislative documents.
-
-This module provides functionality to parse PDF bills into structured data,
-categorize their content, and generate HTML representations.
-
-Key components:
-- BillPDFParser: Extracts and structures content from PDF bills
-- BillCategorizer: Categorizes bill content using keyword analysis
-- BillHTMLGenerator: Generates HTML representations of parsed bills
-
-Example usage:
-    bill_data = parse_bill_pdf("path/to/bill.pdf", "output.html")
-"""
-
 from __future__ import annotations
 
 import re
 import uuid
 import sys
 import json
-from enum import Enum
 from functools import lru_cache
 from collections import Counter
 from pathlib import Path
 from typing import Dict, Union, List, Optional, Tuple
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from pdfminer.high_level import extract_pages
-from pdfminer.layout import LTTextContainer, LTChar, LTTextLine
+from pdfminer.layout import LTTextContainer, LTTextLine, LTChar
 
-from categorization_keywords import CATEGORIZATION_KEYWORDS
-
-
-class ContentBlockType(str, Enum):
-    """Types of content blocks found in legislative documents."""
-
-    TEXT = "text"  # Regular paragraph text
-    SECTION = "section"  # Major section headers (e.g., "SECTION 1.")
-    DIVISION = "division"  # Division markers (e.g., "DIVISION A")
+from bill_text_schemas import ContentBlock, ContentBlockType, StructuredBillText, AnnotationBlock
 
 
 class FontInfo(BaseModel):
@@ -88,95 +64,6 @@ class TextElement(BaseModel):
         return self.text.strip().startswith("DIVISION") and self.font.bold
 
 
-class AnnotationBlock(BaseModel):
-    """A margin note or annotation."""
-
-    id: str
-    content: str = ""
-
-
-class ContentBlock(BaseModel):
-    """A block of content within the bill."""
-
-    id: str
-    type: ContentBlockType
-    text: str
-    content: List[ContentBlock] = Field(default_factory=list)
-    indent_level: int = 0
-    annotations: List[AnnotationBlock] = Field(default_factory=list)
-    y_position: Optional[float] = None
-
-    class Config:
-        populate_by_name = True
-
-
-class BillSubcategory(BaseModel):
-    """A specific subcategory classification."""
-
-    id: str
-    keywords_matched: List[str] = Field(default_factory=list)
-
-
-class BillCategory(BaseModel):
-    """A high-level category with subcategories."""
-
-    id: str
-    keywords_matched: List[str] = Field(default_factory=list)
-    subcategories: List[BillSubcategory] = Field(default_factory=list)
-
-
-class StructuredBillText(BaseModel):
-    """Complete structured representation of a parsed bill."""
-
-    long_title: str = Field("", alias="longTitle")
-    content: List[ContentBlock] = Field(default_factory=list)
-    categories: List[BillCategory] = Field(default_factory=list)
-
-    class Config:
-        populate_by_name = True
-
-
-class BillCategorizer:
-    # TODO - implement this with NLP
-
-    @staticmethod
-    def categorize_bill(bill_data: StructuredBillText) -> StructuredBillText:
-        """Enhanced keyword-based categorization with subcategories."""
-        text = bill_data.long_title.lower()
-
-        # Track matched keywords for reporting
-        matched_terms = {}
-        for main_category, subcategories in CATEGORIZATION_KEYWORDS.items():
-            for subcategory, terms in subcategories.items():
-                for term in terms:
-                    if term in text:
-                        # Track which subcategory was matched
-                        if main_category not in matched_terms:
-                            matched_terms[main_category] = {}
-                        if subcategory not in matched_terms[main_category]:
-                            matched_terms[main_category][subcategory] = []
-                        matched_terms[main_category][subcategory].append(term)
-
-        categories = []
-        for main_category, subcats in matched_terms.items():
-            # For each matched main category
-            main_cat_entry = BillCategory(id=main_category, keywords_matched=[], subcategories=[])
-
-            # Add all matched subcategories
-            for subcat, terms in subcats.items():
-                main_cat_entry.keywords_matched.extend(terms)
-                subcat_entry = BillSubcategory(
-                    id=subcat,
-                    keywords_matched=terms,
-                )
-                main_cat_entry.subcategories.append(subcat_entry)
-
-            categories.append(main_cat_entry)
-
-        bill_data.categories = categories
-        return bill_data
-
-
 class BillPDFParser:
     """Extracts structured content from legislative PDFs."""
 
@@ -202,7 +89,7 @@ class BillPDFParser:
         """Parse the full bill into structured data."""
         self._parse_header()
         self._parse_sections()
-        return BillCategorizer.categorize_bill(self.bill_data)
+        return self.bill_data
 
     def _extract_pdf_content(self) -> None:
         """Extract all text elements and their positioning from the PDF."""
@@ -308,7 +195,7 @@ class BillPDFParser:
                     title_parts.append(next_elem.text)
 
             title = " ".join(title_parts)
-            self.bill_data.long_title = title.replace("An Act", "").strip()
+            self.bill_data.title = title.replace("An Act", "").strip()
             break
 
     def _parse_sections(self) -> None:
@@ -409,7 +296,7 @@ class BillPDFParser:
 
         content_block = ContentBlock(
             id=block_id,
-            type=ContentBlockType.TEXT,
+            type=ContentBlockType.PARAGRAPH,
             text=element.text,
             indent_level=indent_level,
             y_position=element.y0,
@@ -477,12 +364,12 @@ class BillHTMLGenerator:
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>{self.data.get('long_title', 'Bill Text')}</title>
+            <title>{self.data.get('title', 'Bill Text')}</title>
             {self._get_styles()}
         </head>
         <body>
             <div class="container">
-                <h1>{self.data.get('long_title', '')}</h1>
+                <h1>{self.data.get('title', '')}</h1>
                 {categories_html}
                 {sections_html}
             </div>
