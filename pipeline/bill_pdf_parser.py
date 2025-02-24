@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import io
 import re
 import requests
@@ -32,7 +30,6 @@ class FontInfo(BaseModel):
         """Extract font information from a PDF text container."""
         font_info = cls()
 
-        # Only need to check first character since font usually consistent within element
         for text_line in element._objs:
             if isinstance(text_line, LTTextLine):
                 for char in text_line:
