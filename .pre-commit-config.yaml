@@ -4,18 +4,29 @@ repos:
       - id: go-mod-tidy
         name: go mod tidy
         language: system
-        entry: sh -c "cd atp && go mod tidy"
-        files: ^atp/.*\.go$
+        entry: sh -c "cd atp_service && go mod tidy"
+        files: ^atp_service/.*\.go$
         pass_filenames: false
+
+  - repo: local
+    hooks:
+      - id: golangci-lint
+        name: golangci-lint
+        entry: bash -c 'cd atp_service && golangci-lint run ./...'
+        language: system
+        files: ^atp_service/.*\.go$
+        pass_filenames: false
+
   - repo: https://github.com/dnephin/pre-commit-golang
     rev: master
     hooks:
       - id: go-fmt
-        files: ^atp/
+        files: ^atp_service/
       - id: go-vet
-        files: ^atp/
+        files: ^atp_service/
       - id: golangci-lint
-        files: ^atp/
+        files: ^atp_service/
+
   - repo: https://github.com/psf/black
     rev: 23.12.1
     hooks:
