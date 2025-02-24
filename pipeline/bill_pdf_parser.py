@@ -1,10 +1,9 @@
 from __future__ import annotations
 
+import io
 import re
+import requests
 import uuid
-import sys
-import json
-from functools import lru_cache
 from collections import Counter
 from pathlib import Path
 from typing import Dict, Union, List, Optional, Tuple
@@ -79,13 +78,25 @@ class BillPDFParser:
     MAX_INDENT = 10  # Maximum allowed indent level
     MIN_CONTENT_LENGTH = 10  # Minimum length for main content
 
-    def __init__(self, pdf_path: Union[str, Path]):
-        self.pdf_path = Path(pdf_path)
-        self.pages_content: List[List[TextElement]] = []
-        self.page_margins: Dict[int, float] = {}
-        self.start_page_idx: int = 1
+    def __init__(self, source: str | io.BytesIO, start_page_idx: int = 0) -> None:
+        if isinstance(source, str):
+            if source.startswith("http://") or source.startswith("https://"):
+                response = requests.get(source)
+                self.pdf_bytes = io.BytesIO(response.content)
+                self.pdf_path = None
+            else:
+                self.pdf_path = Path(source)
+                self.pdf_bytes = None
+        else:
+            self.pdf_bytes = source
+
+        self.start_page_idx = start_page_idx
 
         # Initialize parser state
+        self.bill_data = StructuredBillText()
+        self.pages_content: List[List[TextElement]] = []
+        self.page_margins: Dict[int, float] = {}
+
         self._extract_pdf_content()
         self._calculate_page_margins()
 
@@ -97,7 +108,8 @@ class BillPDFParser:
 
     def _extract_pdf_content(self) -> None:
         """Extract all text elements and their positioning from the PDF."""
-        pages = extract_pages(self.pdf_path)
+        source = self.pdf_bytes if self.pdf_bytes is not None else self.pdf_path
+        pages = extract_pages(source)
 
         for page_layout in pages:
             page_elements = []

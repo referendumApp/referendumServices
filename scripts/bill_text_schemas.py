@@ -41,6 +41,3 @@ class StructuredBillText(BaseModel):
 
     title: str = Field("", alias="longTitle")
     content: List[ContentBlock] = Field(default_factory=list)
-
-    class Config:
-        populate_by_name = True
