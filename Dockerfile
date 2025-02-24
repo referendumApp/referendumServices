@@ -9,8 +9,8 @@ RUN uv pip install --system .
 # Alembic migration stage
 FROM data-base AS migrations
 
-COPY alembic.ini /code/
-COPY alembic /code/alembic
+COPY data_service/alembic.ini /code/alembic.ini
+COPY data_service/alembic /code/alembic
 
 # API stage
 FROM data-base AS api
