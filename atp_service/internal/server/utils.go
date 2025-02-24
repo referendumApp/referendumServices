@@ -8,15 +8,15 @@ import (
 	"github.com/referendumApp/referendumServices/internal/models"
 )
 
-func encode[T any](w http.ResponseWriter, status int, v T) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(v); err != nil {
-		return fmt.Errorf("error encoding response, %v", err)
-	}
-
-	return nil
-}
+// func encode[T any](w http.ResponseWriter, status int, v T) error {
+// 	w.Header().Set("Content-Type", "application/json")
+// 	w.WriteHeader(status)
+// 	if err := json.NewEncoder(w).Encode(v); err != nil {
+// 		return fmt.Errorf("error encoding response, %v", err)
+// 	}
+//
+// 	return nil
+// }
 
 func decodeAndValidate[T models.Validator](r *http.Request) (T, error) {
 	var v T

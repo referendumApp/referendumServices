@@ -9,9 +9,9 @@ type FollowRequest struct {
 func (m *FollowRequest) Validate(ctx context.Context) (problems map[string]string) {
 	problem := make(map[string]string, 1)
 
-  if m.UserMessage == "" {
-    problem["userMessage"] = "No value found"
-  }
+	if m.UserMessage == "" {
+		problem["userMessage"] = "No value found"
+	}
 
 	return problem
 }

@@ -3,26 +3,26 @@ package server
 import (
 	"context"
 	"fmt"
-  "io"
+	"io"
 	"net/http"
-  "sync"
+	"sync"
 	"time"
 )
 
 type Server struct {
-	mux *http.ServeMux
-  secretKey []byte
+	mux       *http.ServeMux
+	secretKey []byte
 }
 
 func NewServer(getenv func(string) string) http.Handler {
-  srv := &Server{
-    mux: http.NewServeMux(),
-    secretKey: []byte(getenv("SECRET_KEY")),
-  }
+	srv := &Server{
+		mux:       http.NewServeMux(),
+		secretKey: []byte(getenv("SECRET_KEY")),
+	}
 
 	srv.setupRoutes()
-  handler := srv.authorizeUser()
-  return handler
+	handler := srv.authorizeUser()
+	return handler
 }
 
 func StartServer(ctx context.Context, handler http.Handler, stderr io.Writer) {
@@ -43,20 +43,20 @@ func StartServer(ctx context.Context, handler http.Handler, stderr io.Writer) {
 		}
 	}()
 
-  var wg sync.WaitGroup
-  wg.Add(1)
-  go func() {
-    defer wg.Done()
-    <-ctx.Done()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-ctx.Done()
 
-    shutdownCtx := context.Background()
-    shutdownCtx, cancel := context.WithTimeout(shutdownCtx, 5 * time.Second)
-    defer cancel()
-    if err := httpServer.Shutdown(shutdownCtx); err != nil {
-      fmt.Fprintf(stderr, "Error shutting down http server: %s", err)
-    }
-  }()
-  wg.Wait()
+		shutdownCtx := context.Background()
+		shutdownCtx, cancel := context.WithTimeout(shutdownCtx, 5*time.Second)
+		defer cancel()
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
+			fmt.Fprintf(stderr, "Error shutting down http server: %s", err)
+		}
+	}()
+	wg.Wait()
 
 	fmt.Println("Server stopped")
 }

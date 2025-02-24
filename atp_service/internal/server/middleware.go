@@ -1,7 +1,7 @@
 package server
 
 import (
-  "context"
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -72,13 +72,13 @@ func (s *Server) authorizeUser() http.Handler {
 			return
 		}
 
-    email, ok := claims["sub"].(string)
+		email, ok := claims["sub"].(string)
 		if !ok {
 			http.Error(w, "Missing email in access token", http.StatusUnauthorized)
 			return
 		}
-    ctx := context.WithValue(r.Context(), ConfigEmailKey, email)
-    r = r.WithContext(ctx)
+		ctx := context.WithValue(r.Context(), ConfigEmailKey, email)
+		r = r.WithContext(ctx)
 
 		s.mux.ServeHTTP(w, r)
 	})

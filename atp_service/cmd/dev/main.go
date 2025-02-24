@@ -178,7 +178,7 @@ func rebuildAndStartApp(runCmd string) *exec.Cmd {
 	log.Println("Rebuilding...")
 	cmd := buildAppCmd()
 	if err := cmd.Run(); err != nil {
-		log.Printf("Error building app: (%T)", err, err)
+		log.Printf("Error building app: %v (%T)", err, err)
 		return nil
 	}
 

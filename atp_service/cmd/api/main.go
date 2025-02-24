@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-  "io"
+	"io"
 	"os"
 	"os/signal"
 
@@ -14,10 +14,10 @@ func run(ctx context.Context, getenv func(string) string, stderr io.Writer) erro
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
 
-  handler := server.NewServer(getenv)
-  server.StartServer(ctx, handler, stderr)
+	handler := server.NewServer(getenv)
+	server.StartServer(ctx, handler, stderr)
 
-  return nil
+	return nil
 }
 
 func main() {
