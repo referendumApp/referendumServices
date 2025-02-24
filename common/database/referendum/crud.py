@@ -426,16 +426,20 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
             return db_user
         except SQLAlchemyError as e:
             raise DatabaseException(f"Database error: {str(e)}")
-    
-    def get_user_by_social_provider(self, db: Session, social_provider_user_id: str, social_provider_name: str) -> models.User:
+
+    def get_user_by_social_provider(
+        self, db: Session, social_provider_user_id: str, social_provider_name: str
+    ) -> models.User:
         try:
             # To-Do: This query shouldn't directly access keys with hard-coded strings as it tightly couples with the database schema
             db_user = (
-                db.query(models.User).
-                filter(
-                    models.User.settings['social_provider_user_id'].astext == social_provider_user_id,
-                    models.User.settings['social_provider_name'].astext == social_provider_name
-                ).first()
+                db.query(models.User)
+                .filter(
+                    models.User.settings["social_provider_user_id"].astext
+                    == social_provider_user_id,
+                    models.User.settings["social_provider_name"].astext == social_provider_name,
+                )
+                .first()
             )
             return db_user
         except SQLAlchemyError as e:
@@ -457,11 +461,11 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
             db_user = db.query(models.User).filter(models.User.id == user_id).first()
             if db_user is None:
                 raise ObjectNotFoundException(f"User {user_id} not found")
-            # Copy and reassign to trigger SQLAlchemy change 
+            # Copy and reassign to trigger SQLAlchemy change
             settings = dict(db_user.settings)
             settings["deleted"] = deleted
             db_user.settings = settings
-            
+
             db.add(db_user)
             db.commit()
             db.refresh(db_user)

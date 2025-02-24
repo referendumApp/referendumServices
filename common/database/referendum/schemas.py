@@ -235,8 +235,10 @@ class UserCreate(UserBase):
     hashed_password: str
     settings: Dict
 
+
 class SocialUserCreate(UserBase):
     settings: Dict
+
 
 class UserReference(UserBase):
     id: int

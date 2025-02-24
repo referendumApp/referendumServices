@@ -191,75 +191,81 @@ async def refresh_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+
 def detect_mobile_platform(platform: str) -> PlatformType:
     if PlatformType.ANDROID in platform:
         return PlatformType.ANDROID
     elif PlatformType.IOS in platform:
         return PlatformType.IOS
     else:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported platform: {platform}"
-        )
-    
+        raise HTTPException(status_code=400, detail=f"Unsupported platform: {platform}")
+
+
 def verify_google_token(id_token: str, http_request: Request):
     platform = detect_mobile_platform(http_request.headers.get("x-platform", ""))
     try:
-        client_id = os.getenv("GOOGLE_CLOUD_IOS_CLIENT_ID") if platform == "ios" else os.getenv("GOOGLE_CLOUD_ANDROID_CLIENT_ID")
+        client_id = (
+            os.getenv("GOOGLE_CLOUD_IOS_CLIENT_ID")
+            if platform == "ios"
+            else os.getenv("GOOGLE_CLOUD_ANDROID_CLIENT_ID")
+        )
         google_jwt = verify_oauth2_token(
             id_token,
             requests.Request(),
             client_id,
-            clock_skew_in_seconds = 60  # Prevents token used too early error by allowing x amount of seconds inconsistency between google and referendum servers's system clock
+            clock_skew_in_seconds=60,  # Prevents token used too early error by allowing x amount of seconds inconsistency between google and referendum servers's system clock
         )
     except Exception as e:
         logger.error(f"Verifying id token with Google authentication server failed: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Server failed to verify id token with Google."
+            detail="Server failed to verify id token with Google.",
         )
-    
-    required_fields = {'sub', 'email', 'name'}
+
+    required_fields = {"sub", "email", "name"}
     missing_fields = required_fields - google_jwt.keys()
     if missing_fields:
         logger.error(f"Missing required fields from Google authentication server: {missing_fields}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Missing required fields from Google authentication server: {', '.join(missing_fields)}"
+            detail=f"Missing required fields from Google authentication server: {', '.join(missing_fields)}",
         )
     return google_jwt
+
 
 @router.post(
     f"/{AuthProvider.GOOGLE.value}/signup",
     response_model=TokenResponse,
 )
 async def google_signup(
-    user: SocialLoginRequest,
-    http_request: Request,
-    db: Session = Depends(get_db)
+    user: SocialLoginRequest, http_request: Request, db: Session = Depends(get_db)
 ) -> Dict[str, str]:
     # Creates a Referendum user account for a user with a Google account and automatically logs them into Referndum by creating JWT
     # In the future there will be extra steps for the user during the signup process, but for now the user will automatically get logged in after the signup
 
     id_info = verify_google_token(user.id_token, http_request)
-    google_user_id = id_info.get('sub')
-    
+    google_user_id = id_info.get("sub")
+
     try:
-        user = crud.user.get_user_by_social_provider(db=db, social_provider_user_id=google_user_id, social_provider_name=AuthProvider.GOOGLE.value)
+        user = crud.user.get_user_by_social_provider(
+            db=db,
+            social_provider_user_id=google_user_id,
+            social_provider_name=AuthProvider.GOOGLE.value,
+        )
         if not user:
             user_data = {
-                'email': id_info.get("email"),
+                "email": id_info.get("email"),
                 "name": id_info.get("name"),
                 "settings": {
-                    "social_provider_user_id": google_user_id, 
-                    'social_provider_name': AuthProvider.GOOGLE.value
-                }
+                    "social_provider_user_id": google_user_id,
+                    "social_provider_name": AuthProvider.GOOGLE.value,
+                },
             }
             user_create = get_social_user_create(user_data)
             user = crud.user.create(db=db, obj_in=user_create)
             logger.info(f"User created from {AuthProvider.GOOGLE.value} successfully: {user.email}")
-        
-        is_deleted = user.settings.get('deleted')
+
+        is_deleted = user.settings.get("deleted")
         if is_deleted is True:
             logger.info(f"Reactivating soft deleted user for email {user.email}")
             crud.user.update_soft_delete(db=db, user_id=user.id, deleted=False)
@@ -275,7 +281,7 @@ async def google_signup(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database error",
         )
-    
+
     access_token = create_access_token(data={"sub": user.email})
     refresh_token = create_refresh_token(data={"sub": user.email})
     logger.info(f"Login successful for user: {user.email}")
@@ -294,18 +300,22 @@ async def google_signup(
     response_model=TokenResponse,
 )
 async def google_login(
-    user: SocialLoginRequest,
-    http_request: Request,
-    db: Session = Depends(get_db)
+    user: SocialLoginRequest, http_request: Request, db: Session = Depends(get_db)
 ) -> Dict[str, str]:
 
     id_info = verify_google_token(user.id_token, http_request)
-    google_user_id = id_info.get('sub')
-    
+    google_user_id = id_info.get("sub")
+
     try:
-        user = crud.user.get_user_by_social_provider(db=db, social_provider_user_id=google_user_id, social_provider_name=AuthProvider.GOOGLE.value)
+        user = crud.user.get_user_by_social_provider(
+            db=db,
+            social_provider_user_id=google_user_id,
+            social_provider_name=AuthProvider.GOOGLE.value,
+        )
         if not user:
-            logger.error(f"Login failed. User must create an account first. Google token= {id_info}")
+            logger.error(
+                f"Login failed. User must create an account first. Google token= {id_info}"
+            )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=f"Login failed. Please create an account first.",
@@ -319,7 +329,7 @@ async def google_login(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database error",
         )
-    
+
     access_token = create_access_token(data={"sub": user.email})
     refresh_token = create_refresh_token(data={"sub": user.email})
     logger.info(f"Login successful for user: {user.email}")
