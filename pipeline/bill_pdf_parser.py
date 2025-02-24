@@ -321,36 +321,29 @@ class BillPDFParser:
         self, annotation_elements: List[TextElement], section: ContentBlock
     ) -> None:
         """Process and attach annotations to content blocks."""
-        for element in annotation_elements:
+        for annotation_element in annotation_elements:
             annotation = AnnotationBlock(
                 id=f"{section.id}-annotation-{uuid.uuid4().hex[:8]}",
-                content=element.text,
+                content=annotation_element.text,
             )
-
             section.annotations.append(annotation)
-            self._match_annotation_to_content(annotation, element.y0, section)
 
-    def _match_annotation_to_content(
-        self, annotation: AnnotationBlock, annotation_y: float, section: ContentBlock
-    ) -> None:
-        """Match annotation to nearest content block by position."""
-        if not section.content:
-            return
+            # Attempt to attach to the nearest line in the section
+            if section.content:
+                closest_block = None
+                min_distance = float("inf")
 
-        closest_block = None
-        min_distance = float("inf")
+                for block in section.content:
+                    if block.y_position is None:
+                        continue
 
-        for block in section.content:
-            if block.y_position is None:
-                continue
+                    distance = abs(block.y_position - annotation_element.y0)
+                    if distance < min_distance:
+                        min_distance = distance
+                        closest_block = block
 
-            distance = abs(block.y_position - annotation_y)
-            if distance < min_distance:
-                min_distance = distance
-                closest_block = block
-
-        if closest_block and min_distance < self.MAX_ANNOTATION_DISTANCE:
-            closest_block.annotations.append(annotation)
+                if closest_block and min_distance < self.MAX_ANNOTATION_DISTANCE:
+                    closest_block.annotations.append(annotation)
 
     def _clean_up_sections(self) -> None:
         """Remove empty sections and temporary data."""
