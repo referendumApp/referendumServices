@@ -45,6 +45,47 @@ services:
     command: ["python", "-m", "debugpy", "--listen", "0.0.0.0:5678", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
     profiles: ["local-data", "local-empty"]
 
+  atp-base:
+    build:
+      context: .
+      target: atp-base
+    env_file: .env
+    ports:
+      - "8080:8080"
+    profiles: ["base"]
+
+  atp:
+    container_name: atp
+    extends: 
+      service: atp-base
+    build:
+      context: .
+      target: atp-prod
+    profiles: ["atp"]
+
+  atp-local:
+    container_name: atp-local
+    extends: 
+      service: atp-base
+    build:
+      context: .
+      target: atp-local
+    environment:
+      - CGO_ENABLED=0
+      - GOOS=linux
+      - GOARCH=amd64
+    volumes:
+      - ./cmd:/code/cmd
+      - ./internal:/code/internal
+    depends_on:
+      db:
+        condition: service_healthy
+      local-db-init:
+        condition: service_completed_successfully
+      migrations:
+        condition: service_completed_successfully
+    profiles: ["local-data", "local-empty"]
+
   db:
     container_name: db
     image: postgres:13
