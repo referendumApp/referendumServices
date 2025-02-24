@@ -47,11 +47,17 @@ class BillTextExtractor:
     def store_text(self, structured_text: StructuredBillText, file_hash: str) -> None:
         """Store extracted text in object storage"""
         json_string = structured_text.model_dump_json()
-        logger.warning(json_string)
         self.storage_client.upload_file(
             bucket=self.bucket_name,
             key=f"{file_hash}.json",
             file_obj=json_string.encode("utf-8"),
+        )
+
+        plain_text = structured_text.get_plain_text()
+        self.storage_client.upload_file(
+            bucket=self.bucket_name,
+            key=f"{file_hash}.txt",
+            file_obj=plain_text.encode("utf-8"),
         )
 
     def process_bill(self, url_hash: str, url: str):
@@ -63,4 +69,5 @@ class BillTextExtractor:
         structured_text = parser.parse()
 
         self.store_text(structured_text, url_hash)
-        logger.info(f"Saved bill text for url {url} at {url_hash}.txt")
+
+        logger.info(f"Saved bill text for url {url} as {url_hash}")
