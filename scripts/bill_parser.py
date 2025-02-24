@@ -1,64 +1,12 @@
 from __future__ import annotations
 
-import re
 import sys
 import json
 from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Union, Optional
 
-from pydantic import BaseModel
-from pdfminer.layout import LTTextContainer, LTTextLine, LTChar
-
 from pipeline.bill_pdf_parser import BillPDFParser
-
-
-class FontInfo(BaseModel):
-    """Font metadata extracted from PDF elements."""
-
-    size: Optional[float] = None
-    name: Optional[str] = None
-    bold: bool = False
-
-    @classmethod
-    def from_pdf_element(cls, element: LTTextContainer) -> "FontInfo":
-        """Extract font information from a PDF text container."""
-        font_info = cls()
-
-        # Only need to check first character since font usually consistent within element
-        for text_line in element._objs:
-            if isinstance(text_line, LTTextLine):
-                for char in text_line:
-                    if isinstance(char, LTChar):
-                        font_info.size = char.size
-                        font_info.name = char.fontname
-                        font_info.bold = "Bold" in char.fontname
-                        return font_info
-        return font_info
-
-
-class TextElement(BaseModel):
-    """A positioned text element with font information."""
-
-    text: str
-    x0: float  # Left position
-    y0: float  # Bottom position
-    x1: float  # Right position
-    y1: float  # Top position
-    font: FontInfo
-
-    @property
-    def is_section_header(self) -> bool:
-        """Check if text matches section header pattern and formatting."""
-        section_pattern = r"^SEC(?:TION)?\.?\s*\d+\."
-        return bool(re.match(section_pattern, self.text, re.IGNORECASE)) and (
-            self.font.bold or (self.font.size and self.font.size > 10)
-        )
-
-    @property
-    def is_division_header(self) -> bool:
-        """Check if text appears to be a division header."""
-        return self.text.strip().startswith("DIVISION") and self.font.bold
 
 
 class BillHTMLGenerator:
