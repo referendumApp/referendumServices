@@ -1,4 +1,4 @@
-module github.com/referendumApp/referendumATP
+module github.com/referendumApp/referendumServices
 
 go 1.24.0
 

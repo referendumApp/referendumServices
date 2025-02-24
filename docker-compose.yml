@@ -47,7 +47,7 @@ services:
 
   atp-base:
     build:
-      context: ./atp
+      context: ./atp_service
       target: base
     env_file: .env
     ports:
@@ -68,7 +68,7 @@ services:
     extends: 
       service: atp-base
     build:
-      context: ./atp
+      context: ./atp_service
       target: atp-local
     environment:
       - CGO_ENABLED=0

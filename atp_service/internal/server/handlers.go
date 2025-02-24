@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/referendumApp/referendumATP/internal/models"
+	"github.com/referendumApp/referendumServices/internal/models"
 )
 
 func handleFollow(w http.ResponseWriter, r *http.Request) {

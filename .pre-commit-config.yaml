@@ -1,0 +1,33 @@
+repos:
+  - repo: local
+    hooks:
+      - id: go-mod-tidy
+        name: go mod tidy
+        language: system
+        entry: sh -c "cd atp && go mod tidy"
+        files: ^atp/.*\.go$
+        pass_filenames: false
+  - repo: https://github.com/dnephin/pre-commit-golang
+    rev: master
+    hooks:
+      - id: go-fmt
+        files: ^atp/
+      - id: go-vet
+        files: ^atp/
+      - id: golangci-lint
+        files: ^atp/
+  - repo: https://github.com/psf/black
+    rev: 23.12.1
+    hooks:
+      - id: black
+        args:
+          - --line-length=100
+          - --include='\.pyi?$'
+          - --exclude="""\.get |
+            \.__pycache__|
+            \.mypy_cache|
+            \.venv|
+            build|
+            dist"""
+        language_version: python3.11
+        files: ^data_service/

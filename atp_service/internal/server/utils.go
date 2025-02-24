@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/referendumApp/referendumATP/internal/models"
+	"github.com/referendumApp/referendumServices/internal/models"
 )
 
 func encode[T any](w http.ResponseWriter, status int, v T) error {

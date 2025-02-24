@@ -7,7 +7,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/referendumApp/referendumATP/internal/server"
+	"github.com/referendumApp/referendumServices/internal/server"
 )
 
 func run(ctx context.Context, getenv func(string) string, stderr io.Writer) error {
