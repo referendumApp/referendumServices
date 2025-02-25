@@ -1,3 +1,4 @@
+# Multi-stage build for Python Data Service
 FROM python:3.11.4-slim-bullseye AS base
 
 RUN pip install uv
@@ -8,7 +9,7 @@ RUN uv pip install --system .
 # Alembic migration stage
 FROM base AS migrations
 
-COPY alembic.ini /code/
+COPY alembic.ini /code/alembic.ini
 COPY alembic /code/alembic
 
 # API stage
