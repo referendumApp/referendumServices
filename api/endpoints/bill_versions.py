@@ -1,7 +1,6 @@
 import logging
 from datetime import datetime
 from typing import Any, Dict
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -9,6 +8,7 @@ from common.chat.bill import BillChatSessionManager
 from common.chat.service import LLMService, OpenAIException
 from common.database.referendum import crud, schemas
 from common.object_storage.client import ObjectStorageClient
+from common.object_storage.schemas import ContentBlock, ContentBlockType, StructuredBillText
 
 from ..database import get_db
 from ..schemas.interactions import (
@@ -58,10 +58,41 @@ async def get_bill_text(
 
     s3_client = ObjectStorageClient()
     text = s3_client.download_file(
-        bucket=settings.BILL_TEXT_BUCKET_NAME, key=f"{bill_version.hash}.txt"
+        bucket=settings.BILL_TEXT_BUCKET_NAME,
+        key=f"{bill_version.hash}.txt",
     ).decode("utf-8")
 
     return {"bill_version_id": bill_version_id, "hash": bill_version.hash, "text": text}
+
+
+@router.get(
+    "/v2/{bill_version_id}/text",
+    response_model=StructuredBillText,
+    summary="Get bill text",
+    responses={
+        200: {
+            "model": StructuredBillText,
+            "description": "Structured bill text successfully retrieved",
+        },
+        401: {"model": ErrorResponse, "description": "Not authorized"},
+        404: {"model": ErrorResponse, "description": "Bill not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+@handle_crud_exceptions("bill_version")
+async def get_bill_text(
+    bill_version_id: int,
+    db: Session = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+) -> StructuredBillText:
+    bill_version = crud.bill_version.read(db=db, obj_id=bill_version_id)
+
+    s3_client = ObjectStorageClient()
+    json_data = s3_client.download_file(
+        bucket=settings.BILL_TEXT_BUCKET_NAME, key=f"{bill_version.hash}.json"
+    ).decode("utf-8")
+
+    return StructuredBillText.model_validate_json(json_data)
 
 
 @router.get(
