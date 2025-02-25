@@ -265,7 +265,6 @@ jobs:
 
     - name: Rollback Deployment
       if: |
-        failure() || 
         steps.deploy-ec2.outputs.deployment_failed == 'true' || 
         steps.verify-deployment.outputs.verification_status == 'failed'
       run: |
@@ -286,10 +285,9 @@ jobs:
               "API_ACCESS_TOKEN=$(echo $API_ACCESS_TOKEN_SECRET | jq -r '.token')",
               "SECRET_KEY_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.SECRET_KEY_SECRET_NAME }} --query SecretString --output text)",
               "SECRET_KEY=$(echo $SECRET_KEY_SECRET | jq -r '.token')",
-              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"$SECRET_KEY\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.DEPLOY_ENV }}-stable"
+              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e ENVIRONMENT=${{ env.DEPLOY_ENV }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"$SECRET_KEY\" -e S3_ACCESS_KEY=\"$S3_ACCESS_KEY\" -e S3_SECRET_KEY=\"$S3_SECRET_KEY\" -e OPENAI_API_KEY=\"${{ secrets.OPENAI_API_KEY }}\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.DEPLOY_ENV }}-stable"
             ]
           }'
-        exit 1
 
 
   deploy-pipeline:
