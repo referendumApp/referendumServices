@@ -15,6 +15,7 @@ dependencies = [
     "boto3==1.36.23",
     "debugpy==1.8.12",
     "fastapi[standard]",
+    "google-auth==2.38.0",
     "langchain==0.3.19",
     "langchain-community==0.3.17",
     "langchain-openai==0.3.6",
