@@ -40,8 +40,8 @@ services:
       - "5678:5678"  # debugger port
       - "6000:6000"  # pytest debugger port
     volumes:
-      - .data_service/api:/code/api  # mount the api and common directory
-      - .data_service/common:/code/common
+      - ./data_service/api:/code/api  # mount the api and common directory
+      - ./data_service/common:/code/common
     command: ["python", "-m", "debugpy", "--listen", "0.0.0.0:5678", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
     profiles: ["local-data", "local-empty"]
 
