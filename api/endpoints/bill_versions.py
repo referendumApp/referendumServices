@@ -88,40 +88,11 @@ async def get_bill_text(
     bill_version = crud.bill_version.read(db=db, obj_id=bill_version_id)
 
     s3_client = ObjectStorageClient()
-    try:
-        json_data = s3_client.download_file(
-            bucket=settings.BILL_TEXT_BUCKET_NAME, key=f"{bill_version.hash}.json"
-        ).decode("utf-8")
+    json_data = s3_client.download_file(
+        bucket=settings.BILL_TEXT_BUCKET_NAME, key=f"{bill_version.hash}.json"
+    ).decode("utf-8")
 
-        structured_text = StructuredBillText.model_validate_json(json_data)
-
-    except Exception as e:
-        logger.error(f"Error retrieving structured bill text: {str(e)}")
-        try:
-            plain_text = s3_client.download_file(
-                bucket=settings.BILL_TEXT_BUCKET_NAME, key=f"{bill_version.hash}.txt"
-            ).decode("utf-8")
-
-            structured_text = StructuredBillText(
-                title=f"Bill Version {bill_version_id}",
-                content=[
-                    ContentBlock(
-                        id="root",
-                        type=ContentBlockType.PARAGRAPH,
-                        text=plain_text,
-                        content=[],
-                        indent_level=0,
-                        annotations=[],
-                    )
-                ],
-            )
-        except Exception as inner_e:
-            logger.error(f"Error retrieving plain text fallback: {str(inner_e)}")
-            raise HTTPException(
-                status_code=500, detail="Failed to retrieve bill text in any format"
-            )
-
-    return structured_text
+    return StructuredBillText.model_validate_json(json_data)
 
 
 @router.get(
