@@ -31,31 +31,25 @@ linters:
 
 # Linter settings
 linters-settings:
-  enable:
-    - assign  # Check for useless assignments
-    - bools  # Check for common mistakes involving boolean operators
-    - buildtag  # Check //go:build and // +build directives
-    - defers  # Report common mistakes in defer statements
-    - fieldalignment  # Find structs that would use less memory if their fields were sorted
-    - httpresponse  # Check for mistakes using HTTP responses
-    - nilfunc  # Check for useless comparisons between functions and nil
-    - nilness  # Check for redundant or impossible nil comparisons
-    - shadow  # Check for possible unintended shadowing of variables
-    - stringintconv  # Check for string(int) conversions
-    - testinggoroutine  # Report calls to (*testing.T).Fatal from goroutines started by a test
-    - tests  # Check for common mistaken usages of tests and examples
-    - unmarshal  # Report passing non-pointer or non-interface values to unmarshal
-    - unreachable  # Check for unreachable code
-    - unsafeptr  # Check for invalid conversions of uintptr to unsafe.Pointer
-    - unusedresult  # Check for unused results of calls to some functions
-    - waitgroup  # Check for misuses of sync.WaitGroup
-  unusedresult:
-    - context.WithCancel
-    - context.WithDeadline
-    - context.WithTimeout
-    - context.WithValue
-    - errors.New
-    - fmt.Errorf
+  govet:
+    enable:
+      - assign  # Check for useless assignments
+      - bools  # Check for common mistakes involving boolean operators
+      - buildtag  # Check //go:build and // +build directives
+      - defers  # Report common mistakes in defer statements
+      - fieldalignment  # Find structs that would use less memory if their fields were sorted
+      - httpresponse  # Check for mistakes using HTTP responses
+      - nilfunc  # Check for useless comparisons between functions and nil
+      - nilness  # Check for redundant or impossible nil comparisons
+      - shadow  # Check for possible unintended shadowing of variables
+      - stringintconv  # Check for string(int) conversions
+      - testinggoroutine  # Report calls to (*testing.T).Fatal from goroutines started by a test
+      - tests  # Check for common mistaken usages of tests and examples
+      - unmarshal  # Report passing non-pointer or non-interface values to unmarshal
+      - unreachable  # Check for unreachable code
+      - unsafeptr  # Check for invalid conversions of uintptr to unsafe.Pointer
+      - unusedresult  # Check for unused results of calls to some functions
+      - waitgroup  # Check for misuses of sync.WaitGroup
   goimports:
     local-prefixes: github.com/referendumApp/referendumServices
   revive:
