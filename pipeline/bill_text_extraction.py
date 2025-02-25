@@ -59,7 +59,6 @@ class BillTextExtractor:
             bucket=self.bucket_name,
             key=f"{file_hash}.txt",
             file_obj=plain_text.encode("utf-8"),
-
         )
 
     def process_bill(self, url_hash: str, url: str):
