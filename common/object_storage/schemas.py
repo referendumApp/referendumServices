@@ -41,3 +41,30 @@ class StructuredBillText(BaseModel):
 
     title: str = Field("")
     content: List[ContentBlock] = Field(default_factory=list)
+
+    def get_plain_text(self) -> str:
+        """Convert structured bill text to plain text format for backward compatibility."""
+        text_parts = []
+
+        if self.title:
+            text_parts.append(self.title)
+            text_parts.append("\n\n")
+
+        def process_content_blocks(blocks, base_indent_level=0):
+            """Recursively process the blocks"""
+            for block in blocks:
+                indent = "  " * (base_indent_level + block.indent_level)
+                if block.text:
+                    text_parts.append(f"{indent}{block.text}")
+                    text_parts.append("\n")
+
+                if block.content:
+                    process_content_blocks(
+                        block.content, base_indent_level + block.indent_level + 1
+                    )
+            if blocks:
+                text_parts.append("\n")
+
+        process_content_blocks(self.content)
+
+        return "".join(text_parts)
