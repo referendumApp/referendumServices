@@ -1,13 +1,13 @@
+import io
 from typing import Set, Dict
 import logging
 import requests
-import re
-import gc
-import tempfile
-import PyPDF2
 from sqlalchemy import text
 from tenacity import retry, stop_after_attempt, wait_exponential
 from pathlib import Path
+
+from common.object_storage.schemas import StructuredBillText
+from pipeline.bill_pdf_parser import BillPDFParser
 
 logger = logging.getLogger(__name__)
 
@@ -44,86 +44,31 @@ class BillTextExtractor:
         response.raise_for_status()
         return response.content
 
-    @staticmethod
-    def _is_single_token_no_punctuation(line: str) -> bool:
-        """Check if line is a single token without any punctuation"""
-        punctuation = ".,:;?!-()[]{}'/\"$%"
-        tokens = [t for t in line.split() if t]
-
-        return len(tokens) == 1 and not any(p in tokens[0] for p in punctuation)
-
-    def _is_artifact(self, line: str) -> bool:
-        if self._is_single_token_no_punctuation(line):
-            return True
-        artifacts = [
-            r"Fmt \d+",  # Format markers
-            r"Frm \d+",  # Frame markers
-            r"Sfmt \d+",  # Section format markers
-            r"VerDate.*",  # Version date lines
-            r"HR \d+ .*",  # House resolution marker
-        ]
-        return any(re.search(pattern, line) for pattern in artifacts)
-
-    def clean_text(self, text: str) -> str:
-        """Clean extracted text by removing artifacts and normalizing whitespace"""
-        lines = text.split("\n")
-        cleaned_lines = [
-            line.strip() for line in lines if line.strip() and not self._is_artifact(line)
-        ]
-
-        # Remove line numbers at the start of any remaining lines
-        cleaned_lines = [re.sub(r"^\d+ ", "", line) for line in cleaned_lines]
-
-        # Rejoin with single newlines
-        return "\n".join(cleaned_lines)
-
-    def download_pdf_streaming(self, url: str, temp_file) -> None:
-        with self.session.get(url, stream=True, timeout=30) as response:
-            response.raise_for_status()
-            for chunk in response.iter_content(chunk_size=self.CHUNK_SIZE):
-                if chunk:
-                    temp_file.write(chunk)
-        temp_file.flush()
-
-    def extract_text_streaming(self, pdf_path: str) -> str:
-        text_parts = []
-
-        with open(pdf_path, "rb") as file:
-            pdf = PyPDF2.PdfReader(file)
-
-            batch_size = 5
-            for i in range(0, len(pdf.pages), batch_size):
-                batch = pdf.pages[i : i + batch_size]
-                for page in batch:
-                    try:
-                        page_text = page.extract_text()
-                        cleaned_text = self.clean_text(page_text)
-                        if cleaned_text:
-                            cleaned_text.strip()
-                            text_parts.append(cleaned_text)
-                    except Exception as e:
-                        logger.error(f"Error on page {i}: {e}")
-                        continue
-
-                gc.collect()
-
-        return "\n\n".join(text_parts)
-
-    def store_text(self, text: str, file_hash: str) -> None:
+    def save_results(self, structured_text: StructuredBillText, file_hash: str) -> None:
         """Store extracted text in object storage"""
-        text_bytes = text.encode("utf-8")
+        json_string = structured_text.model_dump_json()
+        print(json_string)
+        self.storage_client.upload_file(
+            bucket=self.bucket_name,
+            key=f"{file_hash}.json",
+            file_obj=json_string.encode("utf-8"),
+        )
+
+        plain_text = structured_text.get_plain_text()
         self.storage_client.upload_file(
             bucket=self.bucket_name,
             key=f"{file_hash}.txt",
-            file_obj=text_bytes,
+            file_obj=plain_text.encode("utf-8"),
         )
 
     def process_bill(self, url_hash: str, url: str):
         logger.info(f"Processing bill text for url {url}")
 
-        with tempfile.NamedTemporaryFile() as temp_pdf:
-            self.download_pdf_streaming(url, temp_pdf)
-            text_content = self.extract_text_streaming(temp_pdf.name)
+        pdf_bytes = self.download_pdf(url)
 
-        self.store_text(text_content, url_hash)
-        logger.info(f"Saved bill text for url {url} at {url_hash}.txt")
+        parser = BillPDFParser(io.BytesIO(pdf_bytes))
+        structured_text = parser.parse()
+
+        self.save_results(structured_text, url_hash)
+
+        logger.info(f"Saved bill text for url {url} as {url_hash}")
