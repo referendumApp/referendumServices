@@ -1,16 +1,16 @@
 run:
   timeout: 5m
   tests: true
-  exclude-dirs:
+  skip-dirs:
     - vendor
     - testdata
-  exclude-files:
+  skip-files:
     - ".*_test\\.go$"
   modules-download-mode: readonly
 
 # Output configuration
 output:
-  formats: colored-line-number
+  formats: [colored-line-number]
   print-issued-lines: true
   print-linter-name: true
   sort-results: true
@@ -34,10 +34,6 @@ linters:
     - bodyclose # Checks whether HTTP response body is closed successfully
     - sqlclosecheck # Checks that sql.Rows, sql.Stmt, sqlx.NamedStmt, pgx.Query are closed
     - whitespace # Whitespace is a linter that checks for unnecessary newlines at the start and end of functions, if, for, etc
-
-# Linter settings
-linters-settings:
-  enable:
     - assign # Check for useless assignments
     - bools # Check for common mistakes involving boolean operators
     - buildtag # Check //go:build and // +build directives
@@ -54,14 +50,16 @@ linters-settings:
     - unreachable # Check for unreachable code
     - unsafeptr # Check for invalid conversions of uintptr to unsafe.Pointer
     - waitgroup # Check for misuses of sync.WaitGroup
-  settings:
-    unusedresult:
-      - context.WithCancel
-      - context.WithDeadline
-      - context.WithTimeout
-      - context.WithValue
-      - errors.New
-      - fmt.Errorf
+
+# Linter settings
+linters-settings:
+  unusedresult:
+    - context.WithCancel
+    - context.WithDeadline
+    - context.WithTimeout
+    - context.WithValue
+    - errors.New
+    - fmt.Errorf
   goimports:
     local-prefixes: github.com/referendumApp/referendumServices
   revive:
@@ -71,8 +69,13 @@ linters-settings:
         disabled: false
   errcheck:
     check-type-assertions: true
+    exclude-functions:
+      - encoding/json.Marshal
+      - encoding/json.MarshalIndent
+  errchkjson:
+    check-error-free-encoding: true
   goconst:
-    min-len: 3
+    min-ln: 3
     min-occurrences: 3
 
 # Issues configuration
@@ -84,7 +87,7 @@ issues:
         - gosec
   max-issues-per-linter: 0
   max-same-issues: 0
-  fix: false  # Set to true to automatically fix issues when possible
+  fix: false # Set to true to automatically fix issues when possible
 
 # Issues configuration
 severity:
