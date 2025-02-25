@@ -21,15 +21,14 @@ dependencies = [
     "openai==1.63.2",
     "pandas==2.2.3",
     "passlib==1.7.4",
+    "pdfminer.six==20240706",
     "psycopg2-binary==2.9.10",
     "pydantic==2.10.6",
     "pydantic-settings==2.7.1",
     "python-jose==3.4.0",
-    "PyPDF2==3.0.1",
     "requests==2.32.3",
     "sqlalchemy==2.0.38",
     "tenacity==9.0.0",
-    "transformers==4.49.0",
     "watchtower==3.3.1"
 ]
 
