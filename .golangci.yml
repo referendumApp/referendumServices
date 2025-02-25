@@ -1,11 +1,6 @@
 run:
   timeout: 5m
   tests: true
-  skip-dirs:
-    - vendor
-    - testdata
-  skip-files:
-    - ".*_test\\.go$"
   modules-download-mode: readonly
 
 # Output configuration
@@ -34,6 +29,10 @@ linters:
     - bodyclose # Checks whether HTTP response body is closed successfully
     - sqlclosecheck # Checks that sql.Rows, sql.Stmt, sqlx.NamedStmt, pgx.Query are closed
     - whitespace # Whitespace is a linter that checks for unnecessary newlines at the start and end of functions, if, for, etc
+
+# Linter settings
+linters-settings:
+  enable:
     - assign # Check for useless assignments
     - bools # Check for common mistakes involving boolean operators
     - buildtag # Check //go:build and // +build directives
@@ -50,9 +49,6 @@ linters:
     - unreachable # Check for unreachable code
     - unsafeptr # Check for invalid conversions of uintptr to unsafe.Pointer
     - waitgroup # Check for misuses of sync.WaitGroup
-
-# Linter settings
-linters-settings:
   unusedresult:
     - context.WithCancel
     - context.WithDeadline
@@ -80,6 +76,11 @@ linters-settings:
 
 # Issues configuration
 issues:
+  exclude-dirs:
+    - vendor
+    - testdata
+  exclude-files:
+    - ".*_test\\.go$"
   exclude-rules:
     - path: _test\.go
       linters:
