@@ -265,7 +265,6 @@ jobs:
 
     - name: Rollback Deployment
       if: |
-        failure() || 
         steps.deploy-ec2.outputs.deployment_failed == 'true' || 
         steps.verify-deployment.outputs.verification_status == 'failed'
       run: |
@@ -289,7 +288,6 @@ jobs:
               "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"$SECRET_KEY\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.DEPLOY_ENV }}-stable"
             ]
           }'
-        exit 1
 
 
   deploy-pipeline:
