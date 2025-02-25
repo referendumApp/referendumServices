@@ -1,3 +1,5 @@
+// Contains structs for the `follows` HTTP request and response bodies and Validate implementations
+
 package models
 
 import "context"

@@ -17,6 +17,7 @@ const ConfigEmailKey EmailKey = "email"
 
 var bearerRegex = regexp.MustCompile(`Bearer\s+(.*)`)
 
+// Extract the JWT from the Authorization request header
 func extractToken(r *http.Request) string {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
@@ -31,6 +32,7 @@ func extractToken(r *http.Request) string {
 	return ""
 }
 
+// Decode and validate the JWT and get the claims
 func decodeJWT(tokenString string, secretKey []byte) (jwt.MapClaims, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		// Validate the algorithm is what we expect
@@ -53,6 +55,7 @@ func decodeJWT(tokenString string, secretKey []byte) (jwt.MapClaims, error) {
 	return nil, errors.New("failed to validate token")
 }
 
+// Middleware to authorize a request based on the JWT included in the request
 func (s *Server) authorizeUser() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		accessToken := extractToken(r)
@@ -72,6 +75,7 @@ func (s *Server) authorizeUser() http.Handler {
 			return
 		}
 
+		// Include the email in the request context that will be passed down to the handlers
 		email, ok := claims["sub"].(string)
 		if !ok {
 			http.Error(w, "Missing email in access token", http.StatusUnauthorized)

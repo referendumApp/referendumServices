@@ -11,6 +11,7 @@ import (
 )
 
 func run(ctx context.Context, getenv func(string) string, stderr io.Writer) error {
+	// Marks the context as done when interrupt signal is received
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
 

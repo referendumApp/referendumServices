@@ -28,4 +28,3 @@ jobs:
       uses: golangci/golangci-lint-action@v6
       with:
         working-directory: atp_service
-        args: --out-format=colored-line-number

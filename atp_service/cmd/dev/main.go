@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"syscall"
 	"time"
 
@@ -22,7 +23,7 @@ var (
 	binaryName       = "app"
 	debounceInterval = 50 * time.Millisecond
 	watchExts        = []string{".go"}
-	ignoreDirs       = []string{}
+	ignoreDirs       = []string{".github", ".vscode", "data_service"}
 )
 
 func main() {
@@ -52,6 +53,7 @@ func main() {
 	var lastBuild time.Time
 	for {
 		select {
+		// Only rebuild the app for these specific filesystem events
 		case event := <-watcher.Events:
 			if isWatchableFile(event.Name) &&
 				(event.Has(fsnotify.Write) ||
@@ -93,6 +95,7 @@ func findProjectRoot() (string, error) {
 		return "", err
 	}
 
+	// Only return the directory if `go.mod` is found in the filepath
 	for {
 		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
 			return dir, nil
@@ -106,6 +109,7 @@ func findProjectRoot() (string, error) {
 	}
 }
 
+// Returns a callback function which only adds the relevant directories to the Watcher
 func watchDir(projectRoot string, watcher *fsnotify.Watcher) fs.WalkDirFunc {
 	return func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -132,12 +136,7 @@ func watchDir(projectRoot string, watcher *fsnotify.Watcher) fs.WalkDirFunc {
 
 func isWatchableFile(filename string) bool {
 	ext := filepath.Ext(filename)
-	for _, watchExt := range watchExts {
-		if watchExt == ext {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(watchExts, ext)
 }
 
 func buildAppCmd() *exec.Cmd {

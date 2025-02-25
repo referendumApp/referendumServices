@@ -1,3 +1,5 @@
+// Server method for handling routers
+
 package server
 
 import "net/http"

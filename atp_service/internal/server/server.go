@@ -14,6 +14,7 @@ type Server struct {
 	secretKey []byte
 }
 
+// Initialize Server and setup HTTP routes and middleware
 func NewServer(getenv func(string) string) http.Handler {
 	srv := &Server{
 		mux:       http.NewServeMux(),
@@ -25,6 +26,7 @@ func NewServer(getenv func(string) string) http.Handler {
 	return handler
 }
 
+// Initialize and configure HTTP Server, listen and server requests, handle shutdowns gracefully
 func StartServer(ctx context.Context, handler http.Handler, stderr io.Writer) {
 	port := ":8080"
 
@@ -36,6 +38,7 @@ func StartServer(ctx context.Context, handler http.Handler, stderr io.Writer) {
 		IdleTimeout:  15 * time.Second,
 	}
 
+	// ListenAndServe is blocking so call it in a go routine to run it concurrently
 	go func() {
 		fmt.Printf("Server starting on port %s\n", port)
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {

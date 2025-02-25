@@ -8,6 +8,7 @@ import (
 	"github.com/referendumApp/referendumServices/internal/models"
 )
 
+// Encode and validate the response body
 // func encode[T any](w http.ResponseWriter, status int, v T) error {
 // 	w.Header().Set("Content-Type", "application/json")
 // 	w.WriteHeader(status)
@@ -18,6 +19,7 @@ import (
 // 	return nil
 // }
 
+// Decode and validate the request body
 func decodeAndValidate[T models.Validator](r *http.Request) (T, error) {
 	var v T
 	if err := json.NewDecoder(r.Body).Decode(&v); err != nil {
