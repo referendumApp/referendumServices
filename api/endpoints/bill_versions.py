@@ -9,6 +9,7 @@ from common.chat.service import LLMService, OpenAIException
 from common.database.referendum import crud, schemas
 from common.object_storage.client import ObjectStorageClient
 from common.object_storage.schemas import ContentBlock, ContentBlockType, StructuredBillText
+
 from ..database import get_db
 from ..schemas.interactions import (
     ErrorResponse,
