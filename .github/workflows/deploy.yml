@@ -10,6 +10,10 @@ on:
         description: 'Environment to deploy to (prod/dev)'
         required: true
         default: 'dev'
+        type: 'choice'
+        options:
+          - dev
+          - prod
 
 env:
   AWS_ACCOUNT_ID: 842675976781
@@ -40,7 +44,7 @@ jobs:
 
     - name: Get current version
       id: get_version
-      run: echo "current_version=$(cat version.txt)" >> $GITHUB_OUTPUT
+      run: echo "current_version=$(cat ./data_service/version.txt)" >> $GITHUB_OUTPUT
 
     - name: Bump version
       id: bump_version
@@ -53,14 +57,14 @@ jobs:
         else
           new_version=$(echo $current_version | awk -F. '{$3 = $3 + 1} 1' | sed 's/ /./g')
         fi
-        echo $new_version > version.txt
+        echo $new_version > ./data_service/version.txt
         echo "new_version=$new_version" >> $GITHUB_OUTPUT
 
     - name: Commit version update
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add version.txt
+        git add ./data_service/version.txt
         git commit -m "Bump version to ${{ steps.bump_version.outputs.new_version }}"
 
     - name: Push changes
@@ -71,8 +75,8 @@ jobs:
 
     - name: Create Tag
       run: |
-        git tag v${{ steps.bump_version.outputs.new_version }}
-        git push origin v${{ steps.bump_version.outputs.new_version }}
+        git tag data-service-v${{ steps.bump_version.outputs.new_version }}
+        git push origin data-service-v${{ steps.bump_version.outputs.new_version }}
 
   set-deployment-vars:
     runs-on: ubuntu-latest
@@ -136,7 +140,7 @@ jobs:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
         set -e
-        docker build --target migrations -t referendumservices-migrations:latest .
+        docker build --target migrations -t referendumservices-migrations:latest ./data_service
         docker tag referendumservices-migrations:latest $ECR_REGISTRY/$ECR_REPOSITORY_API:migrations-${{ env.IMAGE_TAG }}
         docker push $ECR_REGISTRY/$ECR_REPOSITORY_API:migrations-${{ env.IMAGE_TAG }}
 
@@ -261,7 +265,6 @@ jobs:
 
     - name: Rollback Deployment
       if: |
-        failure() || 
         steps.deploy-ec2.outputs.deployment_failed == 'true' || 
         steps.verify-deployment.outputs.verification_status == 'failed'
       run: |
@@ -282,10 +285,9 @@ jobs:
               "API_ACCESS_TOKEN=$(echo $API_ACCESS_TOKEN_SECRET | jq -r '.token')",
               "SECRET_KEY_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.SECRET_KEY_SECRET_NAME }} --query SecretString --output text)",
               "SECRET_KEY=$(echo $SECRET_KEY_SECRET | jq -r '.token')",
-              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"$SECRET_KEY\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.DEPLOY_ENV }}-stable"
+              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e ENVIRONMENT=${{ env.DEPLOY_ENV }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"$SECRET_KEY\" -e S3_ACCESS_KEY=\"$S3_ACCESS_KEY\" -e S3_SECRET_KEY=\"$S3_SECRET_KEY\" -e OPENAI_API_KEY=\"${{ secrets.OPENAI_API_KEY }}\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.DEPLOY_ENV }}-stable"
             ]
           }'
-        exit 1
 
 
   deploy-pipeline:
@@ -314,7 +316,7 @@ jobs:
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
-        docker build --target pipeline -t $ECR_REGISTRY/$ECR_REPOSITORY_PIPELINE:${{ env.IMAGE_TAG }} .
+        docker build --target pipeline -t $ECR_REGISTRY/$ECR_REPOSITORY_PIPELINE:${{ env.IMAGE_TAG }} ./data_service
         docker tag $ECR_REGISTRY/$ECR_REPOSITORY_PIPELINE:${{ env.IMAGE_TAG }} $ECR_REGISTRY/$ECR_REPOSITORY_PIPELINE:${{ env.DEPLOY_ENV }}-stable
 
         if [[ "${{ github.event_name }}" == "push" && "${{ env.DEPLOY_ENV }}" == "prod" ]]; then

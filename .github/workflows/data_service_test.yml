@@ -1,10 +1,16 @@
-name: Run Tests
+name: Run Data Service Tests
 
 on:
   push:
     branches: [ main ]
+    paths:
+      - "data_service/**"
+      - ".github/workflows/data_service_test.yml"
   pull_request:
     branches: [ main ]
+    paths:
+      - "data_service/**"
+      - ".github/workflows/data_service_test.yml"
 
 jobs:
   lint:
@@ -23,7 +29,7 @@ jobs:
         pip install black
 
     - name: Run black
-      run: black . --check --line-length=100
+      run: black ./data_service --check --line-length=100
 
   test:
     runs-on: ubuntu-latest
@@ -42,7 +48,6 @@ jobs:
     - name: Clean up after API tests
       if: always()
       run: docker compose --profile test down
-
     - name: Run Pipeline Tests
       run: |
         docker compose --profile test build
