@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -34,7 +36,7 @@ func extractToken(r *http.Request) string {
 
 // Decode and validate the JWT and get the claims
 func decodeJWT(tokenString string, secretKey []byte) (jwt.MapClaims, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		// Validate the algorithm is what we expect
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("unexpected signing method")
@@ -56,7 +58,7 @@ func decodeJWT(tokenString string, secretKey []byte) (jwt.MapClaims, error) {
 }
 
 // Middleware to authorize a request based on the JWT included in the request
-func (s *Server) authorizeUser() http.Handler {
+func (s *Server) authorizeUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		accessToken := extractToken(r)
 		if accessToken == "" {
@@ -84,6 +86,49 @@ func (s *Server) authorizeUser() http.Handler {
 		ctx := context.WithValue(r.Context(), ConfigEmailKey, email)
 		r = r.WithContext(ctx)
 
-		s.mux.ServeHTTP(w, r)
+		next.ServeHTTP(w, r)
+	})
+}
+
+type CustomResponseWriter struct {
+	http.ResponseWriter
+	StatusCode int
+}
+
+func (rw *CustomResponseWriter) WriteHeader(code int) {
+	rw.StatusCode = code
+	rw.ResponseWriter.WriteHeader(code)
+}
+
+func (s *Server) logRequest() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		startTime := time.Now()
+
+		// Wrap the ResponseWriter so we can include the status code in our logs
+		rw := &CustomResponseWriter{
+			ResponseWriter: w,
+			StatusCode:     http.StatusOK,
+		}
+
+		// Log request details
+		log.Printf(
+			"REQUEST: %s %s %s",
+			r.Method,
+			r.URL.Path,
+			r.RemoteAddr,
+		)
+
+		// Call the next handler
+		s.mux.ServeHTTP(rw, r)
+
+		// Log completion time
+		duration := time.Since(startTime)
+		log.Printf(
+			"COMPLETED: %s %s - status %d in %v",
+			r.Method,
+			r.URL.Path,
+			rw.StatusCode,
+			duration,
+		)
 	})
 }
