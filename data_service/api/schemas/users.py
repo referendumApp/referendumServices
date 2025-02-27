@@ -30,6 +30,8 @@ class UserUpdateInput(CamelCaseBaseModel):
     email: str | None = Field(default=None)
     settings: Dict | None = Field(default=None)
 
+    model_config = {"extra": "forbid"}
+
 
 ####################
 # Authentication
