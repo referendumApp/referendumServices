@@ -1,5 +1,5 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List, Optional
 
@@ -135,31 +135,17 @@ async def read_user(
             "description": "Unauthorized to update this user's information",
         },
         404: {"model": ErrorResponse, "description": "User not found"},
+        422: {"model": ErrorResponse, "description": "Validation error"},
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
 @handle_crud_exceptions("user")
 async def update_user(
-    user: UserUpdateInput,
+    user_update: UserUpdateInput,
     db: Session = Depends(get_db),
-    auth_info: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+    current_user: models.User = Depends(get_current_user),
 ) -> models.User:
-    logger.info(f"Attempting to update user information for email: {user.email}")
-    if not auth_info["is_system"]:
-        current_user = auth_info["user"]
-        if current_user.email != user.email:
-            logger.warning(
-                f"Unauthorized attempt to update user info: User {current_user.email} tried to update User {user.email}"
-            )
-            raise HTTPException(
-                status_code=403, detail="You can only update your own user information."
-            )
-    db_user = crud.user.get_user_by_email(db, email=user.email)
-
-    user_create = get_user_create_with_hashed_password(user)
-    updated_user = crud.user.update(db=db, db_obj=db_user, obj_in=user_create)
-    logger.info(f"Successfully updated information for user ID: {updated_user.id}")
-    return updated_user
+    return crud.user.update(db=db, db_obj=current_user, obj_in=user_update)
 
 
 @router.patch(
