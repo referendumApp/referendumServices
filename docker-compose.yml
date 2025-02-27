@@ -50,8 +50,6 @@ services:
       context: ./atp_service
       target: base
     env_file: .env
-    ports:
-      - "8080:8080"
     profiles: ["base"]
 
   atp:
@@ -59,8 +57,10 @@ services:
     extends: 
       service: atp-base
     build:
-      context: .
+      context: ./atp_service
       target: atp-prod
+    ports:
+      - "80:80"
     profiles: ["atp"]
 
   atp-local:
@@ -74,9 +74,18 @@ services:
       - CGO_ENABLED=0
       - GOOS=linux
       - GOARCH=amd64
+    depends_on:
+      db:
+        condition: service_healthy
+      local-db-init:
+        condition: service_completed_successfully
+      migrations:
+        condition: service_completed_successfully
     volumes:
-      - .atp/cmd:/code/cmd
-      - .atp/internal:/code/internal
+      - ./atp_service/cmd:/code/cmd
+      - ./atp_service/internal:/code/internal
+    ports:
+      - "8080:80"
     profiles: ["local-data", "local-empty"]
 
   db:

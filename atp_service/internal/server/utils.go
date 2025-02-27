@@ -3,21 +3,21 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/referendumApp/referendumServices/internal/models"
 )
 
 // Encode and validate the response body
-// func encode[T any](w http.ResponseWriter, status int, v T) error {
-// 	w.Header().Set("Content-Type", "application/json")
-// 	w.WriteHeader(status)
-// 	if err := json.NewEncoder(w).Encode(v); err != nil {
-// 		return fmt.Errorf("error encoding response, %v", err)
-// 	}
-//
-// 	return nil
-// }
+func encode[T any](w http.ResponseWriter, status int, v T) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		log.Printf("Error encoding response: %v", err)
+		http.Error(w, "Failed to generate response", http.StatusInternalServerError)
+	}
+}
 
 // Decode and validate the request body
 func decodeAndValidate[T models.Validator](r *http.Request) (T, error) {

@@ -1,12 +1,8 @@
-// Server method for handling routers
-
 package server
 
-import "net/http"
-
+// Server method for handling routers
 func (s *Server) setupRoutes() {
-	userHandler := http.NewServeMux()
-	userHandler.HandleFunc("/follow", handleFollow)
+	s.mux.HandleFunc("/health", s.handleHealth)
 
-	s.mux.Handle("/users/", http.StripPrefix("/users", userHandler))
+	s.mux.Handle("/users/follow", s.authorizeUser(s.handleFollow()))
 }
