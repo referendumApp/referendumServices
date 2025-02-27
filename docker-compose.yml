@@ -59,7 +59,7 @@ services:
     extends: 
       service: atp-base
     build:
-      context: .
+      context: ./atp_service
       target: atp-prod
     profiles: ["atp"]
 

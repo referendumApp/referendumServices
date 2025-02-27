@@ -28,6 +28,7 @@ class UserCreateInput(UserBase):
 class UserUpdateInput(CamelCaseBaseModel):
     name: str | None = Field(default=None)
     email: str | None = Field(default=None)
+    settings: Dict | None = Field(default=None)
 
 
 ####################
