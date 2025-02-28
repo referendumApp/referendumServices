@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     MAX_MESSAGES_PER_MONTH: int = 100
     CHAT_SESSION_TIMEOUT_SECONDS: int = 3600
 
+    # User Limits
+    COMMENT_CHAR_LIMIT: int = 500
+
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 
 
