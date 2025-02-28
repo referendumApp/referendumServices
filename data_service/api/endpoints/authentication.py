@@ -269,7 +269,8 @@ async def google_signup(
         if is_deleted is True:
             logger.info(f"Reactivating soft deleted user for email {user.email}")
             crud.user.update_soft_delete(db=db, user_id=user.id, deleted=False)
-        elif is_deleted is False:
+        elif user or is_deleted is False:
+            # To-Do: detect and tell the client exactly which authentication method (email, google, apple, etc.) to login with.
             logger.error(f"Signup failed: Google account already registered - {user.email}")
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
