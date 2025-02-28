@@ -1,6 +1,6 @@
 from typing import Optional, Dict
 
-from pydantic import field_validator
+from pydantic import field_validator, Field
 
 from common.core.schemas import CamelCaseBaseModel
 from common.database.referendum.schemas import UserBase
@@ -25,18 +25,12 @@ class UserCreateInput(UserBase):
         return v
 
 
-class UserUpdateInput(UserBase):
-    password: str
-    settings: Dict = {}
+class UserUpdateInput(CamelCaseBaseModel):
+    name: str | None = Field(default=None)
+    email: str | None = Field(default=None)
+    settings: Dict | None = Field(default=None)
 
-    @field_validator("password")
-    @classmethod
-    def validate_password(cls, v):
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters long")
-        if len(v) > 100:
-            raise ValueError("Password must not exceed 100 characters")
-        return v
+    model_config = {"extra": "forbid"}
 
 
 ####################

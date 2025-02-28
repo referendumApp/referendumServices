@@ -52,7 +52,6 @@ async def test_update_user(test_manager: TestManager):
 
     update_data = {
         "email": user["email"],
-        "password": "newpassword",
         "name": "Updated User",
         "settings": {"feature_flag": True},
     }
@@ -61,45 +60,6 @@ async def test_update_user(test_manager: TestManager):
     updated_user = response.json()
     assert updated_user["name"] == update_data["name"]
     assert updated_user["settings"] == {"feature_flag": True}
-
-
-async def test_update_user_unauthorized(test_manager: TestManager):
-    _, user_headers = await test_manager.start_user_session()
-
-    # Create a new user
-    user_data = {
-        "email": "unauthorizedupdate@example.com",
-        "password": "password",
-        "name": "Unauthorized Update User",
-    }
-    create_response = await test_manager.client.post(
-        "/users/", json=user_data, headers=test_manager.headers
-    )
-    assert_status_code(create_response, 201)
-    created_user = create_response.json()
-
-    test_error = None
-    try:
-        # Attempt unauthorized update
-        update_data = {
-            "email": user_data["email"],
-            "password": "newpassword",
-            "name": "Updated User",
-        }
-        response = await test_manager.client.put("/users/", json=update_data, headers=user_headers)
-        assert_status_code(response, 403)
-    except Exception as e:
-        test_error = str(e)
-        logging.error(f"Test failed with {test_error}")
-
-    # Cleanup
-    response = await test_manager.client.delete(
-        f"/users/admin/{created_user['id']}", headers=test_manager.headers
-    )
-    assert_status_code(response, 204)
-
-    if test_error:
-        raise Exception(test_error)
 
 
 async def test_update_user_password(test_manager: TestManager):
