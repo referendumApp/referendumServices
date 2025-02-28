@@ -236,6 +236,10 @@ class UserCreate(UserBase):
     settings: Dict
 
 
+class SocialUserCreate(UserBase):
+    settings: Dict
+
+
 class UserReference(UserBase):
     id: int
 
