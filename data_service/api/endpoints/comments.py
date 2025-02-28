@@ -11,6 +11,7 @@ from common.database.referendum.crud import (
     DependencyException,
 )
 
+from ..settings import settings
 from ..database import get_db
 from ..schemas.interactions import ErrorResponse
 from ..security import (
@@ -34,6 +35,10 @@ router = APIRouter()
             "model": schemas.Comment.Full,
             "description": "Comment successfully created",
         },
+        413: {
+            "model": ErrorResponse,
+            "description": "Comment exceeds character limit (max 500 characters)",
+        },
         500: {"model": ErrorResponse, "description": "Internal server error"},
     },
 )
@@ -51,6 +56,16 @@ async def create_comment(
             status_code=403,
             detail="You can only create your own comments",
         )
+
+    if hasattr(comment, "content") and len(comment.content) > settings.COMMENT_CHAR_LIMIT:
+        logger.warning(
+            f"Comment creation rejected: content length {len(comment.content)} exceeds limit of {settings.COMMENT_CHAR_LIMIT}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Comment cannot exceed {settings.COMMENT_CHAR_LIMIT} characters",
+        )
+
     return crud.comment.create(db=db, obj_in=comment)
 
 
@@ -85,6 +100,10 @@ async def read_comment(
             "model": schemas.Comment.Full,
             "description": "Comment successfully updated",
         },
+        413: {
+            "model": ErrorResponse,
+            "description": "Comment exceeds character limit (max 500 characters)",
+        },
         403: {
             "model": ErrorResponse,
             "description": "Unauthorized to update this comment",
@@ -106,6 +125,16 @@ async def update_comment(
                 f"Unauthorized attempt to update user comment: User {current_user.id} tried to update comment {comment.id}"
             )
             raise HTTPException(status_code=403, detail="You can only update your own comments")
+
+    if hasattr(comment, "content") and len(comment.content) > settings.COMMENT_CHAR_LIMIT:
+        logger.warning(
+            f"Comment update rejected: content length {len(comment.content)} exceeds limit of {settings.COMMENT_CHAR_LIMIT}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Comment cannot exceed {settings.COMMENT_CHAR_LIMIT} characters",
+        )
+
     db_comment = crud.comment.read(db=db, obj_id=comment.id)
     return crud.comment.update(db=db, db_obj=db_comment, obj_in=comment)
 

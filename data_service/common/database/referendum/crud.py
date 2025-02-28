@@ -4,7 +4,7 @@ from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
 from pydantic import BaseModel
 from sqlalchemy import Column
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, attributes
 from sqlalchemy.sql.elements import BinaryExpression, ColumnElement
 
 
@@ -134,7 +134,16 @@ class BaseCRUD(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             else:
                 update_data = obj_in.model_dump(exclude_unset=True)
             for field in update_data:
-                setattr(db_obj, field, update_data[field])
+                if isinstance(update_data[field], dict):
+                    existing_value = getattr(db_obj, field, None)
+                    if existing_value is not None:
+                        existing_value.update(update_data[field])
+                        setattr(db_obj, field, existing_value)
+                    else:
+                        setattr(db_obj, field, update_data[field])
+                    attributes.flag_modified(db_obj, field)
+                else:
+                    setattr(db_obj, field, update_data[field])
             db.add(db_obj)
             db.commit()
             db.refresh(db_obj)
