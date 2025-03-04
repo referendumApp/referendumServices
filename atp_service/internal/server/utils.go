@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/referendumApp/referendumServices/internal/models"
+	"github.com/referendumApp/referendumServices/internal/domain/common"
 )
 
 // Encode and validate the response body
@@ -20,7 +20,7 @@ func encode[T any](w http.ResponseWriter, status int, v T) {
 }
 
 // Decode and validate the request body
-func decodeAndValidate[T models.Validator](r *http.Request) (T, error) {
+func decodeAndValidate[T common.Validator](r *http.Request) (T, error) {
 	var v T
 	if err := json.NewDecoder(r.Body).Decode(&v); err != nil {
 		return v, fmt.Errorf("invalid request body, %v", err)

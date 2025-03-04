@@ -9,7 +9,7 @@ import (
 
 func getEnvOrFail(key string) string {
 	val := os.Getenv(key)
-	if key == "" {
+	if val == "" {
 		log.Fatalf("Missing required environment variable: %s", key)
 	}
 
@@ -32,7 +32,7 @@ func LoadConfigFromEnv() Config {
 		PgPassword: getEnvOrFail("POSTGRES_PASSWORD"),
 		PgHost:     getEnvOrFail("POSTGRES_HOST"),
 		PgPort:     getEnvOrFail("POSTGRES_PORT"),
-		DBName:     getEnvOrFail("DB_NAME"),
+		DBName:     getEnvOrFail("REFERENDUM_DB_NAME"),
 
 		// Server
 		SecretKey: []byte(getEnvOrFail("SECRET_KEY")),
