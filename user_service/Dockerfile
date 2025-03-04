@@ -10,12 +10,12 @@ COPY internal internal
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o /code/app ./cmd/api/main.go
 
-FROM alpine:latest as atp-prod
+FROM alpine:latest as user-prod
 COPY --from=prod-builder /code/app .
 
 ENTRYPOINT ["./app"]
 
-FROM base as atp-local
+FROM base as user-local
 
 COPY . .
 

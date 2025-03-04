@@ -13,9 +13,9 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-type EmailKey string
+type UserIDKey string
 
-const ConfigEmailKey EmailKey = "email"
+const UserIdKey UserIDKey = "userId"
 
 var bearerRegex = regexp.MustCompile(`Bearer\s+(.*)`)
 
@@ -57,9 +57,11 @@ func decodeJWT(tokenString string, secretKey []byte) (jwt.MapClaims, error) {
 	return nil, errors.New("failed to validate token")
 }
 
-// Middleware to authorize a request based on the JWT included in the request
+// Authorize a request based on the JWT included in the request
 func (s *Server) authorizeUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCtx := r.Context()
+
 		accessToken := extractToken(r)
 		if accessToken == "" {
 			http.Error(w, "Token not found", http.StatusUnauthorized)
@@ -83,7 +85,14 @@ func (s *Server) authorizeUser(next http.Handler) http.Handler {
 			http.Error(w, "Missing email in access token", http.StatusUnauthorized)
 			return
 		}
-		ctx := context.WithValue(r.Context(), ConfigEmailKey, email)
+
+		userId, err := s.db.GetUserId(requestCtx, email)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+			return
+		}
+
+		ctx := context.WithValue(requestCtx, UserIdKey, userId)
 		r = r.WithContext(ctx)
 
 		next.ServeHTTP(w, r)
@@ -100,7 +109,8 @@ func (rw *CustomResponseWriter) WriteHeader(code int) {
 	rw.ResponseWriter.WriteHeader(code)
 }
 
-func (s *Server) logRequest() http.Handler {
+// Log metadata and status for the request
+func logRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
 
@@ -119,7 +129,7 @@ func (s *Server) logRequest() http.Handler {
 		)
 
 		// Call the next handler
-		s.mux.ServeHTTP(rw, r)
+		next.ServeHTTP(rw, r)
 
 		// Log completion time
 		duration := time.Since(startTime)

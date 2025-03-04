@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/referendumApp/referendumServices/internal/config"
 	"github.com/referendumApp/referendumServices/internal/database"
 )
@@ -14,7 +16,7 @@ import (
 type Server struct {
 	httpServer *http.Server
 	db         *database.Database
-	mux        *http.ServeMux
+	mux        *chi.Mux
 	secretKey  []byte
 	port       int
 }
@@ -22,18 +24,18 @@ type Server struct {
 // Initialize Server and setup HTTP routes and middleware
 func New(cfg config.Config, db *database.Database) *Server {
 	srv := &Server{
-		mux:       http.NewServeMux(),
+		mux:       chi.NewRouter(),
 		port:      80,
 		secretKey: cfg.SecretKey,
 		db:        db,
 	}
 
+	srv.mux.Use(logRequest)
 	srv.setupRoutes()
-	handler := srv.logRequest()
 
 	srv.httpServer = &http.Server{
 		Addr:         fmt.Sprintf(":%d", srv.port),
-		Handler:      handler,
+		Handler:      srv.mux,
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  15 * time.Second,

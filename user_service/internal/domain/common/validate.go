@@ -1,6 +1,6 @@
 // Contains interface with HTTP validation methods
 
-package models
+package common
 
 import "context"
 

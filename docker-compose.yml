@@ -45,31 +45,31 @@ services:
     command: ["python", "-m", "debugpy", "--listen", "0.0.0.0:5678", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
     profiles: ["local-data", "local-empty"]
 
-  atp-base:
+  user-api-base:
     build:
-      context: ./atp_service
+      context: ./user_service
       target: base
     env_file: .env
     profiles: ["base"]
 
-  atp:
-    container_name: atp
+  user-api:
+    container_name: user-api
     extends: 
-      service: atp-base
+      service: user-api-base
     build:
-      context: ./atp_service
-      target: atp-prod
+      context: ./user_service
+      target: user-prod
     ports:
       - "80:80"
     profiles: ["atp"]
 
-  atp-local:
-    container_name: atp-local
+  user-api-local:
+    container_name: user-api-local
     extends: 
-      service: atp-base
+      service: user-api-base
     build:
-      context: ./atp_service
-      target: atp-local
+      context: ./user_service
+      target: user-local
     environment:
       - CGO_ENABLED=0
       - GOOS=linux
@@ -82,8 +82,8 @@ services:
       migrations:
         condition: service_completed_successfully
     volumes:
-      - ./atp_service/cmd:/code/cmd
-      - ./atp_service/internal:/code/internal
+      - ./user_service/cmd:/code/cmd
+      - ./user_service/internal:/code/internal
     ports:
       - "8080:80"
     profiles: ["local-data", "local-empty"]
