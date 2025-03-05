@@ -18,7 +18,7 @@ from ..database import get_db
 from ..schemas.interactions import ErrorResponse, FormErrorResponse
 from ..schemas.users import (
     RefreshToken,
-    SocialLoginRequest,
+    GoogleUserAuthRequest,
     TokenResponse,
     UserCreateInput,
 )
@@ -238,44 +238,53 @@ def verify_google_token(id_token: str, http_request: Request):
     response_model=TokenResponse,
 )
 async def google_signup(
-    user: SocialLoginRequest, http_request: Request, db: Session = Depends(get_db)
+    user_auth_request: GoogleUserAuthRequest, http_request: Request, db: Session = Depends(get_db)
 ) -> Dict[str, str]:
-    # Creates a Referendum user account for a user with a Google account and automatically logs them into Referndum by creating JWT
-    # In the future there will be extra steps for the user during the signup process, but for now the user will automatically get logged in after the signup
-
-    id_info = verify_google_token(user.id_token, http_request)
+    """
+    Creates or links a Referendum user account with a Google account and logs them in.
+    """
+    id_info = verify_google_token(user_auth_request.id_token, http_request)
     google_user_id = id_info.get("sub")
+    user_email = id_info.get("email")
+    social_provider_dict = {AuthProvider.GOOGLE.user_id_field: google_user_id}
 
     try:
-        user = crud.user.get_user_by_social_provider(
+        # Find user by email regardless of how they were originally created
+        user_with_matching_email = crud.user.get_user_by_email(db=db, email=user_email)  # Throws ObjectNotFoundException if not found
+        # Find user by Google ID connection
+        user_linked_to_google_id = crud.user.get_user_by_social_provider(
             db=db,
-            social_provider_user_id=google_user_id,
-            social_provider_name=AuthProvider.GOOGLE.value,
+            social_provider_dict=social_provider_dict,
         )
-        if not user:
-            user_data = {
-                "email": id_info.get("email"),
-                "name": id_info.get("name"),
-                "settings": {
-                    "social_provider_user_id": google_user_id,
-                    "social_provider_name": AuthProvider.GOOGLE.value,
-                },
-            }
-            user_create = get_social_user_create(user_data)
-            user = crud.user.create(db=db, obj_in=user_create)
-            logger.info(f"User created from {AuthProvider.GOOGLE.value} successfully: {user.email}")
 
-        is_deleted = user.settings.get("deleted")
-        if is_deleted is True:
-            logger.info(f"Reactivating soft deleted user for email {user.email}")
-            crud.user.update_soft_delete(db=db, user_id=user.id, deleted=False)
-        elif user or is_deleted is False:
-            # To-Do: detect and tell the client exactly which authentication method (email, google, apple, etc.) to login with.
-            logger.error(f"Signup failed: Google account already registered - {user.email}")
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Your Google account is already signed up. Please login instead.",
-            )
+        # Email matched but not yet linked to this Google ID
+        if not user_linked_to_google_id:
+            user = user_with_matching_email
+            crud.user.update_social_provider(db=db, user_id=user.id, social_provider_dict=social_provider_dict)
+            logger.info(f"Added Google connection to existing user: {user.email}")
+
+        # User already linked to this Google ID
+        else:
+            user = user_linked_to_google_id
+            if user.settings.get("deleted") is True:
+                logger.info(f"Reactivating soft deleted user for email {user.email}")
+                crud.user.update_soft_delete(db=db, user_id=user.id, deleted=False)
+            else:
+                logger.error(f"Signup failed: Google account already registered - {user.email}")
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Your Google account is already signed up. Please login instead.",
+                )
+    except ObjectNotFoundException:
+        # No matching user records - create new user with Google credentials
+        user_data = {
+            "email": user_email,
+            "name": id_info.get("name"),
+            "settings": social_provider_dict,
+        }
+        user_create = get_social_user_create(user_data)
+        user = crud.user.create(db=db, obj_in=user_create)
+        logger.info(f"User created from {AuthProvider.GOOGLE.value} successfully: {user.email}")
     except DatabaseException as e:
         logger.error(f"Database error during social login: {str(e)}")
         raise HTTPException(
@@ -283,11 +292,11 @@ async def google_signup(
             detail=f"Database error",
         )
 
+    # Generate tokens for the authenticated user
     access_token = create_access_token(data={"sub": user.email})
     refresh_token = create_refresh_token(data={"sub": user.email})
     logger.info(f"Login successful for user: {user.email}")
 
-    # To-Do: Standardize an response schema for login reponses?
     return {
         "user_id": user.id,
         "access_token": access_token,
@@ -301,17 +310,16 @@ async def google_signup(
     response_model=TokenResponse,
 )
 async def google_login(
-    user: SocialLoginRequest, http_request: Request, db: Session = Depends(get_db)
+    user_auth_request: GoogleUserAuthRequest, http_request: Request, db: Session = Depends(get_db)
 ) -> Dict[str, str]:
-
-    id_info = verify_google_token(user.id_token, http_request)
+    id_info = verify_google_token(user_auth_request.id_token, http_request)
     google_user_id = id_info.get("sub")
+    social_provider_dict = {AuthProvider.GOOGLE.user_id_field: google_user_id}
 
     try:
         user = crud.user.get_user_by_social_provider(
             db=db,
-            social_provider_user_id=google_user_id,
-            social_provider_name=AuthProvider.GOOGLE.value,
+            social_provider_dict=social_provider_dict,
         )
         if not user:
             logger.error(
@@ -321,7 +329,7 @@ async def google_login(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=f"Login failed. Please create an account first.",
             )
-        elif user.settings.get("deleted"):
+        elif user.settings.get("deleted") is True:
             logger.info(f"Reactivating soft deleted user for email {user.email}")
             crud.user.update_soft_delete(db=db, user_id=user.id, deleted=False)
     except DatabaseException as e:
@@ -335,7 +343,6 @@ async def google_login(
     refresh_token = create_refresh_token(data={"sub": user.email})
     logger.info(f"Login successful for user: {user.email}")
 
-    # To-Do: Standardize an response schema for login reponses?
     return {
         "user_id": user.id,
         "access_token": access_token,

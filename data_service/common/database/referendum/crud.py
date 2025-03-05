@@ -437,19 +437,14 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
             raise DatabaseException(f"Database error: {str(e)}")
 
     def get_user_by_social_provider(
-        self, db: Session, social_provider_user_id: str, social_provider_name: str
+        self, db: Session, social_provider_dict: dict
     ) -> models.User:
+        if not social_provider_dict or len(social_provider_dict) != 1:
+            raise ValueError("social_provider_dict must contain exactly one key-value pair")
         try:
-            # To-Do: This query shouldn't directly access keys with hard-coded strings as it tightly couples with the database schema
-            db_user = (
-                db.query(models.User)
-                .filter(
-                    models.User.settings["social_provider_user_id"].astext
-                    == social_provider_user_id,
-                    models.User.settings["social_provider_name"].astext == social_provider_name,
-                )
-                .first()
-            )
+            db_user = db.query(models.User).filter(
+                models.User.settings.contains(social_provider_dict)
+            ).first()
             return db_user
         except SQLAlchemyError as e:
             raise DatabaseException(f"Database error: {str(e)}")
@@ -473,6 +468,30 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
             # Copy and reassign to trigger SQLAlchemy change
             settings = dict(db_user.settings)
             settings["deleted"] = deleted
+            db_user.settings = settings
+
+            db.add(db_user)
+            db.commit()
+            db.refresh(db_user)
+
+            return db_user
+
+        except SQLAlchemyError as e:
+            raise DatabaseException(f"Database error: {str(e)}")
+        
+    def update_social_provider(
+        self,
+        db: Session,
+        user_id: Column[int] | int,
+        social_provider_dict: dict, # Provide a more specific type?
+    ) -> models.User:
+        try:
+            db_user = db.query(models.User).filter(models.User.id == user_id).first()
+            if db_user is None:
+                raise ObjectNotFoundException(f"User {user_id} not found")
+            # Copy and reassign to trigger SQLAlchemy change
+            settings = dict(db_user.settings)
+            settings.update(social_provider_dict)
             db_user.settings = settings
 
             db.add(db_user)

@@ -48,7 +48,8 @@ class TokenResponse(RefreshToken):
     token_type: str
 
 
-class SocialLoginRequest(CamelCaseBaseModel):
+class GoogleUserAuthRequest(CamelCaseBaseModel):
+    # Google user auth request from Referendum client-side
     id_token: str
 
 
