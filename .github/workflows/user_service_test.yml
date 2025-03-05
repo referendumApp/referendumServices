@@ -1,16 +1,16 @@
-name: Run ATP Service Tests
+name: Run User Service Tests
 
 on:
   push:
     branches: [ main ]
     paths:
-      - "atp_service/**"
-      - ".github/workflows/atp_service_test.yml"
+      - "user_service/**"
+      - ".github/workflows/user_service_test.yml"
   pull_request:
     branches: [ main ]
     paths:
-      - "atp_service/**"
-      - ".github/workflows/atp_service_test.yml"
+      - "user_service/**"
+      - ".github/workflows/user_service_test.yml"
 
 jobs:
   lint:
@@ -22,9 +22,10 @@ jobs:
       with:
           go-version: "1.24"
           cache: true
-          cache-dependency-path: atp_service/go.sum
+          cache-dependency-path: user_service/go.sum
 
     - name: golangci-lint
       uses: golangci/golangci-lint-action@v6
       with:
-        working-directory: atp_service
+        working-directory: user_service
+

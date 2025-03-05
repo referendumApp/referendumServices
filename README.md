@@ -7,7 +7,7 @@ This repository contains two primary services for the application:
 
 ## Directory Structure
 
-- `atp_service/`: Contains the Go implementation of the Authenticated Transfer Protocol. See the [README](./atp_service/README.md) in this directory for more details.
+- `user_service/`: Contains the Go implementation of the Authenticated Transfer Protocol. See the [README](./user_service/README.md) in this directory for more details.
 - `data_service/`: Contains the Python implementation of the data layer. See the [README](./data_service/README.md) in this directory for more details.
 
 Each service includes its own documentation, dependencies, and setup instructions.
@@ -24,7 +24,7 @@ Each service includes its own documentation, dependencies, and setup instruction
    ```
 4. Install project dependencies:
    ```bash
-   cd ./atp_service && go mod tidy
+   cd ./user_service && go mod tidy
    ```
 5. Install [golangci-lint](https://golangci-lint.run/welcome/install/#local-installation)
 
@@ -73,7 +73,7 @@ pip install pre-commit
 pre-commit install
 
 # Manual code formatting
-gofmt -w ./atp_service
+gofmt -w ./user_service
 black ./data_service
 # Generate API documentation
 make docs

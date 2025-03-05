@@ -1,9 +1,10 @@
 package database
 
 import (
-	"database/sql"
 	"fmt"
 	"time"
+
+	"github.com/jmoiron/sqlx"
 
 	_ "github.com/lib/pq"
 
@@ -11,7 +12,7 @@ import (
 )
 
 type Database struct {
-	conn *sql.DB
+	conn *sqlx.DB
 }
 
 func Connect(cfg config.Config) (*Database, error) {
@@ -25,7 +26,8 @@ func Connect(cfg config.Config) (*Database, error) {
 		cfg.DBName,
 	)
 
-	db, err := sql.Open("postgres", connStr)
+	// db, err := sql.Open("postgres", connStr)
+	db, err := sqlx.Connect("postgres", connStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to establish database connection: %v (%T)", err, err)
 	}
