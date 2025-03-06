@@ -72,6 +72,7 @@ class SortingControllerEnum(str, Enum):
 class BillFilterOptions(BaseFilterOptions):
     status_id: Optional[List[int]] = None
     session_id: Optional[List[int]] = None
+    state_id: Optional[List[int]] = None
 
 
 class BillSortingOptions(NoNullOptions):
@@ -83,6 +84,7 @@ class BillSortingOptions(NoNullOptions):
 class BillPaginationRequestBody(BasePaginationRequestBody):
     filter_options: Optional[BillFilterOptions] = None
     order_by: Optional[BillSortingOptions] = None
+    federal_only: Optional[bool] = True
 
 
 ####################
