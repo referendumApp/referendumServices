@@ -10,6 +10,7 @@ from common.database.referendum import crud, models, schemas, utils
 
 from ..database import get_db
 from ..schemas.interactions import (
+    BillFilterOptions,
     BillPaginationRequestBody,
     ErrorResponse,
     PaginatedResponse,
@@ -66,10 +67,19 @@ async def get_all_bill_details(
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ):
     try:
-        if column_filter := request_body.filter_options:
+        if request_body.federal_only:
+            # federal bills have state_id == 52
+            if request_body.filter_options:
+                filter_options_dict = request_body.filter_options.model_dump(exclude_none=True)
+                filter_options_dict["state_id"] = [52]
+                request_body.filter_options = BillFilterOptions(**filter_options_dict)
+            else:
+                request_body.filter_options = BillFilterOptions(state_id=[52])
+
+        clauses = []
+        if request_body.filter_options:
             # We need this until we flatten out 'role_id' in the bills table
-            clauses = []
-            filter_options = request_body.filter_options.model_dump()
+            filter_options = request_body.filter_options.model_dump(exclude_none=True)
             role_id = filter_options.pop("role_id", None)
 
             if role_id is not None:
@@ -85,7 +95,7 @@ async def get_all_bill_details(
                 )
                 clauses.append(non_role_filter)
 
-            column_filter = and_(*clauses)
+        column_filter = and_(*clauses) if clauses else None
 
         order_by = []
         if request_body.order_by:
