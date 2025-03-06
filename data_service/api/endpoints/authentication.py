@@ -250,7 +250,9 @@ async def google_signup(
 
     try:
         # Find user by email regardless of how they were originally created
-        user_with_matching_email = crud.user.get_user_by_email(db=db, email=user_email)  # Throws ObjectNotFoundException if not found
+        user_with_matching_email = crud.user.get_user_by_email(
+            db=db, email=user_email
+        )  # Throws ObjectNotFoundException if not found
         # Find user by Google ID connection
         user_linked_to_google_id = crud.user.get_user_by_social_provider(
             db=db,
@@ -260,7 +262,9 @@ async def google_signup(
         # Email matched but not yet linked to this Google ID
         if not user_linked_to_google_id:
             user = user_with_matching_email
-            crud.user.update_social_provider(db=db, user_id=user.id, social_provider_dict=social_provider_dict)
+            crud.user.update_social_provider(
+                db=db, user_id=user.id, social_provider_dict=social_provider_dict
+            )
             logger.info(f"Added Google connection to existing user: {user.email}")
 
         # User already linked to this Google ID

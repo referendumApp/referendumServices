@@ -436,15 +436,15 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
         except SQLAlchemyError as e:
             raise DatabaseException(f"Database error: {str(e)}")
 
-    def get_user_by_social_provider(
-        self, db: Session, social_provider_dict: dict
-    ) -> models.User:
+    def get_user_by_social_provider(self, db: Session, social_provider_dict: dict) -> models.User:
         if not social_provider_dict or len(social_provider_dict) != 1:
             raise ValueError("social_provider_dict must contain exactly one key-value pair")
         try:
-            db_user = db.query(models.User).filter(
-                models.User.settings.contains(social_provider_dict)
-            ).first()
+            db_user = (
+                db.query(models.User)
+                .filter(models.User.settings.contains(social_provider_dict))
+                .first()
+            )
             return db_user
         except SQLAlchemyError as e:
             raise DatabaseException(f"Database error: {str(e)}")
@@ -478,12 +478,12 @@ class UserCRUD(BaseCRUD[models.User, schemas.UserCreate, schemas.UserCreate]):
 
         except SQLAlchemyError as e:
             raise DatabaseException(f"Database error: {str(e)}")
-        
+
     def update_social_provider(
         self,
         db: Session,
         user_id: Column[int] | int,
-        social_provider_dict: dict, # Provide a more specific type?
+        social_provider_dict: dict,  # Provide a more specific type?
     ) -> models.User:
         try:
             db_user = db.query(models.User).filter(models.User.id == user_id).first()
