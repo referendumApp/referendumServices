@@ -109,6 +109,7 @@ class ExecutiveOrderPaginationRequestBody(BasePaginationRequestBody):
 class LegislatorFilterOptions(BaseFilterOptions):
     party_id: Optional[List[int]] = None
     representing_state_id: Optional[List[int]] = None
+    state_id: Optional[List[int]] = None
 
 
 class LegislatorSortingOptions(NoNullOptions):
@@ -118,6 +119,7 @@ class LegislatorSortingOptions(NoNullOptions):
 class LegislatorPaginationRequestBody(BasePaginationRequestBody):
     filter_options: Optional[LegislatorFilterOptions] = None
     order_by: Optional[LegislatorSortingOptions] = None
+    federal_only: Optional[bool] = True
 
 
 ####################

@@ -13,6 +13,7 @@ from ..schemas.interactions import (
     ErrorResponse,
     LegislatorPaginationRequestBody,
     PaginatedResponse,
+    LegislatorFilterOptions,
 )
 from ..schemas.resources import LegislatorScorecard, LegislatorVotingHistory
 from ..security import get_current_user_or_verify_system_token
@@ -56,8 +57,18 @@ async def get_legislators(
         f"Attempting to read all legislators (skip: {request_body.skip}, limit: {request_body.limit})"
     )
     try:
-        if column_filter := request_body.filter_options:
-            filter_options = request_body.filter_options.model_dump()
+        if request_body.federal_only:
+            # federal bills have state_id == 52
+            if request_body.filter_options:
+                filter_options_dict = request_body.filter_options.model_dump(exclude_none=True)
+                filter_options_dict["state_id"] = [52]
+                request_body.filter_options = LegislatorFilterOptions(**filter_options_dict)
+            else:
+                request_body.filter_options = LegislatorFilterOptions(state_id=[52])
+
+        column_filter = None
+        if request_body.filter_options:
+            filter_options = request_body.filter_options.model_dump(exclude_none=True)
             column_filter = utils.create_column_filter(
                 model=models.Legislator,
                 filter_options=filter_options,
