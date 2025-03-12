@@ -35,6 +35,7 @@ env:
   PIPELINE_CLUSTER: ETLCluster
   PIPELINE_TASK_DEFINITION: load-referendum-from-legiscan
   S3_ACCESS_CREDENTIALS_SECRET_NAME: /system/S3_BILL_TEXTS_CREDENTIALS
+  OPENAI_API_ENDPOINT: https://api.openai.com/v1/chat/completions
 
 permissions:
   contents: write
@@ -64,6 +65,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       new_version: ${{ steps.bump_version.outputs.new_version }}
+      previous_version: ${{ steps.get_version.outputs.current_version }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -90,6 +92,60 @@ jobs:
         echo $new_version > ./data_service/version.txt
         echo "new_version=$new_version" >> $GITHUB_OUTPUT
 
+    - name: Get commit information
+      id: get_commits
+      run: |
+        # Get the tag of the previous version or default to the first commit if no tags exist
+        PREVIOUS_TAG=$(git tag --sort=-v:refname | grep "data-service-v" | head -n 1 || git rev-list --max-parents=0 HEAD)
+        
+        # Store commit logs between the previous tag and HEAD
+        git log $PREVIOUS_TAG..HEAD --pretty=format:"%h %s" > commit_log.txt
+        cat commit_log.txt
+
+    - name: Generate release notes with ChatGPT
+      id: generate_notes
+      run: |
+        # Read commit log
+        COMMIT_LOG=$(cat commit_log.txt)
+        CURRENT_VERSION=${{ steps.get_version.outputs.current_version }}
+        NEW_VERSION=${{ steps.bump_version.outputs.new_version }}
+        
+        # Create prompt for ChatGPT
+        PROMPT=$(cat <<EOF
+        I need to generate release notes for a software update from version $CURRENT_VERSION to $NEW_VERSION.
+        
+        Here is the list of commits between these versions:
+        $COMMIT_LOG
+        
+        Please create professional release notes that:
+        1. Summarize the main changes in a brief overview
+        2. Group related changes into categories (Features, Bug fixes, Performance improvements, etc.)
+        3. Format the notes in Markdown
+        4. Keep it concise but informative
+        5. Highlight any breaking changes or important updates
+        EOF
+        )
+        
+        # Call ChatGPT API to generate release notes
+        RESPONSE=$(curl -s ${{ env.OPENAI_API_ENDPOINT }} \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer ${{ secrets.OPENAI_API_KEY }}" \
+          -d "{
+            \"model\": \"gpt-4\",
+            \"messages\": [{\"role\": \"system\", \"content\": \"You are a helpful assistant that generates clear, concise release notes.\"}, {\"role\": \"user\", \"content\": \"$PROMPT\"}],
+            \"temperature\": 0.7,
+            \"max_tokens\": 1000
+          }")
+        
+        # Extract the content from the response
+        RELEASE_NOTES=$(echo $RESPONSE | jq -r '.choices[0].message.content')
+        
+        # Save release notes to a file (escaping newlines for GitHub Actions)
+        echo "$RELEASE_NOTES" > release_notes.md
+        echo "release_notes<<EOF" >> $GITHUB_OUTPUT
+        cat release_notes.md >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
     - name: Commit version update
       run: |
         git config --local user.email "action@github.com"
@@ -103,10 +159,16 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         branch: main
 
-    - name: Create Tag
-      run: |
-        git tag data-service-v${{ steps.bump_version.outputs.new_version }}
-        git push origin data-service-v${{ steps.bump_version.outputs.new_version }}
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: data-service-v${{ steps.bump_version.outputs.new_version }}
+        name: Data Service v${{ steps.bump_version.outputs.new_version }}
+        body: ${{ steps.generate_notes.outputs.release_notes }}
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   deploy-api:
     needs: [set-deployment-vars, update-version]
