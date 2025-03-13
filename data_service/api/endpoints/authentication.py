@@ -242,11 +242,19 @@ async def google_signup(
 ) -> Dict[str, str]:
     """
     Creates or links a Referendum user account with a Google account and logs them in.
+
+    Scenarios:
+        1. User with Google ID exists and is deleted -> Reactivate account and login the user
+        2. User with Google ID exists (and is not deleted) -> Reject user's signup request
+        3. User with matching email exists -> Link email account with Google ID and login the user
+        4. No user matches with email or Google ID -> Create new user account with Google ID and login the user
     """
     id_info = verify_google_token(user_auth_request.id_token, http_request)
     google_user_id = id_info.get("sub")
     user_email = id_info.get("email")
     social_provider_dict = {AuthProvider.GOOGLE.user_id_field: google_user_id}
+    user_with_matching_email = None
+    user_linked_to_google_id = None
 
     try:
         # Find user by email regardless of how they were originally created
@@ -259,26 +267,29 @@ async def google_signup(
             social_provider_dict=social_provider_dict,
         )
 
-        # Email matched but not yet linked to this Google ID
-        if not user_linked_to_google_id:
+        if user_linked_to_google_id and user_linked_to_google_id.settings.get("deleted") is True:
+            # User already linked to this Google ID and was deleted - reactivate
+            user = user_linked_to_google_id
+            logger.info(f"Reactivating soft deleted user for email {user.email}")
+            crud.user.update_soft_delete(db=db, user_id=user.id, deleted=False)
+
+        elif user_linked_to_google_id:
+            # User already linked to this Google ID and not deleted - reject signup
+            user = user_linked_to_google_id
+            logger.error(f"Signup failed: Google account already registered - {user.email}")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Your Google account is already signed up. Please login instead.",
+            )
+
+        elif user_with_matching_email:
+            # Email matched but not yet linked to this Google ID
             user = user_with_matching_email
             crud.user.update_social_provider(
                 db=db, user_id=user.id, social_provider_dict=social_provider_dict
             )
             logger.info(f"Added Google connection to existing user: {user.email}")
 
-        # User already linked to this Google ID
-        else:
-            user = user_linked_to_google_id
-            if user.settings.get("deleted") is True:
-                logger.info(f"Reactivating soft deleted user for email {user.email}")
-                crud.user.update_soft_delete(db=db, user_id=user.id, deleted=False)
-            else:
-                logger.error(f"Signup failed: Google account already registered - {user.email}")
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail="Your Google account is already signed up. Please login instead.",
-                )
     except ObjectNotFoundException:
         # No matching user records - create new user with Google credentials
         user_data = {
@@ -316,6 +327,13 @@ async def google_signup(
 async def google_login(
     user_auth_request: GoogleUserAuthRequest, http_request: Request, db: Session = Depends(get_db)
 ) -> Dict[str, str]:
+    """
+    Scenarios:
+        1. No user matches with Google ID -> Reject login request to force user signup
+        2. Google account is deleted -> Reactivate account and login
+        3. Google account is not deleted -> login
+    """
+
     id_info = verify_google_token(user_auth_request.id_token, http_request)
     google_user_id = id_info.get("sub")
     social_provider_dict = {AuthProvider.GOOGLE.user_id_field: google_user_id}
