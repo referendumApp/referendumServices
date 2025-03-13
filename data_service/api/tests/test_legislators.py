@@ -16,7 +16,7 @@ async def test_list_legislators(test_manager: TestManager):
     response = await test_manager.client.post(
         "/legislators/details",
         headers=test_manager.headers,
-        json={},
+        json={"federalOnly": False},
     )
     assert_status_code(response, 200)
     legislators = response.json()
@@ -53,7 +53,7 @@ async def test_list_legislators_filter(
     response = await test_manager.client.post(
         "/legislators/details",
         headers=test_manager.headers,
-        json=filter_request,
+        json={**filter_request, "federalOnly": False},
     )
     assert_status_code(response, 200)
     legislators = response.json()
@@ -67,7 +67,7 @@ async def test_invalid_list_legislators_filter(test_manager: TestManager):
     response = await test_manager.client.post(
         "/legislators/details",
         headers=test_manager.headers,
-        json={"filter_options": {"status_id": [1]}},
+        json={"filter_options": {"status_id": [1]}, "federalOnly": False},
     )
     assert_status_code(response, 422)
 
@@ -80,7 +80,7 @@ async def test_list_legislators_sort(test_manager: TestManager):
     response = await test_manager.client.post(
         "/legislators/details",
         headers=test_manager.headers,
-        json={"order_by": {"name": "ascending"}},
+        json={"order_by": {"name": "ascending"}, "federalOnly": False},
     )
     assert_status_code(response, 200)
     legislators = response.json()

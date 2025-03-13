@@ -7,13 +7,22 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to deploy to (prod/dev)'
+        description: 'Environment to deploy to'
         required: true
         default: 'dev'
         type: 'choice'
         options:
           - dev
           - prod
+      bump_version:
+        description: 'Version bump type (only used for production)'
+        required: false
+        default: 'patch'
+        type: 'choice'
+        options:
+          - patch
+          - minor
+          - major
 
 env:
   AWS_ACCOUNT_ID: 842675976781
@@ -26,16 +35,37 @@ env:
   PIPELINE_CLUSTER: ETLCluster
   PIPELINE_TASK_DEFINITION: load-referendum-from-legiscan
   S3_ACCESS_CREDENTIALS_SECRET_NAME: /system/S3_BILL_TEXTS_CREDENTIALS
+  OPENAI_API_ENDPOINT: https://api.openai.com/v1/chat/completions
 
 permissions:
   contents: write
 
 jobs:
+  set-deployment-vars:
+    runs-on: ubuntu-latest
+    outputs:
+      deploy_env: ${{ steps.set-vars.outputs.deploy_env }}
+      image_tag: ${{ steps.set-vars.outputs.image_tag }}
+    steps:
+    - name: Set deployment variables
+      id: set-vars
+      run: |
+        # Default to dev for push to main, use input for manual trigger
+        if [[ "${{ github.event_name }}" == "push" ]]; then
+          echo "deploy_env=dev" >> $GITHUB_OUTPUT
+          echo "image_tag=dev-${{ github.sha }}" >> $GITHUB_OUTPUT
+        else
+          echo "deploy_env=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          echo "image_tag=${{ github.event.inputs.environment }}-${{ github.sha }}" >> $GITHUB_OUTPUT
+        fi
+
   update-version:
-    if: github.event_name == 'push'
+    needs: [set-deployment-vars]
+    if: needs.set-deployment-vars.outputs.deploy_env == 'prod'
     runs-on: ubuntu-latest
     outputs:
       new_version: ${{ steps.bump_version.outputs.new_version }}
+      previous_version: ${{ steps.get_version.outputs.current_version }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -50,15 +80,71 @@ jobs:
       id: bump_version
       run: |
         current_version=${{ steps.get_version.outputs.current_version }}
-        if [[ "${{ github.event.head_commit.message }}" == *"#major"* ]]; then
+        bump_type="${{ github.event.inputs.bump_version }}"
+        
+        if [[ "$bump_type" == "major" ]]; then
           new_version=$(echo $current_version | awk -F. '{$1 = $1 + 1; $2 = 0; $3 = 0} 1' | sed 's/ /./g')
-        elif [[ "${{ github.event.head_commit.message }}" == *"#minor"* ]]; then
+        elif [[ "$bump_type" == "minor" ]]; then
           new_version=$(echo $current_version | awk -F. '{$2 = $2 + 1; $3 = 0} 1' | sed 's/ /./g')
         else
           new_version=$(echo $current_version | awk -F. '{$3 = $3 + 1} 1' | sed 's/ /./g')
         fi
         echo $new_version > ./data_service/version.txt
         echo "new_version=$new_version" >> $GITHUB_OUTPUT
+
+    - name: Get commit information
+      id: get_commits
+      run: |
+        # Get the tag of the previous version or default to the first commit if no tags exist
+        PREVIOUS_TAG=$(git tag --sort=-v:refname | grep "data-service-v" | head -n 1 || git rev-list --max-parents=0 HEAD)
+        
+        # Store commit logs between the previous tag and HEAD
+        git log $PREVIOUS_TAG..HEAD --pretty=format:"%h %s" > commit_log.txt
+        cat commit_log.txt
+
+    - name: Generate release notes with ChatGPT
+      id: generate_notes
+      run: |
+        # Read commit log
+        COMMIT_LOG=$(cat commit_log.txt)
+        CURRENT_VERSION=${{ steps.get_version.outputs.current_version }}
+        NEW_VERSION=${{ steps.bump_version.outputs.new_version }}
+        
+        # Create prompt for ChatGPT
+        PROMPT=$(cat <<EOF
+        I need to generate release notes for a software update from version $CURRENT_VERSION to $NEW_VERSION.
+        
+        Here is the list of commits between these versions:
+        $COMMIT_LOG
+        
+        Please create professional release notes that:
+        1. Summarize the main changes in a brief overview
+        2. Group related changes into categories (Features, Bug fixes, Performance improvements, etc.)
+        3. Format the notes in Markdown
+        4. Keep it concise but informative
+        5. Highlight any breaking changes or important updates
+        EOF
+        )
+        
+        # Call ChatGPT API to generate release notes
+        RESPONSE=$(curl -s ${{ env.OPENAI_API_ENDPOINT }} \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer ${{ secrets.OPENAI_API_KEY }}" \
+          -d "{
+            \"model\": \"gpt-4\",
+            \"messages\": [{\"role\": \"system\", \"content\": \"You are a helpful assistant that generates clear, concise release notes.\"}, {\"role\": \"user\", \"content\": \"$PROMPT\"}],
+            \"temperature\": 0.7,
+            \"max_tokens\": 1000
+          }")
+        
+        # Extract the content from the response
+        RELEASE_NOTES=$(echo $RESPONSE | jq -r '.choices[0].message.content')
+        
+        # Save release notes to a file (escaping newlines for GitHub Actions)
+        echo "$RELEASE_NOTES" > release_notes.md
+        echo "release_notes<<EOF" >> $GITHUB_OUTPUT
+        cat release_notes.md >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
 
     - name: Commit version update
       run: |
@@ -73,27 +159,16 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         branch: main
 
-    - name: Create Tag
-      run: |
-        git tag data-service-v${{ steps.bump_version.outputs.new_version }}
-        git push origin data-service-v${{ steps.bump_version.outputs.new_version }}
-
-  set-deployment-vars:
-    runs-on: ubuntu-latest
-    outputs:
-      deploy_env: ${{ steps.set-vars.outputs.deploy_env }}
-      image_tag: ${{ steps.set-vars.outputs.image_tag }}
-    steps:
-    - name: Set deployment variables
-      id: set-vars
-      run: |
-        if [[ "${{ github.event_name }}" == "push" ]]; then
-          echo "deploy_env=prod" >> $GITHUB_OUTPUT
-          echo "image_tag=prod-${{ github.sha }}" >> $GITHUB_OUTPUT
-        else
-          echo "deploy_env=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
-          echo "image_tag=${{ github.event.inputs.environment }}-${{ github.sha }}" >> $GITHUB_OUTPUT
-        fi
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: data-service-v${{ steps.bump_version.outputs.new_version }}
+        name: Data Service v${{ steps.bump_version.outputs.new_version }}
+        body: ${{ steps.generate_notes.outputs.release_notes }}
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   deploy-api:
     needs: [set-deployment-vars, update-version]
@@ -319,7 +394,7 @@ jobs:
         docker build --target pipeline -t $ECR_REGISTRY/$ECR_REPOSITORY_PIPELINE:${{ env.IMAGE_TAG }} ./data_service
         docker tag $ECR_REGISTRY/$ECR_REPOSITORY_PIPELINE:${{ env.IMAGE_TAG }} $ECR_REGISTRY/$ECR_REPOSITORY_PIPELINE:${{ env.DEPLOY_ENV }}-stable
 
-        if [[ "${{ github.event_name }}" == "push" && "${{ env.DEPLOY_ENV }}" == "prod" ]]; then
+        if [[ "${{ env.DEPLOY_ENV }}" == "prod" ]]; then
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY_PIPELINE:${{ env.IMAGE_TAG }} $ECR_REGISTRY/$ECR_REPOSITORY_PIPELINE:latest
           docker push $ECR_REGISTRY/$ECR_REPOSITORY_PIPELINE:latest
         fi
@@ -393,10 +468,11 @@ jobs:
 
 
     - name: Set up EventBridge rule for weekly pipeline run
+      if: env.DEPLOY_ENV == 'prod'
       run: |
-        TASK_DEFINITION_ARN=$(aws ecs describe-task-definition --task-definition ${{ env.PIPELINE_TASK_DEFINITION }} --query taskDefinition.taskDefinitionArn --output text)
+        TASK_DEFINITION_ARN=$(aws ecs describe-task-definition --task-definition ${{ env.PIPELINE_TASK_DEFINITION }}-${{ env.DEPLOY_ENV }} --query taskDefinition.taskDefinitionArn --output text)
         CLUSTER_ARN=$(aws ecs describe-clusters --clusters ${{ env.PIPELINE_CLUSTER }} --query 'clusters[0].clusterArn' --output text)
-        RULE_NAME="weekly-pipeline-run"
+        RULE_NAME="weekly-pipeline-run-${{ env.DEPLOY_ENV }}"
         
         aws events put-rule \
           --name $RULE_NAME \
