@@ -40,7 +40,9 @@ async def test_list_bill_details(client, system_headers, test_manager: TestManag
 
     test_error = None
     try:
-        response = await client.post("/bills/details", headers=system_headers, json={})
+        response = await client.post(
+            "/bills/details", headers=system_headers, json={"federalOnly": False}
+        )
         assert_status_code(response, 200)
         bill_data = response.json()
         assert bill_data["hasMore"] == False
@@ -122,7 +124,7 @@ async def test_list_bill_details_filter(
     response = await test_manager.client.post(
         "/bills/details",
         headers=test_manager.headers,
-        json=filter_request,
+        json={**filter_request, "federalOnly": False},
     )
     assert_status_code(response, 200)
     bills = response.json()
@@ -149,7 +151,7 @@ async def test_list_bill_details_sort(test_manager: TestManager):
     response = await test_manager.client.post(
         "/bills/details",
         headers=test_manager.headers,
-        json={"order_by": {"title": "ascending"}},
+        json={"order_by": {"title": "ascending"}, "federalOnly": False},
     )
     assert_status_code(response, 200)
     bills = response.json()
