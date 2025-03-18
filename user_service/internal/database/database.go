@@ -1,10 +1,12 @@
 package database
 
 import (
+	"context"
 	"fmt"
-	"time"
+	"log/slog"
 
-	"github.com/jmoiron/sqlx"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	_ "github.com/lib/pq"
 
@@ -12,10 +14,14 @@ import (
 )
 
 type Database struct {
-	conn *sqlx.DB
+	pool   *pgxpool.Pool
+	log    *slog.Logger
+	schema string
 }
 
-func Connect(cfg config.Config) (*Database, error) {
+func Connect(ctx context.Context, cfg config.Config, log *slog.Logger) (*Database, error) {
+	log.Info("Setting up database connection pool")
+
 	// Build the connection string
 	connStr := fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
@@ -26,34 +32,47 @@ func Connect(cfg config.Config) (*Database, error) {
 		cfg.DBName,
 	)
 
-	// db, err := sql.Open("postgres", connStr)
-	db, err := sqlx.Connect("postgres", connStr)
+	conn, err := pgx.Connect(ctx, connStr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to establish database connection: %v (%T)", err, err)
+		log.Error("Failed to establish postgres connection", "conn", connStr)
+		return nil, err
 	}
 
 	// Ping the database to validate the connection
-	err = db.Ping()
-	if err != nil {
-		return nil, fmt.Errorf("failed to ping database: %v", err)
+	if pingErr := conn.Ping(ctx); pingErr != nil {
+		log.Error("Failed to ping database", "conn", connStr)
+		return nil, pingErr
 	}
 
-	fmt.Println("Successfully connected to database!")
-
 	// Set connection pool settings
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(time.Minute * 5)
+	poolConfig, err := pgxpool.ParseConfig(connStr)
+	if err != nil {
+		log.Error("Error parsing Postgres pool config", "conn", connStr)
+		return nil, err
+	}
 
-	return &Database{
-		conn: db,
-	}, nil
+	poolConfig.MaxConns = cfg.MaxConns
+	poolConfig.MinConns = cfg.MinConns
+	poolConfig.MaxConnLifetime = cfg.MaxConnLife
+	poolConfig.MaxConnIdleTime = cfg.MaxConnIdle
+
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
+	if err != nil {
+		log.Error("Error creating connection pool", "config", poolConfig)
+		return nil, err
+	}
+
+	log.Info("Successfully connected to database!")
+
+	return &Database{pool: pool, log: log, schema: "atproto"}, nil
 }
 
-func (d *Database) Close() error {
-	return d.conn.Close()
+func (db *Database) Close() {
+	if db.pool != nil {
+		db.pool.Close()
+	}
 }
 
-func (d *Database) Ping() error {
-	return d.conn.Ping()
+func (d *Database) Ping(ctx context.Context) error {
+	return d.pool.Ping(ctx)
 }

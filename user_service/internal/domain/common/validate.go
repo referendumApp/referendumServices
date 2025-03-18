@@ -2,8 +2,12 @@
 
 package common
 
-import "context"
+import (
+	"context"
+
+	refErr "github.com/referendumApp/referendumServices/internal/error"
+)
 
 type Validator interface {
-	Validate(ctx context.Context) (problems map[string]string)
+	Validate(ctx context.Context) *refErr.APIError
 }
