@@ -12,18 +12,19 @@ echo "PostgreSQL is up - executing initialization"
 
 create_database_if_not_exists() {
     local DB_NAME=$1
-    if PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -lqt | cut -d \| -f 1 | grep -qw $DB_NAME; then
+    if PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -lqt | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
         echo "Database $DB_NAME already exists"
     else
         echo "Database $DB_NAME does not exist. Creating..."
-        PGPASSWORD=$POSTGRES_PASSWORD createdb -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" $DB_NAME
+        PGPASSWORD=$POSTGRES_PASSWORD createdb -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" "$DB_NAME"
         echo "Database $DB_NAME created"
     fi
 }
-create_database_if_not_exists $LEGISCAN_API_DB_NAME
-create_database_if_not_exists $REFERENDUM_DB_NAME
+create_database_if_not_exists "$LEGISCAN_API_DB_NAME"
+create_database_if_not_exists "$REFERENDUM_DB_NAME"
+create_database_if_not_exists "$PLC_DB_NAME"
+create_database_if_not_exists "$CARSTORE_DB_NAME"
 
-# SQL commands to create the legiscan_api user and grant privileges
 CREATE_LEGISCAN_USER="
 DO \$\$
 BEGIN
