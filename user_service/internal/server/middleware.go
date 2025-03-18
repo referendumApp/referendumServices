@@ -3,99 +3,53 @@ package server
 import (
 	"context"
 	"errors"
-	"fmt"
-	"log"
 	"net/http"
-	"regexp"
-	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+
+	refErr "github.com/referendumApp/referendumServices/internal/error"
 )
-
-type UserIDKey string
-
-const UserIdKey UserIDKey = "userId"
-
-var bearerRegex = regexp.MustCompile(`Bearer\s+(.*)`)
-
-// Extract the JWT from the Authorization request header
-func extractToken(r *http.Request) string {
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		return authHeader
-	}
-
-	match := bearerRegex.FindStringSubmatch(authHeader)
-	if len(match) > 1 {
-		return strings.TrimSpace(match[1])
-	}
-
-	return ""
-}
-
-// Decode and validate the JWT and get the claims
-func decodeJWT(tokenString string, secretKey []byte) (jwt.MapClaims, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
-		// Validate the algorithm is what we expect
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, errors.New("unexpected signing method")
-		}
-
-		// Return the secret key used to sign the token
-		return secretKey, nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		return claims, nil
-	}
-
-	return nil, errors.New("failed to validate token")
-}
 
 // Authorize a request based on the JWT included in the request
 func (s *Server) authorizeUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestCtx := r.Context()
 
-		accessToken := extractToken(r)
+		accessToken := s.extractToken(r)
 		if accessToken == "" {
-			http.Error(w, "Token not found", http.StatusUnauthorized)
+			refErr.Unauthorized("Token not found").WriteResponse(w)
 			return
 		}
 
-		claims, err := decodeJWT(accessToken, s.secretKey)
+		token, err := s.decodeJWT(accessToken)
 		if err != nil {
-			http.Error(w, fmt.Errorf("invalid access token: %s", err).Error(), http.StatusUnauthorized)
+			s.log.ErrorContext(requestCtx, "Failed to decode JWT", "error", err)
+			if errors.Is(err, jwt.ErrTokenExpired) {
+				refErr.Unauthorized("JWT expired").WriteResponse(w)
+				return
+			}
+
+			refErr.BadRequest("Invalid token").WriteResponse(w)
 			return
 		}
 
-		if tokenType, ok := claims["type"].(string); !ok || tokenType != "access" {
-			http.Error(w, "Invalid token type for access token", http.StatusUnauthorized)
-			return
-		}
-
-		// Include the email in the request context that will be passed down to the handlers
-		email, ok := claims["sub"].(string)
-		if !ok {
-			http.Error(w, "Missing email in access token", http.StatusUnauthorized)
-			return
-		}
-
-		userId, err := s.db.GetUserId(requestCtx, email)
+		did, err := s.validateToken(token, "access")
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusUnauthorized)
+			refErr.BadRequest("Invalid token type for access token").WriteResponse(w)
 			return
 		}
 
-		ctx := context.WithValue(requestCtx, UserIdKey, userId)
-		r = r.WithContext(ctx)
+		user, err := s.db.LookupUserByDid(requestCtx, did)
+		if err != nil {
+			s.log.ErrorContext(requestCtx, "Failed to authorize user with DID", "error", err, "DID", did)
+			refErr.InternalServer().WriteResponse(w)
+			return
+		}
 
-		next.ServeHTTP(w, r)
+		ctx := context.WithValue(requestCtx, s.jwtConfig.ContextKey, user)
+
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
@@ -109,22 +63,36 @@ func (rw *CustomResponseWriter) WriteHeader(code int) {
 	rw.ResponseWriter.WriteHeader(code)
 }
 
-// Log metadata and status for the request
-func logRequest(next http.Handler) http.Handler {
+func getOrCreateCustomWriter(w http.ResponseWriter) *CustomResponseWriter {
+	if customWriter, ok := w.(*CustomResponseWriter); ok {
+		return customWriter
+	}
+	return &CustomResponseWriter{
+		ResponseWriter: w,
+		StatusCode:     http.StatusOK,
+	}
+}
+
+type TransactionCtxKey string
+
+const TxCtxKey TransactionCtxKey = "tx"
+
+func (s *Server) logRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
 
 		// Wrap the ResponseWriter so we can include the status code in our logs
-		rw := &CustomResponseWriter{
-			ResponseWriter: w,
-			StatusCode:     http.StatusOK,
-		}
+		rw := getOrCreateCustomWriter(w)
 
 		// Log request details
-		log.Printf(
-			"REQUEST: %s %s %s",
+		s.log.InfoContext(
+			r.Context(),
+			"Request started",
+			"method",
 			r.Method,
+			"urlPath",
 			r.URL.Path,
+			"address",
 			r.RemoteAddr,
 		)
 
@@ -133,12 +101,37 @@ func logRequest(next http.Handler) http.Handler {
 
 		// Log completion time
 		duration := time.Since(startTime)
-		log.Printf(
-			"COMPLETED: %s %s - status %d in %v",
+		s.log.InfoContext(
+			r.Context(),
+			"Request completed",
+			"method",
 			r.Method,
+			"urlPath",
 			r.URL.Path,
+			"status",
 			rw.StatusCode,
+			"duration",
 			duration,
 		)
 	})
 }
+
+// func (s *Server) ContextManager(next http.Handler) http.Handler {
+// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// 		requestCtx := r.Context()
+// 		rw := getOrCreateCustomWriter(w)
+//
+// 		s.db.WithTransaction(requestCtx, func(ctx context.Context, tx pgx.Tx) error {
+// 			txCtx := context.WithValue(requestCtx, TxCtxKey, tx)
+//
+// 			next.ServeHTTP(rw, r.WithContext(txCtx))
+//
+// 			if rw.StatusCode >= 200 && rw.StatusCode < 300 {
+// 				return nil // Will commit
+// 			} else {
+//         s.log.InfoContext(txCtx, "Rolling back transaction")
+// 				return fmt.Errorf("rolling back transaction due to : %d", rw.StatusCode)
+// 			}
+// 		})
+// 	})
+// }
