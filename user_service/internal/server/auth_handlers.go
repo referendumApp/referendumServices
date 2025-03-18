@@ -113,7 +113,6 @@ func (s *Server) handleSignUp(w http.ResponseWriter, r *http.Request) {
 		HashedPassword: hashedPassword,
 		RecoveryKey:    recoveryKey,
 		Did:            d,
-		Settings:       &common.UserSettings{Deleted: false},
 	}
 	// if exists, err := s.db.AuthenticateHandle(ctx, user); err != nil {
 	// 	s.log.ErrorContext(ctx, "Failed to authenticate handle", "error", err, "handle", req.Handle)
@@ -134,13 +133,14 @@ func (s *Server) handleSignUp(w http.ResponseWriter, r *http.Request) {
 		}
 
 		actor := &atp.Citizen{
-			Uid:    newUser.ID,
-			Did:    user.Did,
-			Handle: sql.NullString{String: req.Handle, Valid: true},
+			Uid:      newUser.ID,
+			Did:      user.Did,
+			Handle:   sql.NullString{String: req.Handle, Valid: true},
+			Settings: &atp.Settings{Deleted: false},
 		}
 
 		if err := s.db.CreateWithTx(ctx, tx, actor); err != nil {
-			s.log.ErrorContext(ctx, "Failed to create actor", "error", err, "did", d)
+			s.log.ErrorContext(ctx, "Failed to create citizen", "error", err, "did", d)
 			return err
 		}
 

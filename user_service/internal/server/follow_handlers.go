@@ -6,12 +6,14 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/referendumApp/referendumServices/internal/domain/follow"
 	refErr "github.com/referendumApp/referendumServices/internal/error"
 	repo "github.com/referendumApp/referendumServices/internal/repository"
 )
 
+// TODO: Have yet to migrate over bill follows to ATP schema. THESE ENDPOINTS WILL NOT WORK
 func (s *Server) getBillIdAndValidate(ctx context.Context, w http.ResponseWriter, r *http.Request) (int64, error) {
 	billIdStr := chi.URLParam(r, "billId")
 	billId, err := strconv.ParseInt(billIdStr, 10, 64)
@@ -21,9 +23,11 @@ func (s *Server) getBillIdAndValidate(ctx context.Context, w http.ResponseWriter
 		return 0, err
 	}
 
-	if exists, err := s.db.BillExists(ctx, billId); !exists || err != nil {
+	if exists, err := s.db.BillExists(ctx, billId); !exists {
 		s.log.Error("Bill ID does not exist", "error", err)
 		refErr.NotFound(billId, "bill ID").WriteResponse(w)
+		return 0, pgx.ErrNoRows
+	} else if err != nil {
 		return 0, err
 	}
 
@@ -82,7 +86,6 @@ func (s *Server) handleBillUnfollow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// provider := &follow.UserFollowedBills{UserID: user.ID, BillID: billId}
 	filters := []repo.Filter{{Column: "user_id", Op: repo.Eq, Value: user.ID}, {Column: "bill_id", Op: repo.Eq, Value: billId}}
 
 	if err := s.db.Delete(ctx, follow.UserFollowedBills{}, filters...); err != nil {

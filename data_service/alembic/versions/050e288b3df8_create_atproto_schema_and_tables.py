@@ -9,6 +9,7 @@ Create Date: 2025-03-08 11:52:17.228780
 from typing import Sequence, Union
 
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import JSONB
 
 from alembic import op
 
@@ -28,8 +29,8 @@ def upgrade():
         sa.Column("email", sa.String(), nullable=True),
         sa.Column("hashed_password", sa.String(), nullable=True),
         sa.Column("handle", sa.String(), nullable=True),
-        sa.Column("created_at", sa.DateTime(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.Column("deleted_at", sa.DateTime(), nullable=True),
         sa.Column("recovery_key", sa.String(), nullable=True),
         sa.Column("did", sa.String(), nullable=True),
@@ -44,10 +45,8 @@ def upgrade():
     op.create_table(
         "pds",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column(
-            "created_at", sa.DateTime(), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")
-        ),
-        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.Column("deleted_at", sa.DateTime(), nullable=True),
         sa.Column("host", sa.String(), nullable=False),
         sa.Column("did", sa.String(), nullable=False),
@@ -78,10 +77,8 @@ def upgrade():
     op.create_table(
         "peering",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column(
-            "created_at", sa.DateTime(), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")
-        ),
-        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.Column("deleted_at", sa.DateTime(), nullable=True),
         sa.Column("host", sa.String(), nullable=False),
         sa.Column("did", sa.String(), nullable=False),
@@ -94,10 +91,8 @@ def upgrade():
     op.create_table(
         "citizen",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column(
-            "created_at", sa.DateTime(), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")
-        ),
-        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.Column("deleted_at", sa.DateTime(), nullable=True),
         sa.Column("uid", sa.Integer(), nullable=False),
         sa.Column("handle", sa.String(), nullable=False),
@@ -109,6 +104,7 @@ def upgrade():
         sa.Column("type", sa.String(), nullable=True),
         sa.Column("pds_id", sa.Integer(), nullable=True),
         sa.Column("valid_handle", sa.Boolean(), server_default="true", nullable=False),
+        sa.Column("settings", JSONB, nullable=True, default={}),
         sa.ForeignKeyConstraint(["did"], ["atproto.user.did"], name="fk_citizen_did"),
         sa.ForeignKeyConstraint(["pds_id"], ["atproto.pds.id"], name="fk_citizen_pds_id"),
         sa.PrimaryKeyConstraint("id"),
@@ -123,10 +119,8 @@ def upgrade():
     op.create_table(
         "activity_post",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column(
-            "created_at", sa.DateTime(), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")
-        ),
-        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.Column("deleted_at", sa.DateTime(), nullable=True),
         sa.Column("author", sa.Integer(), nullable=False),
         sa.Column("rkey", sa.String(), nullable=False),
@@ -149,10 +143,8 @@ def upgrade():
     op.create_table(
         "endorsement_record",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column(
-            "created_at", sa.DateTime(), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")
-        ),
-        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.Column("deleted_at", sa.DateTime(), nullable=True),
         sa.Column("vote_choice_id", sa.Integer(), nullable=False),
         sa.Column("voter", sa.Integer(), nullable=False),
@@ -173,10 +165,8 @@ def upgrade():
     op.create_table(
         "user_follow_record",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column(
-            "created_at", sa.DateTime(), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")
-        ),
-        sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.Column("deleted_at", sa.DateTime(), nullable=True),
         sa.Column("follower", sa.Integer(), nullable=False),
         sa.Column("target", sa.Integer(), nullable=False),

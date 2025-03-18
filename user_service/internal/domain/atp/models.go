@@ -2,6 +2,7 @@ package atp
 
 import (
 	"database/sql"
+	"encoding/json"
 	"time"
 
 	"github.com/bluesky-social/indigo/models"
@@ -42,7 +43,20 @@ func (f ActivityPost) TableName() string {
 	return "activity_post"
 }
 
+type Settings struct {
+	Deleted bool `db:"deleted" json:"deleted"`
+}
+
+func (u Settings) Marshal() ([]byte, error) {
+	return json.Marshal(u)
+}
+
+func (u *Settings) Unmarshal(data []byte) error {
+	return json.Unmarshal(data, u)
+}
+
 type Citizen struct {
+	Settings    *Settings      `db:"settings,omitempty" json:"-"`
 	Handle      sql.NullString `db:"handle,omitempty"`
 	DisplayName string         `db:"display_name,omitempty"`
 	Did         string         `db:"did,omitempty"`

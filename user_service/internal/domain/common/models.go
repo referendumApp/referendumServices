@@ -2,26 +2,12 @@ package common
 
 import (
 	"database/sql"
-	"encoding/json"
 	"time"
 
 	"github.com/bluesky-social/indigo/models"
 )
 
-type UserSettings struct {
-	Deleted bool `db:"deleted" json:"deleted"`
-}
-
-func (u UserSettings) Marshal() ([]byte, error) {
-	return json.Marshal(u)
-}
-
-func (u *UserSettings) Unmarshal(data []byte) error {
-	return json.Unmarshal(data, u)
-}
-
 type User struct {
-	Settings       *UserSettings `db:"settings,omitempty" json:"-"`
 	Name           string        `db:"name,omitempty" json:"name"`
 	Email          string        `db:"email,omitempty" json:"email"`
 	HashedPassword string        `db:"hashed_password,omitempty" json:"-"`

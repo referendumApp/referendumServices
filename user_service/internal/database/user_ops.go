@@ -12,16 +12,16 @@ import (
 
 func (d *Database) UserExists(ctx context.Context, field string, value any) (bool, error) {
 	var exists bool
-	sql := fmt.Sprintf("SELECT EXISTS(SELECT id FROM users WHERE %s = $1)", field)
+	sql := fmt.Sprintf("SELECT EXISTS(SELECT id FROM %s.user WHERE %s = $1)", d.schema, field)
 	err := d.pool.QueryRow(ctx, sql, value).Scan(&exists)
 	return exists, err
 }
 
 func (d *Database) AuthenticateUser(ctx context.Context, email string) (*common.User, error) {
 	var user common.User
-	sql := fmt.Sprintf("SELECT id, did, hashed_password, settings FROM %s WHERE email = $1", user.TableName())
+	sql := fmt.Sprintf("SELECT id, did, hashed_password FROM %s.%s WHERE email = $1", d.schema, user.TableName())
 
-	if err := d.pool.QueryRow(ctx, sql, email).Scan(&user.ID, &user.Did, &user.HashedPassword, &user.Settings); err != nil {
+	if err := d.pool.QueryRow(ctx, sql, email).Scan(&user.ID, &user.Did, &user.HashedPassword); err != nil {
 		return nil, err
 	}
 
@@ -30,7 +30,7 @@ func (d *Database) AuthenticateUser(ctx context.Context, email string) (*common.
 
 func (d *Database) AuthenticateHandle(ctx context.Context, user *common.User) (bool, error) {
 	var exists bool
-	sql := fmt.Sprintf("SELECT EXISTS(SELECT id FROM %s WHERE email != $1 AND handle = $2)", user.TableName())
+	sql := fmt.Sprintf("SELECT EXISTS(SELECT id FROM %s.%s WHERE email != $1 AND handle = $2)", d.schema, user.TableName())
 	err := d.pool.QueryRow(ctx, sql, user.Email, user.Handle).Scan(&exists)
 
 	return exists, err

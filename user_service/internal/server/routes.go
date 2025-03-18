@@ -26,14 +26,14 @@ func (s *Server) setupRoutes() {
 		encode(w, http.StatusOK, resp)
 	})
 
-	s.mux.Route("/xrpc/users", func(r chi.Router) {
+	s.mux.Route("/xrpc", func(r chi.Router) {
 		r.Route("/auth", func(r chi.Router) {
 			r.Post("/signup", s.handleSignUp)
 			r.Post("/login", s.handleLogin)
 			r.Post("/refresh", s.handleRefresh)
 		})
 
-		r.Route("/bills", func(r chi.Router) {
+		r.Route("/users/bills", func(r chi.Router) {
 			r.Use(s.authorizeUser)
 
 			r.Get("/", s.handleUserFollowedBills)
