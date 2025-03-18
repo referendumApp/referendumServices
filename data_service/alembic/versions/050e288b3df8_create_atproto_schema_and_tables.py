@@ -88,6 +88,7 @@ def upgrade():
         sa.Column("approved", sa.Boolean(), nullable=False),
         sa.ForeignKeyConstraint(["did"], ["atproto.user.did"], name="fk_peering_did"),
         sa.PrimaryKeyConstraint("id"),
+        schema="atproto",
     )
 
     op.create_table(
