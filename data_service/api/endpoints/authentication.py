@@ -205,9 +205,9 @@ def verify_google_token(id_token: str, http_request: Request):
     platform = detect_mobile_platform(http_request.headers.get("x-platform", ""))
     try:
         client_id = (
-            os.getenv("GOOGLE_CLOUD_IOS_CLIENT_ID")
+            os.getenv("GOOGLE_IOS_CLIENT_ID")
             if platform == "ios"
-            else os.getenv("GOOGLE_CLOUD_ANDROID_CLIENT_ID")
+            else os.getenv("GOOGLE_ANDROID_CLIENT_ID")
         )
         google_jwt = verify_oauth2_token(
             id_token,
