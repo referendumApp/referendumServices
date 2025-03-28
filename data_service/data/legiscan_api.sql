@@ -1156,9 +1156,11 @@ COPY public.ls_bill (bill_id, state_id, session_id, body_id, current_body_id, bi
 1642421	52	2041	115	115	2	SR7	1	2023-01-03	A resolution fixing the hour of daily meeting of the Senate.	A resolution fixing the hour of daily meeting of the Senate.	0	https://legiscan.com/US/bill/SR7/2023	https://www.congress.gov/bill/118th-congress/senate-resolution/7/all-info	847175daddcebe2a79ca1f1e5555d26c	2024-09-29 22:58:20	2024-09-29 22:58:20
 1642389	52	2041	115	115	2	SR9	1	2023-01-03	A resolution to make effective appointment of Deputy Senate Legal Counsel.	A resolution to make effective appointment of Deputy Senate Legal Counsel.	0	https://legiscan.com/US/bill/SR9/2023	https://www.congress.gov/bill/118th-congress/senate-resolution/9/all-info	32fa325baaf8d0d3475291b43e14d920	2024-09-29 22:58:20	2024-09-29 22:58:20
 1741372	52	2041	114	114	1	HB1	1	2023-03-14	Lower Energy Costs Act TAPP American Resources Act Water Quality Certification and Energy Project Improvement Act of 2023 Transparency, Accountability, Permitting, and Production of American Resources Act	To lower energy costs by increasing American energy production, exports, infrastructure, and critical minerals processing, by promoting transparency, accountability, permitting, and production of American resources, and by improving water quality certification and energy projects, and for other purposes.	0	https://legiscan.com/US/bill/HB1/2023	https://www.congress.gov/bill/118th-congress/house-bill/1/all-info	5db9f4c551f54eecfce1768f5e0bac1b	2024-09-29 20:54:53	2024-09-29 20:54:53
-1724917	52	2041	114	115	1	HB5	2	2023-03-27	Parents Bill of Rights Act	To ensure the rights of parents are honored and protected in the Nation's public schools.	2328	https://legiscan.com/US/bill/HB5/2023	https://www.congress.gov/bill/118th-congress/house-bill/5/all-info	b81d99d571318fbddf0cef958366a269	2024-09-29 20:56:02	2024-09-29 20:56:02
+1724917	52	2041	114	115	1	HB5	2	2023-03-27	Parents Bill of Rights Act	To ensure the rights of parents are honored and protected in the Nations public schools.	2328	https://legiscan.com/US/bill/HB5/2023	https://www.congress.gov/bill/118th-congress/house-bill/5/all-info	b81d99d571318fbddf0cef958366a269	2024-09-29 20:56:02	2024-09-29 20:56:02
+1754804	32	2031	73	73	1	A06488	1	2023-04-11	Establishes	Establishes.	0	https://legiscan.com/NY/bill/A06488/2023	https://www.nysenate.gov/legislation/bills/2023/A6488	b81d99d571318fbddf0cef958366a269	2024-09-29 20:56:02	2024-09-29 20:56:02
 \.
 
+-- 1754804 32  2031    73  73  1   A06488  1   2023-04-11  Establishes Establishes 0   https://legiscan.com/NY/bill/A06488/2023    https://www.nysenate.gov/legislation/bills/2023/A6488   25aa765fbab45e98005c38fed6777f3b    2025-02-25 00:24:54 2025-02-25 00:24:54
 
 --
 -- Data for Name: ls_bill_amendment; Type: TABLE DATA; Schema: public; Owner: legiscan_api
@@ -1497,6 +1499,7 @@ COPY public.ls_bill_vote (roll_call_id, bill_id, roll_call_body_id, roll_call_da
 1284914	1724917	114	2023-03-24	On Passage RC# 161	213	208	0	14	435	1	https://legiscan.com/US/rollcall/HB5/id/1284914	https://clerk.house.gov/Votes/2023161	2024-09-29 21:51:36.159335	2024-09-29 20:56:02
 1284909	1724917	114	2023-03-24	On Agreeing to the Amendment RC# 156	161	265	0	15	441	0	https://legiscan.com/US/rollcall/HB5/id/1284909	https://clerk.house.gov/Votes/2023156	2024-09-29 21:51:26.871597	2024-09-29 20:56:02
 1284911	1724917	114	2023-03-24	On Agreeing to the Amendment RC# 158	113	311	0	16	440	0	https://legiscan.com/US/rollcall/HB5/id/1284911	https://clerk.house.gov/Votes/2023158	2024-09-29 21:51:30.873667	2024-09-29 20:56:02
+1340479	1754804	73	2023-06-07	Assembly Rules Committee: Favorable 	19	9	0	3	31	1	https://legiscan.com/NY/rollcall/A06488/id/1340479	https://assembly.state.ny.us/leg/?default_fld=&bn=A06488	2024-09-29 21:51:30.873667	2024-09-29 20:56:02
 \.
 
 
@@ -1505,6 +1508,7 @@ COPY public.ls_bill_vote (roll_call_id, bill_id, roll_call_body_id, roll_call_da
 --
 
 COPY public.ls_bill_vote_detail (roll_call_id, people_id, vote_id) FROM stdin;
+1340479	1339	1
 1290285	8955	1
 1290285	8957	1
 1290285	8963	4
@@ -8387,6 +8391,7 @@ COPY public.ls_party (party_id, party_abbr, party_short, party_name) FROM stdin;
 --
 
 COPY public.ls_people (people_id, state_id, role_id, party_id, name, first_name, middle_name, last_name, suffix, nickname, district, committee_sponsor_id, ballotpedia, followthemoney_eid, votesmart_id, knowwho_pid, opensecrets_id, person_hash, updated, created) FROM stdin;
+1339	32	1	1	William Magnarelli	William	B.	Magnarelli			HD-129	0	William_Magnarelli	5573324	23183	197772		zwlkqufs	2025-03-05 22:27:05.529761	2025-02-25 00:12:28.000000
 9209	52	1	2	Gus Bilirakis	Gus	M.	Bilirakis			HD-FL-12	0	Gus_Bilirakis	12998704	17318	193559	N00027462	nnqnietk	2024-09-29 21:51:08.645968	2024-09-29 20:54:53
 9216	52	1	2	Robert Latta	Robert	E.	Latta			HD-OH-5	0	Bob_Latta	3428798	9926	209172	N00012233	lkizgzxc	2024-09-29 21:51:08.667686	2024-09-29 20:54:53
 9217	52	1	2	Tom McClintock	Tom		McClintock			HD-CA-5	0	Tom_McClintock	2481759	9715	193067	N00006863	gnqvmela	2024-09-29 21:51:08.674829	2024-09-29 20:54:53
@@ -9032,6 +9037,7 @@ COPY public.ls_sast_type (sast_id, sast_description) FROM stdin;
 
 COPY public.ls_session (session_id, state_id, year_start, year_end, prefile, sine_die, prior, special, session_name, session_title, session_tag, import_date, import_hash) FROM stdin;
 2041	52	2023	2024	0	0	0	0	118th Congress	2023-2024 Regular Session	Regular Session	2024-09-29	4b1509ea9155f2bc43721b210416f84e
+2031	32	2023	2024	0	0	0	0	2023-2024 General Assembly	2023-2024 Regular Session	Regular Session	2024-09-29	4b1509ea9155f2bc43721b210416f84e
 \.
 
 
