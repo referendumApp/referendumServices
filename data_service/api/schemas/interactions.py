@@ -84,7 +84,7 @@ class BillSortingOptions(NoNullOptions):
 class BillPaginationRequestBody(BasePaginationRequestBody):
     filter_options: Optional[BillFilterOptions] = None
     order_by: Optional[BillSortingOptions] = None
-    federal_only: Optional[bool] = True
+    federal_only: Optional[bool] = False
 
 
 ####################
@@ -119,7 +119,7 @@ class LegislatorSortingOptions(NoNullOptions):
 class LegislatorPaginationRequestBody(BasePaginationRequestBody):
     filter_options: Optional[LegislatorFilterOptions] = None
     order_by: Optional[LegislatorSortingOptions] = None
-    federal_only: Optional[bool] = True
+    federal_only: Optional[bool] = False
 
 
 ####################
