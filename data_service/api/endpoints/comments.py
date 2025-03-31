@@ -91,11 +91,11 @@ async def create_comment(
 
     evaluation_result = await llm_service.generate_response(
         system_prompt=moderation_system_prompt,
-        user_prompt=comment.text,
+        user_prompt=comment.comment,
     )
     evaluation = evaluation_result.strip().upper()
     logger.info(
-        f"Comment moderation: User {user.id} | Result: {evaluation_result} | Text: {comment.text[:100]}..."
+        f"Comment moderation: User {user.id} | Result: {evaluation_result} | Text: {comment.comment[:100]}..."
     )
 
     if evaluation in {"yellow", "red"}:
@@ -115,7 +115,7 @@ async def create_comment(
                 },
                 "Body": {
                     "Text": {
-                        "Data": f"{user_info}\nEvaluation: {evaluation}\nComment: {comment.text}\n\nTimestamp: {datetime.now().isoformat()}"
+                        "Data": f"{user_info}\nEvaluation: {evaluation}\nComment: {comment.comment}\n\nTimestamp: {datetime.now().isoformat()}"
                     },
                 },
             },
@@ -124,14 +124,14 @@ async def create_comment(
         logger.info(f"Moderation alert email sent for {evaluation} comment from user {user.id}")
 
     if evaluation == "red":
-        logger.warning(f"Blocked comment from user {user.id}: {comment.text}")
+        logger.warning(f"Blocked comment from user {user.id}: {comment.comment}")
         raise HTTPException(
             status_code=400,
             detail="This comment was blocked because it doesn't meet our community standards for constructive discussion.",
         )
 
     if evaluation == "yellow":
-        logger.info(f"Flagged comment from user {user.id} for review: {comment.text}")
+        logger.info(f"Flagged comment from user {user.id} for review: {comment.comment}")
 
     return crud.comment.create(db=db, obj_in=comment)
 
