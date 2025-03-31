@@ -1,172 +1,86 @@
-# Referendum Services
+# Monorepo for Referendum ATP and Data Service
 
-Backend infrastructure for the Referendum mobile app
+This repository contains two primary services for the application:
 
-## 🚀 Quick Start
+1. **Go Service**: Implements the **Authenticated Transfer Protocol (ATP)** for user events and data repositories.
+2. **Python Service**: Provides the **data layer**, handling database interactions and data processing for the application.
 
-1. **Prerequisites**
-   - Docker and Docker Compose
-   - Python 3.11+
-   - [Referendum AWS Account](https://d-9a677b7194.awsapps.com/start)
-   - AWS CLI configured with SSO access
+## Directory Structure
 
-2. **Setup**
+- `user_service/`: Contains the Go implementation of the Authenticated Transfer Protocol. See the [README](./user_service/README.md) in this directory for more details.
+- `data_service/`: Contains the Python implementation of the data layer. See the [README](./data_service/README.md) in this directory for more details.
+
+Each service includes its own documentation, dependencies, and setup instructions.
+
+## Prerequisites
+
+### Go
+
+1. Download and install Go from the [official Go website](https://go.dev/dl/).
+2. Follow the instructions for your operating system to complete the installation.
+3. Verify the installation:
    ```bash
-   # Clone and setup
-   git clone [repository-url]
-   cd referendum-services
-   cp .env.example .env
-   
-   # Configure AWS SSO (if not already done)
-   aws configure sso
-   
-   # Start services
-   make local  # with sample data including test bills and users
-   # OR
-   make empty  # clean start without sample data
+   go version
+   ```
+4. Install project dependencies:
+   ```bash
+   cd ./user_service && go mod tidy
+   ```
+5. Install [golangci-lint](https://golangci-lint.run/welcome/install/#local-installation)
+
+### Python and UV
+
+1. Download and install Python
+
+   - **Linux (Using `pyenv`)**:
+
+   ```bash
+   sudo apt update
+   sudo apt install -y build-essential zlib1g-dev libssl-dev libncurses5-dev libnss3-dev libreadline-dev libffi-dev curl
+   curl https://pyenv.run | bash
+   pyenv install 3.11.4
+   pyenv global 3.11.4
    ```
 
-3. **Access Points**
-   - API: http://localhost:80 (main service endpoint)
-   - API Documentation: 
-     - Swagger UI: http://localhost:80/docs (interactive API testing)
-     - Redoc: http://localhost:80/redoc (detailed API documentation)
-   - MinIO Console: http://localhost:9001 (S3-compatible storage interface)
-   - Database: localhost:5432 (PostgreSQL)
+   - **macOS (Using `brew`)**:
 
-## 🏗 Architecture
+   ```bash
+   brew install python@3.11
+   ```
 
-### 1. API Service
-- FastAPI application handling all client requests
-- Features:
-  - JWT-based user authentication and role-based authorization
-  - RESTful endpoints for legislative data and user interactions
-  - Swagger/OpenAPI documentation
+   - **Windows**:
 
-### 2. ETL Pipeline
-- Weekly automated data synchronization from Legiscan
-- Text processing pipeline
+   Download the installer from the [official Python website](https://www.python.org/downloads/release/python-3114/).
 
-### 3. Infrastructure
-- **Database Layer**:
-  - PostgreSQL 14+ for structured data
-  - RDS for deployed system
-- **Storage Layer**:
-  - S3 buckets for bill texts and attachments
-  - MinIO for local development
-- **AWS Deployment**:
-  - EC2 for compute resources
-  - ECR for container registry
-  - ECS for container orchestration
-  - CloudWatch for monitoring and logging
+2. Install UV
 
-## ⚙️ Configuration
-
-### Environment Variables
 ```bash
-# Application Settings
-ENVIRONMENT=                # local/dev/prod
-LOG_LEVEL=                  # DEBUG/INFO/WARNING/ERROR
-
-# Database Configuration
-POSTGRES_HOST=              # Database hostname
-POSTGRES_PORT=              # Database port (default: 5432)
-POSTGRES_USER=              # Database username
-POSTGRES_PASSWORD=          # Database password
-REFERENDUM_DB_NAME=         # Main application database name
-LEGISCAN_API_DB_NAME=       # Legiscan sync database name
-
-# Authentication
-SECRET_KEY=                 # JWT signing key (min 32 chars)
-API_ACCESS_TOKEN=           # API gateway access token
-
-# AWS/S3 Configuration
-AWS_REGION=                 # AWS region (default: us-west-2)
-S3_ACCESS_KEY=              # S3/MinIO access key
-S3_SECRET_KEY=              # S3/MinIO secret key
-BILL_TEXT_BUCKET_NAME=      # S3 bucket for bill texts
+python -m pip install --upgrade pip
+python -m pip install uv
 ```
 
-## 🛠 Development
+3. Install project dependencies:
 
-### Code Quality
+```bash
+uv pip install --all-extras --requirements ./data_service/pyproject.toml
+```
+
+## Code Quality
+
 ```bash
 # Install and configure pre-commit hooks
 pip install pre-commit
 pre-commit install
 
 # Manual code formatting
-black .
+gofmt -w ./user_service
+black ./data_service
 # Generate API documentation
 make docs
 ```
 
-### Testing
-```bash
-# Run all tests
-make test
-```
+## Monitoring
 
-### Local Development Tips
-- 
-
-## 🔄 Data Pipeline
-
-ETL pipeline for Legiscan data synchronization and processing.
-
-### Pipeline Stages
-1. **Fetch**: Download updates from Legiscan API
-2. **Transform**: Process and normalize data
-3. **Load**: Update database records to Referendum DB
-4. **Text Processing**: Extract and index bill texts
-
-### Manual Execution
-```bash
-# Local execution with debug logging
-make pipeline
-
-# AWS execution with environment selection
-gh workflow run run_pipeline.yml -f environment=<environment>
-```
-
-## 📦 Deployment
-
-### Environments
-
-| Environment | Config Location | Image Tags | Auto Deploy | Usage |
-|-------------|-----------------|------------|-------------|--------|
-| Development | `/dev/` in SSM | `dev-${SHA}`, `dev-stable` | On PR merge | Testing & QA |
-| Production  | `/prod/` in SSM | `prod-${SHA}`, `prod-stable` | Manual | Live service |
-
-### Deployment Steps
-
-1. **Build and Deploy**
-   ```bash
-   # Automatic deployment on main branch push (prod)
-   
-   # Manual deployment to dev:
-   gh workflow run deploy.yml -f environment=dev
-   
-   # Manual deployment to prod:
-   gh workflow run deploy.yml -f environment=prod
-   ```
-
-2. **Database Migration**
-   ```bash
-   # Apply migrations
-   gh workflow run migration.yml \
-     -f environment=dev \
-     -f operation=upgrade \
-     -f version=head
-   
-   # Rollback if needed
-   gh workflow run migration.yml \
-     -f environment=dev \
-     -f operation=downgrade \
-     -f version=-1
-   ```
-
-### Monitoring
 - CloudWatch for logging
 - UptimeRobot monitoring for Prod and Dev APIs
 
@@ -183,7 +97,8 @@ gh workflow run run_pipeline.yml -f environment=<environment>
 ## 🤝 Contributing
 
 1. **Branch Naming**
-   -  `<author>/<description>`
+
+   - `<author>/<description>`
 
 2. **Development Process**
    - Create branch from `main`
@@ -191,3 +106,7 @@ gh workflow run run_pipeline.yml -f environment=<environment>
    - Ensure all tests pass
    - Update documentation if needed
    - Submit PR for review
+
+---
+
+For further details, navigate to the respective subdirectory and refer to the README file.

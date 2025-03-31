@@ -1,7 +1,7 @@
 services:
   api-base:
     build:
-      context: .
+      context: ./data_service
       target: api
     env_file: .env
     ports:
@@ -27,7 +27,7 @@ services:
     extends:
       service: api-base
     build:
-      context: .
+      context: ./data_service
       target: api-local
     depends_on:
       db:
@@ -40,9 +40,52 @@ services:
       - "5678:5678"  # debugger port
       - "6000:6000"  # pytest debugger port
     volumes:
-      - ./api:/code/api  # mount the api and common directory
-      - ./common:/code/common
+      - ./data_service/api:/code/api  # mount the api and common directory
+      - ./data_service/common:/code/common
     command: ["python", "-m", "debugpy", "--listen", "0.0.0.0:5678", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
+    profiles: ["local-data", "local-empty"]
+
+  user-api-base:
+    build:
+      context: ./user_service
+      target: base
+    env_file: .env
+    profiles: ["base"]
+
+  user-api:
+    container_name: user-api
+    extends: 
+      service: user-api-base
+    build:
+      context: ./user_service
+      target: user-prod
+    ports:
+      - "80:80"
+    profiles: ["atp"]
+
+  user-api-local:
+    container_name: user-api-local
+    extends: 
+      service: user-api-base
+    build:
+      context: ./user_service
+      target: user-local
+    environment:
+      - CGO_ENABLED=1
+      - GOOS=linux
+      - GOARCH=amd64
+    depends_on:
+      db:
+        condition: service_healthy
+      local-db-init:
+        condition: service_completed_successfully
+      migrations:
+        condition: service_completed_successfully
+    volumes:
+      - ./user_service/cmd:/code/cmd
+      - ./user_service/internal:/code/internal
+    ports:
+      - "8080:80"
     profiles: ["local-data", "local-empty"]
 
   db:
@@ -92,7 +135,7 @@ services:
   local-db-init:
     container_name: local_db_init
     build:
-      context: .
+      context: ./data_service
       target: local-db-init
     env_file: .env
     depends_on:
@@ -105,7 +148,7 @@ services:
 
   migrations:
     build:
-      context: .
+      context: ./data_service
       target: migrations
     env_file: .env
     command: ["alembic", "upgrade", "head"]
@@ -119,7 +162,7 @@ services:
   pipeline:
     container_name: pipeline
     build:
-      context: .
+      context: ./data_service
       target: pipeline
     depends_on:
       db:
@@ -136,7 +179,7 @@ services:
   test:
     container_name: test
     build:
-      context: .
+      context: ./data_service
       target: test
     depends_on:
       db:

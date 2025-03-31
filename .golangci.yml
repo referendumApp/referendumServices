@@ -1,0 +1,91 @@
+run:
+  timeout: 5m
+  tests: true
+  modules-download-mode: readonly
+
+# Output configuration
+output:
+  print-issued-lines: true
+  print-linter-name: true
+  sort-results: true
+
+# Linters to enable
+linters:
+  enable:
+    - gofmt  # Checks if the code is formatted according to 'gofmt' command
+    - goimports  # Formats imports and adds missing imports
+    - govet  # Checks for subtle bugs and suspicious constructs that might not be caught by the compiler
+    - staticcheck  # Static analyzer that finds bugs, performance issues, and stylistic problems
+    - revive  # Replaces golint but with additional customization options
+    - errcheck  # Ensures that error returns from functions are checked
+    - ineffassign  # Detects when assignments to variables are never used
+    - gosimple  # Suggests code simplifications for better readability
+    - goconst  # Finds repeated strings that could be replaced with constants
+    - misspell  # Finds commonly misspelled English words in comments
+    - gosec  # Scans code for security vulnerabilities
+    - unused  # Checks for unused variables, functions, constants, and types
+    - errchkjson  # Checks types passed to the json encoding functions
+    - bodyclose  # Checks whether HTTP response body is closed successfully
+    - sqlclosecheck  # Checks that sql.Rows, sql.Stmt, sqlx.NamedStmt, pgx.Query are closed
+    - whitespace  # Whitespace is a linter that checks for unnecessary newlines at the start and end of functions, if, for, etc
+
+# Linter settings
+linters-settings:
+  govet:
+    enable:
+      - assign  # Check for useless assignments
+      - bools  # Check for common mistakes involving boolean operators
+      - buildtag  # Check //go:build and // +build directives
+      - defers  # Report common mistakes in defer statements
+      - httpresponse  # Check for mistakes using HTTP responses
+      - nilfunc  # Check for useless comparisons between functions and nil
+      - nilness  # Check for redundant or impossible nil comparisons
+      - shadow  # Check for possible unintended shadowing of variables
+      - stringintconv  # Check for string(int) conversions
+      - testinggoroutine  # Report calls to (*testing.T).Fatal from goroutines started by a test
+      - tests  # Check for common mistaken usages of tests and examples
+      - unmarshal  # Report passing non-pointer or non-interface values to unmarshal
+      - unreachable  # Check for unreachable code
+      - unsafeptr  # Check for invalid conversions of uintptr to unsafe.Pointer
+      - unusedresult  # Check for unused results of calls to some functions
+      - waitgroup  # Check for misuses of sync.WaitGroup
+  goimports:
+    local-prefixes: github.com/referendumApp/referendumServices
+  revive:
+    rules:
+      - name: exported
+        severity: warning
+        disabled: false
+  errcheck:
+    check-type-assertions: true
+    exclude-functions:
+      - encoding/json.Marshal
+      - encoding/json.MarshalIndent
+  errchkjson:
+    check-error-free-encoding: true
+  goconst:
+    min-occurrences: 3
+
+# Issues configuration
+issues:
+  exclude-dirs:
+    - vendor
+    - testdata
+  exclude-files:
+    - ".*_test\\.go$"
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  fix: false # Set to true to automatically fix issues when possible
+
+# Issues configuration
+severity:
+  default-severity: error
+  case-sensitive: false
+  rules:
+    - linters: [revive]
+      severity: warning

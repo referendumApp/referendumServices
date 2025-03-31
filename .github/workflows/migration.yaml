@@ -7,10 +7,18 @@ on:
         description: 'Environment to run migration on (prod/dev)'
         required: true
         default: 'dev'
+        type: 'choice'
+        options:
+          - dev
+          - prod
       operation:
         description: 'Migration operation (upgrade/downgrade)'
         required: true
         default: 'upgrade'
+        type: 'choice'
+        options:
+          - upgrade
+          - downgrade
       version:
         description: 'Migration version (e.g., head, base, or specific revision)'
         required: true
@@ -19,6 +27,10 @@ on:
         description: 'ECR image tag to use (e.g., dev-stable, prod-stable)'
         required: true
         default: 'dev-stable'
+        type: 'choice'
+        options:
+          - dev-stable
+          - prod-stable
 
 env:
   AWS_REGION: us-east-2

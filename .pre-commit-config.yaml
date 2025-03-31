@@ -1,6 +1,39 @@
 repos:
+  - repo: local
+    hooks:
+      - id: go-mod-tidy
+        name: go mod tidy
+        language: system
+        entry: sh -c "cd user_service && go mod tidy"
+        files: ^user_service/.*\.go$
+        pass_filenames: false
+
+  - repo: local
+    hooks:
+      - id: go-vet
+        name: go vet
+        language: system
+        entry: sh -c "cd user_service && go vet ./..."
+        files: ^user_service/.*\.go$
+        pass_filenames: false
+
+  - repo: local
+    hooks:
+      - id: golangci-lint
+        name: golangci-lint
+        entry: bash -c 'cd user_service && golangci-lint run ./...'
+        language: system
+        files: ^user_service/.*\.go$
+        pass_filenames: false
+
+  - repo: https://github.com/dnephin/pre-commit-golang
+    rev: v0.5.1
+    hooks:
+      - id: go-fmt
+        files: ^user_service/.*\.go$
+
   - repo: https://github.com/psf/black
-    rev: 23.12.1
+    rev: 25.1.0
     hooks:
       - id: black
         args:
@@ -13,3 +46,4 @@ repos:
             build|
             dist"""
         language_version: python3.11
+        files: ^data_service/

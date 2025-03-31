@@ -1,0 +1,58 @@
+name: Run Data Service Tests
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "data_service/**"
+      - ".github/workflows/data_service_test.yml"
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "data_service/**"
+      - ".github/workflows/data_service_test.yml"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install black
+
+    - name: Run black
+      run: black ./data_service --check --line-length=100
+
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Build test containers
+      run: |
+        docker compose --profile test build
+
+    - name: Run API Tests
+      run: |
+        docker compose --profile test run --rm test pytest api/ common/
+
+    - name: Clean up after API tests
+      if: always()
+      run: docker compose --profile test down
+    - name: Run Pipeline Tests
+      run: |
+        docker compose --profile test build
+        docker compose --profile test run --rm test pytest pipeline/
+
+    - name: Final cleanup
+      if: always()
+      run: docker compose --profile test down
