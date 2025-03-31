@@ -1,5 +1,6 @@
+import boto3
 import logging
-
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Dict, Any
@@ -70,16 +71,41 @@ async def create_comment(
 
     # LLM moderation system
     llm_service = LLMService()
-    evaluation = await llm_service.generate_response(
-        system_prompt="Evaluate this comment as 'green' (allowed), 'yellow' (flagged for review), or 'red' (blocked). "
-        "Provide only the classification in response.",
+
+    moderation_system_prompt = """
+    You are a fair and objective content moderator for a political discussion platform designed to foster productive conversations.
+
+    Your task is to evaluate comments and classify them as:
+    - 'green': unproblematic
+    - 'yellow': borderline problematic and require human review. May contain subtle personal attacks, potential misinformation that requires fact-checking, misleading framing of issues, dogwhistles, or excessive partisan rhetoric
+    - 'red': Comments that clearly violate community standards and should be blocked. These include hate speech, clear personal attacks, obvious misinformation, incitement to violence, threats, doxxing, or spam.
+    Guidelines for evaluation:
+    1. Respect diverse political viewpoints 
+    2. Focus on the tone and substance rather than the political position
+    3. Allow criticism of policies, politicians, and political parties when expressed constructively
+    4. Distinguish between passionate debate (allowed) and personal attacks (not allowed)
+    5. Identify inflammatory content designed to provoke rather than discuss
+
+    Reply with only 'green', 'yellow', or 'red' as your classification.
+    """
+
+    evaluation_result = await llm_service.generate_response(
+        system_prompt=moderation_system_prompt,
         user_prompt=comment.text,
     )
+    evaluation = evaluation_result.strip().upper()
+    logger.info(
+        f"Comment moderation: User {user.id} | Result: {evaluation_result} | Text: {comment.text[:100]}..."
+    )
 
-    evaluation = evaluation.strip().lower()
-
-    # Send email if comment is flagged or blocked
     if evaluation in {"yellow", "red"}:
+        user_info = f"User ID: {user.id}"
+        if hasattr(user, "username"):
+            user_info += f", Username: {user.username}"
+        if hasattr(user, "email"):
+            user_info += f", Email: {user.email}"
+
+        ses = boto3.client("ses", region_name=settings.AWS_REGION)
         ses.send_email(
             Source="admin@referendumapp.com",
             Destination={"ToAddresses": ["moderation@referendumapp.com"]},
@@ -89,7 +115,7 @@ async def create_comment(
                 },
                 "Body": {
                     "Text": {
-                        "Data": f"User ID: {user.id}, Evaluation: {evaluation}, Comment: {comment.text}"
+                        "Data": f"{user_info}\nEvaluation: {evaluation}\nComment: {comment.text}\n\nTimestamp: {datetime.now().isoformat()}"
                     },
                 },
             },
@@ -100,7 +126,8 @@ async def create_comment(
     if evaluation == "red":
         logger.warning(f"Blocked comment from user {user.id}: {comment.text}")
         raise HTTPException(
-            status_code=400, detail="This comment was blocked due to inappropriate content."
+            status_code=400,
+            detail="This comment was blocked because it doesn't meet our community standards for constructive discussion.",
         )
 
     if evaluation == "yellow":
