@@ -23,6 +23,7 @@ from ._core import EndpointGenerator, handle_crud_exceptions, handle_general_exc
 logger = logging.getLogger(__name__)
 router = APIRouter()
 session_manager = BillChatSessionManager(
+    openai_api_key=settings.OPENAI_API_KEY,
     max_bill_length=settings.MAX_BILL_LENGTH_WORDS,
     session_timeout_seconds=settings.CHAT_SESSION_TIMEOUT_SECONDS,
 )
@@ -90,7 +91,7 @@ async def get_bill_briefing(
             bucket=settings.BILL_TEXT_BUCKET_NAME, key=f"{bill_version.hash}.txt"
         ).decode("utf-8")
 
-        llm_service = LLMService()
+        llm_service = LLMService(openai_api_key=settings.OPENAI_API_KEY)
         system_prompt = (
             "You are an expert in analyzing legislative bills and communicating them to the public. "
             "Please provide a clear, concise summary of the following bill for the average american citizen. "
