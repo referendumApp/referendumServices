@@ -47,7 +47,6 @@ router = APIRouter()
 @handle_crud_exceptions("comment")
 async def create_comment(
     comment: schemas.Comment.Base,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ) -> models.Comment:
@@ -81,19 +80,18 @@ async def create_comment(
 
     # Send email if comment is flagged or blocked
     if evaluation in {"yellow", "red"}:
-        email_body = json.dumps(
-            {"User ID": user.id, "Evaluation": evaluation, "Comment": comment.text}, indent=2
-        )
-
-        background_tasks.add_task(
-            ses.send_email,
+        ses.send_email(
             Source="admin@referendumapp.com",
             Destination={"ToAddresses": ["moderation@referendumapp.com"]},
             Message={
                 "Subject": {
                     "Data": f"Moderation Alert: {evaluation.capitalize()} Comment Detected"
                 },
-                "Body": {"Text": {"Data": email_body}},
+                "Body": {
+                    "Text": {
+                        "Data": f"User ID: {user.id}, Evaluation: {evaluation}, Comment: {comment.text}"
+                    },
+                },
             },
         )
 
