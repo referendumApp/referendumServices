@@ -225,6 +225,7 @@ class Legislator(Base):
     instagram = Column(String)
     phone = Column(String)
     twitter = Column(String)
+    followthemoney_eid = Column(String)
 
     legislator_votes = relationship("LegislatorVote", back_populates="legislator")
     party = relationship("Party")

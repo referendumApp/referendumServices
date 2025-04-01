@@ -62,9 +62,7 @@ async def test_list_legislators_filter(
     assert len(legislators["items"]) == expected_length
     for legislator in legislators["items"]:
         assert legislator["name"] in expected_names
-        assert legislator["followthemoneyUrl"].startswith(
-            "https://www.followthemoney.org/entity-details?eid="
-        )
+        assert legislator["followthemoneyEid"]
 
 
 async def test_invalid_list_legislators_filter(test_manager: TestManager):

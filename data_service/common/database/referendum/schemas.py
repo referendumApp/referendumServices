@@ -119,6 +119,7 @@ Legislator = create_schema_container(
         "instagram": (Optional[str], None),
         "phone": (Optional[str], None),
         "twitter": (Optional[str], None),
+        "followthemoney_eid": (Optional[str], None),
     },
     relationship_fields={
         "committees": (List[Committee.Record], []),
