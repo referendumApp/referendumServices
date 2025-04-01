@@ -234,7 +234,7 @@ class TestManager:
             {
                 "legiscanId": str(random.randint(100, 99999)),
                 "name": name or f"Legislator_{generate_random_string()}",
-                "image_url": f"https://example.com/{generate_random_string()}.jpg",
+                "imageUrl": f"https://example.com/{generate_random_string()}.jpg",
                 "district": f"D-{random.randint(1, 99)}",
                 "address": "123 Capitol St",
                 "partyId": party_id,
@@ -288,8 +288,8 @@ class TestManager:
                 "legislativeBodyId": legislative_body_id,
                 "sessionId": session_id,
                 "statusId": status_id,
-                "status_date": "2024-01-01",
-                "current_version_id": None,
+                "statusDate": "2024-01-01",
+                "currentVersionId": None,
             },
         )
 

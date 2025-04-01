@@ -134,7 +134,7 @@ async def test_update_legislator_not_found(test_manager: TestManager):
         "id": DEFAULT_ID * 2,
         "legiscanId": str(DEFAULT_ID * 2),
         "name": "Anti-John Doe",
-        "image_url": "example.com/image.png",
+        "imageUrl": "example.com/image.png",
         "district": "ED-1",
         "address": "999 Senate Office Building Washington, DC 20510",
         "instagram": "@senantijohndoe",
