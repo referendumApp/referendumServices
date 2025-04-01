@@ -94,7 +94,7 @@ async def create_comment(
         )
         evaluation = evaluation_result.strip().lower()
         logger.info(
-            f"Comment moderation: User {user.id} | Result: {evaluation} | Text: {comment.comment[:100]}..."
+            f"Comment moderation: User {user.id} | Result: {evaluation} | Text: {comment.comment[:100]}{('...' if len(comment.comment) > 100 else '')}"
         )
 
         if evaluation in {"yellow", "red"}:
