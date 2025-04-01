@@ -70,7 +70,6 @@ async def create_comment(
         )
 
     if settings.ENVIRONMENT != "local":
-        # LLM moderation system
         llm_service = LLMService(settings.OPENAI_API_KEY)
         moderation_system_prompt = """
         You are a fair and objective content moderator for a political discussion platform designed to foster productive conversations.
@@ -93,9 +92,9 @@ async def create_comment(
             system_prompt=moderation_system_prompt,
             user_prompt=comment.comment,
         )
-        evaluation = evaluation_result.strip().upper()
+        evaluation = evaluation_result.strip().lower()
         logger.info(
-            f"Comment moderation: User {user.id} | Result: {evaluation_result} | Text: {comment.comment[:100]}..."
+            f"Comment moderation: User {user.id} | Result: {evaluation} | Text: {comment.comment[:100]}..."
         )
 
         if evaluation in {"yellow", "red"}:
