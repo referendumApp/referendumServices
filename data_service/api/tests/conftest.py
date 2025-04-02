@@ -240,6 +240,7 @@ class TestManager:
                 "partyId": party_id,
                 "stateId": state_id,
                 "roleId": role_id,
+                "followthemoneyEid": str(random.randint(100, 99999)),
             },
         )
 
