@@ -21,6 +21,7 @@ from ..schemas.users import (
     GoogleUserAuthRequest,
     TokenResponse,
     UserCreateInput,
+    ForgotPasswordRequest,
 )
 from ..security import (
     CredentialsException,
@@ -28,6 +29,7 @@ from ..security import (
     authenticate_user,
     create_access_token,
     create_refresh_token,
+    create_forgot_password_token,
     decode_token,
     get_password_hash,
     get_user_create_with_hashed_password,
@@ -124,6 +126,29 @@ async def login_for_access_token(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database error: {str(e)}",
         )
+
+
+@router.post(
+    "/forgot_password",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Generate token for forgotten password",
+    responses={
+        204: {"description": "E-mail was found"},
+        404: {"model": ErrorResponse, "description": "Email not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def generate_forgot_password_token(
+    email: ForgotPasswordRequest, db: Session = Depends(get_db)
+) -> None:
+    user = crud.user.get_user_by_email(db, email)
+    if user is None:
+        raise ObjectNotFoundException(f"User not found for email: {email}")
+    
+    token = create_forgot_password_token(data={"sub": email})
+    forgot_password_token_obj = schemas.ForgotPasswordTokenCreate(token=token)
+    crud.forgot_password_token.create(db=db, obj_in=forgot_password_token_obj)
+    logger.info(f"Successfully created forgot password token for {user.id}")
 
 
 @router.post(

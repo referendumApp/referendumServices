@@ -787,6 +787,12 @@ class ExecutiveOrderCRUD(
         return query.offset(skip).limit(limit).all()
 
 
+class ForgotPasswordTokenCRUD(
+    BaseCRUD[models.ForgotPasswordToken, schemas.ForgotPasswordTokenCreate, schemas.ForgotPasswordTokenCreate]
+):
+    pass
+
+
 bill = BillCRUD(models.Bill)
 bill_action = BillActionCRUD(models.BillAction)
 bill_version = BillVersionCRUD(models.BillVersion)
@@ -806,3 +812,4 @@ topic = TopicCRUD(models.Topic)
 user = UserCRUD(models.User)
 user_vote = UserVoteCRUD(models.UserVote)
 vote_choice = VoteChoiceCRUD(models.VoteChoice)
+forgot_password_token = ForgotPasswordTokenCRUD(models.ForgotPasswordToken)

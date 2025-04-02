@@ -102,6 +102,15 @@ def create_refresh_token(data: dict) -> str:
     return encoded_jwt
 
 
+def create_forgot_password_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire, "type": "forgot_password"})
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    logger.debug(f"Forgot password token created for user: {data.get('sub')}")
+    return encoded_jwt
+
+
 async def get_current_user(
     token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
 ) -> models.User:
