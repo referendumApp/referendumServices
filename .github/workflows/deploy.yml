@@ -326,9 +326,14 @@ jobs:
 
           if [ "$HEALTH_CHECK_STATUS_CODE" == "200" ]; then
             echo "Deployment verified successfully"
-            echo "Updating stable tag..."
+            echo "Updating stable tags..."
             docker tag ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.IMAGE_TAG }} ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.DEPLOY_ENV }}-stable
             docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.DEPLOY_ENV }}-stable
+            
+            # Tag and push the migrations image with stable tag
+            docker tag ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:migrations-${{ env.IMAGE_TAG }} ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:migrations-${{ env.DEPLOY_ENV }}-stable
+            docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:migrations-${{ env.DEPLOY_ENV }}-stable
+            
             echo "verification_status=success" >> $GITHUB_OUTPUT
             echo "Deployment successful"
             exit 0
