@@ -22,29 +22,23 @@ def upgrade() -> None:
     op.create_table(
         "forgot_password_tokens",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("token", sa.String(255), nullable=False),
+        sa.Column("passcode", sa.String(6), nullable=False),
+        sa.Column("expires_at", sa.DateTime(), nullable=False),
+        sa.Column("user_id", sa.Integer(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["user_id"],
+            ["users.id"],
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
 
-    op.create_table(
-        "user_forgot_password_tokens",
-        sa.Column("user_id", sa.Integer(), nullable=False),
-        sa.Column("forgot_password_token_id", sa.Integer(), nullable=False),
-        sa.ForeignKeyConstraint(
-            ["user_id"],
-            ["users.id"]
-        ),
-        sa.ForeignKeyConstraint(
-            ["forgot_password_token_id"],
-            ["forgot_password_tokens.id"]
-        ),
-        sa.PrimaryKeyConstraint("user_id", "forgot_password_token_id"),
+    op.create_index(
+        "ix_forgot_password_tokens_user_id",
+        "forgot_password_tokens",
+        ["user_id"],
     )
 
 
 def downgrade() -> None:
-    # Drop junction table
-    op.drop_table("user_forgot_password_tokens")
-
-    # Drop bas table
+    # Drop forgot password table
     op.drop_table("forgot_password_tokens")

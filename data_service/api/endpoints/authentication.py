@@ -1,8 +1,10 @@
 import logging
 from typing import Dict
+from pydantic import EmailStr
 import os
+from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from jose import JWTError
 from sqlalchemy.orm import Session
@@ -13,6 +15,10 @@ from google.auth.transport import requests
 from common.database.referendum import crud, schemas
 from common.database.referendum.crud import DatabaseException, ObjectNotFoundException
 
+from common.email_service.service import get_email_service
+
+from api.settings import settings
+
 from ..constants import AuthProvider, PlatformType
 from ..database import get_db
 from ..schemas.interactions import ErrorResponse, FormErrorResponse
@@ -22,6 +28,8 @@ from ..schemas.users import (
     TokenResponse,
     UserCreateInput,
     ForgotPasswordRequest,
+    PasswordResetTokenResponse,
+    PasswordResetInput,
 )
 from ..security import (
     CredentialsException,
@@ -29,12 +37,15 @@ from ..security import (
     authenticate_user,
     create_access_token,
     create_refresh_token,
-    create_forgot_password_token,
+    create_password_reset_token,
     decode_token,
     get_password_hash,
     get_user_create_with_hashed_password,
     get_social_user_create,
+    get_password_reset_token_data,
+    generate_alphanumeric_code,
     verify_password,
+    cleanup_expired_tokens,
 )
 
 logger = logging.getLogger(__name__)
@@ -134,21 +145,128 @@ async def login_for_access_token(
     summary="Generate token for forgotten password",
     responses={
         204: {"description": "E-mail was found"},
-        404: {"model": ErrorResponse, "description": "Email not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
+        401: {"model": ErrorResponse, "description": "Email not found"},
+        500: {"model": ErrorResponse, "description": "Email could not be sent"}
     },
 )
 async def generate_forgot_password_token(
-    email: ForgotPasswordRequest, db: Session = Depends(get_db)
+    forgot_password: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    email_service = Depends(get_email_service),
 ) -> None:
-    user = crud.user.get_user_by_email(db, email)
-    if user is None:
-        raise ObjectNotFoundException(f"User not found for email: {email}")
-    
-    token = create_forgot_password_token(data={"sub": email})
-    forgot_password_token_obj = schemas.ForgotPasswordTokenCreate(token=token)
-    crud.forgot_password_token.create(db=db, obj_in=forgot_password_token_obj)
-    logger.info(f"Successfully created forgot password token for {user.id}")
+    # Delete expired tokens
+    background_tasks.add_task(cleanup_expired_tokens, db)
+
+    try:
+        email = forgot_password.email
+        user = crud.user.get_user_by_email(db, email)
+        
+        passcode = generate_alphanumeric_code(6)
+        expires_at = datetime.utcnow() + timedelta(minutes=settings.RESET_TOKEN_EXPIRE_MINUTES)
+        token_obj = schemas.ForgotPasswordTokenCreate(passcode=passcode, expires_at=expires_at, user_id=user.id)
+        crud.forgot_password_token.create(db=db, obj_in=token_obj)
+
+        logger.info(f"Successfully created forgot password token for {email} with {passcode}")
+
+        subject = "Referendum account password reset"
+
+        await email_service.send_password_reset_token_email(to_email=email, subject=subject, username=user.name, passcode=passcode)
+    except CredentialsException as e:
+        logger.warning(f"Failed to validate email: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e),
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except DatabaseException as e:
+        logger.error(f"Database error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
+    except Exception as e:
+        logger.error(f"Failed to send email: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
+
+@router.post(
+    "/verify-forgot-password-code",
+    response_model=PasswordResetTokenResponse,
+    responses={
+        200: {"model": PasswordResetTokenResponse, "description": "Successfully created temporary password reset token"},
+        401: {"model": ErrorResponse, "description": "Invalid token"},
+    },
+)
+async def verify_forgot_password_code(
+    email: EmailStr, passcode: str, db: Session = Depends(get_db)
+) -> Dict[str, str]:
+    try:
+        user = crud.user.get_user_by_email(db, email)
+
+        db_token = crud.forgot_password_token.read_user_latest_token(db=db, user_id=user.id)
+        if (db_token.passcode != passcode or db_token.expires_at < datetime.utcnow().timestamp()):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired token"
+            )
+        
+        password_reset_token = create_password_reset_token(data={"sub": email})
+
+        return {"password_reset_token": password_reset_token}
+    except CredentialsException as e:
+        logger.warning(f"Failed to validate email: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e),
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except DatabaseException as e:
+        logger.error(f"Database error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e),
+        )
+
+
+@router.post(
+    "/set-new-password",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Update user password",
+    responses={
+        204: {"description": "User password successfully updated"},
+        401: {"model": ErrorResponse, "description": "Unauthorized to update this user's password"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+)
+async def update_user_password(
+    password_reset: PasswordResetInput,
+    token_data: dict = Depends(get_password_reset_token_data),
+    db: Session = Depends(get_db),
+) -> None:
+    try:
+        logger.info(f"Attempting to update user password for email: {token_data['email']}")
+        user = crud.user.get_user_by_email(db, token_data["email"])
+
+        hashed_password = get_password_hash(password_reset.new_password)
+        crud.user.update_user_password(db=db, user_id=user.id, hashed_password=hashed_password)
+        
+        logger.info(f"Successfully updated password for user ID: {user.id}")
+    except CredentialsException as e:
+        logger.warning(f"Failed to validate email: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e),
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except DatabaseException as e:
+        logger.error(f"Database error during password update: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(e)}",
+        )
 
 
 @router.post(

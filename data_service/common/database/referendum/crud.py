@@ -790,7 +790,9 @@ class ExecutiveOrderCRUD(
 class ForgotPasswordTokenCRUD(
     BaseCRUD[models.ForgotPasswordToken, schemas.ForgotPasswordTokenCreate, schemas.ForgotPasswordTokenCreate]
 ):
-    pass
+    def read_user_latest_token(self, db: Session, user_id: int):
+        db_token = db.query(models.ForgotPasswordToken).filter(models.ForgotPasswordToken.user_id == user_id).first()
+        return db_token
 
 
 bill = BillCRUD(models.Bill)
