@@ -71,7 +71,7 @@ services:
       context: ./user_service
       target: user-local
     environment:
-      - CGO_ENABLED=1
+      - CGO_ENABLED=0
       - GOOS=linux
       - GOARCH=amd64
     depends_on:

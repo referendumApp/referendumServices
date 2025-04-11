@@ -1,0 +1,38 @@
+{
+  "lexicon": 1,
+  "id": "com.referendumapp.person.billFollow",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Record declaring a bill 'follow' uni-directional relationship to a bill record.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["bill", "createdAt"],
+        "properties": {
+          "bill": { "type": "ref", "ref": "com.atproto.repo.strongRef" },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      },
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "needsType": true,
+          "type": "object",
+          "required": ["bid"],
+          "properties": {
+            "bid": {
+              "type": "string",
+              "format": "bid",
+              "description": "Referendum bill ID (BID) to follow."
+            }
+          }
+        }
+      }
+    }
+  }
+}
+

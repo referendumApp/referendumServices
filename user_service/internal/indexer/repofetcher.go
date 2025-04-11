@@ -11,7 +11,6 @@ import (
 	"sync"
 
 	"github.com/bluesky-social/indigo/api/atproto"
-	"github.com/bluesky-social/indigo/repomgr"
 	"github.com/bluesky-social/indigo/xrpc"
 	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/jackc/pgx/v5"
@@ -21,9 +20,10 @@ import (
 
 	"github.com/referendumApp/referendumServices/internal/database"
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
+	"github.com/referendumApp/referendumServices/internal/repo"
 )
 
-func NewRepoFetcher(db *database.Database, rm *repomgr.RepoManager, maxConcurrency int) *RepoFetcher {
+func NewRepoFetcher(db *database.DB, rm *repo.Manager, maxConcurrency int) *RepoFetcher {
 	return &RepoFetcher{
 		repoman:                rm,
 		db:                     db,
@@ -37,8 +37,8 @@ func NewRepoFetcher(db *database.Database, rm *repomgr.RepoManager, maxConcurren
 type RepoFetcher struct {
 	ApplyPDSClientSettings func(*xrpc.Client)
 
-	repoman *repomgr.RepoManager
-	db      *database.Database
+	repoman *repo.Manager
+	db      *database.DB
 	log     *slog.Logger
 
 	Limiters map[uint]*rate.Limiter
@@ -113,10 +113,10 @@ func (rf *RepoFetcher) FetchAndIndexRepo(ctx context.Context, job *crawlWork) er
 
 	ai := job.act
 
-	pds, err := rf.db.LookupPDSById(ctx, ai.PDS)
+	pds, err := rf.db.LookupPDSById(ctx, ai.PDS.Int64)
 	if err != nil {
 		catchupEventsFailed.WithLabelValues("nopds").Inc()
-		return fmt.Errorf("expected to find pds record (%d) in db for crawling one of their users: %w", ai.PDS, err)
+		return fmt.Errorf("expected to find pds record (%d) in db for crawling one of their users: %w", ai.PDS.Int64, err)
 	}
 
 	rev, err := rf.repoman.GetRepoRev(ctx, ai.Uid)

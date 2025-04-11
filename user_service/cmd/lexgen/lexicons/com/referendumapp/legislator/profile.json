@@ -1,0 +1,41 @@
+{
+  "lexicon": 1,
+  "id": "com.referendumapp.legislator.profile",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Record containing legislator info.",
+      "key": "literal:self",
+      "record": {
+        "type": "object",
+        "required": [
+          "name",
+          "district",
+          "party",
+          "level",
+          "legislativeBody",
+          "state"
+        ],
+        "properties": {
+          "name": { "type": "string" },
+          "district": { "type": "string" },
+          "party": { "type": "string" },
+          "address": { "type": "string" },
+          "facebook": { "type": "string" },
+          "instagram": { "type": "string" },
+          "twitter": { "type": "string" },
+          "level": { "type": "string", "enum": ["federal", "state", "local"] },
+          "legislativeBody": { "type": "string" },
+          "state": { "type": "string" },
+          "phone": { "type": "string", "format": "e164" },
+          "imageUrl": { "type": "string" },
+          "image": {
+            "type": "blob",
+            "accept": ["image/png", "image/jpeg"],
+            "maxSize": 1000000
+          }
+        }
+      }
+    }
+  }
+}

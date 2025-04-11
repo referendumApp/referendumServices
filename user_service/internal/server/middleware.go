@@ -1,14 +1,18 @@
 package server
 
 import (
+	"bufio"
 	"context"
 	"errors"
+	"fmt"
+	"net"
 	"net/http"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 
 	refErr "github.com/referendumApp/referendumServices/internal/error"
+	"github.com/referendumApp/referendumServices/internal/util"
 )
 
 // Authorize a request based on the JWT included in the request
@@ -16,13 +20,13 @@ func (s *Server) authorizeUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestCtx := r.Context()
 
-		accessToken := s.extractToken(r)
+		accessToken := s.jwt.ExtractToken(r)
 		if accessToken == "" {
 			refErr.Unauthorized("Token not found").WriteResponse(w)
 			return
 		}
 
-		token, err := s.decodeJWT(accessToken)
+		token, err := s.jwt.DecodeJWT(accessToken)
 		if err != nil {
 			s.log.ErrorContext(requestCtx, "Failed to decode JWT", "error", err)
 			if errors.Is(err, jwt.ErrTokenExpired) {
@@ -34,20 +38,20 @@ func (s *Server) authorizeUser(next http.Handler) http.Handler {
 			return
 		}
 
-		did, err := s.validateToken(token, "access")
+		did, err := util.ValidateToken(token, util.Access)
 		if err != nil {
 			refErr.BadRequest("Invalid token type for access token").WriteResponse(w)
 			return
 		}
 
-		user, err := s.db.LookupUserByDid(requestCtx, did)
+		per, err := s.db.LookupPersonByDid(requestCtx, did)
 		if err != nil {
 			s.log.ErrorContext(requestCtx, "Failed to authorize user with DID", "error", err, "DID", did)
 			refErr.InternalServer().WriteResponse(w)
 			return
 		}
 
-		ctx := context.WithValue(requestCtx, s.jwtConfig.ContextKey, user)
+		ctx := context.WithValue(requestCtx, s.jwt.ContextKey, per)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
@@ -61,6 +65,13 @@ type CustomResponseWriter struct {
 func (rw *CustomResponseWriter) WriteHeader(code int) {
 	rw.StatusCode = code
 	rw.ResponseWriter.WriteHeader(code)
+}
+
+func (rw *CustomResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if hijacker, ok := rw.ResponseWriter.(http.Hijacker); ok {
+		return hijacker.Hijack()
+	}
+	return nil, nil, fmt.Errorf("underlying ResponseWriter does not implement http.Hijacker")
 }
 
 func getOrCreateCustomWriter(w http.ResponseWriter) *CustomResponseWriter {
@@ -115,23 +126,3 @@ func (s *Server) logRequest(next http.Handler) http.Handler {
 		)
 	})
 }
-
-// func (s *Server) ContextManager(next http.Handler) http.Handler {
-// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-// 		requestCtx := r.Context()
-// 		rw := getOrCreateCustomWriter(w)
-//
-// 		s.db.WithTransaction(requestCtx, func(ctx context.Context, tx pgx.Tx) error {
-// 			txCtx := context.WithValue(requestCtx, TxCtxKey, tx)
-//
-// 			next.ServeHTTP(rw, r.WithContext(txCtx))
-//
-// 			if rw.StatusCode >= 200 && rw.StatusCode < 300 {
-// 				return nil // Will commit
-// 			} else {
-//         s.log.InfoContext(txCtx, "Rolling back transaction")
-// 				return fmt.Errorf("rolling back transaction due to : %d", rw.StatusCode)
-// 			}
-// 		})
-// 	})
-// }

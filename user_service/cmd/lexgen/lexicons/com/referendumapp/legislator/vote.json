@@ -1,0 +1,22 @@
+{
+  "lexicon": 1,
+  "id": "com.referendumapp.legislator.vote",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Record containing legislator bill action votes.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["type", "billAction"],
+        "properties": {
+          "choice": {
+            "type": "string",
+            "enum": ["Yay", "Nay", "Absent", "Abstain"]
+          },
+          "billAction": { "type": "ref", "ref": "com.atproto.repo.strongRef" }
+        }
+      }
+    }
+  }
+}

@@ -2,20 +2,13 @@ FROM golang:1.24-alpine as base
 WORKDIR /code
 COPY go.mod go.sum ./
 
-RUN apk add --no-cache \
-    gcc \
-    musl-dev \
-    make \
-    pkgconfig \
-    sqlite-dev
-
 RUN go mod download
 
 FROM base as prod-builder
 COPY cmd/api cmd/api
 COPY internal internal
 
-ENV CGO_ENABLED=1
+ENV CGO_ENABLED=0
 ENV GOOS=linux
 ENV GOARCH=amd64
 

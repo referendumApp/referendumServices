@@ -23,7 +23,7 @@ create_database_if_not_exists() {
 create_database_if_not_exists "$LEGISCAN_API_DB_NAME"
 create_database_if_not_exists "$REFERENDUM_DB_NAME"
 create_database_if_not_exists "$PLC_DB_NAME"
-create_database_if_not_exists "$CARSTORE_DB_NAME"
+create_database_if_not_exists "$RELAY_DB_NAME"
 
 CREATE_LEGISCAN_USER="
 DO \$\$

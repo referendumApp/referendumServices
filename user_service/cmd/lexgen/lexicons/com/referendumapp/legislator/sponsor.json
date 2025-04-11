@@ -1,0 +1,23 @@
+{
+  "lexicon": 1,
+  "id": "com.referendumapp.legislator.sponsor",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Record containing legislator bill sponsorships.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["type", "rank", "bill"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["Primary Sponsor", "Co-Sponsor"]
+          },
+          "rank": { "type": "integer" },
+          "bill": { "type": "ref", "ref": "com.atproto.repo.strongRef" }
+        }
+      }
+    }
+  }
+}

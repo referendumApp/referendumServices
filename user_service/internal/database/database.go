@@ -13,14 +13,14 @@ import (
 	"github.com/referendumApp/referendumServices/internal/config"
 )
 
-type Database struct {
+type DB struct {
 	pool   *pgxpool.Pool
-	log    *slog.Logger
-	schema string
+	Log    *slog.Logger
+	Schema string
 }
 
-func Connect(ctx context.Context, cfg config.Config, log *slog.Logger) (*Database, error) {
-	log.Info("Setting up database connection pool")
+func Connect(ctx context.Context, cfg config.Config) (*DB, error) {
+	slog.Info("Setting up database connection pool")
 
 	// Build the connection string
 	connStr := fmt.Sprintf(
@@ -34,20 +34,20 @@ func Connect(ctx context.Context, cfg config.Config, log *slog.Logger) (*Databas
 
 	conn, err := pgx.Connect(ctx, connStr)
 	if err != nil {
-		log.Error("Failed to establish postgres connection", "conn", connStr)
+		slog.Error("Failed to establish postgres connection", "conn", connStr)
 		return nil, err
 	}
 
 	// Ping the database to validate the connection
 	if pingErr := conn.Ping(ctx); pingErr != nil {
-		log.Error("Failed to ping database", "conn", connStr)
+		slog.Error("Failed to ping database", "conn", connStr)
 		return nil, pingErr
 	}
 
 	// Set connection pool settings
 	poolConfig, err := pgxpool.ParseConfig(connStr)
 	if err != nil {
-		log.Error("Error parsing Postgres pool config", "conn", connStr)
+		slog.Error("Error parsing Postgres pool config", "conn", connStr)
 		return nil, err
 	}
 
@@ -58,21 +58,29 @@ func Connect(ctx context.Context, cfg config.Config, log *slog.Logger) (*Databas
 
 	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
-		log.Error("Error creating connection pool", "config", poolConfig)
+		slog.Error("Error creating connection pool", "config", poolConfig)
 		return nil, err
 	}
 
-	log.Info("Successfully connected to database!")
+	slog.Info("Successfully connected to database!")
 
-	return &Database{pool: pool, log: log, schema: "atproto"}, nil
+	return &DB{pool: pool, Log: slog.Default().With("system", "db")}, nil
 }
 
-func (db *Database) Close() {
+func (db *DB) WithSchema(schema string) *DB {
+	return &DB{
+		pool:   db.pool,
+		Log:    db.Log,
+		Schema: schema,
+	}
+}
+
+func (db *DB) Close() {
 	if db.pool != nil {
 		db.pool.Close()
 	}
 }
 
-func (d *Database) Ping(ctx context.Context) error {
+func (d *DB) Ping(ctx context.Context) error {
 	return d.pool.Ping(ctx)
 }
