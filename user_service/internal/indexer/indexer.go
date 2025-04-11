@@ -10,10 +10,7 @@ import (
 	comatproto "github.com/bluesky-social/indigo/api/atproto"
 	bsky "github.com/bluesky-social/indigo/api/bsky"
 	"github.com/bluesky-social/indigo/did"
-	"github.com/bluesky-social/indigo/events"
 	lexutil "github.com/bluesky-social/indigo/lex/util"
-	"github.com/bluesky-social/indigo/models"
-	"github.com/bluesky-social/indigo/repomgr"
 	"github.com/bluesky-social/indigo/util"
 	"github.com/bluesky-social/indigo/xrpc"
 	"github.com/jackc/pgx/v5"
@@ -23,19 +20,21 @@ import (
 
 	"github.com/referendumApp/referendumServices/internal/database"
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
+	"github.com/referendumApp/referendumServices/internal/events"
+	"github.com/referendumApp/referendumServices/internal/repo"
 )
 
 const MaxEventSliceLength = 1000000
 const MaxOpsSliceLength = 200
 
 type Indexer struct {
-	db      *database.Database
+	db      *database.DB
 	events  *events.EventManager
 	Crawler *CrawlDispatcher
 	log     *slog.Logger
 
 	SendRemoteFollow       func(context.Context, string, uint) error
-	CreateExternalUser     func(context.Context, string) (*atp.Citizen, error)
+	CreateExternalUser     func(context.Context, string) (*atp.Person, error)
 	ApplyPDSClientSettings func(*xrpc.Client)
 
 	didr did.Resolver
@@ -45,7 +44,7 @@ type Indexer struct {
 }
 
 func NewIndexer(
-	db *database.Database,
+	db *database.DB,
 	evtman *events.EventManager,
 	didr did.Resolver,
 	fetcher *RepoFetcher,
@@ -83,7 +82,7 @@ func (ix *Indexer) Shutdown() {
 	}
 }
 
-func (ix *Indexer) HandleRepoEvent(ctx context.Context, evt *repomgr.RepoEvent) error {
+func (ix *Indexer) HandleRepoEvent(ctx context.Context, evt *repo.Event) error {
 	ctx, span := otel.Tracer("indexer").Start(ctx, "HandleRepoEvent")
 	defer span.End()
 
@@ -103,7 +102,7 @@ func (ix *Indexer) HandleRepoEvent(ctx context.Context, evt *repomgr.RepoEvent) 
 		}
 	}
 
-	did, err := ix.db.DidForActor(ctx, evt.User)
+	did, err := ix.db.DidForPerson(ctx, evt.User)
 	if err != nil {
 		return err
 	}
@@ -136,9 +135,9 @@ func (ix *Indexer) HandleRepoEvent(ctx context.Context, evt *repomgr.RepoEvent) 
 	return nil
 }
 
-func (ix *Indexer) handleRepoOp(ctx context.Context, evt *repomgr.RepoEvent, op *repomgr.RepoOp) error {
+func (ix *Indexer) handleRepoOp(ctx context.Context, evt *repo.Event, op *repo.Op) error {
 	switch op.Kind {
-	case repomgr.EvtKindCreateRecord:
+	case repo.EvtKindCreateRecord:
 		if ix.doAggregations {
 			_, err := ix.handleRecordCreate(ctx, evt, op, true)
 			if err != nil {
@@ -150,13 +149,13 @@ func (ix *Indexer) handleRepoOp(ctx context.Context, evt *repomgr.RepoEvent, op 
 				return err
 			}
 		}
-	case repomgr.EvtKindDeleteRecord:
+	case repo.EvtKindDeleteRecord:
 		if ix.doAggregations {
 			if err := ix.handleRecordDelete(ctx, evt, op, true); err != nil {
 				return fmt.Errorf("handle recordDelete: %w", err)
 			}
 		}
-	case repomgr.EvtKindUpdateRecord:
+	case repo.EvtKindUpdateRecord:
 		if ix.doAggregations {
 			if err := ix.handleRecordUpdate(ctx, evt, op, true); err != nil {
 				return fmt.Errorf("handle recordCreate: %w", err)
@@ -184,7 +183,7 @@ func (ix *Indexer) crawlAtUriRef(ctx context.Context, uri string) error {
 	return nil
 }
 
-func (ix *Indexer) crawlRecordReferences(ctx context.Context, op *repomgr.RepoOp) error {
+func (ix *Indexer) crawlRecordReferences(ctx context.Context, op *repo.Op) error {
 	ctx, span := otel.Tracer("indexer").Start(ctx, "crawlRecordReferences")
 	defer span.End()
 
@@ -254,11 +253,11 @@ func (ix *Indexer) crawlRecordReferences(ctx context.Context, op *repomgr.RepoOp
 	}
 }
 
-func (ix *Indexer) GetUserOrMissing(ctx context.Context, did string) (*atp.Citizen, error) {
+func (ix *Indexer) GetUserOrMissing(ctx context.Context, did string) (*atp.Person, error) {
 	ctx, span := otel.Tracer("indexer").Start(ctx, "getUserOrMissing")
 	defer span.End()
 
-	ai, err := ix.db.LookupActorByDid(ctx, did)
+	ai, err := ix.db.LookupPersonByDid(ctx, did)
 	if err == nil {
 		return ai, nil
 	}
@@ -271,7 +270,7 @@ func (ix *Indexer) GetUserOrMissing(ctx context.Context, did string) (*atp.Citiz
 	return ix.createMissingUserRecord(ctx, did)
 }
 
-func (ix *Indexer) createMissingUserRecord(ctx context.Context, did string) (*atp.Citizen, error) {
+func (ix *Indexer) createMissingUserRecord(ctx context.Context, did string) (*atp.Person, error) {
 	ctx, span := otel.Tracer("indexer").Start(ctx, "createMissingUserRecord")
 	defer span.End()
 
@@ -289,7 +288,7 @@ func (ix *Indexer) createMissingUserRecord(ctx context.Context, did string) (*at
 	return ai, nil
 }
 
-func (ix *Indexer) addUserToCrawler(ctx context.Context, ai *atp.Citizen) error {
+func (ix *Indexer) addUserToCrawler(ctx context.Context, ai *atp.Person) error {
 	ix.log.Debug("Sending user to crawler: ", "did", ai.Did)
 	if ix.Crawler == nil {
 		return nil
@@ -298,10 +297,10 @@ func (ix *Indexer) addUserToCrawler(ctx context.Context, ai *atp.Citizen) error 
 	return ix.Crawler.Crawl(ctx, ai)
 }
 
-// func (ix *Indexer) handleInitActor(ctx context.Context, evt *repomgr.RepoEvent, op *repomgr.RepoOp) error {
+// func (ix *Indexer) handleInitActor(ctx context.Context, evt *repo.RepoEvent, op *repo.RepoOp) error {
 // 	ai := op.ActorInfo
 //
-// 	if err := ix.db.CreateWithConflict(ctx, &atp.Citizen{
+// 	if err := ix.db.CreateWithConflict(ctx, &atp.Person{
 // 		Uid:         evt.User,
 // 		Handle:      sql.NullString{String: ai.Handle, Valid: true},
 // 		Did:         ai.Did,
@@ -333,12 +332,12 @@ func (ix *Indexer) GetPost(ctx context.Context, uri string) (*atp.ActivityPost, 
 	return post, nil
 }
 
-func (ix *Indexer) handleRecordDelete(ctx context.Context, evt *repomgr.RepoEvent, op *repomgr.RepoOp, local bool) error {
+func (ix *Indexer) handleRecordDelete(ctx context.Context, evt *repo.Event, op *repo.Op, local bool) error {
 	ix.log.Debug("record delete event", "collection", op.Collection)
 
 	switch op.Collection {
 	case "app.referendum.feed.post":
-		u, err := ix.db.LookupActorByUid(ctx, evt.User)
+		u, err := ix.db.LookupPersonByUid(ctx, evt.User)
 		if err != nil {
 			return err
 		}
@@ -372,7 +371,7 @@ func (ix *Indexer) handleRecordDelete(ctx context.Context, evt *repomgr.RepoEven
 	return nil
 }
 
-func (ix *Indexer) handleRecordCreate(ctx context.Context, evt *repomgr.RepoEvent, op *repomgr.RepoOp, local bool) ([]uint, error) {
+func (ix *Indexer) handleRecordCreate(ctx context.Context, evt *repo.Event, op *repo.Op, local bool) ([]uint, error) {
 	ix.log.Debug("record create event", "collection", op.Collection)
 
 	var out []uint
@@ -404,23 +403,23 @@ func (ix *Indexer) handleRecordCreate(ctx context.Context, evt *repomgr.RepoEven
 	return out, nil
 }
 
-func (ix *Indexer) handleRecordCreateFeedLike(ctx context.Context, rec *bsky.FeedLike, evt *repomgr.RepoEvent, op *repomgr.RepoOp) error {
+func (ix *Indexer) handleRecordCreateFeedLike(ctx context.Context, rec *bsky.FeedLike, evt *repo.Event, op *repo.Op) error {
 	post, err := ix.GetPostOrMissing(ctx, rec.Subject.Uri)
 	if err != nil {
 		return err
 	}
 
-	act, err := ix.db.LookupActorByUid(ctx, post.Author)
+	act, err := ix.db.LookupPersonByUid(ctx, post.Author)
 	if err != nil {
 		return err
 	}
 
 	vr := &atp.EndorsementRecord{
-		Voter:   evt.User,
-		Post:    post.ID,
-		Created: rec.CreatedAt,
-		Rkey:    op.Rkey,
-		Cid:     op.RecCid.String(),
+		Endorser: evt.User,
+		Post:     post.ID,
+		Created:  rec.CreatedAt,
+		Rkey:     op.Rkey,
+		Cid:      atp.DbCID{CID: *op.RecCid},
 	}
 	if err := ix.db.Create(ctx, vr); err != nil {
 		return err
@@ -436,8 +435,8 @@ func (ix *Indexer) handleRecordCreateFeedLike(ctx context.Context, rec *bsky.Fee
 	return nil
 }
 
-func (ix *Indexer) handleRecordCreateGraphFollow(ctx context.Context, rec *bsky.GraphFollow, evt *repomgr.RepoEvent, op *repomgr.RepoOp) error {
-	subj, err := ix.db.LookupActorByDid(ctx, rec.Subject)
+func (ix *Indexer) handleRecordCreateGraphFollow(ctx context.Context, rec *bsky.GraphFollow, evt *repo.Event, op *repo.Op) error {
+	subj, err := ix.db.LookupPersonByDid(ctx, rec.Subject)
 	if err != nil {
 		if !errors.Is(err, pgx.ErrNoRows) {
 			return fmt.Errorf("failed to lookup user: %w", err)
@@ -456,7 +455,7 @@ func (ix *Indexer) handleRecordCreateGraphFollow(ctx context.Context, rec *bsky.
 		Follower: evt.User,
 		Target:   subj.Uid,
 		Rkey:     op.Rkey,
-		Cid:      op.RecCid.String(),
+		Cid:      atp.DbCID{CID: *op.RecCid},
 	}
 	if err := ix.db.Create(ctx, fr); err != nil {
 		return err
@@ -465,12 +464,12 @@ func (ix *Indexer) handleRecordCreateGraphFollow(ctx context.Context, rec *bsky.
 	return nil
 }
 
-func (ix *Indexer) handleRecordUpdate(ctx context.Context, evt *repomgr.RepoEvent, op *repomgr.RepoOp, local bool) error {
+func (ix *Indexer) handleRecordUpdate(ctx context.Context, evt *repo.Event, op *repo.Op, local bool) error {
 	ix.log.Debug("record update event", "collection", op.Collection)
 
 	switch rec := op.Record.(type) {
 	case *bsky.FeedPost:
-		u, err := ix.db.LookupActorByUid(ctx, evt.User)
+		u, err := ix.db.LookupPersonByUid(ctx, evt.User)
 		if err != nil {
 			return err
 		}
@@ -502,7 +501,7 @@ func (ix *Indexer) handleRecordUpdate(ctx context.Context, evt *repomgr.RepoEven
 			}
 		}
 
-		if err := ix.db.Update(ctx, atp.ActivityPost{Base: atp.Base{ID: fp.ID}, Cid: op.RecCid.String()}, "id"); err != nil {
+		if err := ix.db.Update(ctx, atp.ActivityPost{Base: atp.Base{ID: fp.ID}, Cid: atp.DbCID{CID: *op.RecCid}}, "id"); err != nil {
 			return err
 		}
 
@@ -563,7 +562,7 @@ func (ix *Indexer) GetPostOrMissing(ctx context.Context, uri string) (*atp.Activ
 	return post, nil
 }
 
-func (ix *Indexer) handleRecordCreateActivityPost(ctx context.Context, user models.Uid, rkey string, rcid cid.Cid, rec *bsky.FeedPost) error {
+func (ix *Indexer) handleRecordCreateActivityPost(ctx context.Context, user atp.Uid, rkey string, rcid cid.Cid, rec *bsky.FeedPost) error {
 	var replyid uint
 	if rec.Reply != nil {
 		replyto, err := ix.GetPostOrMissing(ctx, rec.Reply.Parent.Uri)
@@ -582,7 +581,7 @@ func (ix *Indexer) handleRecordCreateActivityPost(ctx context.Context, user mode
 		_ = rootref
 	}
 
-	var mentions []*atp.Citizen
+	var mentions []*atp.Person
 	for _, e := range rec.Entities {
 		if e.Type == "mention" {
 			ai, err := ix.GetUserOrMissing(ctx, e.Value)
@@ -594,7 +593,7 @@ func (ix *Indexer) handleRecordCreateActivityPost(ctx context.Context, user mode
 		}
 	}
 
-	// var maybe models.ActivityPost
+	// var maybe atp.ActivityPost
 	maybe, err := ix.db.LookupActivityPostByUid(ctx, rkey, user)
 	if err != nil {
 		return err
@@ -602,7 +601,7 @@ func (ix *Indexer) handleRecordCreateActivityPost(ctx context.Context, user mode
 
 	fp := &atp.ActivityPost{
 		Rkey:    rkey,
-		Cid:     rcid.String(),
+		Cid:     atp.DbCID{CID: rcid},
 		Author:  user,
 		ReplyTo: replyid,
 	}
@@ -614,7 +613,7 @@ func (ix *Indexer) handleRecordCreateActivityPost(ctx context.Context, user mode
 			ix.log.Warn("potentially erroneous event, duplicate create", "rkey", rkey, "user", user)
 		}
 
-		if err := ix.db.CreateWithConflict(ctx, fp, "rkey", "author"); err != nil {
+		if err := ix.db.CreateConflict(ctx, fp, "rkey", "author"); err != nil {
 			return fmt.Errorf("initializing new feed post: %w", err)
 		}
 	} else {
@@ -652,7 +651,7 @@ func (ix *Indexer) createMissingPostRecord(ctx context.Context, puri *util.Parse
 	return fp, nil
 }
 
-func (ix *Indexer) addNewPostNotification(ctx context.Context, post *bsky.FeedPost, fp *atp.ActivityPost, mentions []*atp.Citizen) error {
+func (ix *Indexer) addNewPostNotification(ctx context.Context, post *bsky.FeedPost, fp *atp.ActivityPost, mentions []*atp.Person) error {
 	if post.Reply != nil {
 		_, err := ix.GetPost(ctx, post.Reply.Parent.Uri)
 		if err != nil {
@@ -664,6 +663,6 @@ func (ix *Indexer) addNewPostNotification(ctx context.Context, post *bsky.FeedPo
 	return nil
 }
 
-func (ix *Indexer) addNewVoteNotification(ctx context.Context, postauthor models.Uid, vr *atp.EndorsementRecord) error {
+func (ix *Indexer) addNewVoteNotification(ctx context.Context, postauthor atp.Uid, vr *atp.EndorsementRecord) error {
 	return nil
 }
