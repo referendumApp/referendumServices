@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "data_service/**"
+      - ".github/workflows/deploy.yml"
   workflow_dispatch:
     inputs:
       environment:
@@ -256,7 +259,7 @@ jobs:
               "fi",
               "echo \"Database migrations completed successfully.\"",
               "echo \"Starting application...\"",
-              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e ENVIRONMENT=${{ env.DEPLOY_ENV }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"$SECRET_KEY\" -e S3_ACCESS_KEY=\"$S3_ACCESS_KEY\" -e S3_SECRET_KEY=\"$S3_SECRET_KEY\" -e OPENAI_API_KEY=\"${{ secrets.OPENAI_API_KEY }}\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.IMAGE_TAG }}",
+              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e ENVIRONMENT=${{ env.DEPLOY_ENV }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"$SECRET_KEY\" -e S3_ACCESS_KEY=\"$S3_ACCESS_KEY\" -e S3_SECRET_KEY=\"$S3_SECRET_KEY\" -e OPENAI_API_KEY=\"${{ secrets.OPENAI_API_KEY }}\" -e GOOGLE_IOS_CLIENT_ID=\"${{ secrets.GOOGLE_IOS_CLIENT_ID }}\" -e GOOGLE_ANDROID_CLIENT_ID=\"${{ secrets.GOOGLE_ANDROID_CLIENT_ID }}\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.IMAGE_TAG }}",
               "docker container prune -f",
               "docker image prune -af",
               "docker network prune -f",
@@ -323,9 +326,14 @@ jobs:
 
           if [ "$HEALTH_CHECK_STATUS_CODE" == "200" ]; then
             echo "Deployment verified successfully"
-            echo "Updating stable tag..."
+            echo "Updating stable tags..."
             docker tag ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.IMAGE_TAG }} ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.DEPLOY_ENV }}-stable
             docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.DEPLOY_ENV }}-stable
+            
+            # Tag and push the migrations image with stable tag
+            docker tag ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:migrations-${{ env.IMAGE_TAG }} ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:migrations-${{ env.DEPLOY_ENV }}-stable
+            docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:migrations-${{ env.DEPLOY_ENV }}-stable
+            
             echo "verification_status=success" >> $GITHUB_OUTPUT
             echo "Deployment successful"
             exit 0
@@ -360,7 +368,7 @@ jobs:
               "API_ACCESS_TOKEN=$(echo $API_ACCESS_TOKEN_SECRET | jq -r '.token')",
               "SECRET_KEY_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.SECRET_KEY_SECRET_NAME }} --query SecretString --output text)",
               "SECRET_KEY=$(echo $SECRET_KEY_SECRET | jq -r '.token')",
-              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e ENVIRONMENT=${{ env.DEPLOY_ENV }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"$SECRET_KEY\" -e S3_ACCESS_KEY=\"$S3_ACCESS_KEY\" -e S3_SECRET_KEY=\"$S3_SECRET_KEY\" -e OPENAI_API_KEY=\"${{ secrets.OPENAI_API_KEY }}\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.DEPLOY_ENV }}-stable"
+              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e ENVIRONMENT=${{ env.DEPLOY_ENV }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"$SECRET_KEY\" -e S3_ACCESS_KEY=\"$S3_ACCESS_KEY\" -e S3_SECRET_KEY=\"$S3_SECRET_KEY\" -e OPENAI_API_KEY=\"${{ secrets.OPENAI_API_KEY }}\" -e GOOGLE_IOS_CLIENT_ID=\"${{ secrets.GOOGLE_IOS_CLIENT_ID }}\" -e GOOGLE_ANDROID_CLIENT_ID=\"${{ secrets.GOOGLE_ANDROID_CLIENT_ID }}\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.DEPLOY_ENV }}-stable"
             ]
           }'
 

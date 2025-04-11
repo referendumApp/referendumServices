@@ -21,10 +21,13 @@ class LLMService:
 
     def __init__(
         self,
+        openai_api_key: str,
         model_name: str = "gpt-3.5-turbo",
         temperature: float = 0.7,
     ):
-        self.llm = ChatOpenAI(model_name=model_name, temperature=temperature)
+        self.llm = ChatOpenAI(
+            model_name=model_name, temperature=temperature, api_key=openai_api_key
+        )
 
     async def generate_response(self, system_prompt: str, user_prompt: str) -> str:
         messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]

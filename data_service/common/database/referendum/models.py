@@ -161,7 +161,7 @@ class Bill(Base):
     legislative_body = relationship("LegislativeBody")
     topics = relationship("Topic", secondary=bill_topics)
     user_votes = relationship("UserVote", back_populates="bill")
-    comments = relationship("Comment")
+    comments = relationship("Comment", back_populates="bill")
     bill_versions = relationship("BillVersion", foreign_keys="BillVersion.bill_id")
     session = relationship("Session", back_populates="bills")
     sponsors = relationship("Sponsor", back_populates="bill")
@@ -225,6 +225,7 @@ class Legislator(Base):
     instagram = Column(String)
     phone = Column(String)
     twitter = Column(String)
+    followthemoney_eid = Column(String)
 
     legislator_votes = relationship("LegislatorVote", back_populates="legislator")
     party = relationship("Party")
@@ -275,7 +276,7 @@ class Comment(Base):
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(DateTime, onupdate=func.now(), nullable=True)
 
-    bill = relationship("Bill")
+    bill = relationship("Bill", back_populates="comments")
     likes = relationship("User", secondary=user_comment_likes, back_populates="liked_comments")
     user = relationship("User")
 

@@ -1,8 +1,11 @@
+import boto3
 import logging
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Dict, Any
 
+from common.chat.service import LLMService
 from common.database.referendum import crud, schemas, models
 from common.database.referendum.crud import (
     ObjectAlreadyExistsException,
@@ -65,6 +68,69 @@ async def create_comment(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=f"Comment cannot exceed {settings.COMMENT_CHAR_LIMIT} characters",
         )
+
+    if settings.ENVIRONMENT != "local":
+        llm_service = LLMService(settings.OPENAI_API_KEY)
+        moderation_system_prompt = """
+        You are a fair and objective content moderator for a political discussion platform designed to foster productive conversations.
+    
+        Your task is to evaluate comments and classify them as:
+        - 'green': unproblematic
+        - 'yellow': borderline problematic and require human review. May contain subtle personal attacks, potential misinformation that requires fact-checking, misleading framing of issues, dogwhistles, or excessive partisan rhetoric
+        - 'red': Comments that clearly violate community standards and should be blocked. These include hate speech, clear personal attacks, obvious misinformation, incitement to violence, threats, doxxing, or spam.
+        Guidelines for evaluation:
+        1. Respect diverse political viewpoints 
+        2. Focus on the tone and substance rather than the political position
+        3. Allow criticism of policies, politicians, and political parties when expressed constructively
+        4. Distinguish between passionate debate (allowed) and personal attacks (not allowed)
+        5. Identify inflammatory content designed to provoke rather than discuss
+    
+        Reply with only 'green', 'yellow', or 'red' as your classification.
+        """
+
+        evaluation_result = await llm_service.generate_response(
+            system_prompt=moderation_system_prompt,
+            user_prompt=comment.comment,
+        )
+        evaluation = evaluation_result.strip().lower()
+        logger.info(
+            f"Comment moderation: User {user.id} | Result: {evaluation} | Text: {comment.comment[:100]}{('...' if len(comment.comment) > 100 else '')}"
+        )
+
+        if evaluation in {"yellow", "red"}:
+            user_info = f"User ID: {user.id}"
+            if hasattr(user, "username"):
+                user_info += f", Username: {user.username}"
+            if hasattr(user, "email"):
+                user_info += f", Email: {user.email}"
+
+            ses = boto3.client("ses", region_name=settings.AWS_REGION)
+            ses.send_email(
+                Source="admin@referendumapp.com",
+                Destination={"ToAddresses": ["moderation@referendumapp.com"]},
+                Message={
+                    "Subject": {
+                        "Data": f"Moderation Alert: {evaluation.capitalize()} Comment Detected"
+                    },
+                    "Body": {
+                        "Text": {
+                            "Data": f"{user_info}\nEvaluation: {evaluation}\nComment: {comment.comment}\n\nTimestamp: {datetime.now().isoformat()}"
+                        },
+                    },
+                },
+            )
+
+            logger.info(f"Moderation alert email sent for {evaluation} comment from user {user.id}")
+
+        if evaluation == "red":
+            logger.warning(f"Blocked comment from user {user.id}: {comment.comment}")
+            raise HTTPException(
+                status_code=400,
+                detail="This comment was blocked because it doesn't meet our community standards for constructive discussion.",
+            )
+
+        if evaluation == "yellow":
+            logger.info(f"Flagged comment from user {user.id} for review: {comment.comment}")
 
     return crud.comment.create(db=db, obj_in=comment)
 
