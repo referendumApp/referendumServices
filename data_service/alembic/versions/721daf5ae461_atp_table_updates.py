@@ -1,7 +1,7 @@
 """ATP table updates
 
 Revision ID: 721daf5ae461
-Revises: 43e4bac6f9b5
+Revises: 4bc80e18174b
 Create Date: 2025-04-06 19:18:36.243684
 
 """
@@ -14,7 +14,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "721daf5ae461"
-down_revision: Union[str, None] = "43e4bac6f9b5"
+down_revision: Union[str, None] = "4bc80e18174b"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
