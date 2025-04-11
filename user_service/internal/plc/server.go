@@ -14,17 +14,12 @@ import (
 	"strings"
 
 	did "github.com/whyrusleeping/go-did"
-	// otel "go.opentelemetry.io/otel"
+	otel "go.opentelemetry.io/otel"
 )
 
-type Server struct {
-	C    *http.Client
-	Host string
-}
-
 func (s Server) GetDocument(ctx context.Context, didstr string) (*did.Document, error) {
-	// ctx, span := otel.Tracer("gosky").Start(ctx, "plsResolveDid")
-	// defer span.End()
+	ctx, span := otel.Tracer("gosky").Start(ctx, "plsResolveDid")
+	defer span.End()
 
 	if s.C == nil {
 		s.C = http.DefaultClient
@@ -55,21 +50,6 @@ func (s Server) GetDocument(ctx context.Context, didstr string) (*did.Document, 
 }
 
 func (s Server) FlushCacheFor(did string) {}
-
-type Service struct {
-	Type     string `json:"type" cborgen:"type"`
-	Endpoint string `json:"endpoint" cborgen:"endpoint"`
-}
-
-type CreateOp struct {
-	Prev                *string            `json:"prev" cborgen:"prev"`
-	Type                string             `json:"type" cborgen:"type"`
-	Sig                 string             `json:"sig" cborgen:"sig,omitempty"`
-	Services            map[string]Service `json:"services" cborgen:"services"`
-	VerificationMethods map[string]string  `json:"verificationMethods" cborgen:"verificationMethods"`
-	AlsoKnownAs         []string           `json:"alsoKnownAs" cborgen:"alsoKnownAs"`
-	RotationKeys        []string           `json:"rotationKeys" cborgen:"rotationKeys"`
-}
 
 func (s Server) CreateDID(ctx context.Context, sigkey *did.PrivKey, recovery string, handle string, service string) (string, error) {
 	if s.C == nil {
@@ -143,4 +123,80 @@ func didForCreateOp(op *CreateOp) (string, error) {
 	enchash := base32.StdEncoding.EncodeToString(h[:])
 	enchash = strings.ToLower(enchash)
 	return "did:plc:" + enchash[:24], nil
+}
+
+func (s Server) GetOpAuditLog(ctx context.Context, did string) (*[]Op, error) {
+	if s.C == nil {
+		s.C = http.DefaultClient
+	}
+
+	req, err := http.NewRequest("GET", s.Host+"/"+url.QueryEscape(did)+"/log/audit", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := s.C.Do(req.WithContext(ctx))
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("get last op request failed (code %d): %s", resp.StatusCode, resp.Status)
+	}
+
+	var log []Op
+	if err := json.NewDecoder(resp.Body).Decode(&log); err != nil {
+		return nil, err
+	}
+
+	return &log, nil
+}
+
+func (s Server) TombstoneDID(ctx context.Context, sigkey *did.PrivKey, did string, prev string) error {
+	if s.C == nil {
+		s.C = http.DefaultClient
+	}
+
+	op := TombstoneOp{Type: "plc_tombstone", Prev: prev}
+
+	buf := new(bytes.Buffer)
+	if err := op.MarshalCBOR(buf); err != nil {
+		return err
+	}
+
+	sig, err := sigkey.Sign(buf.Bytes())
+	if err != nil {
+		return err
+	}
+
+	op.Sig = base64.RawURLEncoding.EncodeToString(sig)
+
+	body, err := json.Marshal(op) // nolint:errchkjson
+	if err != nil {
+		return fmt.Errorf("failed to marshal operation: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", s.Host+"/"+url.QueryEscape(did), bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.C.Do(req.WithContext(ctx))
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		b, _ := io.ReadAll(resp.Body)
+		fmt.Println(string(b))
+		return fmt.Errorf("bad response from tombstone call: %d %s", resp.StatusCode, resp.Status)
+	}
+
+	return nil
 }

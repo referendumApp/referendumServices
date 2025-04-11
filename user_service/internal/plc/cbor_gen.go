@@ -676,3 +676,179 @@ func (t *Service) UnmarshalCBOR(r io.Reader) (err error) {
 
 	return nil
 }
+func (t *TombstoneOp) MarshalCBOR(w io.Writer) error {
+	if t == nil {
+		_, err := w.Write(cbg.CborNull)
+		return err
+	}
+
+	cw := cbg.NewCborWriter(w)
+	fieldCount := 3
+
+	if t.Sig == "" {
+		fieldCount--
+	}
+
+	if _, err := cw.Write(cbg.CborEncodeMajorType(cbg.MajMap, uint64(fieldCount))); err != nil {
+		return err
+	}
+
+	// t.Sig (string) (string)
+	if t.Sig != "" {
+
+		if len("sig") > 1000000 {
+			return xerrors.Errorf("Value in field \"sig\" was too long")
+		}
+
+		if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len("sig"))); err != nil {
+			return err
+		}
+		if _, err := cw.WriteString(string("sig")); err != nil {
+			return err
+		}
+
+		if len(t.Sig) > 1000000 {
+			return xerrors.Errorf("Value in field t.Sig was too long")
+		}
+
+		if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len(t.Sig))); err != nil {
+			return err
+		}
+		if _, err := cw.WriteString(string(t.Sig)); err != nil {
+			return err
+		}
+	}
+
+	// t.Prev (string) (string)
+	if len("prev") > 1000000 {
+		return xerrors.Errorf("Value in field \"prev\" was too long")
+	}
+
+	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len("prev"))); err != nil {
+		return err
+	}
+	if _, err := cw.WriteString(string("prev")); err != nil {
+		return err
+	}
+
+	if len(t.Prev) > 1000000 {
+		return xerrors.Errorf("Value in field t.Prev was too long")
+	}
+
+	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len(t.Prev))); err != nil {
+		return err
+	}
+	if _, err := cw.WriteString(string(t.Prev)); err != nil {
+		return err
+	}
+
+	// t.Type (string) (string)
+	if len("type") > 1000000 {
+		return xerrors.Errorf("Value in field \"type\" was too long")
+	}
+
+	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len("type"))); err != nil {
+		return err
+	}
+	if _, err := cw.WriteString(string("type")); err != nil {
+		return err
+	}
+
+	if len(t.Type) > 1000000 {
+		return xerrors.Errorf("Value in field t.Type was too long")
+	}
+
+	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len(t.Type))); err != nil {
+		return err
+	}
+	if _, err := cw.WriteString(string(t.Type)); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (t *TombstoneOp) UnmarshalCBOR(r io.Reader) (err error) {
+	*t = TombstoneOp{}
+
+	cr := cbg.NewCborReader(r)
+
+	maj, extra, err := cr.ReadHeader()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err == io.EOF {
+			err = io.ErrUnexpectedEOF
+		}
+	}()
+
+	if maj != cbg.MajMap {
+		return fmt.Errorf("cbor input should be of type map")
+	}
+
+	if extra > cbg.MaxLength {
+		return fmt.Errorf("TombstoneOp: map struct too large (%d)", extra)
+	}
+
+	n := extra
+
+	nameBuf := make([]byte, 4)
+	for i := uint64(0); i < n; i++ {
+		nameLen, ok, err := cbg.ReadFullStringIntoBuf(cr, nameBuf, 1000000)
+		if err != nil {
+			return err
+		}
+
+		if !ok {
+			// Field doesn't exist on this type, so ignore it
+			if err := cbg.ScanForLinks(cr, func(cid.Cid) {}); err != nil {
+				return err
+			}
+			continue
+		}
+
+		switch string(nameBuf[:nameLen]) {
+		// t.Sig (string) (string)
+		case "sig":
+
+			{
+				sval, err := cbg.ReadStringWithMax(cr, 1000000)
+				if err != nil {
+					return err
+				}
+
+				t.Sig = string(sval)
+			}
+			// t.Prev (string) (string)
+		case "prev":
+
+			{
+				sval, err := cbg.ReadStringWithMax(cr, 1000000)
+				if err != nil {
+					return err
+				}
+
+				t.Prev = string(sval)
+			}
+			// t.Type (string) (string)
+		case "type":
+
+			{
+				sval, err := cbg.ReadStringWithMax(cr, 1000000)
+				if err != nil {
+					return err
+				}
+
+				t.Type = string(sval)
+			}
+
+		default:
+			// Field doesn't exist on this type, so ignore it
+			if err := cbg.ScanForLinks(r, func(cid.Cid) {}); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}

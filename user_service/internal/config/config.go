@@ -9,21 +9,21 @@ import (
 	"time"
 )
 
-func getEnvOrFail(log *slog.Logger, key string) string {
+func getEnvOrFail(key string) string {
 	val := os.Getenv(key)
 	if val == "" {
-		log.Warn("Missing required environment variable", "key", key)
+		slog.Warn("Missing required environment variable", "key", key)
 	}
 
 	return val
 }
 
-func getIntEnv(log *slog.Logger, key string) int {
-	val := getEnvOrFail(log, key)
+func getIntEnv(key string) int {
+	val := getEnvOrFail(key)
 
 	valInt, err := strconv.Atoi(val)
 	if err != nil {
-		log.Error("Failed to convert environment variable to int", "key", key, "error", err)
+		slog.Error("Failed to convert environment variable to int", "key", key, "error", err)
 		os.Exit(1)
 	}
 
@@ -36,10 +36,11 @@ type Config struct {
 	PgHost       string
 	PgPort       string
 	DBName       string
+	AtpDBSchema  string
 	HandleSuffix string
 	ServiceUrl   string
 	CarDir       string
-	CarDBName    string
+	CarDBSchema  string
 	PLCHost      string
 	SecretKey    []byte
 	MaxConnLife  time.Duration // Maximum connection lifetime
@@ -49,16 +50,16 @@ type Config struct {
 	MinConns     int32 // Minimum number of connections in the pool
 }
 
-func LoadConfigFromEnv(log *slog.Logger) Config {
-	log.Info("Loading runtime env vars")
+func LoadConfigFromEnv() Config {
+	slog.Info("Loading runtime env vars")
 
 	config := Config{
 		// Database
-		PgUser:     getEnvOrFail(log, "POSTGRES_USER"),
-		PgPassword: getEnvOrFail(log, "POSTGRES_PASSWORD"),
-		PgHost:     getEnvOrFail(log, "POSTGRES_HOST"),
-		PgPort:     getEnvOrFail(log, "POSTGRES_PORT"),
-		DBName:     getEnvOrFail(log, "REFERENDUM_DB_NAME"),
+		PgUser:     getEnvOrFail("POSTGRES_USER"),
+		PgPassword: getEnvOrFail("POSTGRES_PASSWORD"),
+		PgHost:     getEnvOrFail("POSTGRES_HOST"),
+		PgPort:     getEnvOrFail("POSTGRES_PORT"),
+		DBName:     getEnvOrFail("REFERENDUM_DB_NAME"),
 
 		// Database pool settings
 		MaxConns:    10,
@@ -67,22 +68,23 @@ func LoadConfigFromEnv(log *slog.Logger) Config {
 		MaxConnIdle: time.Minute * 30,
 
 		// Server
-		SecretKey: []byte(getEnvOrFail(log, "SECRET_KEY")),
+		SecretKey: []byte(getEnvOrFail("SECRET_KEY")),
 
 		// ATP
-		HandleSuffix: getEnvOrFail(log, "ATP_HANDLE_SUFFIX"),
-		ServiceUrl:   getEnvOrFail(log, "ATP_SERVICE_URL"),
+		HandleSuffix: getEnvOrFail("ATP_HANDLE_SUFFIX"),
+		ServiceUrl:   getEnvOrFail("ATP_SERVICE_URL"),
+		AtpDBSchema:  getEnvOrFail("ATP_DB_SCHEMA"),
 
 		// Carstore
-		CarDir:      getEnvOrFail(log, "CARSTORE_DIR"),
-		CarDBName:   getEnvOrFail(log, "CARSTORE_DB_NAME"),
-		CarMaxConns: getIntEnv(log, "MAX_CARSTORE_CONNECTIONS"),
+		CarDir:      getEnvOrFail("CARSTORE_DIR"),
+		CarDBSchema: getEnvOrFail("CARSTORE_DB_SCHEMA"),
+		CarMaxConns: getIntEnv("MAX_CARSTORE_CONNECTIONS"),
 
 		// PLC
-		PLCHost: getEnvOrFail(log, "PLC_HOST"),
+		PLCHost: getEnvOrFail("PLC_HOST"),
 	}
 
-	log.Info("Successfully loaded env vars!")
+	slog.Info("Successfully loaded env vars!")
 
 	return config
 }
