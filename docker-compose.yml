@@ -72,8 +72,6 @@ services:
       target: user-local
     environment:
       - CGO_ENABLED=0
-      - GOOS=linux
-      - GOARCH=amd64
     depends_on:
       db:
         condition: service_healthy
