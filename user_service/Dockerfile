@@ -2,13 +2,6 @@ FROM golang:1.24-alpine as base
 WORKDIR /code
 COPY go.mod go.sum ./
 
-# RUN apk add --no-cache \
-#     gcc \
-#     musl-dev \
-#     make \
-#     pkgconfig \
-#     sqlite-dev
-
 RUN go mod download
 
 FROM base as prod-builder
