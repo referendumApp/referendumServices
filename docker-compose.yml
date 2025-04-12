@@ -84,6 +84,12 @@ services:
       - ./user_service/internal:/code/internal
     ports:
       - "8080:80"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:80/health" ]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
     profiles: ["local-data", "local-empty"]
 
   db:
@@ -171,6 +177,8 @@ services:
         condition: service_completed_successfully
       migrations:
         condition: service_completed_successfully
+      user-api-local:
+        condition: service_healthy
     env_file: .env
     profiles: ["local-data"]
 

@@ -2,11 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import Dict
-from botocore.exceptions import ClientError
-import boto3
 import os
 
-from common.user_service.client import UserServiceClient
 from common.object_storage.client import ObjectStorageClient
 
 from ..database import get_db
@@ -46,15 +43,6 @@ async def healthcheck(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to access s3 with error: {e}",
-        )
-
-    # Check user service access
-    try:
-        UserServiceClient()
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to access UserService with error: {e}",
         )
 
     return {"status": "healthy"}

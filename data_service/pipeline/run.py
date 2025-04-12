@@ -14,6 +14,8 @@ from common.object_storage.client import ObjectStorageClient
 from pipeline.bill_text_extraction import BillTextExtractor
 from pipeline.etl_config import ETLConfig
 
+from common.user_service.client import UserServiceClient
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -183,6 +185,10 @@ def run_text_extraction(batch_size=20):
         raise Exception(f"Text extraction had {failed} failures")
 
 
+def run_pds_processing():
+    UserServiceClient()
+
+
 def orchestrate(stage: str = "all"):
     """Orchestrate the complete ETL and text extraction process."""
     try:
@@ -192,6 +198,9 @@ def orchestrate(stage: str = "all"):
         if stage in ["all", "text_processing"]:
             logger.info("Text extraction starting")
             run_text_extraction()
+        if stage in ["all", "pds_processing"]:
+            logger.info("PDS processing starting")
+            run_pds_processing()
         logger.info("ETL orchestration completed")
     except Exception as e:
         logger.error(f"ETL orchestration failed: {str(e)}")
