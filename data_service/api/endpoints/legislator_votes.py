@@ -1,7 +1,6 @@
-from collections import Counter
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import Dict, Any, List
+from typing import Dict, Any
 import logging
 
 from common.database.referendum import crud, schemas

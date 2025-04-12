@@ -47,7 +47,6 @@ class BillTextExtractor:
     def save_results(self, structured_text: StructuredBillText, file_hash: str) -> None:
         """Store extracted text in object storage"""
         json_string = structured_text.model_dump_json()
-        print(json_string)
         self.storage_client.upload_file(
             bucket=self.bucket_name,
             key=f"{file_hash}.json",
