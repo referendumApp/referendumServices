@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import Dict, Any
+from typing import Any
 import logging
 
 from common.database.referendum import crud, schemas
@@ -38,7 +38,7 @@ router = APIRouter()
 async def create_or_update_legislator_vote(
     legislator_vote: schemas.LegislatorVote.Base,
     db: Session = Depends(get_db),
-    _: Dict[str, Any] = Depends(verify_system_token),
+    _: dict[str, Any] = Depends(verify_system_token),
 ):
     return crud.legislator_vote.create_or_update_vote(db, legislator_vote)
 
@@ -62,7 +62,7 @@ async def delete_legislator_vote(
     bill_action_id: int,
     legislator_id: int,
     db: Session = Depends(get_db),
-    _: Dict[str, Any] = Depends(verify_system_token),
+    _: dict[str, Any] = Depends(verify_system_token),
 ):
     try:
         crud.legislator_vote.delete_vote(
