@@ -190,6 +190,3 @@ go.work.sum
 
 # Local development app binary
 atp/app
-
-# secrets
-.env
