@@ -29,3 +29,8 @@ jobs:
       with:
         working-directory: user_service
 
+          cache: true
+          cache-dependency-path: user_service/go.sum
+      - name: Build Lexicon Schema
+        working-directory: user_service
+        run: go run ./cmd/lexgen --build-file ./cmd/lexgen/build-config.json
