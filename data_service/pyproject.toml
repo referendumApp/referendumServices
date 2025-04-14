@@ -17,19 +17,12 @@ dependencies = [
     "fastapi[standard]",
     "google-api-python-client==2.166.0",
     "google-auth==2.38.0",
-<<<<<<< HEAD
     "google-auth-httplib2==0.2.0",
     "google-auth-oauthlib",
     "langchain==0.3.19",
     "langchain-community==0.3.17",
     "langchain-openai==0.3.6",
     "openai==1.63.2",
-=======
-    "langchain==0.3.23",
-    "langchain-community==0.3.21",
-    "langchain-openai==0.3.12",
-    "openai==1.72.0",
->>>>>>> main
     "pandas==2.2.3",
     "passlib==1.7.4",
     "pdfminer.six==20250327",
