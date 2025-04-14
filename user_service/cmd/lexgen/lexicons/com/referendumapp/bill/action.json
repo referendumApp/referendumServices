@@ -1,0 +1,25 @@
+{
+  "lexicon": 1,
+  "id": "com.referendumapp.bill.action",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Record containing bill actions.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["description", "legislativeBody", "date"],
+        "properties": {
+          "description": { "type": "string" },
+          "legislativeBody": { "type": "string" },
+          "date": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "bill": { "type": "ref", "ref": "com.atproto.repo.strongRef" }
+        }
+      }
+    }
+  }
+}
+

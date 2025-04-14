@@ -1,0 +1,54 @@
+{
+  "lexicon": 1,
+  "id": "com.referendumapp.bill.version",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "Record containing bill versions.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["url", "versionType", "date", "version"],
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "The url containing the full bill text."
+          },
+          "versionType": {
+            "type": "string",
+            "enum": [
+              "Introduced",
+              "Comm Sub",
+              "Amended",
+              "Engrossed",
+              "Enrolled",
+              "Chaptered",
+              "Fiscal Note",
+              "Analysis",
+              "Draft",
+              "Conference Sub",
+              "Prefiled",
+              "Veto Message",
+              "Veto Response",
+              "Substitute"
+            ]
+          },
+          "date": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "version": { "type": "ref", "ref": "#versionRef" }
+        }
+      }
+    },
+    "versionRef": {
+      "type": "object",
+      "required": ["bill", "previous"],
+      "refs": ["#versionRef"],
+      "properties": {
+        "bill": { "type": "ref", "ref": "com.atproto.repo.strongRef" },
+        "previous": { "type": "ref", "ref": "com.atproto.repo.strongRef" }
+      }
+    }
+  }
+}

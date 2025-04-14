@@ -1,0 +1,60 @@
+{
+  "lexicon": 1,
+  "id": "com.referendumapp.person.updateProfile",
+  "defs": {
+    "main": {
+      "type": "string",
+      "description": "Create an account. Implemented by PDS.",
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "needsType": true,
+          "type": "object",
+          "properties": {
+            "email": {
+              "type": "string",
+              "format": "email",
+              "maxLength": 100
+            },
+            "handle": {
+              "type": "string",
+              "format": "handle",
+              "description": "Requested handle for the account.",
+              "minLength": 8,
+              "maxLength": 100
+            },
+            "displayName": {
+              "type": "string",
+              "maxLength": 100
+            }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "description": "Account login session returned on successful account creation.",
+          "properties": {
+            "email": {
+              "type": "string",
+              "format": "email",
+              "maxLength": 100
+            },
+            "handle": {
+              "type": "string",
+              "format": "handle",
+              "minLength": 8,
+              "maxLength": 100
+            },
+            "displayName": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 100
+            }
+          }
+        }
+      }
+    }
+  }
+}

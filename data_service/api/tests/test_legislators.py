@@ -1,4 +1,5 @@
 import pytest
+from random import randint
 
 from api.constants import ABSENT_VOTE_ID, NAY_VOTE_ID, YEA_VOTE_ID
 from api.tests.conftest import TestManager
@@ -61,6 +62,7 @@ async def test_list_legislators_filter(
     assert len(legislators["items"]) == expected_length
     for legislator in legislators["items"]:
         assert legislator["name"] in expected_names
+        assert legislator["followthemoneyEid"]
 
 
 async def test_invalid_list_legislators_filter(test_manager: TestManager):
@@ -134,7 +136,7 @@ async def test_update_legislator_not_found(test_manager: TestManager):
         "id": DEFAULT_ID * 2,
         "legiscanId": str(DEFAULT_ID * 2),
         "name": "Anti-John Doe",
-        "image_url": "example.com/image.png",
+        "imageUrl": "example.com/image.png",
         "district": "ED-1",
         "address": "999 Senate Office Building Washington, DC 20510",
         "instagram": "@senantijohndoe",
@@ -142,6 +144,7 @@ async def test_update_legislator_not_found(test_manager: TestManager):
         "partyId": party["id"],
         "stateId": state["id"],
         "roleId": role["id"],
+        "followthemoneyEid": str(randint(100, 99999)),
     }
     response = await test_manager.client.put(
         "/legislators/", json=non_existent_legislator, headers=test_manager.headers

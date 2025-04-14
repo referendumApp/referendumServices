@@ -183,7 +183,8 @@
       "ballotpedia",
       "state_id",
       "role_id",
-      "representing_state_abbr"
+      "representing_state_abbr",
+      "followthemoney_eid"
     ],
     "destination_columns": [
       "id",
@@ -194,7 +195,8 @@
       "state_id",
       "representing_state_id",
       "image_url",
-      "role_id"
+      "role_id",
+      "followthemoney_eid"
     ],
     "join_config": {
       "join_type": "LEFT JOIN",

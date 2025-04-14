@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     FEEDBACK_BUCKET_NAME: str = "referendumapp-beta"
 
     # AI
+    OPENAI_API_KEY: str = None
     MAX_BILL_LENGTH_WORDS: int = 10000
     MAX_MESSAGES_PER_MONTH: int = 100
     CHAT_SESSION_TIMEOUT_SECONDS: int = 3600

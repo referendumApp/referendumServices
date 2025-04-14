@@ -61,12 +61,16 @@ class BillChatSession:
 
 class BillChatSessionManager:
     def __init__(
-        self, max_bill_length: int, session_timeout_seconds: int, model_name: str = "gpt-3.5-turbo"
+        self,
+        openai_api_key: str,
+        max_bill_length: int,
+        session_timeout_seconds: int,
+        model_name: str = "gpt-3.5-turbo",
     ):
         self._sessions: Dict[str, BillChatSession] = {}
         self.max_bill_length = max_bill_length
         self.session_timeout_seconds = session_timeout_seconds
-        self.llm_service = LLMService(model_name=model_name)
+        self.llm_service = LLMService(openai_api_key=openai_api_key, model_name=model_name)
 
     def create_session(self, bill_version_id: int, bill_text: str) -> str:
         self._cleanup_expired_sessions()
