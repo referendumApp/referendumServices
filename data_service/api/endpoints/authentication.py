@@ -171,7 +171,12 @@ async def generate_forgot_password_token(
 
         subject = "Referendum account password reset"
 
-        await email_service.send_password_reset_token_email(to_email=email, subject=subject, username=user.name, passcode=passcode)
+        await email_service.send_password_reset_token_email(
+            to_email=email,
+            subject=subject,
+            username=user.name,
+            passcode=passcode
+        )
     except CredentialsException as e:
         logger.warning(f"Failed to validate email: {str(e)}")
         raise HTTPException(

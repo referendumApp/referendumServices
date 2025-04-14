@@ -44,7 +44,13 @@ class EmailService:
         self.env = Environment(loader=FileSystemLoader(self.templates_dir))
 
 
-    async def send_password_reset_token_email(self, to_email: EmailStr, subject: str, username: str, passcode: str):
+    async def send_password_reset_token_email(
+        self,
+        to_email: EmailStr,
+        subject: str,
+        username: str,
+        passcode: str,
+    ):
         try:
             template = self.env.get_template("password_reset.html")
             html_content = template.render(

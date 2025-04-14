@@ -122,7 +122,11 @@ async def get_password_reset_token_data(
     credentials: HTTPAuthorizationCredentials = Depends(password_reset_token_scheme)
 ) -> dict[str, str]:
     try:
-        payload = jwt.decode(credentials.credentials, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(
+            credentials.credentials,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM]
+        )
         email = payload.get("sub")
         token_type = payload.get("type")
         exp = payload.get("exp")
@@ -151,7 +155,9 @@ async def get_password_reset_token_data(
     
 
 def cleanup_expired_tokens(db: Session):
-    db.query(models.ForgotPasswordToken).filter(models.ForgotPasswordToken.expires_at < datetime.utcnow()).delete()
+    db.query(models.ForgotPasswordToken).filter(
+        models.ForgotPasswordToken.expires_at < datetime.utcnow()
+    ).delete()
     db.commit()
 
 

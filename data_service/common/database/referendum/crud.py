@@ -788,10 +788,16 @@ class ExecutiveOrderCRUD(
 
 
 class ForgotPasswordTokenCRUD(
-    BaseCRUD[models.ForgotPasswordToken, schemas.ForgotPasswordTokenCreate, schemas.ForgotPasswordTokenCreate]
+    BaseCRUD[
+        models.ForgotPasswordToken,
+        schemas.ForgotPasswordTokenCreate,
+        schemas.ForgotPasswordTokenCreate
+    ]
 ):
-    def read_user_latest_token(self, db: Session, user_id: int):
-        db_token = db.query(models.ForgotPasswordToken).filter(models.ForgotPasswordToken.user_id == user_id).first()
+    def read_user_latest_token(self, db: Session, user_id: int) -> models.forgot_password_token:
+        db_token = db.query(models.ForgotPasswordToken).filter(
+            models.ForgotPasswordToken.user_id == user_id
+        ).first()
         return db_token
 
 
