@@ -54,7 +54,7 @@ services:
 
   user-api:
     container_name: user-api
-    extends: 
+    extends:
       service: user-api-base
     build:
       context: ./user_service
@@ -65,15 +65,13 @@ services:
 
   user-api-local:
     container_name: user-api-local
-    extends: 
+    extends:
       service: user-api-base
     build:
       context: ./user_service
       target: user-local
     environment:
       - CGO_ENABLED=0
-      - GOOS=linux
-      - GOARCH=amd64
     depends_on:
       db:
         condition: service_healthy
@@ -86,7 +84,13 @@ services:
       - ./user_service/internal:/code/internal
     ports:
       - "8080:80"
-    profiles: ["local-data", "local-empty"]
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:80/health" ]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+    profiles: ["local-data", "local-empty", "test"]
 
   db:
     container_name: db
@@ -173,6 +177,8 @@ services:
         condition: service_completed_successfully
       migrations:
         condition: service_completed_successfully
+      user-api-local:
+        condition: service_healthy
     env_file: .env
     profiles: ["local-data"]
 
@@ -190,5 +196,7 @@ services:
         condition: service_completed_successfully
       migrations:
         condition: service_completed_successfully
+      user-api-local:
+        condition: service_healthy
     env_file: .env
     profiles: ["test"]
