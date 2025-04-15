@@ -40,4 +40,4 @@ jobs:
           cache-dependency-path: user_service/go.sum
       - name: Build Lexicon Schema
         working-directory: user_service
-        run: go run ./cmd/lexgen --build-file ./cmd/lexgen/build-config.json
+        run: go run ./cmd/lexgen --build-file ./cmd/lexgen/build-config.json "./cmd/lexgen/lexicons/com/referendumapp"
