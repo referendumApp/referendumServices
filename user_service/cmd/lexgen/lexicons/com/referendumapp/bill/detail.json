@@ -5,7 +5,7 @@
     "main": {
       "type": "record",
       "description": "Record containing bill details.",
-      "key": "tid",
+      "key": "lid:identifier:session:jurisdiction",
       "record": {
         "type": "object",
         "required": [

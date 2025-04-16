@@ -8,6 +8,8 @@ FROM base as prod-builder
 COPY cmd/api cmd/api
 COPY internal internal
 
+ENV CGO_ENABLED=0
+
 RUN go build -o /code/app ./cmd/api/main.go
 
 FROM alpine:latest as user-prod

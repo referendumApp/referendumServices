@@ -50,7 +50,7 @@ type Config struct {
 	MinConns     int32 // Minimum number of connections in the pool
 }
 
-func LoadConfigFromEnv() Config {
+func LoadConfigFromEnv() *Config {
 	slog.Info("Loading runtime env vars")
 
 	config := Config{
@@ -86,5 +86,5 @@ func LoadConfigFromEnv() Config {
 
 	slog.Info("Successfully loaded env vars!")
 
-	return config
+	return &config
 }

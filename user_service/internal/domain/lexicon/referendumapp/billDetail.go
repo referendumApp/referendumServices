@@ -7,7 +7,7 @@ package referendumapp
 import (
 	comatproto "github.com/bluesky-social/indigo/api/atproto"
 	"github.com/bluesky-social/indigo/lex/util"
-	"github.com/bluesky-social/indigo/repo"
+	"github.com/referendumApp/referendumServices/internal/repo"
 )
 
 func init() {
@@ -35,5 +35,5 @@ func (t BillDetail) NSID() string {
 }
 
 func (t BillDetail) Key() string {
-	return repo.NextTID()
+	return repo.LID(t.Identifier, t.Session, t.Jurisdiction)
 }

@@ -152,6 +152,22 @@ func Database() *APIError {
 	}
 }
 
+func Repo() *APIError {
+	return &APIError{
+		Detail:     "Repo Store Error",
+		StatusCode: http.StatusInternalServerError,
+		Code:       ErrorCodeInternal,
+	}
+}
+
+func PLCServer() *APIError {
+	return &APIError{
+		Detail:     "PLC Server Error",
+		StatusCode: http.StatusInternalServerError,
+		Code:       ErrorCodeInternal,
+	}
+}
+
 func InternalServer() *APIError {
 	return &APIError{
 		Detail:     "Internal Server Error",

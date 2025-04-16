@@ -1,7 +1,6 @@
 package car
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -17,13 +16,13 @@ import (
 )
 
 type StoreMeta struct {
-	db *database.DB
+	*database.DB
 }
 
 func (cs *StoreMeta) HasUidCid(ctx context.Context, user atp.Uid, k cid.Cid) (bool, error) {
 	var count int64
-	leftTbl := fmt.Sprintf("%s.%s", cs.db.Schema, BlockRef{}.TableName())
-	rightTbl := fmt.Sprintf("%s.%s", cs.db.Schema, Shard{}.TableName())
+	leftTbl := cs.Schema + "." + BlockRef{}.TableName()
+	rightTbl := cs.Schema + "." + Shard{}.TableName()
 	psql := sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 
 	sql, args, err := psql.
@@ -32,12 +31,12 @@ func (cs *StoreMeta) HasUidCid(ctx context.Context, user atp.Uid, k cid.Cid) (bo
 		LeftJoin(fmt.Sprintf("%s ON %s.shard = %s.id", rightTbl, leftTbl, rightTbl)).
 		Where(sq.Eq{"uid": user}, sq.Eq{"cid": atp.DbCID{CID: k}}).ToSql()
 	if err != nil {
-		cs.db.Log.ErrorContext(ctx, "Error building left join query", "error", err)
+		cs.Log.ErrorContext(ctx, "Error building left join query", "error", err)
 		return false, err
 	}
 
-	if err := cs.db.GetRow(ctx, sql, args...).Scan(&count); err != nil {
-		cs.db.Log.ErrorContext(ctx, "Error scanning row", "error", err, "sql", sql, "args", args)
+	if err := cs.GetRow(ctx, sql, args...).Scan(&count); err != nil {
+		cs.Log.ErrorContext(ctx, "Error scanning row", "error", err, "sql", sql, "args", args)
 		return false, err
 	}
 
@@ -51,8 +50,8 @@ func (cs *StoreMeta) LookupBlockRef(ctx context.Context, k cid.Cid) (string, int
 	var offset int64
 	var uid atp.Uid
 	sql := "SELECT (SELECT path FROM carstore.car_shards WHERE id = block_refs.shard) AS path, block_refs.byte_offset, block_refs.uid FROM carstore.block_refs WHERE block_refs.cid = $1"
-	if err := cs.db.GetRow(ctx, sql, atp.DbCID{CID: k}).Scan(&path, &offset, &uid); err != nil {
-		cs.db.Log.ErrorContext(ctx, "Error scanning row", "error", err, "sql", sql, "cid", k)
+	if err := cs.GetRow(ctx, sql, atp.DbCID{CID: k}).Scan(&path, &offset, &uid); err != nil {
+		cs.Log.ErrorContext(ctx, "Error scanning row", "error", err, "sql", sql, "cid", k)
 		var defaultUser atp.Uid
 		return "", -1, defaultUser, err
 	}
@@ -63,25 +62,25 @@ func (cs *StoreMeta) LookupBlockRef(ctx context.Context, k cid.Cid) (string, int
 func (cs *StoreMeta) GetLastShard(ctx context.Context, user atp.Uid) (*Shard, error) {
 	filter := sq.Eq{"uid": user}
 
-	query, err := database.BuildSelectAll(&Shard{}, cs.db.Schema, filter)
+	query, err := database.BuildSelectAll(&Shard{}, cs.Schema, filter)
 	if err != nil {
-		cs.db.Log.ErrorContext(ctx, "Error building last shard query", "error", err, "uid", user)
+		cs.Log.ErrorContext(ctx, "Error building last shard query", "error", err, "uid", user)
 		return nil, err
 	}
 
 	sql, args, err := query.OrderBy("seq DESC").ToSql()
 	if err != nil {
-		cs.db.Log.ErrorContext(ctx, "Error building raw last shard query", "error", err, "uid", user)
+		cs.Log.ErrorContext(ctx, "Error building raw last shard query", "error", err, "uid", user)
 		return nil, err
 	}
 
-	lastShard, err := database.Get[Shard](ctx, cs.db, sql, args...)
+	lastShard, err := database.Get[Shard](ctx, cs.DB, sql, args...)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			cs.db.Log.InfoContext(ctx, "No last shard found")
+			cs.Log.InfoContext(ctx, "No last shard found")
 			return &Shard{}, nil
 		}
-		cs.db.Log.ErrorContext(ctx, "Error querying for last shard", "error", err, "sql", sql)
+		cs.Log.ErrorContext(ctx, "Error querying for last shard", "error", err, "sql", sql)
 		return nil, err
 	}
 
@@ -92,21 +91,21 @@ func (cs *StoreMeta) GetLastShard(ctx context.Context, user atp.Uid) (*Shard, er
 func (cs *StoreMeta) GetUserShards(ctx context.Context, user atp.Uid) ([]*Shard, error) {
 	filter := sq.Eq{"uid": user}
 
-	query, err := database.BuildSelectAll(&Shard{}, cs.db.Schema, filter)
+	query, err := database.BuildSelectAll(&Shard{}, cs.Schema, filter)
 	if err != nil {
-		cs.db.Log.ErrorContext(ctx, "Error building car shards query", "error", err, "uid", user)
+		cs.Log.ErrorContext(ctx, "Error building car shards query", "error", err, "uid", user)
 		return nil, err
 	}
 
 	sql, args, err := query.OrderBy("seq ASC").ToSql()
 	if err != nil {
-		cs.db.Log.ErrorContext(ctx, "Error building car shards query", "error", err, "uid", user)
+		cs.Log.ErrorContext(ctx, "Error building car shards query", "error", err, "uid", user)
 		return nil, err
 	}
 
-	shards, err := database.Select[Shard](ctx, cs.db, sql, args...)
+	shards, err := database.Select[Shard](ctx, cs.DB, sql, args...)
 	if err != nil {
-		cs.db.Log.ErrorContext(ctx, "Error querying car shards", "error", err, "sql", sql)
+		cs.Log.ErrorContext(ctx, "Error querying car shards", "error", err, "sql", sql)
 		return nil, err
 	}
 
@@ -117,36 +116,25 @@ func (cs *StoreMeta) GetUserShards(ctx context.Context, user atp.Uid) ([]*Shard,
 func (cs *StoreMeta) GetUserShardsDesc(ctx context.Context, user atp.Uid, minSeq int) ([]*Shard, error) {
 	filter := sq.And{sq.Eq{"uid": user}, sq.GtOrEq{"seq": minSeq}}
 
-	query, err := database.BuildSelectAll(&Shard{}, cs.db.Schema, filter)
+	query, err := database.BuildSelectAll(&Shard{}, cs.Schema, filter)
 	if err != nil {
-		cs.db.Log.ErrorContext(ctx, "Error building car shards query", "error", err, "uid", user)
+		cs.Log.ErrorContext(ctx, "Error building car shards query", "error", err, "uid", user)
 		return nil, err
 	}
 
 	sql, args, err := query.OrderBy("seq DESC").ToSql()
 	if err != nil {
-		cs.db.Log.ErrorContext(ctx, "Error building raw car shards query", "error", err, "uid", user)
+		cs.Log.ErrorContext(ctx, "Error building raw car shards query", "error", err, "uid", user)
 		return nil, err
 	}
 
-	shards, err := database.Select[Shard](ctx, cs.db, sql, args...)
+	shards, err := database.Select[Shard](ctx, cs.DB, sql, args...)
 	if err != nil {
-		cs.db.Log.ErrorContext(ctx, "Error querying for car shards", "error", err, "sql", sql)
+		cs.Log.ErrorContext(ctx, "Error querying for car shards", "error", err, "sql", sql)
 		return nil, err
 	}
 
 	return shards, nil
-}
-
-func (cs *StoreMeta) GetUserStaleRefs(ctx context.Context, user atp.Uid) ([]*StaleRef, error) {
-	filter := sq.Eq{"uid": user}
-
-	staleRefs, err := database.SelectAll(ctx, cs.db, StaleRef{}, filter)
-	if err != nil {
-		return nil, err
-	}
-
-	return staleRefs, nil
 }
 
 func (cs *StoreMeta) SeqForRev(ctx context.Context, user atp.Uid, sinceRev string) (int, error) {
@@ -157,12 +145,12 @@ func (cs *StoreMeta) SeqForRev(ctx context.Context, user atp.Uid, sinceRev strin
 
 	sql, args, err := psql.Select("seq").From(Shard{}.TableName()).Where(filter).OrderBy("rev ASC").ToSql()
 	if err != nil {
-		cs.db.Log.ErrorContext(ctx, "Error building early shard query", "error", err, "uid", user)
+		cs.Log.ErrorContext(ctx, "Error building early shard query", "error", err, "uid", user)
 		return 0, err
 	}
 
-	if err := cs.db.GetRow(ctx, sql, args...).Scan(&seq); err != nil {
-		cs.db.Log.ErrorContext(ctx, "Error finding early shard", "error", err, "uid", user)
+	if err := cs.GetRow(ctx, sql, args...).Scan(&seq); err != nil {
+		cs.Log.ErrorContext(ctx, "Error finding early shard", "error", err, "uid", user)
 		return 0, err
 	}
 
@@ -170,26 +158,30 @@ func (cs *StoreMeta) SeqForRev(ctx context.Context, user atp.Uid, sinceRev strin
 }
 
 func (cs *StoreMeta) GetCompactionTargets(ctx context.Context, minShardCount int) ([]*CompactionTarget, error) {
-	sql := fmt.Sprintf("select usr, count(*) as num_shards from %s.%s group by usr having count(*) > $1 order by num_shards desc", cs.db.Schema, Shard{}.TableName())
+	sql := fmt.Sprintf("SELECT usr, count(*) as num_shards FROM %s.%s GROUP BY usr HAVING count(*) > $1 ORDER BY num_shards DESC", cs.Schema, Shard{}.TableName())
 
-	targets, err := database.Select[CompactionTarget](ctx, cs.db, sql, minShardCount)
+	targets, err := database.Select[CompactionTarget](ctx, cs.DB, sql, minShardCount)
 	if err != nil {
-		cs.db.Log.ErrorContext(ctx, "Error executing compaction target query", "error", err)
+		cs.Log.ErrorContext(ctx, "Error executing compaction target query", "error", err)
 		return nil, err
 	}
 
 	return targets, nil
 }
 
-func (cs *StoreMeta) PutShardAndRefs(ctx context.Context, shard *Shard, brefs []*BlockRef, rmcids map[cid.Cid]bool) error {
+func (cs *StoreMeta) PutShardAndRefs(ctx context.Context, shard *Shard, brefs []*BlockRef) error {
 	// TODO: Can use a CTE to insert both the shard and block refs in the same query
-	if err := cs.db.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		newShard, err := database.CreateReturningWithTx(ctx, cs.db, tx, *shard, "id")
+	if err := cs.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		row, err := database.CreateReturningWithTx(ctx, cs.DB, tx, *shard, "id")
 		if err != nil {
-			cs.db.Log.ErrorContext(ctx, "Error creating shard", "error", err)
+			cs.Log.ErrorContext(ctx, "Error creating shard", "error", err)
 			return err
 		}
-		shard.ID = newShard.ID
+
+		if serr := row.Scan(&shard.ID); serr != nil {
+			cs.Log.ErrorContext(ctx, "Failed to scan new User ID", "error", serr)
+			return serr
+		}
 
 		batchSize := 2000
 		for i := 0; i < len(brefs); i += batchSize {
@@ -200,27 +192,16 @@ func (cs *StoreMeta) PutShardAndRefs(ctx context.Context, shard *Shard, brefs []
 			}
 
 			for _, ref := range batch {
-				ref.Shard = newShard.ID
+				ref.Shard = shard.ID
 				entities = append(entities, ref)
 			}
 
-			if err := cs.db.CreateBatchWithTx(ctx, tx, entities); err != nil {
-				cs.db.Log.ErrorContext(ctx, "Error batch creating block refs", "error", err)
+			if err := cs.CreateBatchWithTx(ctx, tx, entities); err != nil {
+				cs.Log.ErrorContext(ctx, "Error batch creating block refs", "error", err)
 				return err
 			}
 		}
 
-		if len(rmcids) > 0 {
-			cids := make([]cid.Cid, 0, len(rmcids))
-			for c := range rmcids {
-				cids = append(cids, c)
-			}
-
-			if err := cs.db.CreateWithTx(ctx, tx, &StaleRef{Cids: packCids(cids), Uid: shard.Uid}); err != nil {
-				cs.db.Log.ErrorContext(ctx, "Error creating stale ref", "error", err)
-				return err
-			}
-		}
 		return nil
 	}); err != nil {
 		return err
@@ -230,16 +211,16 @@ func (cs *StoreMeta) PutShardAndRefs(ctx context.Context, shard *Shard, brefs []
 }
 
 func (cs *StoreMeta) DeleteShardsAndRefs(ctx context.Context, ids []uint) error {
-	if err := cs.db.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+	if err := cs.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		sdFilter := sq.Eq{"id": ids}
-		if err := cs.db.DeleteWithTx(ctx, tx, &Shard{}, sdFilter); err != nil {
-			cs.db.Log.ErrorContext(ctx, "Error deleting shards", "error", err, "ids", ids)
+		if err := cs.DeleteWithTx(ctx, tx, &Shard{}, sdFilter); err != nil {
+			cs.Log.ErrorContext(ctx, "Error deleting shards", "error", err, "ids", ids)
 			return err
 		}
 
 		blkFilter := sq.Eq{"shard": ids}
-		if err := cs.db.DeleteWithTx(ctx, tx, &BlockRef{}, blkFilter); err != nil {
-			cs.db.Log.ErrorContext(ctx, "Error deleting block refs", "error", err, "ids", ids)
+		if err := cs.DeleteWithTx(ctx, tx, &BlockRef{}, blkFilter); err != nil {
+			cs.Log.ErrorContext(ctx, "Error deleting block refs", "error", err, "ids", ids)
 			return err
 		}
 
@@ -263,7 +244,7 @@ func (cs *StoreMeta) GetBlockRefsForShards(ctx context.Context, shardIds []uint)
 		sval := valuesStatementForShards(sl)
 		sql := fmt.Sprintf(`SELECT block_refs.* FROM carstore.block_refs INNER JOIN (VALUES %s) AS vals(v) ON block_refs.shard = v`, sval)
 
-		chunkResults, err := database.Select[BlockRef](ctx, cs.db, sql)
+		chunkResults, err := database.Select[BlockRef](ctx, cs.DB, sql)
 		if err != nil {
 			return nil, fmt.Errorf("error getting block refs: %w", err)
 		}
@@ -285,37 +266,4 @@ func valuesStatementForShards(shards []uint) string {
 		}
 	}
 	return sb.String()
-}
-
-func (cs *StoreMeta) SetStaleRef(ctx context.Context, uid atp.Uid, staleToKeep []cid.Cid) error {
-	if err := cs.db.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		filter := sq.Eq{"uid": uid}
-		if err := cs.db.DeleteWithTx(ctx, tx, &StaleRef{}, filter); err != nil {
-			cs.db.Log.ErrorContext(ctx, "Error deleting stale ref", "error", err)
-			return err
-		}
-
-		// now create a new staleRef with all the refs we couldn't clear out
-		if len(staleToKeep) > 0 {
-			if err := cs.db.CreateWithTx(ctx, tx, &StaleRef{Cids: packCids(staleToKeep), Uid: uid}); err != nil {
-				cs.db.Log.ErrorContext(ctx, "Error creating stale ref", "error", err)
-				return err
-			}
-		}
-
-		return nil
-	}); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func packCids(cids []cid.Cid) []byte {
-	buf := new(bytes.Buffer)
-	for _, c := range cids {
-		buf.Write(c.Bytes())
-	}
-
-	return buf.Bytes()
 }

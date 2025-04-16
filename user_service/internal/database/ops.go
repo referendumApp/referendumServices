@@ -144,35 +144,9 @@ func (d *DB) HandleRecordDeleteFeedLike(ctx context.Context, uid atp.Uid, rkey s
 			return err
 		}
 
-		if err := d.UpdateWithTx(ctx, tx, er, "id"); err != nil {
-			return err
-		}
-
 		d.Log.Warn("need to delete vote notification")
 		return nil
 	})
-}
-
-func (d *DB) LookupUserGraphFollowers(ctx context.Context, uid atp.Uid) ([]*atp.UserFollowRecord, error) {
-	filter := sq.Eq{"target": uid}
-	follow, err := SelectAll(ctx, d, atp.UserFollowRecord{}, filter)
-	if err != nil {
-		d.Log.ErrorContext(ctx, "Failed to lookup followers", "uid", uid)
-		return nil, err
-	}
-
-	return follow, nil
-}
-
-func (d *DB) LookupUserGraphFollowing(ctx context.Context, uid atp.Uid) ([]*atp.UserFollowRecord, error) {
-	filter := sq.Eq{"follower": uid}
-	follow, err := SelectAll(ctx, d, atp.UserFollowRecord{}, filter)
-	if err != nil {
-		d.Log.ErrorContext(ctx, "Failed to lookup follows", "uid", uid)
-		return nil, err
-	}
-
-	return follow, nil
 }
 
 func (d *DB) HandleRecordDeleteGraphFollow(ctx context.Context, uid atp.Uid, rkey string) error {

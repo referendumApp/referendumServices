@@ -9,15 +9,19 @@ import (
 	sq "github.com/Masterminds/squirrel"
 )
 
-var ErrNoMappedFields = errors.New("no fields to update")
+var ErrNoFields = errors.New("no fields found")
 
 type TableEntity interface {
 	TableName() string
 }
 
-// TODO: Could eventually apply reflection here to optimize our read queries and not just get everything. Leaving this here now until it becomes a problem
-func BuildSelect(entity TableEntity, schema string, cols []string, filters ...sq.Sqlizer) (*sq.SelectBuilder, error) {
-	table := fmt.Sprintf("%s.%s", schema, entity.TableName())
+func BuildSelect(entity TableEntity, schema string, filters ...sq.Sqlizer) (*sq.SelectBuilder, error) {
+	table := schema + "." + entity.TableName()
+	cols, err := getColumns(entity)
+	if err != nil {
+		return nil, err
+	}
+
 	query := sq.Select(cols...).From(table).PlaceholderFormat(sq.Dollar)
 
 	for _, filter := range filters {
@@ -28,7 +32,7 @@ func BuildSelect(entity TableEntity, schema string, cols []string, filters ...sq
 }
 
 func BuildSelectAll(entity TableEntity, schema string, filters ...sq.Sqlizer) (*sq.SelectBuilder, error) {
-	table := fmt.Sprintf("%s.%s", schema, entity.TableName())
+	table := schema + "." + entity.TableName()
 	query := sq.Select("*").From(table).PlaceholderFormat(sq.Dollar)
 
 	for _, filter := range filters {
@@ -39,7 +43,7 @@ func BuildSelectAll(entity TableEntity, schema string, filters ...sq.Sqlizer) (*
 }
 
 func BuildDeleteQuery(entity TableEntity, schema string, filters ...sq.Sqlizer) (*sq.DeleteBuilder, error) {
-	table := fmt.Sprintf("%s.%s", schema, entity.TableName())
+	table := schema + "." + entity.TableName()
 	query := sq.Delete(table).PlaceholderFormat(sq.Dollar)
 
 	for _, filter := range filters {
@@ -57,7 +61,7 @@ func dereferenceValue(value reflect.Value) any {
 	return value.Interface()
 }
 
-func operateOnFields(entity TableEntity, cb func(col string, field reflect.Value) error) error {
+func operateOnFields(entity TableEntity, cb func(tags []string, field reflect.Value) error) error {
 	if entity == nil {
 		return fmt.Errorf("invalid input: entity must be provided")
 	}
@@ -83,19 +87,8 @@ func operateOnFields(entity TableEntity, cb func(col string, field reflect.Value
 		}
 
 		tagParts := strings.Split(dbTag, ",")
-		columnName := tagParts[0]
 
-		// Handle "omitempty" tag
-		if len(tagParts) > 1 && tagParts[1] == "omitempty" {
-			if field.Kind() == reflect.Ptr && field.IsNil() {
-				continue
-			}
-			if !field.IsValid() || field.IsZero() {
-				continue
-			}
-		}
-
-		if err := cb(columnName, field); err != nil {
+		if err := cb(tagParts, field); err != nil {
 			return err
 		}
 	}
@@ -103,26 +96,58 @@ func operateOnFields(entity TableEntity, cb func(col string, field reflect.Value
 	return nil
 }
 
+func getColumns(entity TableEntity) ([]string, error) {
+	tblName := entity.TableName()
+	var cols []string
+
+	if err := operateOnFields(entity, func(tags []string, field reflect.Value) error {
+		columnName := tags[0]
+
+		cols = append(cols, fmt.Sprintf("%s.%s", tblName, columnName))
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	if len(cols) == 0 {
+		return nil, ErrNoFields
+	}
+
+	return cols, nil
+}
+
 func getQueryMap(entity TableEntity) (map[string]any, error) {
 	queryMap := make(map[string]any)
 
-	if err := operateOnFields(entity, func(col string, field reflect.Value) error {
-		queryMap[col] = dereferenceValue(field)
+	if err := operateOnFields(entity, func(tags []string, field reflect.Value) error {
+		columnName := tags[0]
+
+		// Handle "omitempty" tag
+		if len(tags) > 1 && tags[1] == "omitempty" {
+			if field.Kind() == reflect.Ptr && field.IsNil() {
+				return nil
+			}
+			if !field.IsValid() || field.IsZero() {
+				return nil
+			}
+		}
+
+		queryMap[columnName] = dereferenceValue(field)
 		return nil
 	}); err != nil {
 		return nil, err
 	}
 
 	if len(queryMap) == 0 {
-		return nil, ErrNoMappedFields
+		return nil, ErrNoFields
 	}
 
 	return queryMap, nil
 }
 
-func BuildUpdateQuery(entity TableEntity, schema string, idFieldName string) (*sq.UpdateBuilder, error) {
-	if idFieldName == "" {
-		return nil, fmt.Errorf("invalid input: idFieldName must be provided")
+func BuildUpdateQuery(entity TableEntity, schema string, filters ...sq.Sqlizer) (*sq.UpdateBuilder, error) {
+	if len(filters) == 0 {
+		return nil, fmt.Errorf("invalid input: filters must be provided")
 	}
 
 	updateMap, err := getQueryMap(entity)
@@ -130,18 +155,31 @@ func BuildUpdateQuery(entity TableEntity, schema string, idFieldName string) (*s
 		return nil, err
 	}
 
-	idValue, exists := updateMap[idFieldName]
-	if !exists {
-		return nil, fmt.Errorf("missing ID value for field %s", idFieldName)
-	}
-
-	delete(updateMap, idFieldName)
-
-	table := fmt.Sprintf("%s.%s", schema, entity.TableName())
+	table := schema + "." + entity.TableName()
 	query := sq.Update(table).
 		SetMap(updateMap).
-		Where(sq.Eq{idFieldName: idValue}).
 		PlaceholderFormat(sq.Dollar)
+
+	for _, filter := range filters {
+		query = query.Where(filter)
+	}
+
+	return &query, nil
+}
+
+func BuildUpdateCountQuery(entity TableEntity, schema string, countField string, filters ...sq.Sqlizer) (*sq.UpdateBuilder, error) {
+	if len(filters) == 0 {
+		return nil, fmt.Errorf("invalid input: filters must be provided")
+	}
+
+	table := schema + "." + entity.TableName()
+	query := sq.Update(table).
+		Set(countField, sq.Expr(countField+" + 1")).
+		PlaceholderFormat(sq.Dollar)
+
+	for _, filter := range filters {
+		query = query.Where(filter)
+	}
 
 	return &query, nil
 }
@@ -152,7 +190,7 @@ func BuildInsertQuery(entity TableEntity, schema string) (*sq.InsertBuilder, err
 		return nil, err
 	}
 
-	table := fmt.Sprintf("%s.%s", schema, entity.TableName())
+	table := schema + "." + entity.TableName()
 	query := sq.Insert(table).SetMap(fstMap).PlaceholderFormat(sq.Dollar)
 
 	return &query, nil
@@ -187,7 +225,7 @@ func BuildInsertWithConflictQuery(entity TableEntity, schema string, conflictCol
 		return nil, err
 	}
 
-	table := fmt.Sprintf("%s.%s", schema, entity.TableName())
+	table := schema + "." + entity.TableName()
 	query := sq.Insert(table).SetMap(fstMap).PlaceholderFormat(sq.Dollar)
 
 	var conflict strings.Builder
@@ -226,7 +264,7 @@ func BuildBatchInsertQuery(entities []TableEntity, schema string) (*sq.InsertBui
 		values = append(values, v)
 	}
 
-	table := fmt.Sprintf("%s.%s", schema, fstEnt.TableName())
+	table := schema + "." + fstEnt.TableName()
 	query := sq.Insert(table).Columns(columns...).Values(values...).PlaceholderFormat(sq.Dollar)
 
 	for _, entity := range entities[1:] {

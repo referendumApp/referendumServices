@@ -148,13 +148,6 @@ func OpenRepo(ctx context.Context, bs cbor.IpldBlockstore, root cid.Cid) (*Repo,
 	}, nil
 }
 
-type Record interface {
-	cbg.CBORUnmarshaler
-	cbg.CBORMarshaler
-	NSID() string
-	Key() string
-}
-
 func (r *Repo) RepoDid() string {
 	if r.sc.Did == "" {
 		panic("repo has unset did")
@@ -180,33 +173,31 @@ func (r *Repo) Blockstore() cbor.IpldBlockstore {
 	return r.bs
 }
 
-func (r *Repo) CreateRecord(ctx context.Context, rec Record) (cid.Cid, string, error) {
+func (r *Repo) CreateRecord(ctx context.Context, rpath string, rec cbg.CBORMarshaler) (cid.Cid, error) {
 	ctx, span := otel.Tracer("repo").Start(ctx, "CreateRecord")
 	defer span.End()
 
 	r.dirty = true
 	t, err := r.getMst(ctx)
 	if err != nil {
-		return cid.Undef, "", fmt.Errorf("failed to get mst: %w", err)
+		return cid.Undef, fmt.Errorf("failed to get mst: %w", err)
 	}
 
 	k, err := r.cst.Put(ctx, rec)
 	if err != nil {
-		return cid.Undef, "", err
+		return cid.Undef, err
 	}
 
-	key := rec.Key()
-	rpath := fmt.Sprintf("%s/%s", rec.NSID(), key)
 	nmst, err := t.Add(ctx, rpath, k, -1)
 	if err != nil {
-		return cid.Undef, "", fmt.Errorf("mst.Add failed: %w", err)
+		return cid.Undef, fmt.Errorf("mst.Add failed: %w", err)
 	}
 
 	r.mst = nmst
-	return k, key, nil
+	return k, nil
 }
 
-func (r *Repo) PutEventRecord(ctx context.Context, rpath string, rec cbg.CBORMarshaler) (cid.Cid, error) {
+func (r *Repo) PutRecord(ctx context.Context, rpath string, rec cbg.CBORMarshaler) (cid.Cid, error) {
 	ctx, span := otel.Tracer("repo").Start(ctx, "PutRecord")
 	defer span.End()
 
@@ -230,7 +221,7 @@ func (r *Repo) PutEventRecord(ctx context.Context, rpath string, rec cbg.CBORMar
 	return k, nil
 }
 
-func (r *Repo) UpdateRecord(ctx context.Context, rec Record) (cid.Cid, error) {
+func (r *Repo) UpdateRecord(ctx context.Context, rpath string, rec cbg.CBORMarshaler) (cid.Cid, error) {
 	ctx, span := otel.Tracer("repo").Start(ctx, "UpdateRecord")
 	defer span.End()
 
@@ -245,7 +236,6 @@ func (r *Repo) UpdateRecord(ctx context.Context, rec Record) (cid.Cid, error) {
 		return cid.Undef, err
 	}
 
-	rpath := fmt.Sprintf("%s/%s", rec.NSID(), rec.Key())
 	nmst, err := t.Update(ctx, rpath, k)
 	if err != nil {
 		return cid.Undef, fmt.Errorf("mst.Add failed: %w", err)
@@ -358,11 +348,10 @@ func (r *Repo) ForEach(ctx context.Context, prefix string, cb func(k string, v c
 	return nil
 }
 
-func (r *Repo) GetRecord(ctx context.Context, rec Record) (cid.Cid, error) {
+func (r *Repo) GetRecord(ctx context.Context, rpath string, rec cbg.CBORMarshaler) (cid.Cid, error) {
 	ctx, span := otel.Tracer("repo").Start(ctx, "GetRecord")
 	defer span.End()
 
-	rpath := fmt.Sprintf("%s/%s", rec.NSID(), rec.Key())
 	cc, recB, err := r.GetRecordBytes(ctx, rpath)
 	if err != nil {
 		return cid.Undef, err
