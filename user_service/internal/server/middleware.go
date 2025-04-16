@@ -2,60 +2,11 @@ package server
 
 import (
 	"bufio"
-	"context"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"time"
-
-	"github.com/golang-jwt/jwt/v5"
-
-	refErr "github.com/referendumApp/referendumServices/internal/error"
-	"github.com/referendumApp/referendumServices/internal/util"
 )
-
-// Authorize a request based on the JWT included in the request
-func (s *Server) authorizeUser(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestCtx := r.Context()
-
-		accessToken := s.jwt.ExtractToken(r)
-		if accessToken == "" {
-			refErr.Unauthorized("Token not found").WriteResponse(w)
-			return
-		}
-
-		token, err := s.jwt.DecodeJWT(accessToken)
-		if err != nil {
-			s.log.ErrorContext(requestCtx, "Failed to decode JWT", "error", err)
-			if errors.Is(err, jwt.ErrTokenExpired) {
-				refErr.Unauthorized("JWT expired").WriteResponse(w)
-				return
-			}
-
-			refErr.BadRequest("Invalid token").WriteResponse(w)
-			return
-		}
-
-		did, err := util.ValidateToken(token, util.Access)
-		if err != nil {
-			refErr.BadRequest("Invalid token type for access token").WriteResponse(w)
-			return
-		}
-
-		per, err := s.db.LookupPersonByDid(requestCtx, did)
-		if err != nil {
-			s.log.ErrorContext(requestCtx, "Failed to authorize user with DID", "error", err, "DID", did)
-			refErr.InternalServer().WriteResponse(w)
-			return
-		}
-
-		ctx := context.WithValue(requestCtx, s.jwt.ContextKey, per)
-
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
 
 type CustomResponseWriter struct {
 	http.ResponseWriter
@@ -83,10 +34,6 @@ func getOrCreateCustomWriter(w http.ResponseWriter) *CustomResponseWriter {
 		StatusCode:     http.StatusOK,
 	}
 }
-
-type TransactionCtxKey string
-
-const TxCtxKey TransactionCtxKey = "tx"
 
 func (s *Server) logRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

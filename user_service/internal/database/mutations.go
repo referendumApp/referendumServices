@@ -133,8 +133,8 @@ func CreateReturning[T TableEntity](
 	return Get[T](ctx, d, sql, args...)
 }
 
-func (d *DB) Update(ctx context.Context, entity TableEntity, idField string) error {
-	query, err := BuildUpdateQuery(entity, d.Schema, idField)
+func (d *DB) Update(ctx context.Context, entity TableEntity, filters ...sq.Sqlizer) error {
+	query, err := BuildUpdateQuery(entity, d.Schema, filters...)
 	if err != nil {
 		d.Log.ErrorContext(ctx, "Error building update query", "error", err, "table", entity.TableName())
 		return err
@@ -149,6 +149,31 @@ func (d *DB) Update(ctx context.Context, entity TableEntity, idField string) err
 	tag, err := d.pool.Exec(ctx, sql, args...)
 	if err != nil {
 		d.Log.ErrorContext(ctx, "Error executing statement", "error", err, "sql", sql)
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNoRowsAffected
+	}
+
+	return nil
+}
+
+func (d *DB) UpdateCount(ctx context.Context, entity TableEntity, field string, filters ...sq.Sqlizer) error {
+	query, err := BuildUpdateCountQuery(entity, d.Schema, field, filters...)
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error building update query in DB tx", "error", err, "table", entity.TableName(), "field", field)
+		return err
+	}
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error creating raw update query in DB tx", "error", err, "table", entity.TableName(), "field", field)
+		return err
+	}
+
+	tag, err := d.pool.Exec(ctx, sql, args...)
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error executing statement in DB tx", "error", err, "sql", sql)
 		return err
 	}
 	if tag.RowsAffected() == 0 {
@@ -257,7 +282,7 @@ func CreateReturningWithTx[T TableEntity](
 	tx pgx.Tx,
 	entity T,
 	returnCol ...string,
-) (*T, error) {
+) (pgx.Row, error) {
 	query, err := BuildInsertWithReturnQuery(entity, d.Schema, returnCol...)
 	if err != nil {
 		d.Log.ErrorContext(ctx, "Error building insert w/ return query in DB tx", "error", err, "table", entity.TableName())
@@ -270,11 +295,11 @@ func CreateReturningWithTx[T TableEntity](
 		return nil, err
 	}
 
-	return GetWithTx[T](ctx, tx, sql, args...)
+	return d.GetRowWithTx(ctx, tx, sql, args...), nil
 }
 
-func (d *DB) UpdateWithTx(ctx context.Context, tx pgx.Tx, entity TableEntity, idField string) error {
-	query, err := BuildUpdateQuery(entity, d.Schema, idField)
+func (d *DB) UpdateWithTx(ctx context.Context, tx pgx.Tx, entity TableEntity, filters ...sq.Sqlizer) error {
+	query, err := BuildUpdateQuery(entity, d.Schema, filters...)
 	if err != nil {
 		d.Log.ErrorContext(ctx, "Error building update query in DB tx", "error", err, "table", entity.TableName())
 		return err
@@ -283,6 +308,31 @@ func (d *DB) UpdateWithTx(ctx context.Context, tx pgx.Tx, entity TableEntity, id
 	sql, args, err := query.ToSql()
 	if err != nil {
 		d.Log.ErrorContext(ctx, "Error creating raw update query in DB tx", "error", err, "table", entity.TableName())
+		return err
+	}
+
+	tag, err := tx.Exec(ctx, sql, args...)
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error executing statement in DB tx", "error", err, "sql", sql)
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNoRowsAffected
+	}
+
+	return nil
+}
+
+func (d *DB) UpdateCountWithTx(ctx context.Context, tx pgx.Tx, entity TableEntity, field string, filters ...sq.Sqlizer) error {
+	query, err := BuildUpdateCountQuery(entity, d.Schema, field, filters...)
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error building update query in DB tx", "error", err, "table", entity.TableName(), "field", field)
+		return err
+	}
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error creating raw update query in DB tx", "error", err, "table", entity.TableName(), "field", field)
 		return err
 	}
 

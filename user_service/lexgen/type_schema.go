@@ -683,7 +683,7 @@ func (ts *TypeSchema) writeTypeDefinition(name string, w io.Writer) error {
 		if ts.needsType {
 			var omit string
 			if ts.id == "com.atproto.repo.strongRef" { // TODO: hack
-				omit = fmt.Sprintf(",%s", Omit)
+				omit = "," + Omit
 			}
 			cval := ts.id
 			if ts.defName != "" && ts.defName != Main {
@@ -714,7 +714,7 @@ func (ts *TypeSchema) writeTypeDefinition(name string, w io.Writer) error {
 			var omit string
 			var valTags strings.Builder
 			if !required[k] {
-				omit = fmt.Sprintf(",%s", Omit)
+				omit = "," + Omit
 				if !strings.HasPrefix(tname, "*") && !strings.HasPrefix(tname, "[]") {
 					ptr = "*"
 				}
@@ -763,8 +763,8 @@ func (ts *TypeSchema) writeTypeDefinition(name string, w io.Writer) error {
 			// TODO: hard-coded hacks for now, making this type (with underlying type []byte)
 			// be omitempty.
 			if ptr == "" && tname == LexBytes {
-				jsonOmit = fmt.Sprintf(",%s", Omit)
-				cborOmit = fmt.Sprintf(",%s", Omit)
+				jsonOmit = "," + Omit
+				cborOmit = "," + Omit
 			}
 
 			if name == "LabelDefs_SelfLabels" && k == "values" {

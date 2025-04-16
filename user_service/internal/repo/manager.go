@@ -137,7 +137,7 @@ func (rm *Manager) CarStore() cs.Store {
 	return rm.cs
 }
 
-func (rm *Manager) CreateRecord(ctx context.Context, user atp.Uid, rec Record) (cid.Cid, string, error) {
+func (rm *Manager) CreateRecord(ctx context.Context, user atp.Uid, nsid string, key string, rec cbg.CBORMarshaler) (cid.Cid, string, error) {
 	ctx, span := otel.Tracer("repoman").Start(ctx, "CreateRecord")
 	defer span.End()
 
@@ -149,7 +149,6 @@ func (rm *Manager) CreateRecord(ctx context.Context, user atp.Uid, rec Record) (
 		return cid.Undef, "", err
 	}
 
-	fmt.Println(rev)
 	ds, err := rm.cs.NewDeltaSession(ctx, user, &rev)
 	if err != nil {
 		return cid.Undef, "", err
@@ -162,7 +161,7 @@ func (rm *Manager) CreateRecord(ctx context.Context, user atp.Uid, rec Record) (
 		return cid.Undef, "", err
 	}
 
-	cc, tid, err := r.CreateRecord(ctx, rec)
+	cc, err := r.CreateRecord(ctx, nsid+"/"+key, rec)
 	if err != nil {
 		return cid.Undef, "", err
 	}
@@ -191,8 +190,8 @@ func (rm *Manager) CreateRecord(ctx context.Context, user atp.Uid, rec Record) (
 			Since:   &rev,
 			Ops: []Op{{
 				Kind:       EvtKindCreateRecord,
-				Collection: rec.NSID(),
-				Rkey:       tid,
+				Collection: nsid,
+				Rkey:       key,
 				Record:     rec,
 				RecCid:     &cc,
 			}},
@@ -200,10 +199,10 @@ func (rm *Manager) CreateRecord(ctx context.Context, user atp.Uid, rec Record) (
 		})
 	}
 
-	return cc, tid, nil
+	return cc, key, nil
 }
 
-func (rm *Manager) UpdateRecord(ctx context.Context, user atp.Uid, rec Record) (cid.Cid, error) {
+func (rm *Manager) UpdateRecord(ctx context.Context, user atp.Uid, nsid string, key string, rec cbg.CBORMarshaler) (cid.Cid, error) {
 	ctx, span := otel.Tracer("repoman").Start(ctx, "UpdateRecord")
 	defer span.End()
 
@@ -226,7 +225,7 @@ func (rm *Manager) UpdateRecord(ctx context.Context, user atp.Uid, rec Record) (
 		return cid.Undef, err
 	}
 
-	cc, err := r.UpdateRecord(ctx, rec)
+	cc, err := r.UpdateRecord(ctx, nsid+"/"+key, rec)
 	if err != nil {
 		return cid.Undef, err
 	}
@@ -249,8 +248,8 @@ func (rm *Manager) UpdateRecord(ctx context.Context, user atp.Uid, rec Record) (
 	if rm.events != nil {
 		op := Op{
 			Kind:       EvtKindUpdateRecord,
-			Collection: rec.NSID(),
-			Rkey:       rec.Key(),
+			Collection: nsid,
+			Rkey:       key,
 			RecCid:     &cc,
 		}
 
@@ -272,7 +271,7 @@ func (rm *Manager) UpdateRecord(ctx context.Context, user atp.Uid, rec Record) (
 	return cc, nil
 }
 
-func (rm *Manager) DeleteRecord(ctx context.Context, user atp.Uid, collection, rkey string) error {
+func (rm *Manager) DeleteRecord(ctx context.Context, user atp.Uid, nsid string, key string) error {
 	ctx, span := otel.Tracer("repoman").Start(ctx, "DeleteRecord")
 	defer span.End()
 
@@ -295,8 +294,7 @@ func (rm *Manager) DeleteRecord(ctx context.Context, user atp.Uid, collection, r
 		return err
 	}
 
-	rpath := fmt.Sprintf("%s/%s", collection, rkey)
-	if derr := r.DeleteRecord(ctx, rpath); derr != nil {
+	if derr := r.DeleteRecord(ctx, nsid+"/"+key); derr != nil {
 		return derr
 	}
 
@@ -324,8 +322,8 @@ func (rm *Manager) DeleteRecord(ctx context.Context, user atp.Uid, collection, r
 			Since:   &rev,
 			Ops: []Op{{
 				Kind:       EvtKindDeleteRecord,
-				Collection: collection,
-				Rkey:       rkey,
+				Collection: nsid,
+				Rkey:       key,
 			}},
 			RepoSlice: rslice,
 		})
@@ -334,7 +332,7 @@ func (rm *Manager) DeleteRecord(ctx context.Context, user atp.Uid, collection, r
 	return nil
 }
 
-func (rm *Manager) InitNewRepo(ctx context.Context, user atp.Uid, did string, profile Record) error {
+func (rm *Manager) InitNewRepo(ctx context.Context, user atp.Uid, did string, nsid string, key string, prof cbg.CBORMarshaler) error {
 	unlock := rm.lockUser(ctx, user)
 	defer unlock()
 
@@ -353,9 +351,8 @@ func (rm *Manager) InitNewRepo(ctx context.Context, user atp.Uid, did string, pr
 
 	r := NewRepo(ctx, did, ds)
 
-	_, key, err := r.CreateRecord(ctx, profile)
-	if err != nil {
-		return fmt.Errorf("setting initial profile: %w", err)
+	if _, cerr := r.CreateRecord(ctx, nsid+"/"+key, prof); cerr != nil {
+		return fmt.Errorf("setting initial profile: %w", cerr)
 	}
 
 	root, nrev, err := r.Commit(ctx, rm.kmgr.SignForUser)
@@ -371,12 +368,12 @@ func (rm *Manager) InitNewRepo(ctx context.Context, user atp.Uid, did string, pr
 	if rm.events != nil {
 		op := Op{
 			Kind:       EvtKindCreateRecord,
-			Collection: profile.NSID(),
+			Collection: nsid,
 			Rkey:       key,
 		}
 
 		if rm.hydrateRecords {
-			op.Record = profile
+			op.Record = prof
 		}
 
 		rm.events(ctx, &Event{
@@ -409,7 +406,7 @@ func (rm *Manager) ReadRepo(ctx context.Context, user atp.Uid, since string, w i
 	return rm.cs.ReadUserCar(ctx, user, since, true, w)
 }
 
-func (rm *Manager) GetRecord(ctx context.Context, user atp.Uid, rec Record, maybeCid cid.Cid) (cid.Cid, error) {
+func (rm *Manager) GetRecord(ctx context.Context, user atp.Uid, nsid string, key string, rec cbg.CBORMarshaler, maybeCid cid.Cid) (cid.Cid, error) {
 	bs, err := rm.cs.ReadOnlySession(user)
 	if err != nil {
 		return cid.Undef, err
@@ -425,7 +422,7 @@ func (rm *Manager) GetRecord(ctx context.Context, user atp.Uid, rec Record, mayb
 		return cid.Undef, err
 	}
 
-	ocid, err := r.GetRecord(ctx, rec)
+	ocid, err := r.GetRecord(ctx, nsid+"/"+key, rec)
 	if err != nil {
 		return cid.Undef, err
 	}
@@ -513,27 +510,8 @@ func (rm *Manager) HandleExternalUserEvent(ctx context.Context, pdsid uint, uid 
 	}
 	openAndSigCheckDuration.Observe(time.Since(start).Seconds())
 
-	var skipcids map[cid.Cid]bool
-	if ds.BaseCid().Defined() {
-		oldrepo, oerr := OpenRepo(ctx, ds, ds.BaseCid())
-		if oerr != nil {
-			return fmt.Errorf("failed to check data root in old repo: %w", oerr)
-		}
-
-		// if the old commit has a 'prev', CalcDiff will error out while trying
-		// to walk it. This is an old repo thing that is being deprecated.
-		// This check is a temporary workaround until all repos get migrated
-		// and this becomes no longer an issue
-		prev, _ := oldrepo.PrevCommit(ctx)
-		if prev != nil {
-			skipcids = map[cid.Cid]bool{
-				*prev: true,
-			}
-		}
-	}
-
 	start = time.Now()
-	if cerr := ds.CalcDiff(ctx, skipcids); cerr != nil {
+	if cerr := ds.CalcDiff(ctx); cerr != nil {
 		return fmt.Errorf("failed while calculating mst diff (since=%v): %w", since, cerr)
 	}
 	calcDiffDuration.Observe(time.Since(start).Seconds())
@@ -652,7 +630,7 @@ func (rm *Manager) BatchWrite(ctx context.Context, user atp.Uid, writes []*atpro
 			}
 
 			nsid := c.Collection + "/" + rkey
-			cc, perr := r.PutEventRecord(ctx, nsid, c.Value.Val)
+			cc, perr := r.PutRecord(ctx, nsid, c.Value.Val)
 			if perr != nil {
 				return perr
 			}
@@ -672,7 +650,7 @@ func (rm *Manager) BatchWrite(ctx context.Context, user atp.Uid, writes []*atpro
 		case w.RepoApplyWrites_Update != nil:
 			u := w.RepoApplyWrites_Update
 
-			cc, perr := r.PutEventRecord(ctx, u.Collection+"/"+u.Rkey, u.Value.Val)
+			cc, perr := r.PutRecord(ctx, u.Collection+"/"+u.Rkey, u.Value.Val)
 			if perr != nil {
 				return perr
 			}

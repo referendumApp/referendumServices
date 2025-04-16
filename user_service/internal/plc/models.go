@@ -2,6 +2,7 @@ package plc
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 type Client interface {
 	plc.PLCClient
 	GetOpAuditLog(ctx context.Context, did string) (*[]Op, error)
+	GetLatestOp(ctx context.Context, did string) (*Op, error)
 	TombstoneDID(ctx context.Context, sigkey *did.PrivKey, did string, prev string) error
 }
 
@@ -47,4 +49,22 @@ type Op struct {
 	CID       string    `json:"cid"`
 	Nullified bool      `json:"nullfied"`
 	CreatedAt time.Time `json:"createdAt"`
+}
+
+func findLatestOp(log *[]Op) (*Op, error) {
+	derefLog := *log
+
+	if len(derefLog) == 0 {
+		return nil, fmt.Errorf("no operations found in PLC log")
+	}
+
+	newest := &derefLog[0]
+
+	for _, op := range derefLog[1:] {
+		if op.CreatedAt.After(newest.CreatedAt) {
+			newest = &op
+		}
+	}
+
+	return newest, nil
 }

@@ -2,21 +2,13 @@ package pds
 
 import (
 	"net/http"
-	"slices"
 	"strings"
 
-	"github.com/bluesky-social/indigo/api/atproto"
 	lexutil "github.com/bluesky-social/indigo/lex/util"
 	"github.com/gorilla/websocket"
 
 	"github.com/referendumApp/referendumServices/internal/events"
-	"github.com/referendumApp/referendumServices/internal/util"
 )
-
-func (p *PDS) HandleAtprotoDescribeServer(w http.ResponseWriter, r *http.Request) {
-	resp := &atproto.ServerDescribeServer_Output{AvailableUserDomains: []string{p.handleSuffix}}
-	util.Encode(w, http.StatusOK, p.log, resp)
-}
 
 func (p *PDS) EventsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -38,12 +30,12 @@ func (p *PDS) EventsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	did := r.Header.Get("DID")
-	peering, err := p.lookupPeering(ctx, did)
-	if err != nil {
-		http.Error(w, "Failed to lookup peering did", http.StatusInternalServerError)
-		return
-	}
+	// did := r.Header.Get("DID")
+	// peering, err := p.lookupPeering(ctx, did)
+	// if err != nil {
+	// 	http.Error(w, "Failed to lookup peering did", http.StatusInternalServerError)
+	// 	return
+	// }
 
 	ident := getClientIdentifier(r)
 
@@ -51,11 +43,12 @@ func (p *PDS) EventsHandler(w http.ResponseWriter, r *http.Request) {
 		if !p.enforcePeering {
 			return true
 		}
-		if peering.ID == 0 {
-			return true
-		}
+		// if peering.ID == 0 {
+		// 	return true
+		// }
 
-		return slices.Contains(evt.PrivRelevantPds, peering.ID)
+		return true
+		// return slices.Contains(evt.PrivRelevantPds, peering.ID)
 	}, nil)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Failed subscribe to the event stream", "error", err)

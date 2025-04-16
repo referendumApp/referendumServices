@@ -1,9 +1,7 @@
 package util
 
 import (
-	"errors"
 	"fmt"
-	"log/slog"
 	"reflect"
 	"strings"
 	"unicode"
@@ -97,45 +95,35 @@ func ValidateStrongPassword(fl validator.FieldLevel) bool {
 	return hasDigit && hasUpper && hasLower && hasSymbol
 }
 
-func HandleFieldError(err error, log *slog.Logger) []*refErr.APIError {
-	var valErr validator.ValidationErrors
-	var fieldErrs []*refErr.APIError
-	if errors.As(err, &valErr) {
-		for _, e := range valErr {
-			log.Error("Request validation failed", "field", e.Field(), "valdationTag", e.ActualTag(), "error", e.Error())
-
-			var errMsg string
-			var errType refErr.ValidationErrorType
-			switch e.ActualTag() {
-			case "required":
-				errMsg = "Required field is missing"
-				errType = refErr.MissingField
-			case "email":
-				errMsg = "Invalid email"
-				errType = refErr.InvalidInput
-			case "max":
-				errMsg = fmt.Sprintf("Must not exceed %s characters", e.Param())
-				errType = refErr.InvalidInput
-			case "min":
-				errMsg = fmt.Sprintf("Must be at least %s characters", e.Param())
-				errType = refErr.InvalidInput
-			case "strongpassword":
-				errMsg = "Password must contain: \n• At least one uppercase letter (A-Z)\n• At least one digit (0-9)\n• At least one special character"
-				errType = refErr.InvalidInput
-			case "identifier":
-				errMsg = "Invalid email or handle"
-				errType = refErr.InvalidInput
-			case "oneof":
-				errMsg = "Invalid value found"
-				errType = refErr.InvalidInput
-			default:
-				errMsg = "Validation failed"
-				errType = refErr.InvalidInput
-			}
-
-			fieldErrs = append(fieldErrs, refErr.NewValidationFieldError(e.Field(), errMsg, errType))
-		}
+func HandleFieldError(e validator.FieldError) *refErr.APIError {
+	var errMsg string
+	var errType refErr.ValidationErrorType
+	switch e.ActualTag() {
+	case "required":
+		errMsg = "Required field is missing"
+		errType = refErr.MissingField
+	case "email":
+		errMsg = "Invalid email"
+		errType = refErr.InvalidInput
+	case "max":
+		errMsg = fmt.Sprintf("Must not exceed %s characters", e.Param())
+		errType = refErr.InvalidInput
+	case "min":
+		errMsg = fmt.Sprintf("Must be at least %s characters", e.Param())
+		errType = refErr.InvalidInput
+	case "strongpassword":
+		errMsg = "Password must contain: \n• At least one uppercase letter (A-Z)\n• At least one digit (0-9)\n• At least one special character"
+		errType = refErr.InvalidInput
+	case "identifier":
+		errMsg = "Invalid email or handle"
+		errType = refErr.InvalidInput
+	case "oneof":
+		errMsg = "Invalid value found"
+		errType = refErr.InvalidInput
+	default:
+		errMsg = "Validation failed"
+		errType = refErr.InvalidInput
 	}
 
-	return fieldErrs
+	return refErr.NewValidationFieldError(e.Field(), errMsg, errType)
 }
