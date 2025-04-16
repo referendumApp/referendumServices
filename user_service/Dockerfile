@@ -19,5 +19,6 @@ ENTRYPOINT ["./app"]
 
 FROM base as user-local
 COPY . .
+RUN apk add --no-cache curl
 
 ENTRYPOINT ["go", "run", "-tags=dev", "./cmd/dev/main.go"]
