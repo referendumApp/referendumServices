@@ -29,3 +29,15 @@ jobs:
       with:
         working-directory: user_service
 
+  build-schema:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
+          cache-dependency-path: user_service/go.sum
+      - name: Build Lexicon Schema
+        working-directory: user_service
+        run: go run ./cmd/lexgen --build-file ./cmd/lexgen/build-config.json "./cmd/lexgen/lexicons/com/referendumapp"
