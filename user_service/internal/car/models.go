@@ -1,11 +1,7 @@
 package car
 
 import (
-	"bytes"
-	"io"
 	"time"
-
-	"github.com/ipfs/go-cid"
 
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
 )
@@ -36,41 +32,4 @@ type BlockRef struct {
 
 func (t BlockRef) TableName() string {
 	return "block_refs"
-}
-
-type StaleRef struct {
-	ID   uint       `db:"id,omitempty,pk" json:"id"`
-	Cid  *atp.DbCID `db:"cid" json:"cid"`
-	Cids []byte     `db:"cids" json:"cids"`
-	Uid  atp.Uid    `db:"uid" json:"uid"`
-}
-
-func (t StaleRef) TableName() string {
-	return "stale_refs"
-}
-
-func (sr *StaleRef) getCids() ([]cid.Cid, error) {
-	if sr.Cid != nil {
-		return []cid.Cid{sr.Cid.CID}, nil
-	}
-
-	return unpackCids(sr.Cids)
-}
-
-func unpackCids(b []byte) ([]cid.Cid, error) {
-	br := bytes.NewReader(b)
-	var out []cid.Cid
-	for {
-		_, c, err := cid.CidFromReader(br)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return nil, err
-		}
-
-		out = append(out, c)
-	}
-
-	return out, nil
 }

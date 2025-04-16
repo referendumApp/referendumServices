@@ -7,15 +7,15 @@ import (
 	"log/slog"
 	"time"
 
+	sq "github.com/Masterminds/squirrel"
 	comatproto "github.com/bluesky-social/indigo/api/atproto"
 	bsky "github.com/bluesky-social/indigo/api/bsky"
 	"github.com/bluesky-social/indigo/did"
 	lexutil "github.com/bluesky-social/indigo/lex/util"
 	"github.com/bluesky-social/indigo/util"
 	"github.com/bluesky-social/indigo/xrpc"
-	"github.com/jackc/pgx/v5"
-
 	"github.com/ipfs/go-cid"
+	"github.com/jackc/pgx/v5"
 	"go.opentelemetry.io/otel"
 
 	"github.com/referendumApp/referendumServices/internal/database"
@@ -355,7 +355,7 @@ func (ix *Indexer) handleRecordDelete(ctx context.Context, evt *repo.Event, op *
 			return err
 		}
 
-		if err := ix.db.Update(ctx, atp.ActivityPost{Base: atp.Base{ID: fp.ID}, Deleted: true}, "id"); err != nil {
+		if err := ix.db.Update(ctx, &atp.ActivityPost{Deleted: true}, sq.Eq{"id": fp.ID}); err != nil {
 			return err
 		}
 	case "app.referendum.feed.vote":
@@ -501,7 +501,7 @@ func (ix *Indexer) handleRecordUpdate(ctx context.Context, evt *repo.Event, op *
 			}
 		}
 
-		if err := ix.db.Update(ctx, atp.ActivityPost{Base: atp.Base{ID: fp.ID}, Cid: atp.DbCID{CID: *op.RecCid}}, "id"); err != nil {
+		if err := ix.db.Update(ctx, &atp.ActivityPost{Cid: atp.DbCID{CID: *op.RecCid}}, sq.Eq{"id": fp.ID}); err != nil {
 			return err
 		}
 

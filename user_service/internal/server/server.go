@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/whyrusleeping/go-did"
 
 	"github.com/referendumApp/referendumServices/internal/app"
@@ -20,7 +19,6 @@ import (
 	"github.com/referendumApp/referendumServices/internal/pds"
 	"github.com/referendumApp/referendumServices/internal/plc"
 	"github.com/referendumApp/referendumServices/internal/repo"
-	"github.com/referendumApp/referendumServices/internal/util"
 )
 
 type Server struct {
@@ -29,13 +27,12 @@ type Server struct {
 	mux        *chi.Mux
 	av         *app.View
 	pds        *pds.PDS
-	jwt        *util.JWTConfig
 	port       int16
 	log        *slog.Logger
 }
 
 // Initialize Server and setup HTTP routes and middleware
-func New(db *database.DB, srvkey *did.PrivKey, cfg config.Config, cs car.Store, plc plc.Client) (*Server, error) {
+func New(db *database.DB, srvkey *did.PrivKey, cfg *config.Config, cs car.Store, plc plc.Client) (*Server, error) {
 	evts := events.NewEventManager(events.NewMemPersister())
 
 	kmgr := indexer.NewKeyManager(plc, srvkey)
@@ -49,29 +46,14 @@ func New(db *database.DB, srvkey *did.PrivKey, cfg config.Config, cs car.Store, 
 		return nil, err
 	}
 
-	appDb := db.WithSchema(cfg.AtpDBSchema)
+	av := app.NewAppView(db, repoman, cs, cfg)
 
-	av := app.NewAppView(appDb, repoman, cs)
-
-	pds := pds.NewPDS(appDb, repoman, idxr, evts, srvkey, cfg, cs, plc)
-
-	jwtConfig := &util.JWTConfig{
-		SigningKey:    cfg.SecretKey,
-		SigningMethod: jwt.SigningMethodHS256,
-		Issuer:        cfg.ServiceUrl,
-		ContextKey:    util.ContextKey,
-		TokenLookup:   util.DefaultHeaderAuthorization,
-		AuthScheme:    util.DefaultAuthScheme,
-		TokenExpiry:   30 * time.Minute,
-		RefreshExpiry: 24 * time.Hour,
-	}
+	pds := pds.NewPDS(repoman, idxr, evts, srvkey, cfg, cs, plc)
 
 	srv := &Server{
 		mux:  chi.NewRouter(),
-		db:   appDb,
 		av:   av,
 		pds:  pds,
-		jwt:  jwtConfig,
 		port: 80,
 		log:  slog.Default().With("system", "server"),
 	}

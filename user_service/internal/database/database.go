@@ -19,7 +19,7 @@ type DB struct {
 	Schema string
 }
 
-func Connect(ctx context.Context, cfg config.Config) (*DB, error) {
+func Connect(ctx context.Context, cfg *config.Config) (*DB, error) {
 	slog.Info("Setting up database connection pool")
 
 	// Build the connection string

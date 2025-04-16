@@ -44,7 +44,7 @@ const MaxSliceLength = 2 << 20
 
 const BigShardThreshold = 2 << 20
 
-func Initialize(cfg config.Config, db *database.DB) (Store, error) {
+func Initialize(cfg *config.Config, db *database.DB) (Store, error) {
 	slog.Info("Setting up CAR store")
 
 	carDb := db.WithSchema(cfg.CarDBSchema)
@@ -97,7 +97,7 @@ func NewCarStore(db *database.DB, roots []string) (Store, error) {
 		}
 	}
 
-	meta := &StoreMeta{db: db}
+	meta := &StoreMeta{db}
 	out := &FileCarStore{
 		meta:     meta,
 		rootDirs: roots,
@@ -679,7 +679,7 @@ func (cs *FileCarStore) writeNewShard(ctx context.Context, root cid.Cid, rev str
 	}
 
 	start = time.Now()
-	if err := cs.putShard(ctx, &shard, brefs, rmcids, false); err != nil {
+	if err := cs.putShard(ctx, &shard, brefs, false); err != nil {
 		return nil, err
 	}
 	writeShardMetadataDuration.Observe(time.Since(start).Seconds())
@@ -687,11 +687,11 @@ func (cs *FileCarStore) writeNewShard(ctx context.Context, root cid.Cid, rev str
 	return buf.Bytes(), nil
 }
 
-func (cs *FileCarStore) putShard(ctx context.Context, shard *Shard, brefs []*BlockRef, rmcids map[cid.Cid]bool, nocache bool) error {
+func (cs *FileCarStore) putShard(ctx context.Context, shard *Shard, brefs []*BlockRef, nocache bool) error {
 	ctx, span := otel.Tracer("carstore").Start(ctx, "putShard")
 	defer span.End()
 
-	err := cs.meta.PutShardAndRefs(ctx, shard, brefs, rmcids)
+	err := cs.meta.PutShardAndRefs(ctx, shard, brefs)
 	if err != nil {
 		return err
 	}
@@ -703,7 +703,7 @@ func (cs *FileCarStore) putShard(ctx context.Context, shard *Shard, brefs []*Blo
 	return nil
 }
 
-func BlockDiff(ctx context.Context, bs blockstore.Blockstore, oldroot cid.Cid, newcids map[cid.Cid]blocks.Block, skipcids map[cid.Cid]bool) (map[cid.Cid]bool, error) {
+func BlockDiff(ctx context.Context, bs blockstore.Blockstore, oldroot cid.Cid, newcids map[cid.Cid]blocks.Block) (map[cid.Cid]bool, error) {
 	ctx, span := otel.Tracer("repo").Start(ctx, "BlockDiff")
 	defer span.End()
 
@@ -740,10 +740,6 @@ func BlockDiff(ctx context.Context, bs blockstore.Blockstore, oldroot cid.Cid, n
 	for len(queue) > 0 {
 		c := queue[0]
 		queue = queue[1:]
-
-		if skipcids != nil && skipcids[c] {
-			continue
-		}
 
 		oblk, err := bs.Get(ctx, c)
 		if err != nil {
@@ -802,8 +798,8 @@ func (cs *FileCarStore) ImportSlice(ctx context.Context, uid atp.Uid, since *str
 	return carr.Header.Roots[0], ds, nil
 }
 
-func (ds *DeltaSession) CalcDiff(ctx context.Context, skipcids map[cid.Cid]bool) error {
-	rmcids, err := BlockDiff(ctx, ds, ds.baseCid, ds.blks, skipcids)
+func (ds *DeltaSession) CalcDiff(ctx context.Context) error {
+	rmcids, err := BlockDiff(ctx, ds, ds.baseCid, ds.blks)
 	if err != nil {
 		return fmt.Errorf("block diff failed (base=%s,rev=%s): %w", ds.baseCid, ds.lastRev, err)
 	}
@@ -829,17 +825,11 @@ func (cs *FileCarStore) GetUserRepoRev(ctx context.Context, user atp.Uid) (strin
 	if err != nil {
 		return "", err
 	}
+
 	if lastShard.ID == 0 {
 		return "", nil
 	}
 
-	fmt.Printf("GetUserRepoRev: Rev=[%s], ID=%d, len(Rev)=%d\n",
-		lastShard.Rev, lastShard.ID, len(lastShard.Rev))
-
-	// Examine each byte if necessary
-	if len(lastShard.Rev) > 0 {
-		fmt.Printf("Rev bytes: %v\n", []byte(lastShard.Rev))
-	}
 	return lastShard.Rev, nil
 }
 
@@ -939,7 +929,7 @@ func (s shardStat) dirtyFrac() float64 {
 	return float64(s.Dirty) / float64(s.Total)
 }
 
-func aggrRefs(brefs []*BlockRef, shards map[uint]*Shard, staleCids map[cid.Cid]bool) []shardStat {
+func aggrRefs(brefs []*BlockRef, shards map[uint]*Shard) []shardStat {
 	byId := make(map[uint]*shardStat)
 
 	for _, br := range brefs {
@@ -953,9 +943,6 @@ func aggrRefs(brefs []*BlockRef, shards map[uint]*Shard, staleCids map[cid.Cid]b
 		}
 
 		s.Total++
-		if staleCids[br.Cid.CID] {
-			s.Dirty++
-		}
 
 		s.refs = append(s.refs, br)
 	}
@@ -1133,70 +1120,7 @@ func (cs *FileCarStore) CompactUserShards(ctx context.Context, user atp.Uid, ski
 
 	span.SetAttributes(attribute.Int("blockRefs", len(brefs)))
 
-	staleRefs, err := cs.meta.GetUserStaleRefs(ctx, user)
-	if err != nil {
-		return nil, err
-	}
-
-	span.SetAttributes(attribute.Int("staleRefs", len(staleRefs)))
-
-	stale := make(map[cid.Cid]bool)
-	for _, br := range staleRefs {
-		cids, err := br.getCids()
-		if err != nil {
-			return nil, fmt.Errorf("failed to unpack cids from staleRefs record (%d): %w", br.ID, err)
-		}
-		for _, c := range cids {
-			stale[c] = true
-		}
-	}
-
-	// if we have a staleRef that references multiple blockRefs, we consider that block a 'dirty duplicate'
-	var dupes []cid.Cid
-	var hasDirtyDupes bool
-	seenBlocks := make(map[cid.Cid]bool)
-	for _, br := range brefs {
-		if seenBlocks[br.Cid.CID] {
-			dupes = append(dupes, br.Cid.CID)
-			hasDirtyDupes = true
-			delete(stale, br.Cid.CID)
-		} else {
-			seenBlocks[br.Cid.CID] = true
-		}
-	}
-
-	for _, dupe := range dupes {
-		delete(stale, dupe) // remove dupes from stale list, see comment below
-	}
-
-	if hasDirtyDupes {
-		// if we have no duplicates, then the keep set is simply all the 'clean' blockRefs
-		// in the case we have duplicate dirty references we have to compute
-		// the keep set by walking the entire repo to check if anything is
-		// still referencing the dirty block in question
-
-		// we could also just add the duplicates to the keep set for now and
-		// focus on compacting everything else. it leaves *some* dirty blocks
-		// still around but we're doing that anyways since compaction isn't a
-		// perfect process
-
-		cs.log.Debug("repo has dirty dupes", "count", len(dupes), "uid", user, "staleRefs", len(staleRefs), "blockRefs", len(brefs))
-
-		//return nil, fmt.Errorf("WIP: not currently handling this case")
-	}
-
-	keep := make(map[cid.Cid]bool)
-	for _, br := range brefs {
-		if !stale[br.Cid.CID] {
-			keep[br.Cid.CID] = true
-		}
-	}
-
-	for _, dupe := range dupes {
-		keep[dupe] = true
-	}
-
-	results := aggrRefs(brefs, shardsById, stale)
+	results := aggrRefs(brefs, shardsById)
 	var sum int
 	for _, r := range results {
 		sum += r.Total
@@ -1254,7 +1178,7 @@ func (cs *FileCarStore) CompactUserShards(ctx context.Context, user atp.Uid, ski
 			continue
 		}
 
-		if err := cs.compactBucket(ctx, user, b, shardsById, keep); err != nil {
+		if err := cs.compactBucket(ctx, user, b, shardsById); err != nil {
 			return nil, fmt.Errorf("compact bucket: %w", err)
 		}
 
@@ -1277,53 +1201,10 @@ func (cs *FileCarStore) CompactUserShards(ctx context.Context, user atp.Uid, ski
 		}
 	}
 
-	// now we need to delete the staleRefs we successfully cleaned up
-	// we can safely delete a staleRef if all the shards that have blockRefs with matching stale refs were processed
-	if err := cs.deleteStaleRefs(ctx, user, brefs, staleRefs, removedShards); err != nil {
-		return nil, fmt.Errorf("delete stale refs: %w", err)
-	}
-
-	stats.DupeCount = len(dupes)
-
 	return stats, nil
 }
 
-func (cs *FileCarStore) deleteStaleRefs(ctx context.Context, uid atp.Uid, brefs []*BlockRef, staleRefs []*StaleRef, removedShards map[uint]bool) error {
-	ctx, span := otel.Tracer("carstore").Start(ctx, "deleteStaleRefs")
-	defer span.End()
-
-	brByCid := make(map[cid.Cid][]*BlockRef)
-	for _, br := range brefs {
-		brByCid[br.Cid.CID] = append(brByCid[br.Cid.CID], br)
-	}
-
-	var staleToKeep []cid.Cid
-	for _, sr := range staleRefs {
-		cids, err := sr.getCids()
-		if err != nil {
-			return fmt.Errorf("getCids on staleRef failed (%d): %w", sr.ID, err)
-		}
-
-		for _, c := range cids {
-			brs := brByCid[c]
-			del := true
-			for _, br := range brs {
-				if !removedShards[br.Shard] {
-					del = false
-					break
-				}
-			}
-
-			if !del {
-				staleToKeep = append(staleToKeep, c)
-			}
-		}
-	}
-
-	return cs.meta.SetStaleRef(ctx, uid, staleToKeep)
-}
-
-func (cs *FileCarStore) compactBucket(ctx context.Context, user atp.Uid, b *compBucket, shardsById map[uint]*Shard, keep map[cid.Cid]bool) error {
+func (cs *FileCarStore) compactBucket(ctx context.Context, user atp.Uid, b *compBucket, shardsById map[uint]*Shard) error {
 	ctx, span := otel.Tracer("carstore").Start(ctx, "compactBucket")
 	defer span.End()
 
@@ -1354,21 +1235,19 @@ func (cs *FileCarStore) compactBucket(ctx context.Context, user atp.Uid, b *comp
 				return nil
 			}
 
-			if keep[blk.Cid()] {
-				nw, err := LdWrite(fi, blk.Cid().Bytes(), blk.RawData())
-				if err != nil {
-					return fmt.Errorf("failed to write block: %w", err)
-				}
-
-				nbrefs = append(nbrefs, &BlockRef{
-					Cid:        atp.DbCID{CID: blk.Cid()},
-					ByteOffset: offset,
-					Uid:        user,
-				})
-
-				offset += nw
-				written[blk.Cid()] = true
+			nw, err := LdWrite(fi, blk.Cid().Bytes(), blk.RawData())
+			if err != nil {
+				return fmt.Errorf("failed to write block: %w", err)
 			}
+
+			nbrefs = append(nbrefs, &BlockRef{
+				Cid:        atp.DbCID{CID: blk.Cid()},
+				ByteOffset: offset,
+				Uid:        user,
+			})
+
+			offset += nw
+			written[blk.Cid()] = true
 			return nil
 		}); err != nil {
 			// If we ever fail to iterate a shard file because its
@@ -1386,7 +1265,7 @@ func (cs *FileCarStore) compactBucket(ctx context.Context, user atp.Uid, b *comp
 		Rev:       lastsh.Rev,
 	}
 
-	if err := cs.putShard(ctx, &shard, nbrefs, nil, true); err != nil {
+	if err := cs.putShard(ctx, &shard, nbrefs, true); err != nil {
 		// if writing the shard fails, we should also delete the file
 		_ = fi.Close()
 

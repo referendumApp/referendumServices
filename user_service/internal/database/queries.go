@@ -128,3 +128,31 @@ func SelectAll[T TableEntity](
 
 	return Select[T](ctx, d, sql, args...)
 }
+
+func SelectLeft[T TableEntity](
+	ctx context.Context,
+	d *DB,
+	entity T,
+	onLeft string,
+	rightEnt TableEntity,
+	onRight string,
+	filters ...sq.Sqlizer,
+) ([]*T, error) {
+	leftTbl := d.Schema + "." + entity.TableName()
+	rightTbl := d.Schema + "." + rightEnt.TableName()
+	leftJoin := fmt.Sprintf("%s ON %s.%s = %s.%s", rightTbl, leftTbl, onLeft, rightTbl, onRight)
+
+	query, err := BuildSelect(entity, d.Schema, filters...)
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error building select query", "error", err)
+		return nil, err
+	}
+
+	sql, args, err := query.LeftJoin(leftJoin).ToSql()
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Failed to compile left join select query", "error", err, "left", leftTbl, "right", rightTbl)
+		return nil, err
+	}
+
+	return Select[T](ctx, d, sql, args...)
+}

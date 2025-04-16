@@ -1,6 +1,7 @@
 package util
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,13 +10,18 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+
+	"github.com/referendumApp/referendumServices/internal/domain/atp"
 )
 
 type TokenType string
 
 type ContextKeyType string
 
-const ContextKey ContextKeyType = "person"
+const (
+	SubjectKey ContextKeyType = "uid"
+	DidKey     ContextKeyType = "did"
+)
 
 const (
 	Access  TokenType = "access"
@@ -43,7 +49,9 @@ type JWTConfig struct {
 
 	// Context key to store user information from the token into context.
 	// Optional. Default value "user".
-	ContextKey ContextKeyType
+	SubjectKey ContextKeyType
+
+	DidKey ContextKeyType
 
 	// TokenLookup is a string in the form of "<source>:<name>" or "<source>:<name>,<source>:<name>" that is used
 	// to extract token from the request.
@@ -72,7 +80,7 @@ type JWTConfig struct {
 	RefreshExpiry time.Duration
 }
 
-func (j *JWTConfig) CreateToken(sub string, tokenType TokenType) (string, error) {
+func (j *JWTConfig) CreateToken(sub atp.Uid, did string, tokenType TokenType) (string, error) {
 	// Current time
 	now := time.Now()
 
@@ -91,6 +99,7 @@ func (j *JWTConfig) CreateToken(sub string, tokenType TokenType) (string, error)
 		"iat":  now.Unix(),
 		"exp":  now.Add(exp).Unix(),
 		"sub":  sub,
+		"did":  did,
 		"iss":  j.Issuer,
 		"type": tokenType,
 	}
@@ -156,35 +165,61 @@ func (j *JWTConfig) DecodeJWT(tokenString string) (*jwt.Token, error) {
 	return token, nil
 }
 
-func ValidateToken(token *jwt.Token, tokenType TokenType) (string, error) {
+func ValidateToken(token *jwt.Token, tokenType TokenType) (atp.Uid, string, error) {
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		return "", fmt.Errorf("invalid token claims map")
+		return 0, "", fmt.Errorf("invalid token claims map")
 	}
 
 	claimsType, ok := claims["type"]
 	if !ok {
-		return "", fmt.Errorf("missing type from claims map")
+		return 0, "", fmt.Errorf("missing type from claims map")
 	}
 
 	claimsTypeStr, ok := claimsType.(string)
 	if !ok {
-		return "", fmt.Errorf("expected token type to be a string")
+		return 0, "", fmt.Errorf("expected token type to be a string")
 	}
 
 	if TokenType(claimsTypeStr) != tokenType {
-		return "", fmt.Errorf("expected %s token type, got %s", tokenType, claimsType)
+		return 0, "", fmt.Errorf("expected %s token type, got %s", tokenType, claimsType)
 	}
 
-	did, ok := claims["sub"]
+	did, ok := claims["did"]
 	if !ok {
-		return "", fmt.Errorf("expected user did in subject")
+		return 0, "", fmt.Errorf("expected user did in subject")
 	}
 
 	didStr, ok := did.(string)
 	if !ok {
-		return "", fmt.Errorf("expected subject to be a numeric value, got %T", did)
+		return 0, "", fmt.Errorf("expected subject to be a numeric value, got %T", did)
 	}
 
-	return didStr, nil
+	sub, ok := claims["sub"]
+	if !ok {
+		return 0, "", fmt.Errorf("expected user did in subject")
+	}
+
+	jsonNum, ok := sub.(json.Number)
+	if !ok {
+		return 0, "", fmt.Errorf("expected subject to be a json.Number, got %T", sub)
+	}
+
+	subInt, err := jsonNum.Int64()
+	if err != nil {
+		return 0, "", fmt.Errorf("failed to convert subject to integer: %w", err)
+	}
+
+	if subInt < 0 {
+		return 0, "", fmt.Errorf("subject contains negative value: %d", subInt)
+	}
+
+	maxUint := uint64(^uint(0)) // Maximum value for uint on current platform
+	if uint64(subInt) > maxUint {
+		return 0, "", fmt.Errorf("subject value too large for uint: %d", subInt)
+	}
+
+	uid := atp.Uid(uint(subInt))
+
+	return uid, didStr, nil
 }

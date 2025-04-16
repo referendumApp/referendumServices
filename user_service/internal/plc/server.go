@@ -200,3 +200,17 @@ func (s Server) TombstoneDID(ctx context.Context, sigkey *did.PrivKey, did strin
 
 	return nil
 }
+
+func (s Server) GetLatestOp(ctx context.Context, did string) (*Op, error) {
+	log, err := s.GetOpAuditLog(ctx, did)
+	if err != nil {
+		return nil, err
+	}
+
+	op, err := findLatestOp(log)
+	if err != nil {
+		return nil, err
+	}
+
+	return op, nil
+}

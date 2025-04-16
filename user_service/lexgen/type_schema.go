@@ -3,6 +3,7 @@ package lexgen
 import (
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 )
 
@@ -683,7 +684,7 @@ func (ts *TypeSchema) writeTypeDefinition(name string, w io.Writer) error {
 		if ts.needsType {
 			var omit string
 			if ts.id == "com.atproto.repo.strongRef" { // TODO: hack
-				omit = fmt.Sprintf(",%s", Omit)
+				omit = "," + Omit
 			}
 			cval := ts.id
 			if ts.defName != "" && ts.defName != Main {
@@ -714,7 +715,7 @@ func (ts *TypeSchema) writeTypeDefinition(name string, w io.Writer) error {
 			var omit string
 			var valTags strings.Builder
 			if !required[k] {
-				omit = fmt.Sprintf(",%s", Omit)
+				omit = "," + Omit
 				if !strings.HasPrefix(tname, "*") && !strings.HasPrefix(tname, "[]") {
 					ptr = "*"
 				}
@@ -763,8 +764,8 @@ func (ts *TypeSchema) writeTypeDefinition(name string, w io.Writer) error {
 			// TODO: hard-coded hacks for now, making this type (with underlying type []byte)
 			// be omitempty.
 			if ptr == "" && tname == LexBytes {
-				jsonOmit = fmt.Sprintf(",%s", Omit)
-				cborOmit = fmt.Sprintf(",%s", Omit)
+				jsonOmit = "," + Omit
+				cborOmit = "," + Omit
 			}
 
 			if name == "LabelDefs_SelfLabels" && k == "values" {
@@ -867,6 +868,21 @@ func (ts *TypeSchema) writeStorageMethods(name string, collection string, w io.W
 	} else if strings.HasPrefix(ts.Key, "literal:") {
 		keySplit := strings.Split(ts.Key, ":")
 		pf("\treturn \"%s\"", keySplit[1])
+	} else if strings.HasPrefix(ts.Key, "lid:") {
+		keySplit := strings.Split(ts.Key, ":")[1:]
+		for _, key := range keySplit {
+			if !slices.Contains(ts.Record.Required, key) {
+				return fmt.Errorf("LID record key fields must be required: %s", key)
+			}
+			if ts.Record.Properties[key].Type != String {
+				return fmt.Errorf("LID record key fields must be a string type: %s", key)
+			}
+		}
+		keyOne := fmt.Sprintf("t.%s", capitalizeFirst(keySplit[0]))
+		keyTwo := fmt.Sprintf("t.%s", capitalizeFirst(keySplit[1]))
+		keyThree := fmt.Sprintf("t.%s", capitalizeFirst(keySplit[2]))
+
+		pf("\treturn repo.LID(%s, %s, %s)", keyOne, keyTwo, keyThree)
 	} else {
 		return fmt.Errorf("invalid key type: %s", ts.Key)
 	}

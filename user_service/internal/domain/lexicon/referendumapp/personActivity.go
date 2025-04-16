@@ -13,7 +13,7 @@ import (
 	comatproto "github.com/bluesky-social/indigo/api/atproto"
 	appbsky "github.com/bluesky-social/indigo/api/bsky"
 	"github.com/bluesky-social/indigo/lex/util"
-	"github.com/bluesky-social/indigo/repo"
+	"github.com/referendumApp/referendumServices/internal/repo"
 	cbg "github.com/whyrusleeping/cbor-gen"
 )
 

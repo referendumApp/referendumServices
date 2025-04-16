@@ -2,35 +2,30 @@ package pds
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
-	sq "github.com/Masterminds/squirrel"
 	"github.com/bluesky-social/indigo/api/atproto"
-	"github.com/bluesky-social/indigo/util"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/whyrusleeping/go-did"
 
 	"github.com/referendumApp/referendumServices/internal/car"
 	"github.com/referendumApp/referendumServices/internal/config"
-	"github.com/referendumApp/referendumServices/internal/database"
-	"github.com/referendumApp/referendumServices/internal/domain/atp"
-	refErr "github.com/referendumApp/referendumServices/internal/error"
 	"github.com/referendumApp/referendumServices/internal/events"
 	"github.com/referendumApp/referendumServices/internal/indexer"
 	"github.com/referendumApp/referendumServices/internal/plc"
 	"github.com/referendumApp/referendumServices/internal/repo"
+	"github.com/referendumApp/referendumServices/internal/util"
 )
 
 type PDS struct {
-	db             *database.DB
 	repoman        *repo.Manager
 	indexer        *indexer.Indexer
 	events         *events.EventManager
 	log            *slog.Logger
 	signingKey     *did.PrivKey
+	jwt            *util.JWTConfig
 	cs             car.Store
 	plc            plc.Client
 	handleSuffix   string
@@ -39,12 +34,11 @@ type PDS struct {
 }
 
 func NewPDS(
-	db *database.DB,
 	repoman *repo.Manager,
 	idxr *indexer.Indexer,
 	evts *events.EventManager,
 	srvkey *did.PrivKey,
-	cfg config.Config,
+	cfg *config.Config,
 	cs car.Store,
 	plc plc.Client,
 ) *PDS {
@@ -56,13 +50,25 @@ func NewPDS(
 		}
 	}, true)
 
+	jwtConfig := &util.JWTConfig{
+		SigningKey:    cfg.SecretKey,
+		SigningMethod: jwt.SigningMethodHS256,
+		Issuer:        cfg.ServiceUrl,
+		SubjectKey:    util.SubjectKey,
+		DidKey:        util.DidKey,
+		TokenLookup:   util.DefaultHeaderAuthorization,
+		AuthScheme:    util.DefaultAuthScheme,
+		TokenExpiry:   30 * time.Minute,
+		RefreshExpiry: 24 * time.Hour,
+	}
+
 	return &PDS{
-		db:             db,
 		cs:             cs,
 		indexer:        idxr,
 		plc:            plc,
 		events:         evts,
 		repoman:        repoman,
+		jwt:            jwtConfig,
 		signingKey:     srvkey,
 		handleSuffix:   cfg.HandleSuffix,
 		serviceUrl:     cfg.ServiceUrl,
@@ -231,90 +237,90 @@ func NewPDS(
 // 	return c.String(200, u.Did)
 // }
 
-func (p *PDS) lookupPeering(ctx context.Context, did string) (*atp.Peering, error) {
-	var entity atp.Peering
-
-	if p.enforcePeering && did != "" {
-		filter := sq.Eq{"did": did}
-		peering, err := database.GetAll(ctx, p.db, entity, filter)
-		if err != nil {
-			p.log.Error("Failed to lookup peering", "did", did)
-			return nil, err
-		}
-
-		return peering, nil
-	}
-
-	return &entity, nil
-}
-
-func (p *PDS) validateHandle(ctx context.Context, handle string) *refErr.APIError {
-	if !strings.HasSuffix(handle, p.handleSuffix) {
-		fieldErr := refErr.FieldError{Field: "handle", Message: "Invalid handle format"}
-		return fieldErr.Invalid()
-	}
-
-	if strings.Contains(strings.TrimSuffix(handle, p.handleSuffix), ".") {
-		fieldErr := refErr.FieldError{Field: "handle", Message: "Invalid character '.'"}
-		return fieldErr.Invalid()
-	}
-
-	if exists, err := p.db.UserExists(ctx, "handle", handle); err != nil {
-		p.log.ErrorContext(ctx, "Error checking database for user handle", "error", err)
-		return refErr.InternalServer()
-	} else if exists {
-		fieldErr := refErr.FieldError{Field: "handle", Message: "Handle already exists"}
-		return fieldErr.Conflict()
-	}
-
-	return nil
-}
-
-func (p *PDS) UpdateUserHandle(ctx context.Context, u *atp.User, handle string) error {
-	if u.Handle.String == handle {
-		// no change? move on
-		p.log.Warn("attempted to change handle to current handle", "did", u.Did, "handle", handle)
-		return nil
-	}
-
-	if _, err := p.db.LookupUserByHandle(ctx, handle); err == nil {
-		return fmt.Errorf("handle %q is already in use", handle)
-	}
-
-	if err := p.plc.UpdateUserHandle(ctx, u.Did, handle); err != nil {
-		return fmt.Errorf("failed to update users handle on plc: %w", err)
-	}
-
-	if err := p.db.Update(ctx, atp.Person{Uid: u.ID}, "user_id"); err != nil {
-		return fmt.Errorf("failed to update handle: %w", err)
-	}
-
-	if err := p.db.Update(ctx, atp.User{Handle: sql.NullString{String: handle, Valid: true}}, "user_id"); err != nil {
-		return fmt.Errorf("failed to update handle: %w", err)
-	}
-
-	if err := p.events.AddEvent(ctx, &events.XRPCStreamEvent{
-		RepoHandle: &atproto.SyncSubscribeRepos_Handle{
-			Did:    u.Did,
-			Handle: handle,
-			Time:   time.Now().Format(util.ISO8601),
-		},
-	}); err != nil {
-		return fmt.Errorf("failed to push event: %s", err)
-	}
-
-	// Also push an Identity event
-	if err := p.events.AddEvent(ctx, &events.XRPCStreamEvent{
-		RepoIdentity: &atproto.SyncSubscribeRepos_Identity{
-			Did:  u.Did,
-			Time: time.Now().Format(util.ISO8601),
-		},
-	}); err != nil {
-		return fmt.Errorf("failed to push event: %s", err)
-	}
-
-	return nil
-}
+// func (p *PDS) lookupPeering(ctx context.Context, did string) (*atp.Peering, error) {
+// 	var entity atp.Peering
+//
+// 	if p.enforcePeering && did != "" {
+// 		filter := sq.Eq{"did": did}
+// 		peering, err := database.GetAll(ctx, p.db, entity, filter)
+// 		if err != nil {
+// 			p.log.Error("Failed to lookup peering", "did", did)
+// 			return nil, err
+// 		}
+//
+// 		return peering, nil
+// 	}
+//
+// 	return &entity, nil
+// }
+//
+// func (p *PDS) validateHandle(ctx context.Context, handle string) *refErr.APIError {
+// 	if !strings.HasSuffix(handle, p.handleSuffix) {
+// 		fieldErr := refErr.FieldError{Field: "handle", Message: "Invalid handle format"}
+// 		return fieldErr.Invalid()
+// 	}
+//
+// 	if strings.Contains(strings.TrimSuffix(handle, p.handleSuffix), ".") {
+// 		fieldErr := refErr.FieldError{Field: "handle", Message: "Invalid character '.'"}
+// 		return fieldErr.Invalid()
+// 	}
+//
+// 	if exists, err := p.db.UserExists(ctx, "handle", handle); err != nil {
+// 		p.log.ErrorContext(ctx, "Error checking database for user handle", "error", err)
+// 		return refErr.InternalServer()
+// 	} else if exists {
+// 		fieldErr := refErr.FieldError{Field: "handle", Message: "Handle already exists"}
+// 		return fieldErr.Conflict()
+// 	}
+//
+// 	return nil
+// }
+//
+// func (p *PDS) UpdateUserHandle(ctx context.Context, u *atp.User, handle string) error {
+// 	if u.Handle.String == handle {
+// 		// no change? move on
+// 		p.log.Warn("attempted to change handle to current handle", "did", u.Did, "handle", handle)
+// 		return nil
+// 	}
+//
+// 	if _, err := p.db.LookupUserByHandle(ctx, handle); err == nil {
+// 		return fmt.Errorf("handle %q is already in use", handle)
+// 	}
+//
+// 	if err := p.plc.UpdateUserHandle(ctx, u.Did, handle); err != nil {
+// 		return fmt.Errorf("failed to update users handle on plc: %w", err)
+// 	}
+//
+// 	if err := p.db.Update(ctx, atp.Person{Uid: u.ID}, "user_id"); err != nil {
+// 		return fmt.Errorf("failed to update handle: %w", err)
+// 	}
+//
+// 	if err := p.db.Update(ctx, atp.User{Handle: sql.NullString{String: handle, Valid: true}}, "user_id"); err != nil {
+// 		return fmt.Errorf("failed to update handle: %w", err)
+// 	}
+//
+// 	if err := p.events.AddEvent(ctx, &events.XRPCStreamEvent{
+// 		RepoHandle: &atproto.SyncSubscribeRepos_Handle{
+// 			Did:    u.Did,
+// 			Handle: handle,
+// 			Time:   time.Now().Format(util.ISO8601),
+// 		},
+// 	}); err != nil {
+// 		return fmt.Errorf("failed to push event: %s", err)
+// 	}
+//
+// 	// Also push an Identity event
+// 	if err := p.events.AddEvent(ctx, &events.XRPCStreamEvent{
+// 		RepoIdentity: &atproto.SyncSubscribeRepos_Identity{
+// 			Did:  u.Did,
+// 			Time: time.Now().Format(util.ISO8601),
+// 		},
+// 	}); err != nil {
+// 		return fmt.Errorf("failed to push event: %s", err)
+// 	}
+//
+// 	return nil
+// }
 
 func (p *PDS) TakedownRepo(ctx context.Context, did string) error {
 	// Push an Account event

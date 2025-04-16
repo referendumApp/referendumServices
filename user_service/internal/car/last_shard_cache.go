@@ -2,7 +2,6 @@ package car
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"go.opentelemetry.io/otel"
@@ -60,20 +59,13 @@ func (lsc *lastShardCache) get(ctx context.Context, user atp.Uid) (*Shard, error
 
 	maybeLs := lsc.check(user)
 	if maybeLs != nil {
-		fmt.Printf("Cache hit for user %v: Rev=%q, ID=%d, Path=%s\n",
-			user, maybeLs.Rev, maybeLs.ID, maybeLs.Path)
 		return maybeLs, nil
 	}
 
-	fmt.Printf("Cache miss for user %v, fetching from source\n", user)
 	lastShard, err := lsc.source.GetLastShard(ctx, user)
 	if err != nil {
-		fmt.Printf("Error fetching shard for user %v: %v\n", user, err)
 		return nil, err
 	}
-
-	fmt.Printf("Fetched shard for user %v: Rev=%q, ID=%d, Path=%s\n",
-		user, lastShard.Rev, lastShard.ID, lastShard.Path)
 
 	lsc.put(lastShard)
 	return lastShard, nil

@@ -4,17 +4,21 @@ import (
 	"log/slog"
 
 	"github.com/referendumApp/referendumServices/internal/car"
+	"github.com/referendumApp/referendumServices/internal/config"
 	"github.com/referendumApp/referendumServices/internal/database"
 	"github.com/referendumApp/referendumServices/internal/repo"
 )
 
 type View struct {
-	db      *database.DB
-	repoman *repo.Manager
-	log     *slog.Logger
-	cs      car.Store
+	meta         *ViewMeta
+	repoman      *repo.Manager
+	log          *slog.Logger
+	cs           car.Store
+	handleSuffix string
 }
 
-func NewAppView(db *database.DB, repoman *repo.Manager, cs car.Store) *View {
-	return &View{db: db, repoman: repoman, cs: cs, log: slog.Default().With("system", "appview")}
+func NewAppView(db *database.DB, repoman *repo.Manager, cs car.Store, cfg *config.Config) *View {
+	avDb := db.WithSchema(cfg.AtpDBSchema)
+	vm := &ViewMeta{avDb}
+	return &View{meta: vm, repoman: repoman, cs: cs, handleSuffix: cfg.HandleSuffix, log: slog.Default().With("system", "appview")}
 }
