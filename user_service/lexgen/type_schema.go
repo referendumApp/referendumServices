@@ -3,6 +3,7 @@ package lexgen
 import (
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 )
 
@@ -867,6 +868,18 @@ func (ts *TypeSchema) writeStorageMethods(name string, collection string, w io.W
 	} else if strings.HasPrefix(ts.Key, "literal:") {
 		keySplit := strings.Split(ts.Key, ":")
 		pf("\treturn \"%s\"", keySplit[1])
+	} else if strings.HasPrefix(ts.Key, "lid:") {
+		keySplit := strings.Split(ts.Key, ":")[1:]
+		for _, key := range keySplit {
+			if !slices.Contains(ts.Record.Required, key) {
+				return fmt.Errorf("LID record key fields must be required: %s", key)
+			}
+		}
+		keyOne := fmt.Sprintf("t.%s", capitalizeFirst(keySplit[0]))
+		keyTwo := fmt.Sprintf("t.%s", capitalizeFirst(keySplit[1]))
+		keyThree := fmt.Sprintf("t.%s", capitalizeFirst(keySplit[2]))
+
+		pf("\treturn repo.LID(%s, %s, %s)", keyOne, keyTwo, keyThree)
 	} else {
 		return fmt.Errorf("invalid key type: %s", ts.Key)
 	}

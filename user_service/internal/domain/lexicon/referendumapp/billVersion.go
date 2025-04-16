@@ -7,7 +7,7 @@ package referendumapp
 import (
 	comatproto "github.com/bluesky-social/indigo/api/atproto"
 	"github.com/bluesky-social/indigo/lex/util"
-	"github.com/bluesky-social/indigo/repo"
+	"github.com/referendumApp/referendumServices/internal/repo"
 )
 
 func init() {
