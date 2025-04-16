@@ -874,6 +874,9 @@ func (ts *TypeSchema) writeStorageMethods(name string, collection string, w io.W
 			if !slices.Contains(ts.Record.Required, key) {
 				return fmt.Errorf("LID record key fields must be required: %s", key)
 			}
+			if ts.Record.Properties[key].Type != String {
+				return fmt.Errorf("LID record key fields must be a string type: %s", key)
+			}
 		}
 		keyOne := fmt.Sprintf("t.%s", capitalizeFirst(keySplit[0]))
 		keyTwo := fmt.Sprintf("t.%s", capitalizeFirst(keySplit[1]))
