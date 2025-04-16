@@ -1,10 +1,12 @@
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, Optional
+import string
+import secrets
 
 from fastapi import Depends, HTTPException, Security, status
-from fastapi.security import APIKeyHeader, OAuth2PasswordBearer
-from jose import ExpiredSignatureError, jwt
+from fastapi.security import APIKeyHeader, OAuth2PasswordBearer, HTTPBearer, HTTPAuthorizationCredentials
+from jose import ExpiredSignatureError, jwt, JWTError
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
@@ -19,7 +21,7 @@ logger = logging.getLogger(__name__)
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
 api_key_header = APIKeyHeader(name="X-API_Key", auto_error=False)
-
+password_reset_token_scheme = HTTPBearer()
 
 class FormException(HTTPException):
     def __init__(
@@ -86,8 +88,8 @@ def authenticate_user(db: Session, email: str, password: str) -> models.User:
 
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire, "type": "access"})
+    expires_at = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expires_at, "type": "access"})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     logger.debug(f"Access token created for user: {data.get('sub')}")
     return encoded_jwt
@@ -100,6 +102,63 @@ def create_refresh_token(data: dict) -> str:
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     logger.debug(f"Refresh token created for user: {data.get('sub')}")
     return encoded_jwt
+
+
+def create_password_reset_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(days=settings.RESET_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire, "type": "password_reset"})
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    logger.debug(f"Forgot password token created for user: {data.get('sub')}")
+    return encoded_jwt
+
+
+def generate_alphanumeric_code(length=6) -> str:
+    characters = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(characters) for _ in range(length))
+
+
+async def get_password_reset_token_data(
+    credentials: HTTPAuthorizationCredentials = Depends(password_reset_token_scheme)
+) -> dict[str, str]:
+    try:
+        payload = jwt.decode(
+            credentials.credentials,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM]
+        )
+        email = payload.get("sub")
+        token_type = payload.get("type")
+        exp = payload.get("exp")
+
+        if email is None or token_type != "password_reset":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        if exp < datetime.utcnow().timestamp():
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token has expired",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        return {"email": email}
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+
+def cleanup_expired_tokens(db: Session):
+    db.query(models.ForgotPasswordToken).filter(
+        models.ForgotPasswordToken.expires_at < datetime.utcnow()
+    ).delete()
+    db.commit()
 
 
 async def get_current_user(

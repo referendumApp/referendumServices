@@ -38,6 +38,7 @@ user_comment_likes = Table(
     Column("comment_id", Integer, ForeignKey("comments.id"), primary_key=True),
 )
 
+
 committee_membership = Table(
     "committee_membership",
     Base.metadata,
@@ -87,6 +88,7 @@ class User(Base):
     followed_bills = relationship("Bill", secondary=user_bill_follows)
     followed_legislators = relationship("Legislator", secondary=user_legislator_follows)
     liked_comments = relationship("Comment", secondary=user_comment_likes, back_populates="likes")
+    forgot_password_tokens = relationship("ForgotPasswordToken", back_populates="user")
 
 
 class Party(Base):
@@ -176,6 +178,17 @@ class Session(Base):
 
     state = relationship("State")
     bills = relationship("Bill", back_populates="session")
+
+
+class ForgotPasswordToken(Base):
+    __tablename__ = "forgot_password_tokens"
+
+    id = Column(Integer, primary_key=True)
+    passcode = Column(String, nullable=False)
+    expires_at = Column(Date, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"))
+
+    user = relationship("User", back_populates="forgot_password_tokens")
 
 
 class Status(Base):

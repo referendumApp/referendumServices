@@ -14,6 +14,7 @@ if config.config_file_name is not None:
 # add your model's MetaData object here
 # for 'autogenerate' support
 # from api.models import Base
+# from common.database.referendum.models import Base
 # target_metadata = Base.metadata
 target_metadata = None
 
@@ -45,6 +46,7 @@ def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
     configuration = config.get_section(config.config_ini_section)
     configuration["sqlalchemy.url"] = get_connection_string()
+    print("CONNECTION STRING: ", get_connection_string())
     connectable = engine_from_config(
         configuration,
         prefix="sqlalchemy.",

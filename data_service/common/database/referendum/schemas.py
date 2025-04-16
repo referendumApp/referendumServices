@@ -282,3 +282,13 @@ class UserVoteCreate(UserVoteBase):
 
 class UserVote(UserVoteBase):
     user_id: int
+
+
+# Forgot Password
+class ForgotPasswordTokenBase(BaseSchema):
+    passcode: str
+    expires_at: datetime
+
+
+class ForgotPasswordTokenCreate(ForgotPasswordTokenBase):
+    user_id: int

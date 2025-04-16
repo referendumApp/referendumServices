@@ -57,6 +57,14 @@ class TokenData(CamelCaseBaseModel):
     email: Optional[str] = None
 
 
+class ForgotPasswordRequest(CamelCaseBaseModel):
+    email: str
+
+
+class PasswordResetTokenResponse(CamelCaseBaseModel):
+    password_reset_token: str
+
+
 class PasswordResetInput(CamelCaseBaseModel):
     new_password: str
 
