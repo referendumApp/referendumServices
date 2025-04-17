@@ -3,8 +3,10 @@ package car
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"log"
 	"log/slog"
 	"os"
 	"sort"
@@ -44,13 +46,13 @@ type Store interface {
 }
 
 func NewCarStore(ctx context.Context, cfg *env.Config, db *database.DB) (Store, error) {
-	slog.Info("Setting up CAR store")
+	log.Println("Setting up CAR store")
 
 	carDb := db.WithSchema(cfg.CarDBSchema)
 
 	client, err := NewS3Client(ctx, cfg.CarDir)
 	if err != nil {
-		slog.Error("Error creating S3 client")
+		log.Println("Error creating S3 client")
 		return nil, err
 	}
 
@@ -66,7 +68,7 @@ func NewCarStore(ctx context.Context, cfg *env.Config, db *database.DB) (Store, 
 	}
 	out.lastShardCache.Init()
 
-	slog.Info("Successfully setup CAR store!")
+	log.Println("Successfully setup CAR store!")
 
 	return out, nil
 }
@@ -257,7 +259,7 @@ func (cs *S3CarStore) iterateShardBlocks(sh *Shard, cb func(blk blocks.Block) er
 	for {
 		blk, err := rr.Next()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return nil
 			}
 			return err
@@ -397,7 +399,6 @@ func (cs *S3CarStore) writeNewShard(ctx context.Context, root cid.Cid, rev strin
 	// is definitely not it
 
 	offset := hnw
-	//brefs := make([]*blockRef, 0, len(ds.blks))
 	var brefs []*BlockRef
 	for k, blk := range blks {
 		nw, nerr := LdWrite(buf, k.Bytes(), blk.RawData())
@@ -455,6 +456,8 @@ func (cs *S3CarStore) putShard(ctx context.Context, shard *Shard, brefs []*Block
 	return nil
 }
 
+var ErrNotFound = errors.New("cid not found")
+
 func BlockDiff(ctx context.Context, bs blockstore.Blockstore, oldroot cid.Cid, newcids map[cid.Cid]blocks.Block) (map[cid.Cid]bool, error) {
 	ctx, span := otel.Tracer("repo").Start(ctx, "BlockDiff")
 	defer span.End()
@@ -481,7 +484,7 @@ func BlockDiff(ctx context.Context, bs blockstore.Blockstore, oldroot cid.Cid, n
 
 	if keepset[oldroot] {
 		// this should probably never happen, but is technically correct
-		return nil, nil
+		return nil, ErrNotFound
 	}
 
 	// next, walk the old tree from the root, recursing on cids *not* in the keepset.
@@ -536,7 +539,7 @@ func (cs *S3CarStore) ImportSlice(ctx context.Context, uid atp.Uid, since *strin
 	for {
 		blk, err := carr.Next()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return cid.Undef, nil, err
@@ -646,7 +649,7 @@ func (cs *S3CarStore) deleteShards(ctx context.Context, shs []*Shard) error {
 				if !os.IsNotExist(err) {
 					return err
 				}
-				cs.log.Warn("shard file we tried to delete did not exist", "shard", sh.ID, "path", sh.Path)
+				cs.log.WarnContext(ctx, "shard file we tried to delete did not exist", "shard", sh.ID, "path", sh.Path)
 			}
 		}
 
@@ -785,11 +788,11 @@ func (cs *S3CarStore) getBlockRefsForShards(ctx context.Context, shardIds []uint
 	return out, nil
 }
 
-func shardSize(sh *Shard) (int64, error) {
+func (cs *S3CarStore) shardSize(ctx context.Context, sh *Shard) (int64, error) {
 	st, err := os.Stat(sh.Path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			slog.Warn("missing shard, return size of zero", "path", sh.Path, "shard", sh.ID, "system", "carstore")
+			cs.log.WarnContext(ctx, "missing shard, return size of zero", "path", sh.Path, "shard", sh.ID, "system", "carstore")
 			return 0, nil
 		}
 		return 0, fmt.Errorf("stat %q: %w", sh.Path, err)
@@ -811,7 +814,7 @@ func (cs *S3CarStore) CompactUserShards(ctx context.Context, user atp.Uid, skipB
 	ctx, span := otel.Tracer("carstore").Start(ctx, "CompactUserShards")
 	defer span.End()
 
-	span.SetAttributes(attribute.Int64("user", int64(uint64(user)))) // nolint:gosec
+	span.SetAttributes(attribute.Int64("user", int64(uint64(user)))) //nolint:gosec
 
 	shards, err := cs.meta.GetUserShards(ctx, user)
 	if err != nil {
@@ -830,7 +833,7 @@ func (cs *S3CarStore) CompactUserShards(ctx context.Context, user atp.Uid, skipB
 		// acceptable.
 		var skip int
 		for i, sh := range shards {
-			size, serr := shardSize(sh)
+			size, serr := cs.shardSize(ctx, sh)
 			if serr != nil {
 				return nil, fmt.Errorf("could not check size of shard file: %w", err)
 			}
@@ -870,7 +873,7 @@ func (cs *S3CarStore) CompactUserShards(ctx context.Context, user atp.Uid, skipB
 	}
 
 	lowBound := 20
-	N := 10
+	n := 10
 	// we want to *aim* for N shards per user
 	// the last several should be left small to allow easy loading from disk
 	// for updates (since recent blocks are most likely needed for edits)
@@ -879,9 +882,9 @@ func (cs *S3CarStore) CompactUserShards(ctx context.Context, user atp.Uid, skipB
 	// have
 	var threshs []int
 	tot := len(brefs)
-	for range make([]struct{}, N) {
+	for range make([]struct{}, n) {
 		v := max(tot/2, lowBound)
-		tot = tot / 2
+		tot /= 2
 		threshs = append(threshs, v)
 	}
 
@@ -995,7 +998,7 @@ func (cs *S3CarStore) compactBucket(ctx context.Context, user atp.Uid, b *compBu
 		}); err != nil {
 			// If we ever fail to iterate a shard file because its
 			// corrupted, just log an error and skip the shard
-			cs.log.Error("iterating blocks in shard", "shard", s.ID, "err", err, "uid", user)
+			cs.log.ErrorContext(ctx, "iterating blocks in shard", "shard", s.ID, "err", err, "uid", user)
 		}
 	}
 
@@ -1013,7 +1016,7 @@ func (cs *S3CarStore) compactBucket(ctx context.Context, user atp.Uid, b *compBu
 		_ = fi.Close()
 
 		if err2 := os.Remove(fi.Name()); err2 != nil {
-			cs.log.Error("failed to remove shard file after failed db transaction", "path", fi.Name(), "err", err2)
+			cs.log.ErrorContext(ctx, "failed to remove shard file after failed db transaction", "path", fi.Name(), "err", err2)
 		}
 
 		return err

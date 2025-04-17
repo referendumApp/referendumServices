@@ -487,9 +487,9 @@ func (rm *Manager) HandleExternalUserEvent(ctx context.Context, pdsid uint, uid 
 	ctx, span := otel.Tracer("repoman").Start(ctx, "HandleExternalUserEvent")
 	defer span.End()
 
-	span.SetAttributes(attribute.Int64("user", int64(uint64(uid)))) // nolint:gosec
+	span.SetAttributes(attribute.Int64("user", int64(uint64(uid)))) //nolint:gosec
 
-	rm.log.Debug("HandleExternalUserEvent", "pds", pdsid, "uid", uid, "since", since, "nrev", nrev)
+	rm.log.DebugContext(ctx, "HandleExternalUserEvent", "pds", pdsid, "uid", uid, "since", since, "nrev", nrev)
 
 	unlock := rm.lockUser(ctx, uid)
 	defer unlock()
@@ -772,7 +772,7 @@ func (rm *Manager) ImportNewRepo(ctx context.Context, user atp.Uid, repoDid stri
 			repoOpsImported.Inc()
 			out, perr := rm.processOp(ctx, bs, op, rm.hydrateRecords)
 			if perr != nil {
-				rm.log.Error("failed to process repo op", "err", perr, "path", op.Rpath, "repo", repoDid)
+				rm.log.ErrorContext(ctx, "failed to process repo op", "err", perr, "path", op.Rpath, "repo", repoDid)
 			}
 
 			if out != nil {
@@ -827,22 +827,24 @@ func (rm *Manager) processOp(ctx context.Context, bs blockstore.Blockstore, op *
 			RecCid:     &op.NewCid,
 		}
 
-		if hydrateRecords {
-			blk, err := bs.Get(ctx, op.NewCid)
-			if err != nil {
+		if !hydrateRecords {
+			return outop, nil
+		}
+
+		blk, err := bs.Get(ctx, op.NewCid)
+		if err != nil {
+			return nil, err
+		}
+
+		rec, err := lexutil.CborDecodeValue(blk.RawData())
+		if err != nil {
+			if !errors.Is(err, lexutil.ErrUnrecognizedType) {
 				return nil, err
 			}
 
-			rec, err := lexutil.CborDecodeValue(blk.RawData())
-			if err != nil {
-				if !errors.Is(err, lexutil.ErrUnrecognizedType) {
-					return nil, err
-				}
-
-				rm.log.Warn("failed processing repo diff", "err", err)
-			} else {
-				outop.Record = rec
-			}
+			rm.log.WarnContext(ctx, "failed processing repo diff", "err", err)
+		} else {
+			outop.Record = rec
 		}
 
 		return outop, nil
@@ -877,7 +879,7 @@ func (rm *Manager) processNewRepo(ctx context.Context, user atp.Uid, r io.Reader
 	for {
 		blk, cerr := carr.Next()
 		if cerr != nil {
-			if cerr == io.EOF {
+			if errors.Is(cerr, io.EOF) {
 				break
 			}
 			return cerr
@@ -950,7 +952,7 @@ func (rm *Manager) walkTree(ctx context.Context, skip map[cid.Cid]bool, root cid
 	var links []cid.Cid
 	if err := cbg.ScanForLinks(bytes.NewReader(blk.RawData()), func(c cid.Cid) {
 		if c.Prefix().Codec == cid.Raw {
-			rm.log.Debug("skipping 'raw' CID in record", "recordCid", root, "rawCid", c)
+			rm.log.DebugContext(ctx, "skipping 'raw' CID in record", "recordCid", root, "rawCid", c)
 			return
 		}
 		if skip[c] {

@@ -14,7 +14,7 @@ func s32encode(i uint64) string {
 	var s string
 	for i > 0 {
 		c := i & 0x1f
-		i = i >> 5
+		i >>= 5
 		s = alpha[c:c+1] + s
 	}
 	return s
@@ -36,7 +36,7 @@ var ltLock sync.Mutex
 
 func NextTID() string {
 	// Safe conversion: UnixMicro() for current dates is always positive and well within uint64 range
-	t := uint64(time.Now().UnixMicro()) // nolint:gosec
+	t := uint64(time.Now().UnixMicro()) //nolint:gosec
 
 	ltLock.Lock()
 	if lastTime >= t {

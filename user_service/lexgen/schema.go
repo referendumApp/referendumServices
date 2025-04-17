@@ -3,6 +3,7 @@ package lexgen
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 )
@@ -54,7 +55,7 @@ func (s *Schema) AllTypes(prefix string, defMap map[string]*ExtDef) []outputType
 		}
 
 		if needsCbor {
-			fmt.Println("Setting to record: ", name)
+			log.Println("Setting to record: ", name)
 			if name == "EmbedImages_View" {
 				panic("not ok")
 			}
@@ -77,25 +78,27 @@ func (s *Schema) AllTypes(prefix string, defMap map[string]*ExtDef) []outputType
 			})
 
 			for _, r := range ts.Refs {
-				if !strings.HasPrefix(r, AtProto) && !strings.HasPrefix(r, Bsky) {
-					refname := r
-					if strings.HasPrefix(refname, "#") {
-						refname = s.ID + r
-					}
-
-					ed, ok := defMap[refname]
-					if !ok {
-						panic(fmt.Sprintf("cannot find: %q", refname))
-					}
-
-					fmt.Println("UNION REF", refname, name, needsCbor)
-
-					if needsCbor {
-						ed.Type.needsCbor = true
-					}
-
-					ed.Type.needsType = true
+				if strings.HasPrefix(r, AtProto) || strings.HasPrefix(r, Bsky) {
+					continue
 				}
+
+				refname := r
+				if strings.HasPrefix(refname, "#") {
+					refname = s.ID + r
+				}
+
+				ed, ok := defMap[refname]
+				if !ok {
+					panic(fmt.Sprintf("cannot find: %q", refname))
+				}
+
+				log.Println("UNION REF", refname, name, needsCbor)
+
+				if needsCbor {
+					ed.Type.needsCbor = true
+				}
+
+				ed.Type.needsType = true
 			}
 		}
 

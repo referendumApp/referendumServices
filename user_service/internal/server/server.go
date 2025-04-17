@@ -2,7 +2,9 @@ package server
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
+	"log"
 	"log/slog"
 	"net/http"
 	"time"
@@ -32,7 +34,22 @@ type Server struct {
 }
 
 // Initialize Server and setup HTTP routes and middleware
-func New(db *database.DB, srvkey *did.PrivKey, cfg *env.Config, cs car.Store, plc plc.Client) (*Server, error) {
+func New(ctx context.Context, cfg *env.Config, db *database.DB) (*Server, error) {
+	log.Println("Generating private key")
+	srvkey, err := did.GeneratePrivKey(rand.Reader, did.KeyTypeSecp256k1)
+	if err != nil {
+		log.Println("Failed to generate private key")
+		return nil, err
+	}
+	log.Println("Successfully generated private key!")
+
+	plc := plc.NewPLCServer(cfg.PLCHost)
+
+	cs, err := car.NewCarStore(ctx, cfg, db)
+	if err != nil {
+		return nil, err
+	}
+
 	evts := events.NewEventManager(events.NewMemPersister())
 
 	kmgr := indexer.NewKeyManager(plc, srvkey)
@@ -81,16 +98,16 @@ func (s *Server) Start(ctx context.Context) error {
 
 	// ListenAndServe is blocking so call it in a go routine to run it concurrently
 	go func() {
-		fmt.Printf("Server starting on port %d\n", s.port)
+		log.Printf("Server starting on port %d\n", s.port)
 		if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			s.log.Error("Error listening and serving: %s", "error", err)
+			log.Println("Error listening and serving")
 			errChan <- err
 		}
 	}()
 
 	select {
 	case <-ctx.Done():
-		s.log.Info("Shutdown signal received")
+		log.Println("Shutdown signal received")
 	case err := <-errChan:
 		return fmt.Errorf("server error: %w", err)
 	}
@@ -99,7 +116,7 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
-	s.log.Info("Shutdown server...")
+	log.Println("Shutdown server...")
 	if err := s.httpServer.Shutdown(ctx); err != nil {
 		return fmt.Errorf("shutdown error: %w", err)
 	}

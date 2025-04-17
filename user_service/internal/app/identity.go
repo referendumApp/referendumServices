@@ -92,7 +92,7 @@ func (v *View) AuthenticateUser(ctx context.Context, username string, pw string)
 	user, err := v.meta.AuthenticateUser(ctx, username)
 	if err != nil {
 		v.log.ErrorContext(ctx, "Failed to authenticate user", "error", err)
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, defaultErr.NotFound()
 		}
 		return nil, refErr.InternalServer()
@@ -170,7 +170,7 @@ func (v *View) UpdateProfile(ctx context.Context, uid atp.Uid, req *refApp.Perso
 	}
 
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		if err := v.meta.UpdateWithTx(ctx, tx, &newUser, sq.Eq{"id": uid}); err != nil && err != database.ErrNoFields {
+		if err := v.meta.UpdateWithTx(ctx, tx, &newUser, sq.Eq{"id": uid}); err != nil && errors.Is(err, database.ErrNoFields) {
 			v.log.ErrorContext(ctx, "Failed to update user", "error", err)
 			return err
 		}
@@ -180,7 +180,7 @@ func (v *View) UpdateProfile(ctx context.Context, uid atp.Uid, req *refApp.Perso
 			Handle:      newUser.Handle,
 		}
 
-		if err := v.meta.UpdateWithTx(ctx, tx, actor, sq.Eq{"uid": uid}); err != nil && err != database.ErrNoFields {
+		if err := v.meta.UpdateWithTx(ctx, tx, actor, sq.Eq{"uid": uid}); err != nil && errors.Is(err, database.ErrNoFields) {
 			v.log.ErrorContext(ctx, "Failed to update person profile", "error", err)
 			return err
 		}

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log/slog"
+	"log"
 	"os"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -20,9 +20,9 @@ type S3Client struct {
 }
 
 func NewS3Client(ctx context.Context, bucket string) (*S3Client, error) {
-	awsCfg, err := config.LoadDefaultConfig(context.TODO())
+	awsCfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
-		slog.Error("Failed to load configuration", "error", err)
+		log.Println("Failed to load configuration")
 		return nil, err
 	}
 	client := s3.NewFromConfig(awsCfg, func(o *s3.Options) {
@@ -35,11 +35,11 @@ func NewS3Client(ctx context.Context, bucket string) (*S3Client, error) {
 	})
 
 	if _, err := client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: &bucket}); err != nil {
-		slog.Info("Bucket does not exist, attempting to create bucket...", "bucket", bucket)
+		log.Printf("The %s bucket does not exist, attempting to create bucket...", bucket)
 		if _, err := client.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: &bucket}); err != nil {
 			return nil, err
 		}
-		slog.Info("Successfully created bucket!", "bucket", bucket)
+		log.Println("Successfully created bucket!")
 	}
 
 	return &S3Client{client: client, bucket: bucket}, nil

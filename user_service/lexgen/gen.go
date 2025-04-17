@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -88,18 +89,20 @@ func FixRecordReferences(schemas []*Schema, defmap map[string]*ExtDef, prefix st
 
 			if t.Type.Type == Union {
 				for _, r := range t.Type.Refs {
+					if strings.HasPrefix(r, AtProto) || strings.HasPrefix(r, Bsky) {
+						continue
+					}
+
 					if r[0] == '#' {
 						r = s.ID + r
 					}
 
-					if !strings.HasPrefix(r, AtProto) && !strings.HasPrefix(r, Bsky) {
-						if _, known := defmap[r]; !known {
-							panic(fmt.Sprintf("reference to unknown record type: %s", r))
-						}
+					if _, known := defmap[r]; !known {
+						panic(fmt.Sprintf("reference to unknown record type: %s", r))
+					}
 
-						if t.NeedsCbor {
-							defmap[r].Type.needsCbor = true
-						}
+					if t.NeedsCbor {
+						defmap[r].Type.needsCbor = true
 					}
 				}
 			}
@@ -163,7 +166,7 @@ func GenCodeForSchema(pkg Package, reqcode bool, s *Schema, packages []Package, 
 		return tps[i].Name < tps[j].Name
 	})
 	for _, ot := range tps {
-		fmt.Printf("TYPE: %s, NeedCBOR: %v, NeedType: %v\n", ot.Name, ot.NeedsCbor, ot.NeedsType)
+		log.Printf("TYPE: %s, NeedCBOR: %v, NeedType: %v\n", ot.Name, ot.NeedsCbor, ot.NeedsType)
 		if err := ot.Type.WriteType(ot.Name, buf); err != nil {
 			return err
 		}
@@ -243,12 +246,13 @@ func writeMethods(id string, prefix string, ts *TypeSchema, w io.Writer) error {
 	case Query:
 		return ts.WriteRPC(w, typename, fmt.Sprintf("%s_Input", typename))
 	case Procedure:
-		if ts.Input == nil || ts.Input.Schema == nil || ts.Input.Schema.Type == Object {
+		switch {
+		case ts.Input == nil || ts.Input.Schema == nil || ts.Input.Schema.Type == Object:
 			return ts.WriteRPC(w, typename, fmt.Sprintf("%s_Input", typename))
-		} else if ts.Input.Schema.Type == "ref" {
+		case ts.Input.Schema.Type == "ref":
 			inputname, _ := ts.namesFromRef(ts.Input.Schema.Ref)
 			return ts.WriteRPC(w, typename, inputname)
-		} else {
+		default:
 			return fmt.Errorf("unhandled input type: %s", ts.Input.Schema.Type)
 		}
 	case Object, String:
@@ -361,7 +365,7 @@ func WriteServerHandlers(w io.Writer, schemas []*Schema, pkg string, impmap map[
 
 		main, ok := s.Defs[Main]
 		if !ok {
-			fmt.Printf("WARNING: schema %q doesn't have a main def\n", s.ID)
+			log.Printf("WARNING: schema %q doesn't have a main def\n", s.ID)
 			continue
 		}
 

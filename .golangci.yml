@@ -12,45 +12,72 @@ output:
 # Linters to enable
 linters:
   enable:
-    - gofmt  # Checks if the code is formatted according to 'gofmt' command
-    - goimports  # Formats imports and adds missing imports
-    - govet  # Checks for subtle bugs and suspicious constructs that might not be caught by the compiler
-    - staticcheck  # Static analyzer that finds bugs, performance issues, and stylistic problems
-    - revive  # Replaces golint but with additional customization options
-    - errcheck  # Ensures that error returns from functions are checked
-    - ineffassign  # Detects when assignments to variables are never used
-    - gosimple  # Suggests code simplifications for better readability
-    - goconst  # Finds repeated strings that could be replaced with constants
-    - misspell  # Finds commonly misspelled English words in comments
-    - gosec  # Scans code for security vulnerabilities
-    - unused  # Checks for unused variables, functions, constants, and types
-    - errchkjson  # Checks types passed to the json encoding functions
-    - bodyclose  # Checks whether HTTP response body is closed successfully
-    - sqlclosecheck  # Checks that sql.Rows, sql.Stmt, sqlx.NamedStmt, pgx.Query are closed
-    - whitespace  # Whitespace is a linter that checks for unnecessary newlines at the start and end of functions, if, for, etc
+    - asasalint # checks for pass []any as any in variadic func(...any)
+    - gofmt # Checks if the code is formatted according to 'gofmt' command
+    - goimports # Formats imports and adds missing imports
+    - govet # Checks for subtle bugs and suspicious constructs that might not be caught by the compiler
+    - staticcheck # Static analyzer that finds bugs, performance issues, and stylistic problems
+    - revive # Replaces golint but with additional customization options
+    - errcheck # Ensures that error returns from functions are checked
+    - ineffassign # Detects when assignments to variables are never used
+    - gosimple # Suggests code simplifications for better readability
+    - goconst # Finds repeated strings that could be replaced with constants
+    - misspell # Finds commonly misspelled English words in comments
+    - gosec # Scans code for security vulnerabilities
+    - unused # Checks for unused variables, functions, constants, and types
+    - errchkjson # Checks types passed to the json encoding functions
+    - bodyclose # Checks whether HTTP response body is closed successfully
+    - canonicalheader # checks whether net/http.Header uses canonical header
+    - sqlclosecheck # Checks that sql.Rows, sql.Stmt, sqlx.NamedStmt, pgx.Query are closed
+    - whitespace # Whitespace is a linter that checks for unnecessary newlines at the start and end of functions, if, for, etc
+    - dupl # tool for code clone detection
+    - copyloopvar # detects places where loop variables are copied (Go 1.22+)
+    - errorlint # finds code that will cause problems with the error wrapping scheme introduced in Go 1.13
+    - fatcontext # detects nested contexts in loops
+    - forbidigo # forbids identifiers
+    - gocritic # provides diagnostics that check for bugs, performance and style issues
+    - iface # checks the incorrect use of interfaces, helping developers avoid interface pollution
+    - musttag # enforces field tags in (un)marshaled structs
+    - nestif # reports deeply nested if statements
+    - nilerr # finds the code that returns nil even if it checks that the error is not nil
+    - nilnesserr # reports that it checks for err != nil, but it returns a different nil value error (powered by nilness and nilerr)
+    - nilnil # checks that there is no simultaneous return of nil error and an invalid value
+    - noctx # finds sending http request without context.Context
+    - nolintlint # reports ill-formed or insufficient nolint directives
+    - recvcheck # checks for receiver type consistency
+    - reassign # checks that package variables are not reassigned
+    - sloglint # ensure consistent code style when using log/slog
+    - rowserrcheck # checks whether Err of rows is checked successfully
+    - sqlclosecheck # checks that sql.Rows and sql.Stmt are closed
+    - spancheck # checks for mistakes with OpenTelemetry/Census spans
+    - testpackage # makes you use a separate _test package
+    - unconvert # removes unnecessary type conversions
+    - usestdlibvars # detects the possibility to use variables/constants from the Go standard library
 
 # Linter settings
 linters-settings:
   govet:
     enable:
-      - assign  # Check for useless assignments
-      - bools  # Check for common mistakes involving boolean operators
-      - buildtag  # Check //go:build and // +build directives
-      - defers  # Report common mistakes in defer statements
-      - httpresponse  # Check for mistakes using HTTP responses
-      - nilfunc  # Check for useless comparisons between functions and nil
-      - nilness  # Check for redundant or impossible nil comparisons
-      - shadow  # Check for possible unintended shadowing of variables
-      - stringintconv  # Check for string(int) conversions
-      - testinggoroutine  # Report calls to (*testing.T).Fatal from goroutines started by a test
-      - tests  # Check for common mistaken usages of tests and examples
-      - unmarshal  # Report passing non-pointer or non-interface values to unmarshal
-      - unreachable  # Check for unreachable code
-      - unsafeptr  # Check for invalid conversions of uintptr to unsafe.Pointer
-      - unusedresult  # Check for unused results of calls to some functions
-      - waitgroup  # Check for misuses of sync.WaitGroup
+      - assign # Check for useless assignments
+      - bools # Check for common mistakes involving boolean operators
+      - buildtag # Check //go:build and // +build directives
+      - defers # Report common mistakes in defer statements
+      - httpresponse # Check for mistakes using HTTP responses
+      - nilfunc # Check for useless comparisons between functions and nil
+      - nilness # Check for redundant or impossible nil comparisons
+      - shadow # Check for possible unintended shadowing of variables
+      - stringintconv # Check for string(int) conversions
+      - testinggoroutine # Report calls to (*testing.T).Fatal from goroutines started by a test
+      - tests # Check for common mistaken usages of tests and examples
+      - unmarshal # Report passing non-pointer or non-interface values to unmarshal
+      - unreachable # Check for unreachable code
+      - unsafeptr # Check for invalid conversions of uintptr to unsafe.Pointer
+      - unusedresult # Check for unused results of calls to some functions
+      - waitgroup # Check for misuses of sync.WaitGroup
   goimports:
     local-prefixes: github.com/referendumApp/referendumServices
+  golines:
+    max-len: 120
   revive:
     rules:
       - name: exported
@@ -65,6 +92,50 @@ linters-settings:
     check-error-free-encoding: true
   goconst:
     min-occurrences: 3
+  gocritic:
+    # Settings passed to gocritic.
+    # The settings key is the name of a supported gocritic checker.
+    # The list of supported checkers can be found at https://go-critic.com/overview.
+    settings:
+      captLocal:
+        # Whether to restrict checker to params only.
+        # Default: true
+        paramsOnly: false
+      underef:
+        # Whether to skip (*x).method() calls where x is a pointer receiver.
+        # Default: true
+        skipRecvDeref: false
+  reassign:
+    # Patterns for global variable names that are checked for reassignment.
+    # See https://github.com/curioswitch/go-reassign#usage
+    # Default: ["EOF", "Err.*"]
+    patterns:
+      - ".*"
+  rowserrcheck:
+    # database/sql is always checked.
+    # Default: []
+    packages:
+      - github.com/jackc/pgx/v5
+  sloglint:
+    # Enforce not using global loggers.
+    # Values:
+    # - "": disabled
+    # - "all": report all global loggers
+    # - "default": report only the default slog logger
+    # https://github.com/go-simpler/sloglint?tab=readme-ov-file#no-global
+    # Default: ""
+    no-global: all
+    # Enforce using methods that accept a context.
+    # Values:
+    # - "": disabled
+    # - "all": report all contextless calls
+    # - "scope": report only if a context exists in the scope of the outermost function
+    # https://github.com/go-simpler/sloglint?tab=readme-ov-file#context-only
+    # Default: ""
+    context: scope
+  nestif:
+    # Minimal complexity of if statements to report.
+    min-complexity: 6
 
 # Issues configuration
 issues:
@@ -79,7 +150,7 @@ issues:
         - errcheck
         - gosec
   max-issues-per-linter: 0
-  max-same-issues: 0
+  max-same-issues: 50
   fix: false # Set to true to automatically fix issues when possible
 
 # Issues configuration

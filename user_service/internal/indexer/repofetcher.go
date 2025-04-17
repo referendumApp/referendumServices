@@ -88,11 +88,11 @@ func (rf *RepoFetcher) fetchRepo(ctx context.Context, c *xrpc.Client, pds *atp.P
 
 	// Wait to prevent DOSing the PDS when connecting to a new stream with lots of active repos
 	if err := limiter.Wait(ctx); err != nil {
-		rf.log.Error("Rate limiter failed to wait", "error", err)
+		rf.log.ErrorContext(ctx, "Rate limiter failed to wait", "error", err)
 		return nil, err
 	}
 
-	rf.log.Debug("SyncGetRepo", "did", did, "since", rev)
+	rf.log.DebugContext(ctx, "SyncGetRepo", "did", did, "since", rev)
 	// TODO: max size on these? A malicious PDS could just send us a petabyte sized repo here and kill us
 	repo, err := atproto.SyncGetRepo(ctx, c, did, rev)
 	if err != nil {
@@ -133,7 +133,7 @@ func (rf *RepoFetcher) FetchAndIndexRepo(ctx context.Context, job *crawlWork) er
 			for i, j := range job.catchup {
 				catchupEventsProcessed.Inc()
 				if eventErr := rf.repoman.HandleExternalUserEvent(ctx, pds.ID, ai.Uid, ai.Did, j.evt.Since, j.evt.Rev, j.evt.Blocks, j.evt.Ops); eventErr != nil {
-					rf.log.Error("buffered event catchup failed", "error", eventErr, "did", ai.Did, "i", i, "jobCount", len(job.catchup), "seq", j.evt.Seq)
+					rf.log.ErrorContext(ctx, "buffered event catchup failed", "error", eventErr, "did", ai.Did, "i", i, "jobCount", len(job.catchup), "seq", j.evt.Seq)
 					resync = true // fall back to a repo sync
 					break
 				}
@@ -163,7 +163,7 @@ func (rf *RepoFetcher) FetchAndIndexRepo(ctx context.Context, job *crawlWork) er
 		span.RecordError(impErr)
 
 		if ipld.IsNotFound(impErr) || errors.Is(impErr, io.EOF) || errors.Is(impErr, fs.ErrNotExist) {
-			rf.log.Error("partial repo fetch was missing data", "did", ai.Did, "pds", pds.Host, "rev", rev)
+			rf.log.ErrorContext(ctx, "partial repo fetch was missing data", "did", ai.Did, "pds", pds.Host, "rev", rev)
 			repo, fetchErr := rf.fetchRepo(ctx, c, pds, ai.Did, "")
 			if fetchErr != nil {
 				return fetchErr

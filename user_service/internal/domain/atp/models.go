@@ -65,7 +65,7 @@ type Settings struct {
 	Deleted bool `db:"deleted" json:"deleted"`
 }
 
-func (u Settings) Marshal() ([]byte, error) {
+func (u *Settings) Marshal() ([]byte, error) {
 	return json.Marshal(u)
 }
 

@@ -3,6 +3,7 @@ package plc
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -20,6 +21,11 @@ type Client interface {
 type Server struct {
 	C    *http.Client
 	Host string
+	log  *slog.Logger
+}
+
+func NewPLCServer(host string) *Server {
+	return &Server{Host: host, C: http.DefaultClient, log: slog.Default().With("system", "plc")}
 }
 
 type Service struct {

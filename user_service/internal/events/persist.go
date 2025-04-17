@@ -17,7 +17,7 @@ type EventPersistence interface {
 	Flush(context.Context) error
 	Shutdown(context.Context) error
 
-	SetEventBroadcaster(func(*XRPCStreamEvent))
+	SetEventBroadcaster(func(context.Context, *XRPCStreamEvent))
 }
 
 // MemPersister is the most naive implementation of event persistence
@@ -28,7 +28,7 @@ type MemPersister struct {
 	lk  sync.Mutex
 	seq int64
 
-	broadcast func(*XRPCStreamEvent)
+	broadcast func(context.Context, *XRPCStreamEvent)
 }
 
 func NewMemPersister() *MemPersister {
@@ -59,7 +59,7 @@ func (mp *MemPersister) Persist(ctx context.Context, e *XRPCStreamEvent) error {
 	}
 	mp.buf = append(mp.buf, e)
 
-	mp.broadcast(e)
+	mp.broadcast(ctx, e)
 
 	return nil
 }
@@ -91,7 +91,7 @@ func (mp *MemPersister) Flush(ctx context.Context) error {
 	return nil
 }
 
-func (mp *MemPersister) SetEventBroadcaster(brc func(*XRPCStreamEvent)) {
+func (mp *MemPersister) SetEventBroadcaster(brc func(context.Context, *XRPCStreamEvent)) {
 	mp.broadcast = brc
 }
 

@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	sq "github.com/Masterminds/squirrel"
@@ -152,8 +153,8 @@ func (d *DB) HandleRecordDeleteFeedLike(ctx context.Context, uid atp.Uid, rkey s
 func (d *DB) HandleRecordDeleteGraphFollow(ctx context.Context, uid atp.Uid, rkey string) error {
 	filter := sq.Eq{"follower": uid, "rkey": rkey}
 	if err := d.Delete(ctx, atp.UserFollowRecord{}, filter); err != nil {
-		if err == ErrNoRowsAffected {
-			d.Log.Warn("Attempted to delete follow we did not have a record for", "user", uid, "rkey", rkey)
+		if errors.Is(err, ErrNoRowsAffected) {
+			d.Log.WarnContext(ctx, "Attempted to delete follow we did not have a record for", "user", uid, "rkey", rkey)
 			return nil
 		}
 		return err

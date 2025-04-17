@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/ipfs/go-cid"
@@ -14,7 +15,7 @@ import (
 func (v *View) HandleGraphFollow(ctx context.Context, uid atp.Uid, did string, cc cid.Cid, tid string) *refErr.APIError {
 	target, err := v.meta.LookupPersonByDid(ctx, did)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return refErr.NotFound(did, "DID")
 		}
 

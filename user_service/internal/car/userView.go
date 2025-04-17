@@ -3,6 +3,7 @@ package car
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sync/atomic"
@@ -50,7 +51,7 @@ type userView struct {
 var _ blockstore.Blockstore = (*userView)(nil)
 
 func (uv *userView) HashOnRead(hor bool) {
-	//noop
+	// noop
 }
 
 func (uv *userView) Has(ctx context.Context, k cid.Cid) (bool, error) {
@@ -130,7 +131,7 @@ func offsetBytes(r io.ReadCloser, offset int64) error {
 		skipped := int64(n)
 
 		if err != nil {
-			if err == io.EOF && skipped == offset {
+			if errors.Is(err, io.EOF) && skipped == offset {
 				return nil
 			}
 			return err
@@ -171,7 +172,7 @@ func (uv *userView) prefetchRead(ctx context.Context, k cid.Cid, path string, of
 	for {
 		blk, err := cr.Next()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return nil, err

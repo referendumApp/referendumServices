@@ -78,7 +78,7 @@ func NewPDS(
 }
 
 // func (s *PDS) handleFedEvent(ctx context.Context, host *Peering, env *events.XRPCStreamEvent) error {
-// 	fmt.Printf("[%s] got fed event from %q\n", s.serviceUrl, host.Host)
+// 	s.log.InfoContext(ctx, "[%s] got fed event from %q\n", s.serviceUrl, host.Host)
 // 	switch {
 // 	case env.RepoCommit != nil:
 // 		evt := env.RepoCommit
@@ -332,7 +332,7 @@ func (p *PDS) TakedownRepo(ctx context.Context, did string) error {
 			Time:   time.Now().Format(util.ISO8601),
 		},
 	}); err != nil {
-		return fmt.Errorf("failed to push event: %s", err)
+		return fmt.Errorf("failed to push event: %w", err)
 	}
 
 	return nil
@@ -348,7 +348,7 @@ func (p *PDS) SuspendRepo(ctx context.Context, did string) error {
 			Time:   time.Now().Format(util.ISO8601),
 		},
 	}); err != nil {
-		return fmt.Errorf("failed to push event: %s", err)
+		return fmt.Errorf("failed to push event: %w", err)
 	}
 
 	return nil
@@ -364,7 +364,7 @@ func (p *PDS) DeactivateRepo(ctx context.Context, did string) error {
 			Time:   time.Now().Format(util.ISO8601),
 		},
 	}); err != nil {
-		return fmt.Errorf("failed to push event: %s", err)
+		return fmt.Errorf("failed to push event: %w", err)
 	}
 
 	return nil
@@ -380,7 +380,7 @@ func (p *PDS) ReactivateRepo(ctx context.Context, did string) error {
 			Time:   time.Now().Format(util.ISO8601),
 		},
 	}); err != nil {
-		return fmt.Errorf("failed to push event: %s", err)
+		return fmt.Errorf("failed to push event: %w", err)
 	}
 
 	return nil

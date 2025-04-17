@@ -2,6 +2,7 @@ package events
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -119,7 +120,8 @@ func isTemporaryNetError(err error) bool {
 	}
 
 	// Check for timeout errors explicitly
-	if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
 		return true
 	}
 
@@ -174,7 +176,7 @@ func HandleRepoStream(ctx context.Context, con *websocket.Conn, sched Scheduler,
 
 	con.SetPingHandler(func(message string) error {
 		err := con.WriteControl(websocket.PongMessage, []byte(message), time.Now().Add(time.Second*60))
-		if err == websocket.ErrCloseSent {
+		if errors.Is(err, websocket.ErrCloseSent) {
 			return nil
 		} else if isTemporaryNetError(err) {
 			return nil
@@ -184,7 +186,7 @@ func HandleRepoStream(ctx context.Context, con *websocket.Conn, sched Scheduler,
 
 	con.SetPongHandler(func(_ string) error {
 		if err := con.SetReadDeadline(time.Now().Add(time.Minute)); err != nil {
-			log.Error("failed to set read deadline", "err", err)
+			log.ErrorContext(ctx, "failed to set read deadline", "err", err)
 		}
 
 		return nil
@@ -233,7 +235,7 @@ func HandleRepoStream(ctx context.Context, con *websocket.Conn, sched Scheduler,
 				}
 
 				if evt.Seq < lastSeq {
-					log.Error("Got events out of order from stream", "seq", evt.Seq, "prev", lastSeq)
+					log.ErrorContext(ctx, "Got events out of order from stream", "seq", evt.Seq, "prev", lastSeq)
 				}
 
 				lastSeq = evt.Seq
@@ -250,7 +252,7 @@ func HandleRepoStream(ctx context.Context, con *websocket.Conn, sched Scheduler,
 				}
 
 				if evt.Seq < lastSeq {
-					log.Error("Got events out of order from stream", "seq", evt.Seq, "prev", lastSeq)
+					log.ErrorContext(ctx, "Got events out of order from stream", "seq", evt.Seq, "prev", lastSeq)
 				}
 
 				lastSeq = evt.Seq
@@ -268,7 +270,7 @@ func HandleRepoStream(ctx context.Context, con *websocket.Conn, sched Scheduler,
 				}
 
 				if evt.Seq < lastSeq {
-					log.Error("Got events out of order from stream", "seq", evt.Seq, "prev", lastSeq)
+					log.ErrorContext(ctx, "Got events out of order from stream", "seq", evt.Seq, "prev", lastSeq)
 				}
 				lastSeq = evt.Seq
 
@@ -284,7 +286,7 @@ func HandleRepoStream(ctx context.Context, con *websocket.Conn, sched Scheduler,
 				}
 
 				if evt.Seq < lastSeq {
-					log.Error("Got events out of order from stream", "seq", evt.Seq, "prev", lastSeq)
+					log.ErrorContext(ctx, "Got events out of order from stream", "seq", evt.Seq, "prev", lastSeq)
 				}
 				lastSeq = evt.Seq
 
@@ -300,7 +302,7 @@ func HandleRepoStream(ctx context.Context, con *websocket.Conn, sched Scheduler,
 				}
 
 				if evt.Seq < lastSeq {
-					log.Error("Got events out of order from stream", "seq", evt.Seq, "prev", lastSeq)
+					log.ErrorContext(ctx, "Got events out of order from stream", "seq", evt.Seq, "prev", lastSeq)
 				}
 				lastSeq = evt.Seq
 
@@ -329,7 +331,7 @@ func HandleRepoStream(ctx context.Context, con *websocket.Conn, sched Scheduler,
 				}
 
 				if evt.Seq < lastSeq {
-					log.Error("Got events out of order from stream", "seq", evt.Seq, "prev", lastSeq)
+					log.ErrorContext(ctx, "Got events out of order from stream", "seq", evt.Seq, "prev", lastSeq)
 				}
 				lastSeq = evt.Seq
 
@@ -346,7 +348,7 @@ func HandleRepoStream(ctx context.Context, con *websocket.Conn, sched Scheduler,
 				}
 
 				if evt.Seq < lastSeq {
-					log.Error("Got events out of order from stream", "seq", evt.Seq, "prev", lastSeq)
+					log.ErrorContext(ctx, "Got events out of order from stream", "seq", evt.Seq, "prev", lastSeq)
 				}
 				lastSeq = evt.Seq
 
@@ -362,7 +364,7 @@ func HandleRepoStream(ctx context.Context, con *websocket.Conn, sched Scheduler,
 				}
 
 				if evt.Seq < lastSeq {
-					log.Error("Got events out of order from stream", "seq", evt.Seq, "prev", lastSeq)
+					log.ErrorContext(ctx, "Got events out of order from stream", "seq", evt.Seq, "prev", lastSeq)
 				}
 
 				lastSeq = evt.Seq

@@ -73,11 +73,12 @@ func ValidateStrongPassword(fl validator.FieldLevel) bool {
 	hasLower := false
 
 	for _, char := range password {
-		if unicode.IsDigit(char) {
+		switch {
+		case unicode.IsDigit(char):
 			hasDigit = true
-		} else if unicode.IsUpper(char) {
+		case unicode.IsUpper(char):
 			hasUpper = true
-		} else if unicode.IsLower(char) {
+		case unicode.IsLower(char):
 			hasLower = true
 		}
 	}

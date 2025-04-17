@@ -25,7 +25,7 @@ func (s Server) GetDocument(ctx context.Context, didstr string) (*did.Document, 
 		s.C = http.DefaultClient
 	}
 
-	req, err := http.NewRequest("GET", s.Host+"/"+didstr, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s.Host+"/"+didstr, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +37,9 @@ func (s Server) GetDocument(ctx context.Context, didstr string) (*did.Document, 
 
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		s.log.InfoContext(ctx, "DID doc request to plc directory failed", "body", string(b))
 		return nil, fmt.Errorf("get did request failed (code %d): %s", resp.StatusCode, resp.Status)
 	}
 
@@ -81,12 +83,12 @@ func (s Server) CreateDID(ctx context.Context, sigkey *did.PrivKey, recovery str
 		return "", err
 	}
 
-	body, err := json.Marshal(op) // nolint:errchkjson
+	body, err := json.Marshal(op) //nolint:errchkjson
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal operation: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", s.Host+"/"+url.QueryEscape(opdid), bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.Host+"/"+url.QueryEscape(opdid), bytes.NewReader(body))
 	if err != nil {
 		return "", err
 	}
@@ -100,9 +102,9 @@ func (s Server) CreateDID(ctx context.Context, sigkey *did.PrivKey, recovery str
 
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
-		fmt.Println(string(b))
+		s.log.InfoContext(ctx, "Create PLC operation request failed", "body", string(b))
 		return "", fmt.Errorf("bad response from create call: %d %s", resp.StatusCode, resp.Status)
 	}
 
@@ -130,7 +132,7 @@ func (s Server) GetOpAuditLog(ctx context.Context, did string) (*[]Op, error) {
 		s.C = http.DefaultClient
 	}
 
-	req, err := http.NewRequest("GET", s.Host+"/"+url.QueryEscape(did)+"/log/audit", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s.Host+"/"+url.QueryEscape(did)+"/log/audit", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +144,9 @@ func (s Server) GetOpAuditLog(ctx context.Context, did string) (*[]Op, error) {
 
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		s.log.InfoContext(ctx, "Audit log request to plc directory failed", "body", string(b))
 		return nil, fmt.Errorf("get last op request failed (code %d): %s", resp.StatusCode, resp.Status)
 	}
 
@@ -173,12 +177,12 @@ func (s Server) TombstoneDID(ctx context.Context, sigkey *did.PrivKey, did strin
 
 	op.Sig = base64.RawURLEncoding.EncodeToString(sig)
 
-	body, err := json.Marshal(op) // nolint:errchkjson
+	body, err := json.Marshal(op) //nolint:errchkjson
 	if err != nil {
 		return fmt.Errorf("failed to marshal operation: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", s.Host+"/"+url.QueryEscape(did), bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.Host+"/"+url.QueryEscape(did), bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -192,9 +196,9 @@ func (s Server) TombstoneDID(ctx context.Context, sigkey *did.PrivKey, did strin
 
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
-		fmt.Println(string(b))
+		s.log.InfoContext(ctx, "Tombstone request to plc directory failed", "body", string(b))
 		return fmt.Errorf("bad response from tombstone call: %d %s", resp.StatusCode, resp.Status)
 	}
 

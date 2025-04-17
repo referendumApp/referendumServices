@@ -66,10 +66,10 @@ func (em *EventManager) Shutdown(ctx context.Context) error {
 	return em.persister.Shutdown(ctx)
 }
 
-func (em *EventManager) broadcastEvent(evt *XRPCStreamEvent) {
+func (em *EventManager) broadcastEvent(ctx context.Context, evt *XRPCStreamEvent) {
 	// the main thing we do is send it out, so MarshalCBOR once
 	if err := evt.Preserialize(); err != nil {
-		em.log.Error("broadcast serialize failed", "err", err)
+		em.log.ErrorContext(ctx, "broadcast serialize failed", "err", err)
 		// serialize isn't going to go better later, this event is cursed
 		return
 	}
@@ -95,7 +95,7 @@ func (em *EventManager) broadcastEvent(evt *XRPCStreamEvent) {
 				// code
 				s.filter = func(*XRPCStreamEvent) bool { return false }
 
-				em.log.Warn("dropping slow consumer due to event overflow", "bufferSize", len(s.outgoing), "ident", s.ident)
+				em.log.WarnContext(ctx, "dropping slow consumer due to event overflow", "bufferSize", len(s.outgoing), "ident", s.ident)
 				go func(torem *Subscriber) {
 					torem.lk.Lock()
 					if !torem.cleanedUp {
@@ -106,7 +106,7 @@ func (em *EventManager) broadcastEvent(evt *XRPCStreamEvent) {
 							},
 						}:
 						case <-time.After(time.Second * 5):
-							em.log.Warn("failed to send error frame to backed up consumer", "ident", torem.ident)
+							em.log.WarnContext(ctx, "failed to send error frame to backed up consumer", "ident", torem.ident)
 						}
 					}
 					torem.lk.Unlock()
@@ -123,7 +123,7 @@ func (em *EventManager) persistAndSendEvent(ctx context.Context, evt *XRPCStream
 	// accept a uid. The lookup inside the persister is notably expensive (despite
 	// being an lru cache?)
 	if err := em.persister.Persist(ctx, evt); err != nil {
-		em.log.Error("failed to persist outbound event", "err", err)
+		em.log.ErrorContext(ctx, "failed to persist outbound event", "err", err)
 	}
 }
 
@@ -422,9 +422,9 @@ func (em *EventManager) Subscribe(ctx context.Context, ident string, filter func
 			}
 		}); err != nil {
 			if errors.Is(err, ErrPlaybackShutdown) {
-				em.log.Warn("events playback", "err", err)
+				em.log.WarnContext(ctx, "events playback", "err", err)
 			} else {
-				em.log.Error("events playback", "err", err)
+				em.log.ErrorContext(ctx, "events playback", "err", err)
 			}
 
 			// TODO: send an error frame or something?
@@ -452,7 +452,7 @@ func (em *EventManager) Subscribe(ctx context.Context, ident string, filter func
 			}
 		}); err != nil {
 			if !errors.Is(err, ErrCaughtUp) {
-				em.log.Error("events playback", "err", err)
+				em.log.ErrorContext(ctx, "events playback", "err", err)
 
 				// TODO: send an error frame or something?
 				close(out)

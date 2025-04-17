@@ -3,6 +3,7 @@ package repo
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 
@@ -86,7 +87,7 @@ func IngestRepo(ctx context.Context, bs cbor.IpldBlockstore, r io.Reader) (cid.C
 	for {
 		blk, err := br.Next()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return cid.Undef, fmt.Errorf("reading block from CAR: %w", err)
@@ -340,7 +341,7 @@ func (r *Repo) ForEach(ctx context.Context, prefix string, cb func(k string, v c
 	t := mst.LoadMST(r.cst, r.sc.Data)
 
 	if err := t.WalkLeavesFrom(ctx, prefix, cb); err != nil {
-		if err != ErrDoneIterating {
+		if !errors.Is(err, ErrDoneIterating) {
 			return err
 		}
 	}
