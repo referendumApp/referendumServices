@@ -9,32 +9,6 @@ output:
   print-linter-name: true
   sort-results: true
 
-formatters:
-  enable:
-    - goimports # checks if the code and import statements are formatted according to the 'goimports' command
-    - golines # checks if code is formatted, and fixes long lines
-
-    ## you may want to enable
-    #- gci # checks if code and import statements are formatted, with additional rules
-    #- gofmt # checks if the code is formatted according to 'gofmt' command
-
-    ## disabled
-    #- gofumpt # [replaced by goimports, gofumports is not available yet] checks if code and import statements are formatted, with additional rules
-
-  # All settings can be found here https://github.com/golangci/golangci-lint/blob/HEAD/.golangci.reference.yml
-  settings:
-    goimports:
-      # A list of prefixes, which, if set, checks import paths
-      # with the given prefixes are grouped after 3rd-party packages.
-      # Default: []
-      local-prefixes:
-        - github.com/my/project
-
-    golines:
-      # Target maximum line length.
-      # Default: 100
-      max-len: 120
-
 # Linters to enable
 linters:
   enable:
@@ -85,8 +59,6 @@ linters:
 linters-settings:
   goimports:
     local-prefixes: github.com/referendumApp/referendumServices
-  golines:
-    max-len: 120
   govet:
     enable:
       - assign # Check for useless assignments
