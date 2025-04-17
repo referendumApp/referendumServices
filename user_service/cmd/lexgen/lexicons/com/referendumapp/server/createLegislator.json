@@ -1,0 +1,128 @@
+{
+    "lexicon": 1,
+    "id": "com.referendumapp.server.createLegislator",
+    "defs": {
+      "main": {
+        "type": "string",
+        "description": "Create a legislator record. Implemented by PDS.",
+        "input": {
+          "encoding": "application/json",
+          "schema": {
+            "needsType": true,
+            "type": "object",
+            "required": ["name", "district", "partyId", "roleId", "stateId", "representingStateId"],
+            "properties": {
+              "legiscanId": {
+                "type": "integer",
+                "description": "Unique legislator identifier from Legiscan."
+              },
+              "name": {
+                "type": "string",
+                "description": "Full name of the legislator.",
+                "maxLength": 100
+              },
+              "imageUrl": {
+                "type": "string",
+                "format": "uri",
+                "description": "URL to the legislator's photo."
+              },
+              "party": {
+                "type": "string",
+                "description": "Legislator's party."
+              },
+              "role": {
+                "type": "string",
+                "description": "Legislator role, ie Representative or Senator."
+              },
+              "level": {
+                "type": "string",
+                "description": "Jurisdiction of the legislator's legislature: Federal, State, or Local."
+              },
+              "district": {
+                "type": "string",
+                "description": "District number or identifier.",
+                "maxLength": 20
+              },
+              "representingState": {
+                "type": "string",
+                "description": "For federal legislators, the state that they represent"
+              },
+              "address": {
+                "type": "string",
+                "description": "Official address of the legislator.",
+                "maxLength": 255
+              },
+              "phone": {
+                "type": "string",
+                "description": "Contact phone number.",
+                "maxLength": 20
+              },
+              "followthemoneyEid": {
+                "type": "string",
+                "description": "FollowTheMoney entity ID.",
+                "maxLength": 50
+              }
+            }
+          }
+        },
+        "output": {
+          "encoding": "application/json",
+          "schema": {
+            "type": "object",
+            "description": "Created legislator record information.",
+            "required": ["id", "name", "district", "partyId", "roleId", "stateId", "representingStateId"],
+            "properties": {
+              "id": {
+                "type": "integer",
+                "description": "Internal system identifier for the created legislator record."
+              },
+              "legiscanId": {
+                "type": "integer",
+                "description": "Unique legislator identifier from Legiscan."
+              },
+              "name": {
+                "type": "string",
+                "description": "Full name of the legislator."
+              },
+              "imageUrl": {
+                "type": "string",
+                "description": "URL to the legislator's photo."
+              },
+              "party": {
+                "type": "string",
+                "description": "Legislator's party"
+              },
+              "role": {
+                "type": "string",
+                "description": "Legislator role, ie Representative or Senator"
+              },
+              "state": {
+                "type": "string",
+                "description": "Jurisdiction of the legislator's legislature"
+              },
+              "district": {
+                "type": "string",
+                "description": "District number or identifier."
+              },
+              "representingState": {
+                "type": "string",
+                "description": "For federal legislators, the state that they represent"
+              },
+              "address": {
+                "type": "string",
+                "description": "Official address of the legislator."
+              },
+              "phone": {
+                "type": "string",
+                "description": "Contact phone number."
+              },
+              "followthemoneyEid": {
+                "type": "string",
+                "description": "FollowTheMoney entity ID."
+              }
+            }
+          }
+        }
+      }
+    }
+  }

@@ -14,7 +14,7 @@ import (
 	"github.com/referendumApp/referendumServices/internal/util"
 )
 
-var ErrUnauthorized = errors.New("Unauthorized user request")
+var ErrUnauthorized = errors.New("unauthorized user request")
 
 func (s *Server) getAndValidatePerson(ctx context.Context) (atp.Uid, string, *refErr.APIError) {
 	uid, ok := ctx.Value(util.SubjectKey).(atp.Uid)

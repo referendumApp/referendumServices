@@ -17,6 +17,7 @@
           "state"
         ],
         "properties": {
+          "legiscanId": { "type": "integer" },
           "name": { "type": "string" },
           "district": { "type": "string" },
           "party": { "type": "string" },
@@ -27,13 +28,15 @@
           "level": { "type": "string", "enum": ["federal", "state", "local"] },
           "legislativeBody": { "type": "string" },
           "state": { "type": "string" },
+          "representingState": { "type": "string" },
           "phone": { "type": "string", "format": "e164" },
           "imageUrl": { "type": "string" },
           "image": {
             "type": "blob",
             "accept": ["image/png", "image/jpeg"],
             "maxSize": 1000000
-          }
+          },
+          "followthemoneyEid": { "type": "string" }
         }
       }
     }
