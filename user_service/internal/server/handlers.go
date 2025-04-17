@@ -47,12 +47,12 @@ func (s *Server) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if cerr := s.av.CreateUserAndPerson(ctx, user, req.Handle, *req.DisplayName); cerr != nil {
-		err.WriteResponse(w)
+		cerr.WriteResponse(w)
 		return
 	}
 
 	if rerr := s.pds.CreateNewRepo(ctx, user.ID, user.Did, req.DisplayName); rerr != nil {
-		err.WriteResponse(w)
+		rerr.WriteResponse(w)
 		return
 	}
 }
@@ -184,11 +184,16 @@ func (s *Server) handleGetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	profile, err := s.av.GetProfile(ctx, uid)
-	if err != nil {
+	var profile refApp.PersonProfile
+	if _, err := s.pds.GetRecord(ctx, uid, &profile); err != nil {
 		err.WriteResponse(w)
 		return
 	}
+	// profile, err := s.av.GetProfile(ctx, uid)
+	// if err != nil {
+	// 	err.WriteResponse(w)
+	// 	return
+	// }
 
 	s.encode(ctx, w, http.StatusOK, profile)
 }

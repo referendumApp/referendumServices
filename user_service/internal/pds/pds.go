@@ -11,7 +11,7 @@ import (
 	"github.com/whyrusleeping/go-did"
 
 	"github.com/referendumApp/referendumServices/internal/car"
-	"github.com/referendumApp/referendumServices/internal/config"
+	"github.com/referendumApp/referendumServices/internal/env"
 	"github.com/referendumApp/referendumServices/internal/events"
 	"github.com/referendumApp/referendumServices/internal/indexer"
 	"github.com/referendumApp/referendumServices/internal/plc"
@@ -38,7 +38,7 @@ func NewPDS(
 	idxr *indexer.Indexer,
 	evts *events.EventManager,
 	srvkey *did.PrivKey,
-	cfg *config.Config,
+	cfg *env.Config,
 	cs car.Store,
 	plc plc.Client,
 ) *PDS {

@@ -12,8 +12,8 @@ import (
 	"github.com/whyrusleeping/go-did"
 
 	"github.com/referendumApp/referendumServices/internal/car"
-	"github.com/referendumApp/referendumServices/internal/config"
 	"github.com/referendumApp/referendumServices/internal/database"
+	"github.com/referendumApp/referendumServices/internal/env"
 	"github.com/referendumApp/referendumServices/internal/plc"
 	"github.com/referendumApp/referendumServices/internal/server"
 )
@@ -23,7 +23,7 @@ func run(ctx context.Context) error {
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	cfg := config.LoadConfigFromEnv()
+	cfg := env.LoadConfigFromEnv()
 
 	db, err := database.Connect(ctx, cfg)
 	if err != nil {
@@ -38,7 +38,7 @@ func run(ctx context.Context) error {
 	}
 	slog.Info("Successfully generated private key!")
 
-	car, err := car.Initialize(cfg, db)
+	car, err := car.NewCarStore(ctx, cfg, db)
 	if err != nil {
 		db.Close()
 		return err

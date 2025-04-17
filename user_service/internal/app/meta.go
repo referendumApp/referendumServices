@@ -131,6 +131,17 @@ func (vm *ViewMeta) LookupUserByEmail(ctx context.Context, email string) (*atp.U
 	return vm.lookupUserQuery(ctx, filter)
 }
 
+func (vm *ViewMeta) LookupUserGraphFollowers(ctx context.Context, uid atp.Uid) ([]*atp.UserFollowRecord, error) {
+	filter := sq.Eq{"target": uid}
+	follow, err := database.SelectAll(ctx, vm.DB, atp.UserFollowRecord{}, filter)
+	if err != nil {
+		vm.Log.ErrorContext(ctx, "Failed to lookup followers", "uid", uid)
+		return nil, err
+	}
+
+	return follow, nil
+}
+
 func (vm *ViewMeta) LookupGraphFollowers(ctx context.Context, uid atp.Uid) ([]*atp.PersonBasic, error) {
 	filter := sq.Eq{"target": uid}
 	var leftTbl atp.PersonBasic

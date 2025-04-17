@@ -487,7 +487,7 @@ func (rm *Manager) HandleExternalUserEvent(ctx context.Context, pdsid uint, uid 
 	ctx, span := otel.Tracer("repoman").Start(ctx, "HandleExternalUserEvent")
 	defer span.End()
 
-	span.SetAttributes(attribute.Int64("uid", int64(uint64(uid)))) // nolint:gosec
+	span.SetAttributes(attribute.Int64("user", int64(uint64(uid)))) // nolint:gosec
 
 	rm.log.Debug("HandleExternalUserEvent", "pds", pdsid, "uid", uid, "since", since, "nrev", nrev)
 

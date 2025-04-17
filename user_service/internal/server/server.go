@@ -12,8 +12,8 @@ import (
 
 	"github.com/referendumApp/referendumServices/internal/app"
 	"github.com/referendumApp/referendumServices/internal/car"
-	"github.com/referendumApp/referendumServices/internal/config"
 	"github.com/referendumApp/referendumServices/internal/database"
+	"github.com/referendumApp/referendumServices/internal/env"
 	"github.com/referendumApp/referendumServices/internal/events"
 	"github.com/referendumApp/referendumServices/internal/indexer"
 	"github.com/referendumApp/referendumServices/internal/pds"
@@ -32,7 +32,7 @@ type Server struct {
 }
 
 // Initialize Server and setup HTTP routes and middleware
-func New(db *database.DB, srvkey *did.PrivKey, cfg *config.Config, cs car.Store, plc plc.Client) (*Server, error) {
+func New(db *database.DB, srvkey *did.PrivKey, cfg *env.Config, cs car.Store, plc plc.Client) (*Server, error) {
 	evts := events.NewEventManager(events.NewMemPersister())
 
 	kmgr := indexer.NewKeyManager(plc, srvkey)

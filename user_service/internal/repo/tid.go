@@ -35,6 +35,7 @@ var clockId uint64
 var ltLock sync.Mutex
 
 func NextTID() string {
+	// Safe conversion: UnixMicro() for current dates is always positive and well within uint64 range
 	t := uint64(time.Now().UnixMicro()) // nolint:gosec
 
 	ltLock.Lock()
@@ -45,5 +46,5 @@ func NextTID() string {
 	lastTime = t
 	ltLock.Unlock()
 
-	return s32encode(uint64(t)) + s32encode(clockId)
+	return s32encode(t) + s32encode(clockId)
 }

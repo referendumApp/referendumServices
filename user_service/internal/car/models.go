@@ -22,6 +22,15 @@ func (t Shard) TableName() string {
 	return "car_shards"
 }
 
+type CompactionTarget struct {
+	Usr       atp.Uid `db:"uid"`
+	NumShards int     `db:"num_shards"`
+}
+
+func (t CompactionTarget) TableName() string {
+	return "car_shards"
+}
+
 type BlockRef struct {
 	ID         uint      `db:"id,omitempty,pk" json:"id"`
 	Cid        atp.DbCID `db:"cid" json:"cid"`

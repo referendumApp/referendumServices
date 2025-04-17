@@ -10,7 +10,7 @@ import (
 
 	_ "github.com/lib/pq"
 
-	"github.com/referendumApp/referendumServices/internal/config"
+	"github.com/referendumApp/referendumServices/internal/env"
 )
 
 type DB struct {
@@ -19,7 +19,7 @@ type DB struct {
 	Schema string
 }
 
-func Connect(ctx context.Context, cfg *config.Config) (*DB, error) {
+func Connect(ctx context.Context, cfg *env.Config) (*DB, error) {
 	slog.Info("Setting up database connection pool")
 
 	// Build the connection string

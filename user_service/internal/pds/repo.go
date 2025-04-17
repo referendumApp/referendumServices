@@ -36,3 +36,13 @@ func (p *PDS) UpdateRecord(ctx context.Context, uid atp.Uid, rec Record) (cid.Ci
 
 	return cc, nil
 }
+
+func (p *PDS) GetRecord(ctx context.Context, uid atp.Uid, rec Record) (cid.Cid, *refErr.APIError) {
+	cc, err := p.repoman.GetRecord(ctx, uid, rec.NSID(), rec.Key(), rec, cid.Undef)
+	if err != nil {
+		p.log.ErrorContext(ctx, "Error getting repo record", "error", err, "uid", uid, "record", rec)
+		return cid.Undef, refErr.Repo()
+	}
+
+	return cc, nil
+}
