@@ -9,7 +9,6 @@ import (
 	sq "github.com/Masterminds/squirrel"
 )
 
-// ErrNoFields no fields included in the query
 var ErrNoFields = errors.New("no fields found")
 
 // TableEntity couples structs with a DB table
