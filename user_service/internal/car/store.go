@@ -18,7 +18,7 @@ import (
 	car "github.com/ipld/go-car"
 	"github.com/referendumApp/referendumServices/internal/database"
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
-	"github.com/referendumApp/referendumServices/internal/env"
+	"github.com/referendumApp/referendumServices/internal/env-config"
 	cbg "github.com/whyrusleeping/cbor-gen"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"

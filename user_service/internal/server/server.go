@@ -13,7 +13,7 @@ import (
 	"github.com/referendumApp/referendumServices/internal/app"
 	"github.com/referendumApp/referendumServices/internal/car"
 	"github.com/referendumApp/referendumServices/internal/database"
-	"github.com/referendumApp/referendumServices/internal/env"
+	"github.com/referendumApp/referendumServices/internal/env-config"
 	"github.com/referendumApp/referendumServices/internal/events"
 	"github.com/referendumApp/referendumServices/internal/indexer"
 	"github.com/referendumApp/referendumServices/internal/pds"

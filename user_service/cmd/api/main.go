@@ -8,7 +8,7 @@ import (
 	"syscall"
 
 	"github.com/referendumApp/referendumServices/internal/database"
-	"github.com/referendumApp/referendumServices/internal/env"
+	"github.com/referendumApp/referendumServices/internal/env-config"
 	"github.com/referendumApp/referendumServices/internal/server"
 )
 

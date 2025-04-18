@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/lib/pq"
-	"github.com/referendumApp/referendumServices/internal/env"
+	"github.com/referendumApp/referendumServices/internal/env-config"
 )
 
 type DB struct {

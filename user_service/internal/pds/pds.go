@@ -9,7 +9,7 @@ import (
 	"github.com/bluesky-social/indigo/api/atproto"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/referendumApp/referendumServices/internal/car"
-	"github.com/referendumApp/referendumServices/internal/env"
+	"github.com/referendumApp/referendumServices/internal/env-config"
 	"github.com/referendumApp/referendumServices/internal/events"
 	"github.com/referendumApp/referendumServices/internal/indexer"
 	"github.com/referendumApp/referendumServices/internal/plc"
