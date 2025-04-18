@@ -1,9 +1,155 @@
 version: "2"
 
+# Options for analysis running.
 run:
+  # Timeout for total work, e.g. 30s, 5m, 5m30s.
+  # If the value is lower or equal to 0, the timeout is disabled.
+  # Default: 0 (disabled)
   timeout: 5m
-  tests: true
+  # The mode used to evaluate relative paths.
+  # It's used by exclusions, Go plugins, and some linters.
+  # The value can be:
+  # - `gomod`: the paths will be relative to the directory of the `go.mod` file.
+  # - `gitroot`: the paths will be relative to the git root (the parent directory of `.git`).
+  # - `cfg`: the paths will be relative to the configuration file.
+  # - `wd` (NOT recommended): the paths will be relative to the place where golangci-lint is run.
+  # Default: cfg
+  relative-path-mode: gomod
+  # Exit code when at least one issue was found.
+  # Default: 1
+  issues-exit-code: 2
+  # Include test files or not.
+  # Default: true
+  tests: false
+  # List of build tags, all linters use it.
+  # Default: []
+  build-tags:
+    - mytag
+  # If set, we pass it to "go list -mod={option}". From "go help modules":
+  # If invoked with -mod=readonly, the go command is disallowed from the implicit
+  # automatic updating of go.mod described above. Instead, it fails when any changes
+  # to go.mod are needed. This setting is most useful to check that go.mod does
+  # not need updates, such as in a continuous integration and testing system.
+  # If invoked with -mod=vendor, the go command assumes that the vendor
+  # directory holds the correct copies of dependencies and ignores
+  # the dependency descriptions in go.mod.
+  #
+  # Allowed values: readonly|vendor|mod
+  # Default: ""
   modules-download-mode: readonly
+  # Allow multiple parallel golangci-lint instances running.
+  # If false, golangci-lint acquires file lock on start.
+  # Default: false
+  allow-parallel-runners: true
+  # Allow multiple golangci-lint instances running, but serialize them around a lock.
+  # If false, golangci-lint exits with an error if it fails to acquire file lock on start.
+  # Default: false
+  allow-serial-runners: true
+  # Define the Go version limit.
+  # Default: use Go version from the go.mod file, fallback on the env var `GOVERSION`, fallback on 1.22.
+  go: "1.24"
+  # Number of operating system threads (`GOMAXPROCS`) that can execute golangci-lint simultaneously.
+  # Default: 0 (automatically set to match Linux container CPU quota and
+  # fall back to the number of logical CPUs in the machine)
+  concurrency: 4
+
+# Output configuration options.
+output:
+  # The formats used to render issues.
+  formats:
+    # Prints issues in a text format with colors, line number, and linter name.
+    # This format is the default format.
+    text:
+      # Output path can be either `stdout`, `stderr` or path to the file to write to.
+      # Default: stdout
+      # path: ./path/to/output.txt
+      # Print linter name in the end of issue text.
+      # Default: true
+      print-linter-name: true
+      # Print lines of code with issue.
+      # Default: true
+      print-issued-lines: true 
+      # Use colors.
+      # Default: true
+      colors: true
+    # Prints issues in a JSON representation.
+    json:
+      # Output path can be either `stdout`, `stderr` or path to the file to write to.
+      # Default: stdout
+      # path: ./path/to/output.json
+    # Prints issues in columns representation separated by tabulations.
+    tab:
+      # Output path can be either `stdout`, `stderr` or path to the file to write to.
+      # Default: stdout
+      # path: ./path/to/output.txt
+      # Print linter name in the end of issue text.
+      # Default: true
+      print-linter-name: true
+      # Use colors.
+      # Default: true
+      colors: true
+    # Prints issues in an HTML page.
+    # It uses the Cloudflare CDN (cdnjs) and React.
+    html:
+      # Output path can be either `stdout`, `stderr` or path to the file to write to.
+      # Default: stdout
+      # path: ./path/to/output.html
+    # Prints issues in the Checkstyle format.
+    checkstyle:
+      # Output path can be either `stdout`, `stderr` or path to the file to write to.
+      # Default: stdout
+      # path: ./path/to/output.xml
+    # Prints issues in the Code Climate format.
+    code-climate:
+      # Output path can be either `stdout`, `stderr` or path to the file to write to.
+      # Default: stdout
+      # path: ./path/to/output.json
+    # Prints issues in the JUnit XML format.
+    junit-xml:
+      # Output path can be either `stdout`, `stderr` or path to the file to write to.
+      # Default: stdout
+      # path: ./path/to/output.xml
+      # Support extra JUnit XML fields.
+      # Default: false
+      extended: false
+    # Prints issues in the TeamCity format.
+    teamcity:
+      # Output path can be either `stdout`, `stderr` or path to the file to write to.
+      # Default: stdout
+      # path: ./path/to/output.txt
+    # Prints issues in the SARIF format.
+    sarif:
+      # Output path can be either `stdout`, `stderr` or path to the file to write to.
+      # Default: stdout
+      # path: ./path/to/output.json
+  # Add a prefix to the output file references.
+  # This option is ignored when using `output.path-mode: abs` mode.
+  # Default: ""
+  path-prefix: ""
+  # By default, the report are related to the path obtained by `run.relative-path-mode`.
+  # The mode `abs` allows to show absolute file paths instead of relative file paths.
+  # The option `output.path-prefix` is ignored when using `abs` mode.
+  # Default: ""
+  # path-mode: "abs"
+  # Order to use when sorting results.
+  # Possible values: `file`, `linter`, and `severity`.
+  #
+  # If the severity values are inside the following list, they are ordered in this order:
+  #   1. error
+  #   2. warning
+  #   3. high
+  #   4. medium
+  #   5. low
+  # Either they are sorted alphabetically.
+  #
+  # Default: ["linter", "file"]
+  sort-order:
+    - linter
+    - severity
+    - file # filepath, line, and column.
+  # Show statistics per linter.
+  # Default: true
+  show-stats: true
 
 formatters:
   enable:
@@ -36,7 +182,7 @@ linters:
     - revive # Replaces golint but with additional customization options
     - errcheck # Ensures that error returns from functions are checked
     - ineffassign # Detects when assignments to variables are never used
-    # - gosimple # Suggests code simplifications for better readability
+    - gomoddirectives # manages the use of 'replace', 'retract', and 'excludes' directives in go.mod
     - goconst # Finds repeated strings that could be replaced with constants
     - misspell # Finds commonly misspelled English words in comments
     - gosec # Scans code for security vulnerabilities
