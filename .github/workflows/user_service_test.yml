@@ -27,7 +27,7 @@ jobs:
       - name: Build database package
         run: |
           cd user_service
-          go build -v ./internal/domain && go build -v ./internal/env && go build -v ./internal/database
+          go build -v ./internal/domain/atp && go build -v ./internal/env && go build -v ./internal/database
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v7
