@@ -24,8 +24,13 @@ jobs:
           cache: true
           cache-dependency-path: user_service/go.sum
 
+    - name: Build database package
+      run: |
+        cd user_service
+        go build -v ./internal/database
+
     - name: golangci-lint
-      uses: golangci/golangci-lint-action@v6
+      uses: golangci/golangci-lint-action@v7
       with:
         working-directory: user_service
 

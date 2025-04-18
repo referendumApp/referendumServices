@@ -9,15 +9,15 @@ repos:
         files: ^user_service/.*\.go$
         pass_filenames: false
 
-  # - repo: local
-  #   hooks:
-  #     - id: golangci-lint
-  #       name: golangci-lint
-  #       entry: sh
-  #       args: ["-c", "cd user_service && golangci-lint run ./..."]
-  #       language: system
-  #       files: ^user_service/.*\.go$
-  #       pass_filenames: false
+  - repo: local
+    hooks:
+      - id: golangci-lint
+        name: golangci-lint
+        entry: sh
+        args: ["-c", "cd user_service && golangci-lint run ./..."]
+        language: system
+        files: ^user_service/.*\.go$
+        pass_filenames: false
 
   - repo: https://github.com/dnephin/pre-commit-golang
     rev: v0.5.1
