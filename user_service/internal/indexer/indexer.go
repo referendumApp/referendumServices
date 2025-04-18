@@ -1,3 +1,4 @@
+//revive:disable:exported
 package indexer
 
 import (
@@ -16,12 +17,11 @@ import (
 	"github.com/bluesky-social/indigo/xrpc"
 	"github.com/ipfs/go-cid"
 	"github.com/jackc/pgx/v5"
-	"go.opentelemetry.io/otel"
-
 	"github.com/referendumApp/referendumServices/internal/database"
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
 	"github.com/referendumApp/referendumServices/internal/events"
 	"github.com/referendumApp/referendumServices/internal/repo"
+	"go.opentelemetry.io/otel"
 )
 
 const MaxEventSliceLength = 1000000
@@ -351,7 +351,14 @@ func (ix *Indexer) handleRecordDelete(ctx context.Context, evt *repo.Event, op *
 		fp, err := ix.GetPost(ctx, uri)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
-				ix.log.WarnContext(ctx, "deleting post weve never seen before. Weird.", "user", evt.User, "rkey", op.Rkey)
+				ix.log.WarnContext(
+					ctx,
+					"deleting post weve never seen before. Weird.",
+					"user",
+					evt.User,
+					"rkey",
+					op.Rkey,
+				)
 				return nil
 			}
 			return err
@@ -405,7 +412,12 @@ func (ix *Indexer) handleRecordCreate(ctx context.Context, evt *repo.Event, op *
 	return out, nil
 }
 
-func (ix *Indexer) handleRecordCreateFeedLike(ctx context.Context, rec *bsky.FeedLike, evt *repo.Event, op *repo.Op) error {
+func (ix *Indexer) handleRecordCreateFeedLike(
+	ctx context.Context,
+	rec *bsky.FeedLike,
+	evt *repo.Event,
+	op *repo.Op,
+) error {
 	post, err := ix.GetPostOrMissing(ctx, rec.Subject.Uri)
 	if err != nil {
 		return err
@@ -437,7 +449,12 @@ func (ix *Indexer) handleRecordCreateFeedLike(ctx context.Context, rec *bsky.Fee
 	return nil
 }
 
-func (ix *Indexer) handleRecordCreateGraphFollow(ctx context.Context, rec *bsky.GraphFollow, evt *repo.Event, op *repo.Op) error {
+func (ix *Indexer) handleRecordCreateGraphFollow(
+	ctx context.Context,
+	rec *bsky.GraphFollow,
+	evt *repo.Event,
+	op *repo.Op,
+) error {
 	subj, err := ix.db.LookupPersonByDid(ctx, rec.Subject)
 	if err != nil {
 		if !errors.Is(err, pgx.ErrNoRows) {
@@ -564,7 +581,13 @@ func (ix *Indexer) GetPostOrMissing(ctx context.Context, uri string) (*atp.Activ
 	return post, nil
 }
 
-func (ix *Indexer) handleRecordCreateActivityPost(ctx context.Context, user atp.Uid, rkey string, rcid cid.Cid, rec *bsky.FeedPost) error {
+func (ix *Indexer) handleRecordCreateActivityPost(
+	ctx context.Context,
+	user atp.Uid,
+	rkey string,
+	rcid cid.Cid,
+	rec *bsky.FeedPost,
+) error {
 	var replyid uint
 	if rec.Reply != nil {
 		replyto, err := ix.GetPostOrMissing(ctx, rec.Reply.Parent.Uri)
@@ -653,7 +676,12 @@ func (ix *Indexer) createMissingPostRecord(ctx context.Context, puri *util.Parse
 	return fp, nil
 }
 
-func (ix *Indexer) addNewPostNotification(ctx context.Context, post *bsky.FeedPost, fp *atp.ActivityPost, mentions []*atp.Person) error {
+func (ix *Indexer) addNewPostNotification(
+	ctx context.Context,
+	post *bsky.FeedPost,
+	fp *atp.ActivityPost,
+	mentions []*atp.Person,
+) error {
 	if post.Reply != nil {
 		_, err := ix.GetPost(ctx, post.Reply.Parent.Uri)
 		if err != nil {

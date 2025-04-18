@@ -1,3 +1,4 @@
+//revive:disable:exported
 package events
 
 import (
@@ -13,11 +14,9 @@ import (
 	comatproto "github.com/bluesky-social/indigo/api/atproto"
 	lexutil "github.com/bluesky-social/indigo/lex/util"
 	"github.com/prometheus/client_golang/prometheus"
-
+	"github.com/referendumApp/referendumServices/internal/domain/atp"
 	cbg "github.com/whyrusleeping/cbor-gen"
 	"go.opentelemetry.io/otel"
-
-	"github.com/referendumApp/referendumServices/internal/domain/atp"
 )
 
 type Scheduler interface {
@@ -95,7 +94,14 @@ func (em *EventManager) broadcastEvent(ctx context.Context, evt *XRPCStreamEvent
 				// code
 				s.filter = func(*XRPCStreamEvent) bool { return false }
 
-				em.log.WarnContext(ctx, "dropping slow consumer due to event overflow", "bufferSize", len(s.outgoing), "ident", s.ident)
+				em.log.WarnContext(
+					ctx,
+					"dropping slow consumer due to event overflow",
+					"bufferSize",
+					len(s.outgoing),
+					"ident",
+					s.ident,
+				)
 				go func(torem *Subscriber) {
 					torem.lk.Lock()
 					if !torem.cleanedUp {
@@ -106,7 +112,12 @@ func (em *EventManager) broadcastEvent(ctx context.Context, evt *XRPCStreamEvent
 							},
 						}:
 						case <-time.After(time.Second * 5):
-							em.log.WarnContext(ctx, "failed to send error frame to backed up consumer", "ident", torem.ident)
+							em.log.WarnContext(
+								ctx,
+								"failed to send error frame to backed up consumer",
+								"ident",
+								torem.ident,
+							)
 						}
 					}
 					torem.lk.Unlock()
@@ -375,7 +386,12 @@ var (
 	ErrCaughtUp         = fmt.Errorf("caught up")
 )
 
-func (em *EventManager) Subscribe(ctx context.Context, ident string, filter func(*XRPCStreamEvent) bool, since *int64) (<-chan *XRPCStreamEvent, func(), error) {
+func (em *EventManager) Subscribe(
+	ctx context.Context,
+	ident string,
+	filter func(*XRPCStreamEvent) bool,
+	since *int64,
+) (<-chan *XRPCStreamEvent, func(), error) {
 	if filter == nil {
 		filter = func(*XRPCStreamEvent) bool { return true }
 	}

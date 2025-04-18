@@ -9,17 +9,16 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"go.opentelemetry.io/otel"
-
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
+	"go.opentelemetry.io/otel"
 )
 
-type S3Client struct {
+type s3Client struct {
 	client *s3.Client
 	bucket string
 }
 
-func NewS3Client(ctx context.Context, bucket string) (*S3Client, error) {
+func newS3Client(ctx context.Context, bucket string) (*s3Client, error) {
 	awsCfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		log.Println("Failed to load configuration")
@@ -34,7 +33,9 @@ func NewS3Client(ctx context.Context, bucket string) (*S3Client, error) {
 		o.DisableLogOutputChecksumValidationSkipped = true
 	})
 
-	if _, err := client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: &bucket}); err != nil {
+	s3Client := &s3Client{client: client, bucket: bucket}
+
+	if err := s3Client.storeExists(ctx); err != nil {
 		log.Printf("The %s bucket does not exist, attempting to create bucket...", bucket)
 		if _, err := client.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: &bucket}); err != nil {
 			return nil, err
@@ -42,10 +43,18 @@ func NewS3Client(ctx context.Context, bucket string) (*S3Client, error) {
 		log.Println("Successfully created bucket!")
 	}
 
-	return &S3Client{client: client, bucket: bucket}, nil
+	return s3Client, nil
 }
 
-func (c *S3Client) writeNewShardFile(ctx context.Context, user atp.Uid, seq int, data []byte) (string, error) {
+func (c *s3Client) storeExists(ctx context.Context) error {
+	if _, err := c.client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: &c.bucket}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *s3Client) writeNewShardFile(ctx context.Context, user atp.Uid, seq int, data []byte) (string, error) {
 	_, span := otel.Tracer("carstore").Start(ctx, "writeNewShardFile")
 	defer span.End()
 
@@ -64,7 +73,7 @@ func (c *S3Client) writeNewShardFile(ctx context.Context, user atp.Uid, seq int,
 	return key, nil
 }
 
-func (c *S3Client) readFile(ctx context.Context, key string, offset *int64) (*s3.GetObjectOutput, error) {
+func (c *s3Client) readFile(ctx context.Context, key string, offset *int64) (*s3.GetObjectOutput, error) {
 	var rng string
 	if offset != nil {
 		rng = fmt.Sprintf("bytes=%d-", *offset)

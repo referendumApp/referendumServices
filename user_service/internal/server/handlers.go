@@ -6,18 +6,24 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
-
 	refApp "github.com/referendumApp/referendumServices/internal/domain/lexicon/referendumapp"
 	refErr "github.com/referendumApp/referendumServices/internal/error"
 	"github.com/referendumApp/referendumServices/internal/util"
 )
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	resp, err := s.av.HandleHealth(w, r)
-	if err != nil {
+	if err := s.av.HandleHealth(w, r); err != nil {
 		err.WriteResponse(w)
 		return
 	}
+
+	if err := s.pds.HandleHealth(w, r); err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	resp := map[string]bool{"healthy": true}
+
 	s.encode(r.Context(), w, http.StatusOK, resp)
 }
 
@@ -77,7 +83,15 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		var fieldErrs []*refErr.APIError
 		if errors.As(err, &valErr) {
 			for _, e := range valErr {
-				s.log.Error("Request validation failed", "field", e.Field(), "valdationTag", e.ActualTag(), "error", e.Error())
+				s.log.Error(
+					"Request validation failed",
+					"field",
+					e.Field(),
+					"valdationTag",
+					e.ActualTag(),
+					"error",
+					e.Error(),
+				)
 				fieldErr := util.HandleFieldError(e)
 				fieldErrs = append(fieldErrs, fieldErr)
 			}

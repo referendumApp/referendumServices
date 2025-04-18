@@ -1,3 +1,4 @@
+//revive:disable:exported
 package events
 
 import (
@@ -12,9 +13,8 @@ import (
 
 	"github.com/RussellLuo/slidingwindow"
 	comatproto "github.com/bluesky-social/indigo/api/atproto"
-	"github.com/prometheus/client_golang/prometheus"
-
 	"github.com/gorilla/websocket"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type RepoStreamCallbacks struct {
@@ -65,7 +65,10 @@ type InstrumentedRepoStreamCallbacks struct {
 	Next     func(ctx context.Context, xev *XRPCStreamEvent) error
 }
 
-func NewInstrumentedRepoStreamCallbacks(limiters []*slidingwindow.Limiter, next func(ctx context.Context, xev *XRPCStreamEvent) error) *InstrumentedRepoStreamCallbacks {
+func NewInstrumentedRepoStreamCallbacks(
+	limiters []*slidingwindow.Limiter,
+	next func(ctx context.Context, xev *XRPCStreamEvent) error,
+) *InstrumentedRepoStreamCallbacks {
 	return &InstrumentedRepoStreamCallbacks{
 		limiters: limiters,
 		Next:     next,
@@ -161,14 +164,22 @@ func HandleRepoStream(ctx context.Context, con *websocket.Conn, sched Scheduler,
 					failcount++
 					if failcount >= 4 {
 						log.Error("too many ping fails", "count", failcount)
-						con.Close()
+						defer func() {
+							if err := con.Close(); err == nil {
+								log.ErrorContext(ctx, "failed to close websocket connection", "err", err)
+							}
+						}()
 						return
 					}
 				} else {
 					failcount = 0 // ok ping
 				}
 			case <-ctx.Done():
-				con.Close()
+				defer func() {
+					if err := con.Close(); err == nil {
+						log.ErrorContext(ctx, "failed to close websocket connection", "err", err)
+					}
+				}()
 				return
 			}
 		}

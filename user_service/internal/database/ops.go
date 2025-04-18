@@ -7,7 +7,6 @@ import (
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
-
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
 )
 
@@ -22,11 +21,13 @@ func (d *DB) lookupPDSQuery(ctx context.Context, filter sq.Sqlizer) (*atp.PDS, e
 	return pds, nil
 }
 
+// LookupPDSById returns a PDS record by ID
 func (d *DB) LookupPDSById(ctx context.Context, id int64) (*atp.PDS, error) {
 	filter := sq.Eq{"id": id}
 	return d.lookupPDSQuery(ctx, filter)
 }
 
+// DidForPerson returns a DID based on a user ID
 func (d *DB) DidForPerson(ctx context.Context, uid atp.Uid) (string, error) {
 	var person atp.Person
 	sql := fmt.Sprintf("SELECT did FROM %s.%s WHERE uid = $1", d.Schema, person.TableName())
@@ -50,16 +51,19 @@ func (d *DB) lookupPersonQuery(ctx context.Context, filter sq.Sqlizer) (*atp.Per
 	return person, nil
 }
 
+// LookupPersonByUid returns a person record by user ID
 func (d *DB) LookupPersonByUid(ctx context.Context, uid atp.Uid) (*atp.Person, error) {
 	filter := sq.Eq{"uid": uid}
 	return d.lookupPersonQuery(ctx, filter)
 }
 
+// LookupPersonByDid returns a person record by DID
 func (d *DB) LookupPersonByDid(ctx context.Context, did string) (*atp.Person, error) {
 	filter := sq.Eq{"did": did}
 	return d.lookupPersonQuery(ctx, filter)
 }
 
+// LookupPersonByHandle returns a person record by handle
 func (d *DB) LookupPersonByHandle(ctx context.Context, handle string) (*atp.Person, error) {
 	filter := sq.Eq{"handle": handle}
 	return d.lookupPersonQuery(ctx, filter)
@@ -76,12 +80,14 @@ func (d *DB) lookupActivityPostQuery(ctx context.Context, filter ...sq.Sqlizer) 
 	return post, nil
 }
 
+// LookupActivityPostByUid returns a activity_post record by user ID
 func (d *DB) LookupActivityPostByUid(ctx context.Context, rkey string, uid atp.Uid) (*atp.ActivityPost, error) {
 	// Create the subquery for author ID
 	filters := sq.Eq{"rkey": rkey, "author": uid}
 	return d.lookupActivityPostQuery(ctx, filters)
 }
 
+// LookupActivityPostByDid returns a activity_post record by DID
 func (d *DB) LookupActivityPostByDid(ctx context.Context, rkey string, did string) (*atp.ActivityPost, error) {
 	// Create the subquery for author ID
 	authorSubquery := sq.Select("id").
@@ -93,6 +99,7 @@ func (d *DB) LookupActivityPostByDid(ctx context.Context, rkey string, did strin
 	return d.lookupActivityPostQuery(ctx, filters)
 }
 
+// UpdateActivityPostUpCount increments the up_count column
 func (d *DB) UpdateActivityPostUpCount(ctx context.Context, postId uint) error {
 	return d.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		feedTbl := atp.ActivityPost{}.TableName()
@@ -126,11 +133,17 @@ func (d *DB) lookupEndorsementRecordQuery(ctx context.Context, filter sq.Sqlizer
 	return vote, nil
 }
 
-func (d *DB) LookupEndorsementRecordByUid(ctx context.Context, voter atp.Uid, rkey string) (*atp.EndorsementRecord, error) {
+// LookupEndorsementRecordByUid returns endorsement_record by user ID
+func (d *DB) LookupEndorsementRecordByUid(
+	ctx context.Context,
+	voter atp.Uid,
+	rkey string,
+) (*atp.EndorsementRecord, error) {
 	filter := sq.Eq{"voter": voter}
 	return d.lookupEndorsementRecordQuery(ctx, filter)
 }
 
+// HandleRecordDeleteFeedLike delete feed like
 func (d *DB) HandleRecordDeleteFeedLike(ctx context.Context, uid atp.Uid, rkey string) error {
 	var entity atp.EndorsementRecord
 	filter := sq.Eq{"voter": uid, "rkey": rkey}
@@ -150,6 +163,7 @@ func (d *DB) HandleRecordDeleteFeedLike(ctx context.Context, uid atp.Uid, rkey s
 	})
 }
 
+// HandleRecordDeleteGraphFollow delete user follow
 func (d *DB) HandleRecordDeleteGraphFollow(ctx context.Context, uid atp.Uid, rkey string) error {
 	filter := sq.Eq{"follower": uid, "rkey": rkey}
 	if err := d.Delete(ctx, atp.UserFollowRecord{}, filter); err != nil {

@@ -34,6 +34,7 @@ var lastTime uint64
 var clockId uint64
 var ltLock sync.Mutex
 
+// NextTID time based encoded record key
 func NextTID() string {
 	// Safe conversion: UnixMicro() for current dates is always positive and well within uint64 range
 	t := uint64(time.Now().UnixMicro()) //nolint:gosec

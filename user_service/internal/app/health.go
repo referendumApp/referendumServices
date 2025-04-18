@@ -8,15 +8,15 @@ import (
 	refErr "github.com/referendumApp/referendumServices/internal/error"
 )
 
-func (v *View) HandleHealth(w http.ResponseWriter, r *http.Request) (map[string]bool, *refErr.APIError) {
+// HandleHealth database health check
+func (v *View) HandleHealth(w http.ResponseWriter, r *http.Request) *refErr.APIError {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
 	err := v.meta.Ping(ctx)
 	if err != nil {
-		return nil, refErr.ServiceUnavailable()
+		return refErr.ServiceUnavailable()
 	}
 
-	resp := map[string]bool{"healthy": true}
-	return resp, nil
+	return nil
 }

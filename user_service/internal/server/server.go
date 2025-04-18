@@ -10,8 +10,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/whyrusleeping/go-did"
-
 	"github.com/referendumApp/referendumServices/internal/app"
 	"github.com/referendumApp/referendumServices/internal/car"
 	"github.com/referendumApp/referendumServices/internal/database"
@@ -21,8 +19,10 @@ import (
 	"github.com/referendumApp/referendumServices/internal/pds"
 	"github.com/referendumApp/referendumServices/internal/plc"
 	"github.com/referendumApp/referendumServices/internal/repo"
+	"github.com/whyrusleeping/go-did"
 )
 
+// Server abstraction layer around PDS and App View modules
 type Server struct {
 	httpServer *http.Server
 	db         *database.DB
@@ -33,7 +33,7 @@ type Server struct {
 	log        *slog.Logger
 }
 
-// Initialize Server and setup HTTP routes and middleware
+// New initialize 'Server' struct, setup HTTP routes, and middleware
 func New(ctx context.Context, cfg *env.Config, db *database.DB) (*Server, error) {
 	log.Println("Generating private key")
 	srvkey, err := did.GeneratePrivKey(rand.Reader, did.KeyTypeSecp256k1)
@@ -92,7 +92,7 @@ func New(ctx context.Context, cfg *env.Config, db *database.DB) (*Server, error)
 	return srv, nil
 }
 
-// Initialize and configure HTTP Server, listen and server requests, handle shutdowns gracefully
+// Start configure HTTP Server, listen and server requests, handle shutdowns gracefully
 func (s *Server) Start(ctx context.Context) error {
 	errChan := make(chan error, 1)
 
@@ -115,6 +115,7 @@ func (s *Server) Start(ctx context.Context) error {
 	return nil
 }
 
+// Shutdown http server and DB
 func (s *Server) Shutdown(ctx context.Context) error {
 	log.Println("Shutdown server...")
 	if err := s.httpServer.Shutdown(ctx); err != nil {

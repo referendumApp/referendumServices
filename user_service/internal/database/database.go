@@ -8,18 +8,18 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-
 	_ "github.com/lib/pq"
-
 	"github.com/referendumApp/referendumServices/internal/env"
 )
 
+// DB contains connection pool, logger, and schema
 type DB struct {
 	pool   *pgxpool.Pool
 	Log    *slog.Logger
 	Schema string
 }
 
+// Connect intializes a DB struct without a schema
 func Connect(ctx context.Context, cfg *env.Config) (*DB, error) {
 	log.Println("Setting up database connection pool")
 
@@ -68,6 +68,7 @@ func Connect(ctx context.Context, cfg *env.Config) (*DB, error) {
 	return &DB{pool: pool, Log: slog.Default().With("system", "db")}, nil
 }
 
+// WithSchema intializes a DB struct with a schema
 func (db *DB) WithSchema(schema string) *DB {
 	return &DB{
 		pool:   db.pool,
@@ -76,12 +77,14 @@ func (db *DB) WithSchema(schema string) *DB {
 	}
 }
 
+// Close shutdowns a DBs connection pool
 func (db *DB) Close() {
 	if db.pool != nil {
 		db.pool.Close()
 	}
 }
 
+// Ping checks DB connection
 func (d *DB) Ping(ctx context.Context) error {
 	return d.pool.Ping(ctx)
 }

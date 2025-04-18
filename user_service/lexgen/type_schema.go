@@ -1,3 +1,4 @@
+//revive:disable:exported
 package lexgen
 
 import (
@@ -197,7 +198,15 @@ func (s *TypeSchema) WriteRPC(w io.Writer, typename, inputname string) error {
 		return fmt.Errorf("can only generate RPC for Query or Procedure (got %s)", s.Type)
 	}
 
-	pf("\tif err := c.Do(ctx, %s, %q, \"%s\", %s, %s, %s); err != nil {\n", reqtype, inpenc, s.id, queryparams, inpvar, outvar)
+	pf(
+		"\tif err := c.Do(ctx, %s, %q, \"%s\", %s, %s, %s); err != nil {\n",
+		reqtype,
+		inpenc,
+		s.id,
+		queryparams,
+		inpvar,
+		outvar,
+	)
 	pf("\t\treturn %s\n", errRet)
 	pf("\t}\n\n")
 	pf("\treturn %s\n", outRet)
@@ -691,7 +700,11 @@ func (ts *TypeSchema) writeTypeDefinition(name string, w io.Writer) error {
 			if ts.defName != "" && ts.defName != Main {
 				cval += "#" + ts.defName
 			}
-			pf("\tLexiconTypeID string `json:\"$type\" cborgen:\"$type,const=%s%s\" validate:\"required\"`\n", cval, omit)
+			pf(
+				"\tLexiconTypeID string `json:\"$type\" cborgen:\"$type,const=%s%s\" validate:\"required\"`\n",
+				cval,
+				omit,
+			)
 		}
 
 		required := make(map[string]bool)

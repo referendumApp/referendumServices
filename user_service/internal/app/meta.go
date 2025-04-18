@@ -7,11 +7,11 @@ import (
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
-
 	"github.com/referendumApp/referendumServices/internal/database"
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
 )
 
+// ViewMeta embeds the DB specifically for app view related queries
 type ViewMeta struct {
 	*database.DB
 }
@@ -71,9 +71,13 @@ func (vm *ViewMeta) createUserAndPerson(ctx context.Context, user *atp.User, han
 	})
 }
 
-func (vm *ViewMeta) AuthenticateUser(ctx context.Context, uname string) (*atp.User, error) {
+func (vm *ViewMeta) authenticateUser(ctx context.Context, uname string) (*atp.User, error) {
 	var user atp.User
-	sql := fmt.Sprintf("SELECT id, did, handle, hashed_password FROM %s.%s WHERE email = $1 OR handle = $1", vm.Schema, user.TableName())
+	sql := fmt.Sprintf(
+		"SELECT id, did, handle, hashed_password FROM %s.%s WHERE email = $1 OR handle = $1",
+		vm.Schema,
+		user.TableName(),
+	)
 
 	if err := vm.GetRow(ctx, sql, uname).Scan(&user.ID, &user.Did, &user.Handle, &user.HashedPassword); err != nil {
 		return nil, err
@@ -82,7 +86,7 @@ func (vm *ViewMeta) AuthenticateUser(ctx context.Context, uname string) (*atp.Us
 	return &user, nil
 }
 
-func (vm *ViewMeta) UserExists(ctx context.Context, filter sq.Eq) (bool, error) {
+func (vm *ViewMeta) userExists(ctx context.Context, filter sq.Eq) (bool, error) {
 	var exists bool
 	innerSql, args, err := sq.Select("id").
 		From(vm.Schema + ".user").
@@ -111,37 +115,31 @@ func (vm *ViewMeta) lookupUserQuery(ctx context.Context, filter sq.Sqlizer) (*at
 	return user, nil
 }
 
+// LookupUserById queries user record by user ID
 func (vm *ViewMeta) LookupUserById(ctx context.Context, userId atp.Uid) (*atp.User, error) {
 	filter := sq.Eq{"id": userId}
 	return vm.lookupUserQuery(ctx, filter)
 }
 
+// LookupUserByDid queries user record by user DID
 func (vm *ViewMeta) LookupUserByDid(ctx context.Context, did string) (*atp.User, error) {
 	filter := sq.Eq{"did": did}
 	return vm.lookupUserQuery(ctx, filter)
 }
 
+// LookupUserByHandle queries user record by user handle
 func (vm *ViewMeta) LookupUserByHandle(ctx context.Context, handle string) (*atp.User, error) {
 	filter := sq.Eq{"handle": handle}
 	return vm.lookupUserQuery(ctx, filter)
 }
 
+// LookupUserByEmail queries user record by user email
 func (vm *ViewMeta) LookupUserByEmail(ctx context.Context, email string) (*atp.User, error) {
 	filter := sq.Eq{"email": email}
 	return vm.lookupUserQuery(ctx, filter)
 }
 
-func (vm *ViewMeta) LookupUserGraphFollowers(ctx context.Context, uid atp.Uid) ([]*atp.UserFollowRecord, error) {
-	filter := sq.Eq{"target": uid}
-	follow, err := database.SelectAll(ctx, vm.DB, atp.UserFollowRecord{}, filter)
-	if err != nil {
-		vm.Log.ErrorContext(ctx, "Failed to lookup followers", "uid", uid)
-		return nil, err
-	}
-
-	return follow, nil
-}
-
+// LookupGraphFollowers queries user records with a join to user_follow_record filtered by 'target'
 func (vm *ViewMeta) LookupGraphFollowers(ctx context.Context, uid atp.Uid) ([]*atp.PersonBasic, error) {
 	filter := sq.Eq{"target": uid}
 	var leftTbl atp.PersonBasic
@@ -156,6 +154,7 @@ func (vm *ViewMeta) LookupGraphFollowers(ctx context.Context, uid atp.Uid) ([]*a
 	return followers, nil
 }
 
+// LookupGraphFollowing queries user records with a join to user_follow_record filtered by 'follower'
 func (vm *ViewMeta) LookupGraphFollowing(ctx context.Context, uid atp.Uid) ([]*atp.PersonBasic, error) {
 	filter := sq.Eq{"follower": uid}
 	var leftTbl atp.PersonBasic
@@ -170,6 +169,7 @@ func (vm *ViewMeta) LookupGraphFollowing(ctx context.Context, uid atp.Uid) ([]*a
 	return following, nil
 }
 
+// GetPersonBasicProfile queries person record for the basic profile
 func (vm *ViewMeta) GetPersonBasicProfile(ctx context.Context, uid atp.Uid) (*atp.PersonBasic, error) {
 	query, err := database.BuildSelect(&atp.PersonBasic{}, vm.Schema, sq.Eq{"uid": uid})
 	if err != nil {

@@ -9,12 +9,15 @@ import (
 	sq "github.com/Masterminds/squirrel"
 )
 
+// ErrNoFields no fields included in the query
 var ErrNoFields = errors.New("no fields found")
 
+// TableEntity couples structs with a DB table
 type TableEntity interface {
 	TableName() string
 }
 
+// BuildSelect returns a select query with columns
 func BuildSelect(entity TableEntity, schema string, filters ...sq.Sqlizer) (*sq.SelectBuilder, error) {
 	table := schema + "." + entity.TableName()
 	cols, err := getColumns(entity)
@@ -31,6 +34,7 @@ func BuildSelect(entity TableEntity, schema string, filters ...sq.Sqlizer) (*sq.
 	return &query, nil
 }
 
+// BuildSelectAll returns a select all query
 func BuildSelectAll(entity TableEntity, schema string, filters ...sq.Sqlizer) (*sq.SelectBuilder, error) {
 	table := schema + "." + entity.TableName()
 	query := sq.Select("*").From(table).PlaceholderFormat(sq.Dollar)
@@ -42,6 +46,7 @@ func BuildSelectAll(entity TableEntity, schema string, filters ...sq.Sqlizer) (*
 	return &query, nil
 }
 
+// BuildDeleteQuery returns a delete query
 func BuildDeleteQuery(entity TableEntity, schema string, filters ...sq.Sqlizer) (*sq.DeleteBuilder, error) {
 	table := schema + "." + entity.TableName()
 	query := sq.Delete(table).PlaceholderFormat(sq.Dollar)
@@ -145,6 +150,7 @@ func getQueryMap(entity TableEntity) (map[string]any, error) {
 	return queryMap, nil
 }
 
+// BuildUpdateQuery returns a update query
 func BuildUpdateQuery(entity TableEntity, schema string, filters ...sq.Sqlizer) (*sq.UpdateBuilder, error) {
 	if len(filters) == 0 {
 		return nil, fmt.Errorf("invalid input: filters must be provided")
@@ -167,7 +173,13 @@ func BuildUpdateQuery(entity TableEntity, schema string, filters ...sq.Sqlizer) 
 	return &query, nil
 }
 
-func BuildUpdateCountQuery(entity TableEntity, schema string, countField string, filters ...sq.Sqlizer) (*sq.UpdateBuilder, error) {
+// BuildUpdateCountQuery returns a update query that increments a integer field
+func BuildUpdateCountQuery(
+	entity TableEntity,
+	schema string,
+	countField string,
+	filters ...sq.Sqlizer,
+) (*sq.UpdateBuilder, error) {
 	if len(filters) == 0 {
 		return nil, fmt.Errorf("invalid input: filters must be provided")
 	}
@@ -184,6 +196,7 @@ func BuildUpdateCountQuery(entity TableEntity, schema string, countField string,
 	return &query, nil
 }
 
+// BuildInsertQuery returns a insert query
 func BuildInsertQuery(entity TableEntity, schema string) (*sq.InsertBuilder, error) {
 	fstMap, err := getQueryMap(entity)
 	if err != nil {
@@ -196,6 +209,7 @@ func BuildInsertQuery(entity TableEntity, schema string) (*sq.InsertBuilder, err
 	return &query, nil
 }
 
+// BuildInsertWithReturnQuery returns a insert with return query
 func BuildInsertWithReturnQuery(entity TableEntity, schema string, returnCol ...string) (*sq.InsertBuilder, error) {
 	if returnCol == nil {
 		returnCol = []string{"*"}
@@ -215,6 +229,7 @@ func BuildInsertWithReturnQuery(entity TableEntity, schema string, returnCol ...
 	return &returnQuery, nil
 }
 
+// BuildInsertWithConflictQuery returns a insert with conflict query
 func BuildInsertWithConflictQuery(entity TableEntity, schema string, conflictCol ...string) (*sq.InsertBuilder, error) {
 	if conflictCol == nil {
 		return nil, fmt.Errorf("invalid input: conflict column must be provided")
@@ -245,6 +260,7 @@ func BuildInsertWithConflictQuery(entity TableEntity, schema string, conflictCol
 	return &conQuery, nil
 }
 
+// BuildBatchInsertQuery returns a batch insert query
 func BuildBatchInsertQuery(entities []TableEntity, schema string) (*sq.InsertBuilder, error) {
 	if len(entities) == 0 {
 		return nil, fmt.Errorf("no table entities provided for batch insert")

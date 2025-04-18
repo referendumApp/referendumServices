@@ -8,8 +8,6 @@ import (
 
 	"github.com/bluesky-social/indigo/api/atproto"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/whyrusleeping/go-did"
-
 	"github.com/referendumApp/referendumServices/internal/car"
 	"github.com/referendumApp/referendumServices/internal/env"
 	"github.com/referendumApp/referendumServices/internal/events"
@@ -17,8 +15,10 @@ import (
 	"github.com/referendumApp/referendumServices/internal/plc"
 	"github.com/referendumApp/referendumServices/internal/repo"
 	"github.com/referendumApp/referendumServices/internal/util"
+	"github.com/whyrusleeping/go-did"
 )
 
+// PDS contains all the dependencies to implement a Personal Data Server
 type PDS struct {
 	repoman        *repo.Manager
 	indexer        *indexer.Indexer
@@ -33,6 +33,7 @@ type PDS struct {
 	enforcePeering bool
 }
 
+// NewPDS initializes a 'PDS' structs
 func NewPDS(
 	repoman *repo.Manager,
 	idxr *indexer.Indexer,
@@ -322,8 +323,8 @@ func NewPDS(
 // 	return nil
 // }
 
+// TakedownRepo pushes a takedown account event
 func (p *PDS) TakedownRepo(ctx context.Context, did string) error {
-	// Push an Account event
 	if err := p.events.AddEvent(ctx, &events.XRPCStreamEvent{
 		RepoAccount: &atproto.SyncSubscribeRepos_Account{
 			Did:    did,
@@ -338,8 +339,8 @@ func (p *PDS) TakedownRepo(ctx context.Context, did string) error {
 	return nil
 }
 
+// SuspendRepo pushes a suspend account event
 func (p *PDS) SuspendRepo(ctx context.Context, did string) error {
-	// Push an Account event
 	if err := p.events.AddEvent(ctx, &events.XRPCStreamEvent{
 		RepoAccount: &atproto.SyncSubscribeRepos_Account{
 			Did:    did,
@@ -354,8 +355,8 @@ func (p *PDS) SuspendRepo(ctx context.Context, did string) error {
 	return nil
 }
 
+// DeactivateRepo pushes a deactivate account event
 func (p *PDS) DeactivateRepo(ctx context.Context, did string) error {
-	// Push an Account event
 	if err := p.events.AddEvent(ctx, &events.XRPCStreamEvent{
 		RepoAccount: &atproto.SyncSubscribeRepos_Account{
 			Did:    did,
@@ -370,8 +371,8 @@ func (p *PDS) DeactivateRepo(ctx context.Context, did string) error {
 	return nil
 }
 
+// ReactivateRepo pushes a reactivate account event
 func (p *PDS) ReactivateRepo(ctx context.Context, did string) error {
-	// Push an Account event
 	if err := p.events.AddEvent(ctx, &events.XRPCStreamEvent{
 		RepoAccount: &atproto.SyncSubscribeRepos_Account{
 			Did:    did,

@@ -8,14 +8,17 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+// GetRowWithTx returns a scannable row within a transaction
 func (d *DB) GetRowWithTx(ctx context.Context, tx pgx.Tx, sql string, args ...any) pgx.Row {
 	return tx.QueryRow(ctx, sql, args...)
 }
 
+// GetRow returns a scannable row
 func (d *DB) GetRow(ctx context.Context, sql string, args ...any) pgx.Row {
 	return d.pool.QueryRow(ctx, sql, args...)
 }
 
+// GetWithTx returns a record within a transaction
 func GetWithTx[T TableEntity](ctx context.Context, tx pgx.Tx, sql string, args ...any) (*T, error) {
 	rows, err := tx.Query(ctx, sql, args...)
 	if err != nil {
@@ -38,6 +41,7 @@ func GetWithTx[T TableEntity](ctx context.Context, tx pgx.Tx, sql string, args .
 	return result, rows.Err()
 }
 
+// Get returns a record
 func Get[T TableEntity](ctx context.Context, d *DB, sql string, args ...any) (*T, error) {
 	rows, err := d.pool.Query(ctx, sql, args...)
 	if err != nil {
@@ -64,6 +68,7 @@ func Get[T TableEntity](ctx context.Context, d *DB, sql string, args ...any) (*T
 	return result, rows.Err()
 }
 
+// GetAll returns a record with all columns
 func GetAll[T TableEntity](
 	ctx context.Context,
 	d *DB,
@@ -85,6 +90,7 @@ func GetAll[T TableEntity](
 	return Get[T](ctx, d, sql, args...)
 }
 
+// Select returns all records
 func Select[T TableEntity](ctx context.Context, d *DB, sql string, args ...any) ([]*T, error) {
 	rows, err := d.pool.Query(ctx, sql, args...)
 	if err != nil {
@@ -108,6 +114,7 @@ func Select[T TableEntity](ctx context.Context, d *DB, sql string, args ...any) 
 	return result, rows.Err()
 }
 
+// SelectAll returns all records with all columns
 func SelectAll[T TableEntity](
 	ctx context.Context,
 	d *DB,
@@ -129,6 +136,7 @@ func SelectAll[T TableEntity](
 	return Select[T](ctx, d, sql, args...)
 }
 
+// SelectLeft  returns all records with all columns from a left join
 func SelectLeft[T TableEntity](
 	ctx context.Context,
 	d *DB,
@@ -150,7 +158,16 @@ func SelectLeft[T TableEntity](
 
 	sql, args, err := query.LeftJoin(leftJoin).ToSql()
 	if err != nil {
-		d.Log.ErrorContext(ctx, "Failed to compile left join select query", "error", err, "left", leftTbl, "right", rightTbl)
+		d.Log.ErrorContext(
+			ctx,
+			"Failed to compile left join select query",
+			"error",
+			err,
+			"left",
+			leftTbl,
+			"right",
+			rightTbl,
+		)
 		return nil, err
 	}
 

@@ -1,3 +1,4 @@
+//revive:disable:exported
 // Package lex generates Go code for lexicons.
 
 package lexgen
@@ -112,12 +113,14 @@ func FixRecordReferences(schemas []*Schema, defmap map[string]*ExtDef, prefix st
 
 func printerf(w io.Writer) func(format string, args ...any) {
 	return func(format string, args ...any) {
-		fmt.Fprintf(w, format, args...)
+		if _, err := fmt.Fprintf(w, format, args...); err != nil {
+			log.Fatalf("Failed to write generated code: %s", format)
+		}
 	}
 }
 
 func GenCodeForSchema(pkg Package, reqcode bool, s *Schema, packages []Package, defmap map[string]*ExtDef) error {
-	err := os.MkdirAll(pkg.Outdir, 0755)
+	err := os.MkdirAll(pkg.Outdir, 0755) //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("%s: could not mkdir, %w", pkg.Outdir, err)
 	}
@@ -239,7 +242,9 @@ func writeMethods(id string, prefix string, ts *TypeSchema, w io.Writer) error {
 			n += "#" + ts.defName
 		}
 
-		fmt.Fprintf(w, "const %s = %q\n", typename, n)
+		if _, err := fmt.Fprintf(w, "const %s = %q\n", typename, n); err != nil {
+			return err
+		}
 		return nil
 	case Record:
 		return ts.writeStorageMethods(typename, id, w)

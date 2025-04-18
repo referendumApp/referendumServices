@@ -1,3 +1,5 @@
+version: "2"
+
 run:
   timeout: 5m
   tests: true
@@ -9,18 +11,38 @@ output:
   print-linter-name: true
   sort-results: true
 
+formatters:
+  enable:
+    # - goimports # checks if the code and import statements are formatted according to the 'goimports' command
+    - golines # checks if code is formatted, and fixes long lines
+
+    - gci # checks if code and import statements are formatted, with additional rules
+    - gofmt # checks if the code is formatted according to 'gofmt' command
+
+  # All settings can be found here https://github.com/golangci/golangci-lint/blob/HEAD/.golangci.reference.yml
+  settings:
+    goimports:
+      # A list of prefixes, which, if set, checks import paths
+      # with the given prefixes are grouped after 3rd-party packages.
+      # Default: []
+      local-prefixes:
+        - github.com/referendumApp/referendumServices
+
+    golines:
+      # Target maximum line length.
+      # Default: 100
+      max-len: 120
+
 # Linters to enable
 linters:
   enable:
     - asasalint # checks for pass []any as any in variadic func(...any)
-    - gofmt # Checks if the code is formatted according to 'gofmt' command
-    - goimports # Formats imports and adds missing imports
     - govet # Checks for subtle bugs and suspicious constructs that might not be caught by the compiler
     - staticcheck # Static analyzer that finds bugs, performance issues, and stylistic problems
     - revive # Replaces golint but with additional customization options
     - errcheck # Ensures that error returns from functions are checked
     - ineffassign # Detects when assignments to variables are never used
-    - gosimple # Suggests code simplifications for better readability
+    # - gosimple # Suggests code simplifications for better readability
     - goconst # Finds repeated strings that could be replaced with constants
     - misspell # Finds commonly misspelled English words in comments
     - gosec # Scans code for security vulnerabilities
@@ -54,86 +76,84 @@ linters:
     - unconvert # removes unnecessary type conversions
     - usestdlibvars # detects the possibility to use variables/constants from the Go standard library
 
-# Linter settings
-linters-settings:
-  goimports:
-    local-prefixes: github.com/referendumApp/referendumServices
-  govet:
-    enable:
-      - assign # Check for useless assignments
-      - bools # Check for common mistakes involving boolean operators
-      - buildtag # Check //go:build and // +build directives
-      - defers # Report common mistakes in defer statements
-      - httpresponse # Check for mistakes using HTTP responses
-      - nilfunc # Check for useless comparisons between functions and nil
-      - nilness # Check for redundant or impossible nil comparisons
-      - shadow # Check for possible unintended shadowing of variables
-      - stringintconv # Check for string(int) conversions
-      - testinggoroutine # Report calls to (*testing.T).Fatal from goroutines started by a test
-      - tests # Check for common mistaken usages of tests and examples
-      - unmarshal # Report passing non-pointer or non-interface values to unmarshal
-      - unreachable # Check for unreachable code
-      - unsafeptr # Check for invalid conversions of uintptr to unsafe.Pointer
-      - unusedresult # Check for unused results of calls to some functions
-      - waitgroup # Check for misuses of sync.WaitGroup
-  revive:
-    rules:
-      - name: exported
-        severity: warning
-        disabled: false
-  errcheck:
-    check-type-assertions: true
-    exclude-functions:
-      - encoding/json.Marshal
-      - encoding/json.MarshalIndent
-  errchkjson:
-    check-error-free-encoding: true
-  goconst:
-    min-occurrences: 3
-  gocritic:
-    # Settings passed to gocritic.
-    # The settings key is the name of a supported gocritic checker.
-    # The list of supported checkers can be found at https://go-critic.com/overview.
-    settings:
-      captLocal:
-        # Whether to restrict checker to params only.
-        # Default: true
-        paramsOnly: false
-      underef:
-        # Whether to skip (*x).method() calls where x is a pointer receiver.
-        # Default: true
-        skipRecvDeref: false
-  reassign:
-    # Patterns for global variable names that are checked for reassignment.
-    # See https://github.com/curioswitch/go-reassign#usage
-    # Default: ["EOF", "Err.*"]
-    patterns:
-      - ".*"
-  rowserrcheck:
-    # database/sql is always checked.
-    # Default: []
-    packages:
-      - github.com/jackc/pgx/v5
-  sloglint:
-    # Enforce not using global loggers.
-    # Values:
-    # - "": disabled
-    # - "all": report all global loggers
-    # - "default": report only the default slog logger
-    # https://github.com/go-simpler/sloglint?tab=readme-ov-file#no-global
-    # Default: ""
-    no-global: all
-    # Enforce using methods that accept a context.
-    # Values:
-    # - "": disabled
-    # - "all": report all contextless calls
-    # - "scope": report only if a context exists in the scope of the outermost function
-    # https://github.com/go-simpler/sloglint?tab=readme-ov-file#context-only
-    # Default: ""
-    context: scope
-  nestif:
-    # Minimal complexity of if statements to report.
-    min-complexity: 6
+  # Linter settings
+  settings:
+    govet:
+      enable:
+        - assign # Check for useless assignments
+        - bools # Check for common mistakes involving boolean operators
+        - buildtag # Check //go:build and // +build directives
+        - defers # Report common mistakes in defer statements
+        - httpresponse # Check for mistakes using HTTP responses
+        - nilfunc # Check for useless comparisons between functions and nil
+        - nilness # Check for redundant or impossible nil comparisons
+        - shadow # Check for possible unintended shadowing of variables
+        - stringintconv # Check for string(int) conversions
+        - testinggoroutine # Report calls to (*testing.T).Fatal from goroutines started by a test
+        - tests # Check for common mistaken usages of tests and examples
+        - unmarshal # Report passing non-pointer or non-interface values to unmarshal
+        - unreachable # Check for unreachable code
+        - unsafeptr # Check for invalid conversions of uintptr to unsafe.Pointer
+        - unusedresult # Check for unused results of calls to some functions
+        - waitgroup # Check for misuses of sync.WaitGroup
+    revive:
+      rules:
+        - name: exported
+          severity: warning
+          disabled: false
+    errcheck:
+      check-type-assertions: true
+      exclude-functions:
+        - encoding/json.Marshal
+        - encoding/json.MarshalIndent
+    errchkjson:
+      check-error-free-encoding: true
+    goconst:
+      min-occurrences: 3
+    gocritic:
+      # Settings passed to gocritic.
+      # The settings key is the name of a supported gocritic checker.
+      # The list of supported checkers can be found at https://go-critic.com/overview.
+      settings:
+        captLocal:
+          # Whether to restrict checker to params only.
+          # Default: true
+          paramsOnly: false
+        underef:
+          # Whether to skip (*x).method() calls where x is a pointer receiver.
+          # Default: true
+          skipRecvDeref: false
+    reassign:
+      # Patterns for global variable names that are checked for reassignment.
+      # See https://github.com/curioswitch/go-reassign#usage
+      # Default: ["EOF", "Err.*"]
+      patterns:
+        - ".*"
+    rowserrcheck:
+      # database/sql is always checked.
+      # Default: []
+      packages:
+        - github.com/jackc/pgx/v5
+    sloglint:
+      # Enforce not using global loggers.
+      # Values:
+      # - "": disabled
+      # - "all": report all global loggers
+      # - "default": report only the default slog logger
+      # https://github.com/go-simpler/sloglint?tab=readme-ov-file#no-global
+      # Default: ""
+      no-global: all
+      # Enforce using methods that accept a context.
+      # Values:
+      # - "": disabled
+      # - "all": report all contextless calls
+      # - "scope": report only if a context exists in the scope of the outermost function
+      # https://github.com/go-simpler/sloglint?tab=readme-ov-file#context-only
+      # Default: ""
+      context: scope
+    nestif:
+      # Minimal complexity of if statements to report.
+      min-complexity: 6
 
 # Issues configuration
 issues:
@@ -153,8 +173,35 @@ issues:
 
 # Issues configuration
 severity:
-  default-severity: error
+  default: error
   case-sensitive: false
   rules:
-    - linters: [revive]
+    - linters:
+        - revive
+        - dupl
       severity: warning
+
+exclusions:
+  warn-unused: true
+  presets:
+    - std-error-handling
+    - common-false-positives
+  rules:
+    - text: "should have a package comment"
+      linters: [revive]
+    - text: 'exported \S+ \S+ should have comment( \(or a comment on this block\))? or be unexported'
+      linters: [revive]
+    - text: 'package comment should be of the form ".+"'
+      source: "// ?(nolint|TODO)"
+      linters: [revive]
+    - text: 'comment on exported \S+ \S+ should be of the form ".+"'
+      source: "// ?(nolint|TODO)"
+      linters: [revive, staticcheck]
+    - path: '_test\.go'
+      linters:
+        - bodyclose
+        - dupl
+        - errcheck
+        - goconst
+        - gosec
+        - noctx

@@ -6,6 +6,7 @@ import (
 	"fmt"
 )
 
+// LID hashes and encodes three string args that reprsents a legislation record key
 func LID(value1, value2, value3 string) string {
 	combined := fmt.Sprintf("%s|%s|%s", value1, value2, value3)
 	hash := sha256.Sum256([]byte(combined))

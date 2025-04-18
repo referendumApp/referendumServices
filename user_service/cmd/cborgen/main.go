@@ -1,11 +1,10 @@
 package main
 
 import (
-	cbg "github.com/whyrusleeping/cbor-gen"
-
 	"github.com/referendumApp/referendumServices/internal/domain/lexicon/referendumapp"
 	"github.com/referendumApp/referendumServices/internal/plc"
 	"github.com/referendumApp/referendumServices/internal/repo"
+	cbg "github.com/whyrusleeping/cbor-gen"
 )
 
 func main() {

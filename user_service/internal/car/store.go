@@ -15,42 +15,53 @@ import (
 	blockstore "github.com/ipfs/boxo/blockstore"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
-	cbor "github.com/ipfs/go-ipld-cbor"
-	ipld "github.com/ipfs/go-ipld-format"
 	car "github.com/ipld/go-car"
-	cbg "github.com/whyrusleeping/cbor-gen"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-
 	"github.com/referendumApp/referendumServices/internal/database"
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
 	"github.com/referendumApp/referendumServices/internal/env"
+	cbg "github.com/whyrusleeping/cbor-gen"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 )
 
-const BigShardThreshold = 2 << 20
+const bigShardThreshold = 2 << 20
 
+// Store interface for interacting with the CAR store
 type Store interface {
 	// TODO: not really part of general interface
 	CompactUserShards(ctx context.Context, user atp.Uid, skipBigShards bool) (*CompactionStats, error)
 	// TODO: not really part of general interface
 	GetCompactionTargets(ctx context.Context, shardCount int) ([]*CompactionTarget, error)
+	// TODO: not really part of general interface
+	PingStore(ctx context.Context) error
 
 	GetUserRepoHead(ctx context.Context, user atp.Uid) (cid.Cid, error)
 	GetUserRepoRev(ctx context.Context, user atp.Uid) (string, error)
 	ImportSlice(ctx context.Context, uid atp.Uid, since *string, carslice []byte) (cid.Cid, *DeltaSession, error)
 	NewDeltaSession(ctx context.Context, user atp.Uid, since *string) (*DeltaSession, error)
 	ReadOnlySession(user atp.Uid) (*DeltaSession, error)
-	ReadUserCar(ctx context.Context, user atp.Uid, sinceRev string, incremental bool, w io.Writer) error
+	ReadUserCar(ctx context.Context, user atp.Uid, sinceRev string, w io.Writer) error
 	Stat(ctx context.Context, usr atp.Uid) ([]UserStat, error)
 	WipeUserData(ctx context.Context, user atp.Uid) error
 }
 
+// S3CarStore contains all the dependencies for interacting with the CAR store in S3
+type S3CarStore struct {
+	meta           *StoreMeta
+	client         *s3Client
+	rootDir        string
+	lastShardCache lastShardCache
+
+	log *slog.Logger
+}
+
+// NewCarStore initializes a 'S3CarStore' struct
 func NewCarStore(ctx context.Context, cfg *env.Config, db *database.DB) (Store, error) {
 	log.Println("Setting up CAR store")
 
 	carDb := db.WithSchema(cfg.CarDBSchema)
 
-	client, err := NewS3Client(ctx, cfg.CarDir)
+	client, err := newS3Client(ctx, cfg.CarDir)
 	if err != nil {
 		log.Println("Error creating S3 client")
 		return nil, err
@@ -66,45 +77,11 @@ func NewCarStore(ctx context.Context, cfg *env.Config, db *database.DB) (Store, 
 		},
 		log: slog.Default().With("system", "carstore"),
 	}
-	out.lastShardCache.Init()
+	out.lastShardCache.init()
 
 	log.Println("Successfully setup CAR store!")
 
 	return out, nil
-}
-
-// subset of blockstore.Blockstore that we actually use here
-type minBlockstore interface {
-	Get(ctx context.Context, bcid cid.Cid) (blocks.Block, error)
-	Has(ctx context.Context, bcid cid.Cid) (bool, error)
-	GetSize(ctx context.Context, bcid cid.Cid) (int, error)
-}
-
-type DeltaSession struct {
-	blks     map[cid.Cid]blocks.Block
-	rmcids   map[cid.Cid]bool
-	base     minBlockstore
-	user     atp.Uid
-	baseCid  cid.Cid
-	seq      int
-	readonly bool
-	cs       shardWriter
-	lastRev  string
-}
-
-// shardWriter.writeNewShard called from inside DeltaSession.CloseWithRoot
-type shardWriter interface {
-	// writeNewShard stores blocks in `blks` arg and creates a new shard to propagate out to our firehose
-	writeNewShard(ctx context.Context, root cid.Cid, rev string, user atp.Uid, seq int, blks map[cid.Cid]blocks.Block, rmcids map[cid.Cid]bool) ([]byte, error)
-}
-
-type S3CarStore struct {
-	meta           *StoreMeta
-	client         *S3Client
-	rootDir        string
-	lastShardCache lastShardCache
-
-	log *slog.Logger
 }
 
 // func (cs *S3CarStore) checkLastShardCache(user atp.Uid) *Shard {
@@ -123,8 +100,19 @@ func (cs *S3CarStore) getLastShard(ctx context.Context, user atp.Uid) (*Shard, e
 	return cs.lastShardCache.get(ctx, user)
 }
 
+// PingStore checks that the S3 car store bucket exists
+func (cs *S3CarStore) PingStore(ctx context.Context) error {
+	if err := cs.client.storeExists(ctx); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ErrRepoBaseMismatch error returned when the root revision differs from the requested revision
 var ErrRepoBaseMismatch = fmt.Errorf("attempted a delta session on top of the wrong previous head")
 
+// NewDeltaSession initializes a 'DeltaSession' struct
 func (cs *S3CarStore) NewDeltaSession(ctx context.Context, user atp.Uid, since *string) (*DeltaSession, error) {
 	ctx, span := otel.Tracer("carstore").Start(ctx, "NewSession")
 	defer span.End()
@@ -157,6 +145,7 @@ func (cs *S3CarStore) NewDeltaSession(ctx context.Context, user atp.Uid, since *
 	}, nil
 }
 
+// ReadOnlySession initializes a 'DeltaSession' struct with read only capabilities
 func (cs *S3CarStore) ReadOnlySession(user atp.Uid) (*DeltaSession, error) {
 	return &DeltaSession{
 		base: &userView{
@@ -172,8 +161,13 @@ func (cs *S3CarStore) ReadOnlySession(user atp.Uid) (*DeltaSession, error) {
 	}, nil
 }
 
-// TODO: incremental is only ever called true, remove the param
-func (cs *S3CarStore) ReadUserCar(ctx context.Context, user atp.Uid, sinceRev string, incremental bool, shardOut io.Writer) error {
+// ReadUserCar reads an entire CAR file for a specific revision into a data stream
+func (cs *S3CarStore) ReadUserCar(
+	ctx context.Context,
+	user atp.Uid,
+	sinceRev string,
+	shardOut io.Writer,
+) error {
 	ctx, span := otel.Tracer("carstore").Start(ctx, "ReadUserCar")
 	defer span.End()
 
@@ -189,12 +183,6 @@ func (cs *S3CarStore) ReadUserCar(ctx context.Context, user atp.Uid, sinceRev st
 	shards, err := cs.meta.GetUserShardsDesc(ctx, user, earlySeq)
 	if err != nil {
 		return err
-	}
-
-	// TODO: incremental is only ever called true, so this is fine and we can remove the error check
-	if !incremental && earlySeq > 0 {
-		// have to do it the ugly way
-		return fmt.Errorf("nyi")
 	}
 
 	if len(shards) == 0 {
@@ -220,22 +208,22 @@ func (cs *S3CarStore) ReadUserCar(ctx context.Context, user atp.Uid, sinceRev st
 
 // inner loop part of ReadUserCar
 // copy shard blocks from disk to Writer
-func (cs *S3CarStore) writeShardBlocks(ctx context.Context, sh *Shard, shardOut io.Writer) error {
+func (cs *S3CarStore) writeShardBlocks(ctx context.Context, sh *Shard, shardOut io.Writer) (err error) {
 	_, span := otel.Tracer("carstore").Start(ctx, "writeShardBlocks")
 	defer span.End()
 
-	fi, err := os.Open(sh.Path)
+	obj, err := cs.client.readFile(ctx, sh.Path, &sh.DataStart)
 	if err != nil {
 		return err
 	}
-	defer fi.Close()
+	defer func() {
+		closeErr := obj.Body.Close()
+		if err == nil {
+			err = closeErr
+		}
+	}()
 
-	_, err = fi.Seek(sh.DataStart, io.SeekStart)
-	if err != nil {
-		return err
-	}
-
-	_, err = io.Copy(shardOut, fi)
+	_, err = io.Copy(shardOut, obj.Body)
 	if err != nil {
 		return err
 	}
@@ -244,12 +232,17 @@ func (cs *S3CarStore) writeShardBlocks(ctx context.Context, sh *Shard, shardOut 
 }
 
 // inner loop part of compactBucket
-func (cs *S3CarStore) iterateShardBlocks(sh *Shard, cb func(blk blocks.Block) error) error {
+func (cs *S3CarStore) iterateShardBlocks(sh *Shard, cb func(blk blocks.Block) error) (err error) {
 	fi, err := os.Open(sh.Path)
 	if err != nil {
 		return err
 	}
-	defer fi.Close()
+	defer func() {
+		closeErr := fi.Close()
+		if err == nil {
+			err = closeErr
+		}
+	}()
 
 	rr, err := car.NewCarReader(fi)
 	if err != nil {
@@ -271,175 +264,6 @@ func (cs *S3CarStore) iterateShardBlocks(sh *Shard, cb func(blk blocks.Block) er
 	}
 }
 
-var _ blockstore.Blockstore = (*DeltaSession)(nil)
-
-func (ds *DeltaSession) BaseCid() cid.Cid {
-	return ds.baseCid
-}
-
-func (ds *DeltaSession) Put(ctx context.Context, b blocks.Block) error {
-	if ds.readonly {
-		return fmt.Errorf("cannot write to readonly deltaSession")
-	}
-	ds.blks[b.Cid()] = b
-	return nil
-}
-
-func (ds *DeltaSession) PutMany(ctx context.Context, bs []blocks.Block) error {
-	if ds.readonly {
-		return fmt.Errorf("cannot write to readonly deltaSession")
-	}
-
-	for _, b := range bs {
-		ds.blks[b.Cid()] = b
-	}
-	return nil
-}
-
-func (ds *DeltaSession) AllKeysChan(ctx context.Context) (<-chan cid.Cid, error) {
-	return nil, fmt.Errorf("AllKeysChan not implemented")
-}
-
-func (ds *DeltaSession) DeleteBlock(ctx context.Context, c cid.Cid) error {
-	if ds.readonly {
-		return fmt.Errorf("cannot write to readonly deltaSession")
-	}
-
-	if _, ok := ds.blks[c]; !ok {
-		return ipld.ErrNotFound{Cid: c}
-	}
-
-	delete(ds.blks, c)
-	return nil
-}
-
-func (ds *DeltaSession) Get(ctx context.Context, c cid.Cid) (blocks.Block, error) {
-	b, ok := ds.blks[c]
-	if ok {
-		return b, nil
-	}
-
-	return ds.base.Get(ctx, c)
-}
-
-func (ds *DeltaSession) Has(ctx context.Context, c cid.Cid) (bool, error) {
-	_, ok := ds.blks[c]
-	if ok {
-		return true, nil
-	}
-
-	return ds.base.Has(ctx, c)
-}
-
-func (ds *DeltaSession) HashOnRead(hor bool) {
-	// noop?
-}
-
-func (ds *DeltaSession) GetSize(ctx context.Context, c cid.Cid) (int, error) {
-	b, ok := ds.blks[c]
-	if ok {
-		return len(b.RawData()), nil
-	}
-
-	return ds.base.GetSize(ctx, c)
-}
-
-func fnameForShard(user atp.Uid, seq int) string {
-	return fmt.Sprintf("sh-%d-%d", user, seq)
-}
-
-func keyForShard(user atp.Uid, seq int) string {
-	return fmt.Sprintf("sh-%d/seq-%d", user, seq)
-}
-
-func (cs *S3CarStore) deleteShardFile(sh *Shard) error {
-	return os.Remove(sh.Path)
-}
-
-// CloseWithRoot writes all new blocks in a car file to the writer with the
-// given cid as the 'root'
-func (ds *DeltaSession) CloseWithRoot(ctx context.Context, root cid.Cid, rev string) ([]byte, error) {
-	ctx, span := otel.Tracer("carstore").Start(ctx, "CloseWithRoot")
-	defer span.End()
-
-	if ds.readonly {
-		return nil, fmt.Errorf("cannot write to readonly deltaSession")
-	}
-
-	return ds.cs.writeNewShard(ctx, root, rev, ds.user, ds.seq, ds.blks, ds.rmcids)
-}
-
-func WriteCarHeader(w io.Writer, root cid.Cid) (int64, error) {
-	h := &car.CarHeader{
-		Roots:   []cid.Cid{root},
-		Version: 1,
-	}
-	hb, err := cbor.DumpObject(h)
-	if err != nil {
-		return 0, err
-	}
-
-	hnw, err := LdWrite(w, hb)
-	if err != nil {
-		return 0, err
-	}
-
-	return hnw, nil
-}
-
-func (cs *S3CarStore) writeNewShard(ctx context.Context, root cid.Cid, rev string, user atp.Uid, seq int, blks map[cid.Cid]blocks.Block, rmcids map[cid.Cid]bool) ([]byte, error) {
-	buf := new(bytes.Buffer)
-	hnw, err := WriteCarHeader(buf, root)
-	if err != nil {
-		return nil, fmt.Errorf("failed to write car header: %w", err)
-	}
-
-	// TODO: writing these blocks in map traversal order is bad, I believe the
-	// optimal ordering will be something like reverse-write-order, but random
-	// is definitely not it
-
-	offset := hnw
-	var brefs []*BlockRef
-	for k, blk := range blks {
-		nw, nerr := LdWrite(buf, k.Bytes(), blk.RawData())
-		if nerr != nil {
-			return nil, fmt.Errorf("failed to write block: %w", err)
-		}
-
-		brefs = append(brefs, &BlockRef{
-			Cid:        atp.DbCID{CID: k},
-			ByteOffset: offset,
-			Uid:        user,
-		})
-
-		offset += nw
-	}
-
-	start := time.Now()
-	path, err := cs.client.writeNewShardFile(ctx, user, seq, buf.Bytes())
-	if err != nil {
-		return nil, fmt.Errorf("failed to write shard file: %w", err)
-	}
-	writeShardFileDuration.Observe(time.Since(start).Seconds())
-
-	shard := Shard{
-		Root:      atp.DbCID{CID: root},
-		DataStart: hnw,
-		Seq:       seq,
-		Path:      path,
-		Uid:       user,
-		Rev:       rev,
-	}
-
-	start = time.Now()
-	if err := cs.putShard(ctx, &shard, brefs, false); err != nil {
-		return nil, err
-	}
-	writeShardMetadataDuration.Observe(time.Since(start).Seconds())
-
-	return buf.Bytes(), nil
-}
-
 func (cs *S3CarStore) putShard(ctx context.Context, shard *Shard, brefs []*BlockRef, nocache bool) error {
 	ctx, span := otel.Tracer("carstore").Start(ctx, "putShard")
 	defer span.End()
@@ -456,9 +280,16 @@ func (cs *S3CarStore) putShard(ctx context.Context, shard *Shard, brefs []*Block
 	return nil
 }
 
+// ErrNotFound error for not finding a cid
 var ErrNotFound = errors.New("cid not found")
 
-func BlockDiff(ctx context.Context, bs blockstore.Blockstore, oldroot cid.Cid, newcids map[cid.Cid]blocks.Block) (map[cid.Cid]bool, error) {
+// BlockDiff gets the diff between the old blockstore and the new one
+func BlockDiff(
+	ctx context.Context,
+	bs blockstore.Blockstore,
+	oldroot cid.Cid,
+	newcids map[cid.Cid]blocks.Block,
+) (map[cid.Cid]bool, error) {
 	ctx, span := otel.Tracer("repo").Start(ctx, "BlockDiff")
 	defer span.End()
 
@@ -518,7 +349,24 @@ func BlockDiff(ctx context.Context, bs blockstore.Blockstore, oldroot cid.Cid, n
 	return dropset, nil
 }
 
-func (cs *S3CarStore) ImportSlice(ctx context.Context, uid atp.Uid, since *string, carslice []byte) (cid.Cid, *DeltaSession, error) {
+// CalcDiff wrapper around 'BlockDiff' and writes the diff to the 'DeltaSession' instance
+func (ds *DeltaSession) CalcDiff(ctx context.Context) error {
+	rmcids, err := BlockDiff(ctx, ds, ds.baseCid, ds.blks)
+	if err != nil {
+		return fmt.Errorf("block diff failed (base=%s,rev=%s): %w", ds.baseCid, ds.lastRev, err)
+	}
+
+	ds.rmcids = rmcids
+	return nil
+}
+
+// ImportSlice reads a slice of bytes and writes it as a CAR file
+func (cs *S3CarStore) ImportSlice(
+	ctx context.Context,
+	uid atp.Uid,
+	since *string,
+	carslice []byte,
+) (cid.Cid, *DeltaSession, error) {
 	ctx, span := otel.Tracer("carstore").Start(ctx, "ImportSlice")
 	defer span.End()
 
@@ -528,7 +376,10 @@ func (cs *S3CarStore) ImportSlice(ctx context.Context, uid atp.Uid, since *strin
 	}
 
 	if len(carr.Header.Roots) != 1 {
-		return cid.Undef, nil, fmt.Errorf("invalid car file, header must have a single root (has %d)", len(carr.Header.Roots))
+		return cid.Undef, nil, fmt.Errorf(
+			"invalid car file, header must have a single root (has %d)",
+			len(carr.Header.Roots),
+		)
 	}
 
 	ds, err := cs.NewDeltaSession(ctx, uid, since)
@@ -553,16 +404,7 @@ func (cs *S3CarStore) ImportSlice(ctx context.Context, uid atp.Uid, since *strin
 	return carr.Header.Roots[0], ds, nil
 }
 
-func (ds *DeltaSession) CalcDiff(ctx context.Context) error {
-	rmcids, err := BlockDiff(ctx, ds, ds.baseCid, ds.blks)
-	if err != nil {
-		return fmt.Errorf("block diff failed (base=%s,rev=%s): %w", ds.baseCid, ds.lastRev, err)
-	}
-
-	ds.rmcids = rmcids
-	return nil
-}
-
+// GetUserRepoHead get the head CID for a user
 func (cs *S3CarStore) GetUserRepoHead(ctx context.Context, user atp.Uid) (cid.Cid, error) {
 	lastShard, err := cs.getLastShard(ctx, user)
 	if err != nil {
@@ -575,6 +417,7 @@ func (cs *S3CarStore) GetUserRepoHead(ctx context.Context, user atp.Uid) (cid.Ci
 	return lastShard.Root.CID, nil
 }
 
+// GetUserRepoRev get the head revision for a user
 func (cs *S3CarStore) GetUserRepoRev(ctx context.Context, user atp.Uid) (string, error) {
 	lastShard, err := cs.getLastShard(ctx, user)
 	if err != nil {
@@ -588,30 +431,7 @@ func (cs *S3CarStore) GetUserRepoRev(ctx context.Context, user atp.Uid) (string,
 	return lastShard.Rev, nil
 }
 
-type UserStat struct {
-	Seq     int
-	Root    string
-	Created time.Time
-}
-
-func (cs *S3CarStore) Stat(ctx context.Context, usr atp.Uid) ([]UserStat, error) {
-	shards, err := cs.meta.GetUserShards(ctx, usr)
-	if err != nil {
-		return nil, err
-	}
-
-	var out []UserStat
-	for _, s := range shards {
-		out = append(out, UserStat{
-			Seq:     s.Seq,
-			Root:    s.Root.CID.String(),
-			Created: s.CreatedAt,
-		})
-	}
-
-	return out, nil
-}
-
+// WipeUserData deletes a users CAR files and DB metadata
 func (cs *S3CarStore) WipeUserData(ctx context.Context, user atp.Uid) error {
 	shards, err := cs.meta.GetUserShards(ctx, user)
 	if err != nil {
@@ -669,6 +489,32 @@ func (cs *S3CarStore) deleteShards(ctx context.Context, shs []*Shard) error {
 	}
 
 	return nil
+}
+
+// UserStat struct contains all the root CID for a CAR file
+type UserStat struct {
+	Seq     int
+	Root    string
+	Created time.Time
+}
+
+// Stat returns a slice of root CIDs
+func (cs *S3CarStore) Stat(ctx context.Context, usr atp.Uid) ([]UserStat, error) {
+	shards, err := cs.meta.GetUserShards(ctx, usr)
+	if err != nil {
+		return nil, err
+	}
+
+	var out []UserStat
+	for _, s := range shards {
+		out = append(out, UserStat{
+			Seq:     s.Seq,
+			Root:    s.Root.CID.String(),
+			Created: s.CreatedAt,
+		})
+	}
+
+	return out, nil
 }
 
 type shardStat struct {
@@ -764,13 +610,6 @@ func (cs *S3CarStore) openNewCompactedShardFile(user atp.Uid, seq int) (*os.File
 	return fi, fi.Name(), nil
 }
 
-func (cs *S3CarStore) GetCompactionTargets(ctx context.Context, shardCount int) ([]*CompactionTarget, error) {
-	ctx, span := otel.Tracer("carstore").Start(ctx, "GetCompactionTargets")
-	defer span.End()
-
-	return cs.meta.GetCompactionTargets(ctx, shardCount)
-}
-
 // getBlockRefsForShards is a prep function for CompactUserShards
 func (cs *S3CarStore) getBlockRefsForShards(ctx context.Context, shardIds []uint) ([]*BlockRef, error) {
 	ctx, span := otel.Tracer("carstore").Start(ctx, "getBlockRefsForShards")
@@ -792,7 +631,16 @@ func (cs *S3CarStore) shardSize(ctx context.Context, sh *Shard) (int64, error) {
 	st, err := os.Stat(sh.Path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			cs.log.WarnContext(ctx, "missing shard, return size of zero", "path", sh.Path, "shard", sh.ID, "system", "carstore")
+			cs.log.WarnContext(
+				ctx,
+				"missing shard, return size of zero",
+				"path",
+				sh.Path,
+				"shard",
+				sh.ID,
+				"system",
+				"carstore",
+			)
 			return 0, nil
 		}
 		return 0, fmt.Errorf("stat %q: %w", sh.Path, err)
@@ -801,6 +649,8 @@ func (cs *S3CarStore) shardSize(ctx context.Context, sh *Shard) (int64, error) {
 	return st.Size(), nil
 }
 
+// CompactionStats contains all the CAR metadata for a user to compact shards
+// TODO: This may be deprecated?
 type CompactionStats struct {
 	TotalRefs     int `json:"totalRefs"`
 	StartShards   int `json:"startShards"`
@@ -810,7 +660,12 @@ type CompactionStats struct {
 	DupeCount     int `json:"dupeCount"`
 }
 
-func (cs *S3CarStore) CompactUserShards(ctx context.Context, user atp.Uid, skipBigShards bool) (*CompactionStats, error) {
+// CompactUserShards compacts user CAR shards
+func (cs *S3CarStore) CompactUserShards(
+	ctx context.Context,
+	user atp.Uid,
+	skipBigShards bool,
+) (*CompactionStats, error) {
 	ctx, span := otel.Tracer("carstore").Start(ctx, "CompactUserShards")
 	defer span.End()
 
@@ -835,10 +690,10 @@ func (cs *S3CarStore) CompactUserShards(ctx context.Context, user atp.Uid, skipB
 		for i, sh := range shards {
 			size, serr := cs.shardSize(ctx, sh)
 			if serr != nil {
-				return nil, fmt.Errorf("could not check size of shard file: %w", err)
+				return nil, fmt.Errorf("could not check size of shard file: %w", serr)
 			}
 
-			if size > BigShardThreshold {
+			if size > bigShardThreshold {
 				skip = i + 1
 			} else {
 				break
@@ -950,7 +805,20 @@ func (cs *S3CarStore) CompactUserShards(ctx context.Context, user atp.Uid, skipB
 	return stats, nil
 }
 
-func (cs *S3CarStore) compactBucket(ctx context.Context, user atp.Uid, b *compBucket, shardsById map[uint]*Shard) error {
+// GetCompactionTargets queries DB for the count of CAR shards for each user
+func (cs *S3CarStore) GetCompactionTargets(ctx context.Context, shardCount int) ([]*CompactionTarget, error) {
+	ctx, span := otel.Tracer("carstore").Start(ctx, "GetCompactionTargets")
+	defer span.End()
+
+	return cs.meta.GetCompactionTargets(ctx, shardCount)
+}
+
+func (cs *S3CarStore) compactBucket(
+	ctx context.Context,
+	user atp.Uid,
+	b *compBucket,
+	shardsById map[uint]*Shard,
+) (err error) {
 	ctx, span := otel.Tracer("carstore").Start(ctx, "compactBucket")
 	defer span.End()
 
@@ -962,11 +830,16 @@ func (cs *S3CarStore) compactBucket(ctx context.Context, user atp.Uid, b *compBu
 	if err != nil {
 		return fmt.Errorf("opening new file: %w", err)
 	}
+	defer func() {
+		closeErr := fi.Close()
+		if err == nil {
+			err = closeErr
+		}
+	}()
 
-	defer fi.Close()
 	root := lastsh.Root.CID
 
-	hnw, err := WriteCarHeader(fi, root)
+	hnw, err := writeCarHeader(fi, root)
 	if err != nil {
 		return err
 	}
@@ -1016,10 +889,92 @@ func (cs *S3CarStore) compactBucket(ctx context.Context, user atp.Uid, b *compBu
 		_ = fi.Close()
 
 		if err2 := os.Remove(fi.Name()); err2 != nil {
-			cs.log.ErrorContext(ctx, "failed to remove shard file after failed db transaction", "path", fi.Name(), "err", err2)
+			cs.log.ErrorContext(
+				ctx,
+				"failed to remove shard file after failed db transaction",
+				"path",
+				fi.Name(),
+				"err",
+				err2,
+			)
 		}
 
 		return err
 	}
 	return nil
+}
+
+// shardWriter.writeNewShard called from inside DeltaSession.CloseWithRoot
+type shardWriter interface {
+	// writeNewShard stores blocks in `blks` arg and creates a new shard to propagate out to our firehose
+	writeNewShard(
+		ctx context.Context,
+		root cid.Cid,
+		rev string,
+		user atp.Uid,
+		seq int,
+		blks map[cid.Cid]blocks.Block,
+		rmcids map[cid.Cid]bool,
+	) ([]byte, error)
+}
+
+func (cs *S3CarStore) writeNewShard(
+	ctx context.Context,
+	root cid.Cid,
+	rev string,
+	user atp.Uid,
+	seq int,
+	blks map[cid.Cid]blocks.Block,
+	rmcids map[cid.Cid]bool,
+) ([]byte, error) {
+	buf := new(bytes.Buffer)
+	hnw, err := writeCarHeader(buf, root)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write car header: %w", err)
+	}
+
+	// TODO: writing these blocks in map traversal order is bad, I believe the
+	// optimal ordering will be something like reverse-write-order, but random
+	// is definitely not it
+
+	offset := hnw
+	var brefs []*BlockRef
+	for k, blk := range blks {
+		nw, nerr := LdWrite(buf, k.Bytes(), blk.RawData())
+		if nerr != nil {
+			return nil, fmt.Errorf("failed to write block: %w", nerr)
+		}
+
+		brefs = append(brefs, &BlockRef{
+			Cid:        atp.DbCID{CID: k},
+			ByteOffset: offset,
+			Uid:        user,
+		})
+
+		offset += nw
+	}
+
+	start := time.Now()
+	path, err := cs.client.writeNewShardFile(ctx, user, seq, buf.Bytes())
+	if err != nil {
+		return nil, fmt.Errorf("failed to write shard file: %w", err)
+	}
+	writeShardFileDuration.Observe(time.Since(start).Seconds())
+
+	shard := Shard{
+		Root:      atp.DbCID{CID: root},
+		DataStart: hnw,
+		Seq:       seq,
+		Path:      path,
+		Uid:       user,
+		Rev:       rev,
+	}
+
+	start = time.Now()
+	if err := cs.putShard(ctx, &shard, brefs, false); err != nil {
+		return nil, err
+	}
+	writeShardMetadataDuration.Observe(time.Since(start).Seconds())
+
+	return buf.Bytes(), nil
 }

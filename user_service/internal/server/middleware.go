@@ -8,16 +8,19 @@ import (
 	"time"
 )
 
+// CustomResponseWriter wrapper around 'http.ResponseWriter' to track the status code of the request
 type CustomResponseWriter struct {
 	http.ResponseWriter
 	StatusCode int
 }
 
+// WriteHeader wrapper around 'WriteHeader' method to write the status code
 func (rw *CustomResponseWriter) WriteHeader(code int) {
 	rw.StatusCode = code
 	rw.ResponseWriter.WriteHeader(code)
 }
 
+// Hijack required for websockets
 func (rw *CustomResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	if hijacker, ok := rw.ResponseWriter.(http.Hijacker); ok {
 		return hijacker.Hijack()

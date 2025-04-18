@@ -1,3 +1,4 @@
+//revive:disable:exported
 package indexer
 
 import (
@@ -14,13 +15,12 @@ import (
 	"github.com/bluesky-social/indigo/xrpc"
 	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/jackc/pgx/v5"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"golang.org/x/time/rate"
-
 	"github.com/referendumApp/referendumServices/internal/database"
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
 	"github.com/referendumApp/referendumServices/internal/repo"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"golang.org/x/time/rate"
 )
 
 func NewRepoFetcher(db *database.DB, rm *repo.Manager, maxConcurrency int) *RepoFetcher {
@@ -74,7 +74,13 @@ func (rf *RepoFetcher) SetLimiter(pdsID uint, lim *rate.Limiter) {
 	rf.Limiters[pdsID] = lim
 }
 
-func (rf *RepoFetcher) fetchRepo(ctx context.Context, c *xrpc.Client, pds *atp.PDS, did string, rev string) ([]byte, error) {
+func (rf *RepoFetcher) fetchRepo(
+	ctx context.Context,
+	c *xrpc.Client,
+	pds *atp.PDS,
+	did string,
+	rev string,
+) ([]byte, error) {
 	ctx, span := otel.Tracer("indexer").Start(ctx, "fetchRepo")
 	defer span.End()
 
@@ -116,7 +122,11 @@ func (rf *RepoFetcher) FetchAndIndexRepo(ctx context.Context, job *crawlWork) er
 	pds, err := rf.db.LookupPDSById(ctx, ai.PDS.Int64)
 	if err != nil {
 		catchupEventsFailed.WithLabelValues("nopds").Inc()
-		return fmt.Errorf("expected to find pds record (%d) in db for crawling one of their users: %w", ai.PDS.Int64, err)
+		return fmt.Errorf(
+			"expected to find pds record (%d) in db for crawling one of their users: %w",
+			ai.PDS.Int64,
+			err,
+		)
 	}
 
 	rev, err := rf.repoman.GetRepoRev(ctx, ai.Uid)
@@ -133,7 +143,20 @@ func (rf *RepoFetcher) FetchAndIndexRepo(ctx context.Context, job *crawlWork) er
 			for i, j := range job.catchup {
 				catchupEventsProcessed.Inc()
 				if eventErr := rf.repoman.HandleExternalUserEvent(ctx, pds.ID, ai.Uid, ai.Did, j.evt.Since, j.evt.Rev, j.evt.Blocks, j.evt.Ops); eventErr != nil {
-					rf.log.ErrorContext(ctx, "buffered event catchup failed", "error", eventErr, "did", ai.Did, "i", i, "jobCount", len(job.catchup), "seq", j.evt.Seq)
+					rf.log.ErrorContext(
+						ctx,
+						"buffered event catchup failed",
+						"error",
+						eventErr,
+						"did",
+						ai.Did,
+						"i",
+						i,
+						"jobCount",
+						len(job.catchup),
+						"seq",
+						j.evt.Seq,
+					)
 					resync = true // fall back to a repo sync
 					break
 				}

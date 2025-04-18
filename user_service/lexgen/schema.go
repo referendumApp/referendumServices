@@ -1,3 +1,4 @@
+//revive:disable:exported
 package lexgen
 
 import (
@@ -24,20 +25,25 @@ type Schema struct {
 	Defs    map[string]*TypeSchema `json:"defs"`
 }
 
-func ReadSchema(f string) (*Schema, error) {
-	fi, err := os.Open(f)
+func ReadSchema(f string) (s *Schema, err error) {
+	fi, err := os.Open(f) //nolint:gosec
 	if err != nil {
 		return nil, err
 	}
-	defer fi.Close()
+	defer func() {
+		closeErr := fi.Close()
+		if err == nil {
+			err = closeErr
+		}
+	}()
 
-	var s Schema
+	s = &Schema{}
 	if err := json.NewDecoder(fi).Decode(&s); err != nil {
 		return nil, err
 	}
 	s.path = f
 
-	return &s, nil
+	return s, nil
 }
 
 func (s *Schema) Name() string {

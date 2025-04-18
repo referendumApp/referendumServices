@@ -15,21 +15,20 @@ import (
 	lexutil "github.com/bluesky-social/indigo/lex/util"
 	"github.com/bluesky-social/indigo/mst"
 	"github.com/bluesky-social/indigo/util"
-
 	blockstore "github.com/ipfs/boxo/blockstore"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
 	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipld/go-car"
+	cs "github.com/referendumApp/referendumServices/internal/car"
+	"github.com/referendumApp/referendumServices/internal/domain/atp"
 	cbg "github.com/whyrusleeping/cbor-gen"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-
-	cs "github.com/referendumApp/referendumServices/internal/car"
-	"github.com/referendumApp/referendumServices/internal/domain/atp"
 )
 
+// NewRepoManager initializes 'Manager' struct
 func NewRepoManager(cs cs.Store, kmgr KeyManager) *Manager {
 	return &Manager{
 		cs:        cs,
@@ -39,16 +38,19 @@ func NewRepoManager(cs cs.Store, kmgr KeyManager) *Manager {
 	}
 }
 
+// KeyManager method signatures for handling the signing key
 type KeyManager interface {
 	VerifyUserSignature(context.Context, string, []byte, []byte) error
 	SignForUser(context.Context, string, []byte) ([]byte, error)
 }
 
+// SetEventHandler sets the event callback function
 func (rm *Manager) SetEventHandler(cb func(context.Context, *Event), hydrateRecords bool) {
 	rm.events = cb
 	rm.hydrateRecords = hydrateRecords
 }
 
+// Manager contains all the dependencies for managing CRUD repo operations
 type Manager struct {
 	cs   cs.Store
 	kmgr KeyManager
@@ -62,13 +64,7 @@ type Manager struct {
 	log *slog.Logger
 }
 
-type ActorInfo struct {
-	Did         string
-	Handle      string
-	DisplayName string
-	Type        string
-}
-
+// Event schema for handling and broadcasting events
 type Event struct {
 	User      atp.Uid
 	OldRoot   *cid.Cid
@@ -80,17 +76,19 @@ type Event struct {
 	Ops       []Op
 }
 
+// Op schema containing the data and metadata for event consumers
 type Op struct {
 	Kind       EventKind
 	Collection string
 	Rkey       string
 	RecCid     *cid.Cid
 	Record     any
-	ActorInfo  *ActorInfo
 }
 
+// EventKind type alias for enumerating event types
 type EventKind string
 
+// Event types
 const (
 	EvtKindCreateRecord = EventKind("create")
 	EvtKindUpdateRecord = EventKind("update")
@@ -133,11 +131,19 @@ func (rm *Manager) lockUser(ctx context.Context, user atp.Uid) func() {
 	}
 }
 
+// CarStore returns CAR store instance
 func (rm *Manager) CarStore() cs.Store {
 	return rm.cs
 }
 
-func (rm *Manager) CreateRecord(ctx context.Context, user atp.Uid, nsid string, key string, rec cbg.CBORMarshaler) (cid.Cid, string, error) {
+// CreateRecord creates a repo record and broadcasts the event
+func (rm *Manager) CreateRecord(
+	ctx context.Context,
+	user atp.Uid,
+	nsid string,
+	key string,
+	rec cbg.CBORMarshaler,
+) (cid.Cid, string, error) {
 	ctx, span := otel.Tracer("repoman").Start(ctx, "CreateRecord")
 	defer span.End()
 
@@ -202,7 +208,14 @@ func (rm *Manager) CreateRecord(ctx context.Context, user atp.Uid, nsid string, 
 	return cc, key, nil
 }
 
-func (rm *Manager) UpdateRecord(ctx context.Context, user atp.Uid, nsid string, key string, rec cbg.CBORMarshaler) (cid.Cid, error) {
+// UpdateRecord updates a repo record and broadcasts the event
+func (rm *Manager) UpdateRecord(
+	ctx context.Context,
+	user atp.Uid,
+	nsid string,
+	key string,
+	rec cbg.CBORMarshaler,
+) (cid.Cid, error) {
 	ctx, span := otel.Tracer("repoman").Start(ctx, "UpdateRecord")
 	defer span.End()
 
@@ -271,6 +284,7 @@ func (rm *Manager) UpdateRecord(ctx context.Context, user atp.Uid, nsid string, 
 	return cc, nil
 }
 
+// DeleteRecord deletes a repo record and broadcasts the event
 func (rm *Manager) DeleteRecord(ctx context.Context, user atp.Uid, nsid string, key string) error {
 	ctx, span := otel.Tracer("repoman").Start(ctx, "DeleteRecord")
 	defer span.End()
@@ -332,7 +346,15 @@ func (rm *Manager) DeleteRecord(ctx context.Context, user atp.Uid, nsid string, 
 	return nil
 }
 
-func (rm *Manager) InitNewRepo(ctx context.Context, user atp.Uid, did string, nsid string, key string, prof cbg.CBORMarshaler) error {
+// InitNewRepo initializes a new repository, writes the first record, and broadcasts the event
+func (rm *Manager) InitNewRepo(
+	ctx context.Context,
+	user atp.Uid,
+	did string,
+	nsid string,
+	key string,
+	prof cbg.CBORMarshaler,
+) error {
 	unlock := rm.lockUser(ctx, user)
 	defer unlock()
 
@@ -388,6 +410,7 @@ func (rm *Manager) InitNewRepo(ctx context.Context, user atp.Uid, did string, ns
 	return nil
 }
 
+// GetRepoRoot gets the root CID for a repo
 func (rm *Manager) GetRepoRoot(ctx context.Context, user atp.Uid) (cid.Cid, error) {
 	unlock := rm.lockUser(ctx, user)
 	defer unlock()
@@ -395,6 +418,7 @@ func (rm *Manager) GetRepoRoot(ctx context.Context, user atp.Uid) (cid.Cid, erro
 	return rm.cs.GetUserRepoHead(ctx, user)
 }
 
+// GetRepoRev gets the root revision for a repo
 func (rm *Manager) GetRepoRev(ctx context.Context, user atp.Uid) (string, error) {
 	unlock := rm.lockUser(ctx, user)
 	defer unlock()
@@ -402,11 +426,21 @@ func (rm *Manager) GetRepoRev(ctx context.Context, user atp.Uid) (string, error)
 	return rm.cs.GetUserRepoRev(ctx, user)
 }
 
+// ReadRepo reads a CAR file for a given revision
+// TODO: might be worth having a type alias for revisions
 func (rm *Manager) ReadRepo(ctx context.Context, user atp.Uid, since string, w io.Writer) error {
-	return rm.cs.ReadUserCar(ctx, user, since, true, w)
+	return rm.cs.ReadUserCar(ctx, user, since, w)
 }
 
-func (rm *Manager) GetRecord(ctx context.Context, user atp.Uid, nsid string, key string, rec cbg.CBORMarshaler, maybeCid cid.Cid) (cid.Cid, error) {
+// GetRecord reads a record into the 'rev' interface
+func (rm *Manager) GetRecord(
+	ctx context.Context,
+	user atp.Uid,
+	nsid string,
+	key string,
+	rec cbg.CBORMarshaler,
+	maybeCid cid.Cid,
+) (cid.Cid, error) {
 	bs, err := rm.cs.ReadOnlySession(user)
 	if err != nil {
 		return cid.Undef, err
@@ -434,7 +468,13 @@ func (rm *Manager) GetRecord(ctx context.Context, user atp.Uid, nsid string, key
 	return ocid, nil
 }
 
-func (rm *Manager) GetRecordProof(ctx context.Context, user atp.Uid, collection string, rkey string) (cid.Cid, []blocks.Block, error) {
+// GetRecordProof gets all the blocks for a repo
+func (rm *Manager) GetRecordProof(
+	ctx context.Context,
+	user atp.Uid,
+	collection string,
+	rkey string,
+) (cid.Cid, []blocks.Block, error) {
 	robs, err := rm.cs.ReadOnlySession(user)
 	if err != nil {
 		return cid.Undef, nil, err
@@ -460,6 +500,7 @@ func (rm *Manager) GetRecordProof(ctx context.Context, user atp.Uid, collection 
 	return head, bs.GetLoggedBlocks(), nil
 }
 
+// CheckRepoSig validates a repo instance against a DID and verifies the commits signature
 func (rm *Manager) CheckRepoSig(ctx context.Context, r *Repo, expdid string) error {
 	ctx, span := otel.Tracer("repoman").Start(ctx, "CheckRepoSig")
 	defer span.End()
@@ -483,7 +524,17 @@ func (rm *Manager) CheckRepoSig(ctx context.Context, r *Repo, expdid string) err
 	return nil
 }
 
-func (rm *Manager) HandleExternalUserEvent(ctx context.Context, pdsid uint, uid atp.Uid, did string, since *string, nrev string, carslice []byte, ops []*atproto.SyncSubscribeRepos_RepoOp) error {
+// HandleExternalUserEvent event handler for users that do not exist in the current PDS
+func (rm *Manager) HandleExternalUserEvent(
+	ctx context.Context,
+	pdsid uint,
+	uid atp.Uid,
+	did string,
+	since *string,
+	nrev string,
+	carslice []byte,
+	ops []*atproto.SyncSubscribeRepos_RepoOp,
+) error {
 	ctx, span := otel.Tracer("repoman").Start(ctx, "HandleExternalUserEvent")
 	defer span.End()
 
@@ -594,7 +645,12 @@ func (rm *Manager) HandleExternalUserEvent(ctx context.Context, pdsid uint, uid 
 	return nil
 }
 
-func (rm *Manager) BatchWrite(ctx context.Context, user atp.Uid, writes []*atproto.RepoApplyWrites_Input_Writes_Elem) error {
+// BatchWrite writes a slice of operations as a single commit
+func (rm *Manager) BatchWrite(
+	ctx context.Context,
+	user atp.Uid,
+	writes []*atproto.RepoApplyWrites_Input_Writes_Elem,
+) error {
 	ctx, span := otel.Tracer("repoman").Start(ctx, "BatchWrite")
 	defer span.End()
 
@@ -630,7 +686,7 @@ func (rm *Manager) BatchWrite(ctx context.Context, user atp.Uid, writes []*atpro
 			}
 
 			nsid := c.Collection + "/" + rkey
-			cc, perr := r.PutRecord(ctx, nsid, c.Value.Val)
+			cc, perr := r.CreateRecord(ctx, nsid, c.Value.Val)
 			if perr != nil {
 				return perr
 			}
@@ -650,7 +706,7 @@ func (rm *Manager) BatchWrite(ctx context.Context, user atp.Uid, writes []*atpro
 		case w.RepoApplyWrites_Update != nil:
 			u := w.RepoApplyWrites_Update
 
-			cc, perr := r.PutRecord(ctx, u.Collection+"/"+u.Rkey, u.Value.Val)
+			cc, perr := r.UpdateRecord(ctx, u.Collection+"/"+u.Rkey, u.Value.Val)
 			if perr != nil {
 				return perr
 			}
@@ -714,6 +770,7 @@ func (rm *Manager) BatchWrite(ctx context.Context, user atp.Uid, writes []*atpro
 	return nil
 }
 
+// ImportNewRepo initializes a new repo from an external source
 func (rm *Manager) ImportNewRepo(ctx context.Context, user atp.Uid, repoDid string, r io.Reader, rev *string) error {
 	ctx, span := otel.Tracer("repoman").Start(ctx, "ImportNewRepo")
 	defer span.End()
@@ -745,60 +802,75 @@ func (rm *Manager) ImportNewRepo(ctx context.Context, user atp.Uid, repoDid stri
 		return fmt.Errorf("ImportNewRepo called with incorrect base")
 	}
 
-	err = rm.processNewRepo(ctx, user, r, rev, func(ctx context.Context, root cid.Cid, finish func(context.Context, string) ([]byte, error), bs blockstore.Blockstore) error {
-		r, oerr := OpenRepo(ctx, bs, root)
-		if oerr != nil {
-			return fmt.Errorf("opening new repo: %w", oerr)
-		}
-
-		scom := r.SignedCommit()
-
-		usc := scom.Unsigned()
-		sb, berr := usc.BytesForSigning()
-		if berr != nil {
-			return fmt.Errorf("commit serialization failed: %w", berr)
-		}
-		if verr := rm.kmgr.VerifyUserSignature(ctx, repoDid, scom.Sig, sb); verr != nil {
-			return fmt.Errorf("new user signature check failed: %w", verr)
-		}
-
-		diffops, derr := r.DiffSince(ctx, curhead)
-		if derr != nil {
-			return fmt.Errorf("diff trees (curhead: %s): %w", curhead, derr)
-		}
-
-		ops := make([]Op, 0, len(diffops))
-		for _, op := range diffops {
-			repoOpsImported.Inc()
-			out, perr := rm.processOp(ctx, bs, op, rm.hydrateRecords)
-			if perr != nil {
-				rm.log.ErrorContext(ctx, "failed to process repo op", "err", perr, "path", op.Rpath, "repo", repoDid)
+	err = rm.processNewRepo(
+		ctx,
+		user,
+		r,
+		rev,
+		func(ctx context.Context, root cid.Cid, finish func(context.Context, string) ([]byte, error), bs blockstore.Blockstore) error {
+			r, oerr := OpenRepo(ctx, bs, root)
+			if oerr != nil {
+				return fmt.Errorf("opening new repo: %w", oerr)
 			}
 
-			if out != nil {
-				ops = append(ops, *out)
+			scom := r.SignedCommit()
+
+			usc := scom.Unsigned()
+			sb, berr := usc.BytesForSigning()
+			if berr != nil {
+				return fmt.Errorf("commit serialization failed: %w", berr)
 			}
-		}
+			if verr := rm.kmgr.VerifyUserSignature(ctx, repoDid, scom.Sig, sb); verr != nil {
+				return fmt.Errorf("new user signature check failed: %w", verr)
+			}
 
-		slice, ferr := finish(ctx, scom.Rev)
-		if ferr != nil {
-			return ferr
-		}
+			diffops, derr := r.DiffSince(ctx, curhead)
+			if derr != nil {
+				return fmt.Errorf("diff trees (curhead: %s): %w", curhead, derr)
+			}
 
-		if rm.events != nil {
-			rm.events(ctx, &Event{
-				User: user,
-				//OldRoot:   oldroot,
-				NewRoot:   root,
-				Rev:       scom.Rev,
-				Since:     &currev,
-				RepoSlice: slice,
-				Ops:       ops,
-			})
-		}
+			ops := make([]Op, 0, len(diffops))
+			for _, op := range diffops {
+				repoOpsImported.Inc()
+				out, perr := rm.processOp(ctx, bs, op, rm.hydrateRecords)
+				if perr != nil {
+					rm.log.ErrorContext(
+						ctx,
+						"failed to process repo op",
+						"err",
+						perr,
+						"path",
+						op.Rpath,
+						"repo",
+						repoDid,
+					)
+				}
 
-		return nil
-	})
+				if out != nil {
+					ops = append(ops, *out)
+				}
+			}
+
+			slice, ferr := finish(ctx, scom.Rev)
+			if ferr != nil {
+				return ferr
+			}
+
+			if rm.events != nil {
+				rm.events(ctx, &Event{
+					User: user,
+					//OldRoot:   oldroot,
+					NewRoot:   root,
+					Rev:       scom.Rev,
+					Since:     &currev,
+					RepoSlice: slice,
+					Ops:       ops,
+				})
+			}
+
+			return nil
+		},
+	)
 	if err != nil {
 		return fmt.Errorf("process new repo (current rev: %s): %w", currev, err)
 	}
@@ -806,7 +878,12 @@ func (rm *Manager) ImportNewRepo(ctx context.Context, user atp.Uid, repoDid stri
 	return nil
 }
 
-func (rm *Manager) processOp(ctx context.Context, bs blockstore.Blockstore, op *mst.DiffOp, hydrateRecords bool) (*Op, error) {
+func (rm *Manager) processOp(
+	ctx context.Context,
+	bs blockstore.Blockstore,
+	op *mst.DiffOp,
+	hydrateRecords bool,
+) (*Op, error) {
 	parts := strings.SplitN(op.Rpath, "/", 2)
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("repo mst had invalid rpath: %q", op.Rpath)
@@ -861,7 +938,13 @@ func (rm *Manager) processOp(ctx context.Context, bs blockstore.Blockstore, op *
 	}
 }
 
-func (rm *Manager) processNewRepo(ctx context.Context, user atp.Uid, r io.Reader, rev *string, cb func(ctx context.Context, root cid.Cid, finish func(context.Context, string) ([]byte, error), bs blockstore.Blockstore) error) error {
+func (rm *Manager) processNewRepo(
+	ctx context.Context,
+	user atp.Uid,
+	r io.Reader,
+	rev *string,
+	cb func(ctx context.Context, root cid.Cid, finish func(context.Context, string) ([]byte, error), bs blockstore.Blockstore) error,
+) error {
 	ctx, span := otel.Tracer("repoman").Start(ctx, "processNewRepo")
 	defer span.End()
 
@@ -938,7 +1021,13 @@ func stringOrNil(s *string) string {
 
 // walkTree returns all cids linked recursively by the root, skipping any cids
 // in the 'skip' map, and not erroring on 'not found' if prevMissing is set
-func (rm *Manager) walkTree(ctx context.Context, skip map[cid.Cid]bool, root cid.Cid, bs blockstore.Blockstore, prevMissing bool) ([]cid.Cid, error) {
+func (rm *Manager) walkTree(
+	ctx context.Context,
+	skip map[cid.Cid]bool,
+	root cid.Cid,
+	bs blockstore.Blockstore,
+	prevMissing bool,
+) ([]cid.Cid, error) {
 	// TODO: what if someone puts non-cbor links in their repo?
 	if root.Prefix().Codec != cid.DagCBOR {
 		return nil, fmt.Errorf("can only handle dag-cbor objects in repos (%s is %d)", root, root.Prefix().Codec)
@@ -983,6 +1072,7 @@ func (rm *Manager) walkTree(ctx context.Context, skip map[cid.Cid]bool, root cid
 	return out, nil
 }
 
+// TakeDownRepo deletes all CAR files and blocks
 func (rm *Manager) TakeDownRepo(ctx context.Context, uid atp.Uid) error {
 	unlock := rm.lockUser(ctx, uid)
 	defer unlock()
@@ -990,7 +1080,7 @@ func (rm *Manager) TakeDownRepo(ctx context.Context, uid atp.Uid) error {
 	return rm.cs.WipeUserData(ctx, uid)
 }
 
-// technically identical to TakeDownRepo, for now
+// ResetRepo technically identical to TakeDownRepo, for now
 func (rm *Manager) ResetRepo(ctx context.Context, uid atp.Uid) error {
 	unlock := rm.lockUser(ctx, uid)
 	defer unlock()
@@ -998,6 +1088,7 @@ func (rm *Manager) ResetRepo(ctx context.Context, uid atp.Uid) error {
 	return rm.cs.WipeUserData(ctx, uid)
 }
 
+// VerifyRepo checks that all records in the repository are readable
 func (rm *Manager) VerifyRepo(ctx context.Context, uid atp.Uid) error {
 	ses, err := rm.cs.ReadOnlySession(uid)
 	if err != nil {

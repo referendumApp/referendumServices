@@ -16,10 +16,9 @@ import (
 	carutil "github.com/ipld/go-car/util"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/referendumApp/referendumServices/internal/domain/atp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-
-	"github.com/referendumApp/referendumServices/internal/domain/atp"
 )
 
 var blockGetTotalCounter = promauto.NewCounterVec(prometheus.CounterOpts{
@@ -40,7 +39,7 @@ type userViewSource interface {
 
 // wrapper into a block store that keeps track of which user we are working on behalf of
 type userView struct {
-	client *S3Client
+	client *s3Client
 	cs     userViewSource
 	user   atp.Uid
 
@@ -50,10 +49,10 @@ type userView struct {
 
 var _ blockstore.Blockstore = (*userView)(nil)
 
-func (uv *userView) HashOnRead(hor bool) {
-	// noop
-}
+// HashOnRead noop
+func (uv *userView) HashOnRead(hor bool) {}
 
+// Has checks cache and DB for a CID
 func (uv *userView) Has(ctx context.Context, k cid.Cid) (bool, error) {
 	_, have := uv.cache[k]
 	if have {
@@ -62,9 +61,13 @@ func (uv *userView) Has(ctx context.Context, k cid.Cid) (bool, error) {
 	return uv.cs.HasUidCid(ctx, uv.user, k)
 }
 
+// CacheHits counter for user view cache hits
 var CacheHits int64
+
+// CacheMiss counter for user view cache misses
 var CacheMiss int64
 
+// Get the blocks for a given CID
 func (uv *userView) Get(ctx context.Context, k cid.Cid) (blocks.Block, error) {
 	if !k.Defined() {
 		return nil, fmt.Errorf("attempted to 'get' undefined cid")
@@ -143,7 +146,12 @@ func offsetBytes(r io.ReadCloser, offset int64) error {
 
 const prefetchThreshold = 512 << 10
 
-func (uv *userView) prefetchRead(ctx context.Context, k cid.Cid, path string, offset int64) (blocks.Block, error) {
+func (uv *userView) prefetchRead(
+	ctx context.Context,
+	k cid.Cid,
+	path string,
+	offset int64,
+) (outblk blocks.Block, err error) {
 	_, span := otel.Tracer("carstore").Start(ctx, "getLastShard")
 	defer span.End()
 
@@ -151,7 +159,12 @@ func (uv *userView) prefetchRead(ctx context.Context, k cid.Cid, path string, of
 	if err != nil {
 		return nil, err
 	}
-	defer obj.Body.Close()
+	defer func() {
+		closeErr := obj.Body.Close()
+		if err == nil {
+			err = closeErr
+		}
+	}()
 	size := *obj.ContentLength
 
 	span.SetAttributes(attribute.Int64("shard_size", size))
@@ -189,35 +202,47 @@ func (uv *userView) prefetchRead(ctx context.Context, k cid.Cid, path string, of
 	return outblk, nil
 }
 
-func (uv *userView) singleRead(ctx context.Context, k cid.Cid, path string, offset int64) (blocks.Block, error) {
+func (uv *userView) singleRead(
+	ctx context.Context,
+	k cid.Cid,
+	path string,
+	offset int64,
+) (blk blocks.Block, err error) {
 	obj, err := uv.client.readFile(ctx, path, &offset)
-	// fi, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
-	defer obj.Body.Close()
-
-	// defer fi.Close()
+	defer func() {
+		closeErr := obj.Body.Close()
+		if err == nil {
+			err = closeErr
+		}
+	}()
 
 	return doBlockRead(obj.Body, k)
 }
 
+// AllKeysChan not implemented
 func (uv *userView) AllKeysChan(ctx context.Context) (<-chan cid.Cid, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
+// Put userView is readonly
 func (uv *userView) Put(ctx context.Context, blk blocks.Block) error {
 	return fmt.Errorf("puts not supported to car view blockstores")
 }
 
+// PutMany userView is readonly
 func (uv *userView) PutMany(ctx context.Context, blks []blocks.Block) error {
 	return fmt.Errorf("puts not supported to car view blockstores")
 }
 
+// DeleteBlock userView is readonly
 func (uv *userView) DeleteBlock(ctx context.Context, k cid.Cid) error {
 	return fmt.Errorf("deletes not supported to car view blockstore")
 }
 
+// GetSize returns block size
 func (uv *userView) GetSize(ctx context.Context, k cid.Cid) (int, error) {
 	// TODO: maybe block size should be in the database record...
 	blk, err := uv.Get(ctx, k)
