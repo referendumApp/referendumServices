@@ -100,7 +100,7 @@ func (vm *ViewMeta) userExists(ctx context.Context, filter sq.Eq) (bool, error) 
 
 	sql := fmt.Sprintf("SELECT EXISTS(%s)", innerSql)
 
-	err = vm.GetRow(ctx, sql, args...).Scan(&exists)
+	err = vm.DB.GetRow(ctx, sql, args...).Scan(&exists)
 	return exists, err
 }
 

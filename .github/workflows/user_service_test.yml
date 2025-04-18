@@ -25,7 +25,7 @@ jobs:
           cache-dependency-path: user_service/go.sum
 
     - name: golangci-lint
-      uses: golangci/golangci-lint-action@v7
+      uses: golangci/golangci-lint-action@v6
       with:
         working-directory: user_service
 
