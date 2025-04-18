@@ -11,7 +11,6 @@ import (
 
 var ErrNoFields = errors.New("no fields found")
 
-// TableEntity couples structs with a DB table
 type TableEntity interface {
 	TableName() string
 }

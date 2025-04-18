@@ -8,7 +8,6 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// ErrNoRowsAffected error for mutations that impact no records
 var ErrNoRowsAffected = errors.New("no rows affected")
 
 // WithTransaction executes any function within a db transaction

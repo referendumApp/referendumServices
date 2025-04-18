@@ -12,7 +12,6 @@ import (
 	"github.com/referendumApp/referendumServices/internal/env"
 )
 
-// DB contains connection pool, logger, and schema
 type DB struct {
 	pool   *pgxpool.Pool
 	Log    *slog.Logger
@@ -77,14 +76,12 @@ func (db *DB) WithSchema(schema string) *DB {
 	}
 }
 
-// Close shutdowns a DBs connection pool
 func (db *DB) Close() {
 	if db.pool != nil {
 		db.pool.Close()
 	}
 }
 
-// Ping checks DB connection
 func (d *DB) Ping(ctx context.Context) error {
 	return d.pool.Ping(ctx)
 }

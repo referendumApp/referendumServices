@@ -13,7 +13,6 @@ import (
 	"github.com/referendumApp/referendumServices/internal/util"
 )
 
-// ErrUnauthorized return when context keys dont exist
 var ErrUnauthorized = errors.New("unauthorized user request")
 
 func (s *Server) getAndValidatePerson(ctx context.Context) (atp.Uid, string, *refErr.APIError) {
