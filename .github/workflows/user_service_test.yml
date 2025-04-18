@@ -27,7 +27,9 @@ jobs:
       - name: Build database package
         run: |
           cd user_service
-          go build -v ./internal/domain/atp && go build -v ./internal/env && go build -v ./internal/database
+          go build -v ./internal/domain/atp || { echo "Failed to build ATP package"; exit 1; }
+          go build -v ./internal/env || { echo "Failed to build env package"; exit 1; }
+          go build -v ./internal/database || { echo "Failed to build database package"; exit 1; }
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v7
