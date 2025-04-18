@@ -7,10 +7,10 @@ import (
 	"unicode"
 
 	"github.com/go-playground/validator/v10"
-
 	refErr "github.com/referendumApp/referendumServices/internal/error"
 )
 
+// Validate new instance of a go-playground validator
 var Validate *validator.Validate
 
 func init() {
@@ -38,12 +38,14 @@ func init() {
 	}
 }
 
+// ValidateHandle checks that the handle has the correct prefix
 func ValidateHandle(fl validator.FieldLevel) bool {
 	handle := fl.Field().String()
 
 	return strings.HasPrefix(handle, "at://")
 }
 
+// ValidateUsername applies validation based on either the handle or email
 func ValidateUsername(fl validator.FieldLevel) bool {
 	if ValidateHandle(fl) {
 		return true
@@ -56,12 +58,14 @@ func ValidateUsername(fl validator.FieldLevel) bool {
 	return err == nil
 }
 
+// ValidateDID checks for the appropriate prefix
 func ValidateDID(fl validator.FieldLevel) bool {
 	did := fl.Field().String()
 
 	return strings.HasPrefix(did, "did:plc")
 }
 
+// ValidateStrongPassword checks for the password requirements
 func ValidateStrongPassword(fl validator.FieldLevel) bool {
 	password := fl.Field().String()
 
@@ -73,11 +77,12 @@ func ValidateStrongPassword(fl validator.FieldLevel) bool {
 	hasLower := false
 
 	for _, char := range password {
-		if unicode.IsDigit(char) {
+		switch {
+		case unicode.IsDigit(char):
 			hasDigit = true
-		} else if unicode.IsUpper(char) {
+		case unicode.IsUpper(char):
 			hasUpper = true
-		} else if unicode.IsLower(char) {
+		case unicode.IsLower(char):
 			hasLower = true
 		}
 	}
@@ -95,6 +100,7 @@ func ValidateStrongPassword(fl validator.FieldLevel) bool {
 	return hasDigit && hasUpper && hasLower && hasSymbol
 }
 
+// HandleFieldError initializes 'APIError' struct with the msg and type based on the validation error
 func HandleFieldError(e validator.FieldError) *refErr.APIError {
 	var errMsg string
 	var errType refErr.ValidationErrorType

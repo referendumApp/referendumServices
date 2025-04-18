@@ -1,9 +1,9 @@
 // Contains all environment variables required for initializing the service
 
-package config
+package env
 
 import (
-	"log/slog"
+	"log"
 	"os"
 	"strconv"
 	"time"
@@ -12,7 +12,7 @@ import (
 func getEnvOrFail(key string) string {
 	val := os.Getenv(key)
 	if val == "" {
-		slog.Warn("Missing required environment variable", "key", key)
+		log.Fatalf("Missing required environment variable: %s", key)
 	}
 
 	return val
@@ -23,13 +23,13 @@ func getIntEnv(key string) int {
 
 	valInt, err := strconv.Atoi(val)
 	if err != nil {
-		slog.Error("Failed to convert environment variable to int", "key", key, "error", err)
-		os.Exit(1)
+		log.Fatalf("Failed to convert %s environment variable to int: %v", key, err)
 	}
 
 	return valInt
 }
 
+// Config contains all required environment variables
 type Config struct {
 	PgUser       string
 	PgPassword   string
@@ -50,8 +50,9 @@ type Config struct {
 	MinConns     int32 // Minimum number of connections in the pool
 }
 
+// LoadConfigFromEnv initializes 'Config' struct
 func LoadConfigFromEnv() *Config {
-	slog.Info("Loading runtime env vars")
+	log.Println("Loading runtime env vars")
 
 	config := Config{
 		// Database
@@ -84,7 +85,7 @@ func LoadConfigFromEnv() *Config {
 		PLCHost: getEnvOrFail("PLC_HOST"),
 	}
 
-	slog.Info("Successfully loaded env vars!")
+	log.Println("Successfully loaded env vars!")
 
 	return &config
 }

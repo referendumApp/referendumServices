@@ -1,3 +1,4 @@
+//revive:disable:exported
 package atp
 
 import (
@@ -14,20 +15,20 @@ type Base struct {
 	CreatedAt time.Time    `db:"created_at,omitempty" json:"-"`
 	UpdatedAt time.Time    `db:"updated_at,omitempty" json:"-"`
 	DeletedAt sql.NullTime `db:"deleted_at,omitempty" json:"-"`
-	ID        uint         `db:"id,omitempty,pk" json:"id"`
+	ID        uint         `db:"id,omitempty,pk"      json:"id"`
 }
 
 type User struct {
-	Email          sql.NullString `db:"email,omitempty" json:"email"`
+	Email          sql.NullString `db:"email,omitempty"           json:"email"`
 	HashedPassword sql.NullString `db:"hashed_password,omitempty" json:"-"`
-	Handle         sql.NullString `db:"handle,omitempty" json:"-"`
-	RecoveryKey    string         `db:"recovery_key,omitempty" json:"-"`
-	Did            string         `db:"did,omitempty" json:"did"`
-	CreatedAt      time.Time      `db:"created_at,omitempty" json:"-"`
-	UpdatedAt      time.Time      `db:"updated_at,omitempty" json:"-"`
-	DeletedAt      sql.NullTime   `db:"deleted_at,omitempty" json:"-"`
-	ID             Uid            `db:"id,omitempty,pk" json:"id"`
-	PDS            sql.NullInt64  `db:"pds_id,omitempty" json:"-"`
+	Handle         sql.NullString `db:"handle,omitempty"          json:"-"`
+	RecoveryKey    string         `db:"recovery_key,omitempty"    json:"-"`
+	Did            string         `db:"did,omitempty"             json:"did"`
+	CreatedAt      time.Time      `db:"created_at,omitempty"      json:"-"`
+	UpdatedAt      time.Time      `db:"updated_at,omitempty"      json:"-"`
+	DeletedAt      sql.NullTime   `db:"deleted_at,omitempty"      json:"-"`
+	ID             Uid            `db:"id,omitempty,pk"           json:"id"`
+	PDS            sql.NullInt64  `db:"pds_id,omitempty"          json:"-"`
 }
 
 func (u User) TableName() string {
@@ -46,15 +47,15 @@ func (p Peering) TableName() string {
 }
 
 type ActivityPost struct {
-	Rkey string `db:"rkey" json:"-"`
-	Cid  DbCID  `db:"cid" json:"-"`
+	Rkey string `db:"rkey"         json:"-"`
+	Cid  DbCID  `db:"cid"          json:"-"`
 	Base
-	Author       Uid   `db:"author" json:"author"`
+	Author       Uid   `db:"author"       json:"author"`
 	Endorsements int64 `db:"endorsements" json:"endorsements"`
-	ReplyCount   int64 `db:"reply_count" json:"reply_count"`
-	ReplyTo      uint  `db:"reply_to" json:"reply_to"`
-	Missing      bool  `db:"missing" json:"missing"`
-	Deleted      bool  `db:"deleted" json:"deleted"`
+	ReplyCount   int64 `db:"reply_count"  json:"reply_count"`
+	ReplyTo      uint  `db:"reply_to"     json:"reply_to"`
+	Missing      bool  `db:"missing"      json:"missing"`
+	Deleted      bool  `db:"deleted"      json:"deleted"`
 }
 
 func (f ActivityPost) TableName() string {
@@ -65,7 +66,7 @@ type Settings struct {
 	Deleted bool `db:"deleted" json:"deleted"`
 }
 
-func (u Settings) Marshal() ([]byte, error) {
+func (u *Settings) Marshal() ([]byte, error) {
 	return json.Marshal(u)
 }
 
@@ -74,17 +75,17 @@ func (u *Settings) Unmarshal(data []byte) error {
 }
 
 type Person struct {
-	Settings    *Settings      `db:"settings,omitempty" json:"settings"`
-	Handle      sql.NullString `db:"handle,omitempty" json:"handle"`
+	Settings    *Settings      `db:"settings,omitempty"     json:"settings"`
+	Handle      sql.NullString `db:"handle,omitempty"       json:"handle"`
 	DisplayName string         `db:"display_name,omitempty" json:"display_name"`
-	Did         string         `db:"did,omitempty" json:"did"`
-	Type        sql.NullString `db:"type,omitempty" json:"type"`
+	Did         string         `db:"did,omitempty"          json:"did"`
+	Type        sql.NullString `db:"type,omitempty"         json:"type"`
 	Base
-	Uid         Uid           `db:"uid,omitempty" json:"-"`
-	Following   int64         `db:"following,omitempty" json:"following"`
-	Followers   int64         `db:"followers,omitempty" json:"followers"`
-	Posts       int64         `db:"posts,omitempty" json:"posts"`
-	PDS         sql.NullInt64 `db:"pds_id,omitempty" json:"-"`
+	Uid         Uid           `db:"uid,omitempty"          json:"-"`
+	Following   int64         `db:"following,omitempty"    json:"following"`
+	Followers   int64         `db:"followers,omitempty"    json:"followers"`
+	Posts       int64         `db:"posts,omitempty"        json:"posts"`
+	PDS         sql.NullInt64 `db:"pds_id,omitempty"       json:"-"`
 	ValidHandle bool          `db:"valid_handle,omitempty" json:"valid_handle"`
 }
 
@@ -93,10 +94,10 @@ func (a Person) TableName() string {
 }
 
 type PersonBasic struct {
-	Handle      *string `db:"handle,omitempty" json:"handle"`
+	Handle      *string `db:"handle,omitempty"       json:"handle"`
 	DisplayName string  `db:"display_name,omitempty" json:"display_name"`
-	Did         string  `db:"did,omitempty" json:"did"`
-	Type        *string `db:"type,omitempty" json:"type"`
+	Did         string  `db:"did,omitempty"          json:"did"`
+	Type        *string `db:"type,omitempty"         json:"type"`
 }
 
 func (a PersonBasic) TableName() string {
@@ -104,12 +105,12 @@ func (a PersonBasic) TableName() string {
 }
 
 type EndorsementRecord struct {
-	Created  string `db:"created" json:"-"`
-	Rkey     string `db:"rkey" json:"-"`
-	Cid      DbCID  `db:"cid" json:"-"`
-	Endorser Uid    `db:"endorser" json:"endorser"`
+	Created  string `db:"created"         json:"-"`
+	Rkey     string `db:"rkey"            json:"-"`
+	Cid      DbCID  `db:"cid"             json:"-"`
+	Endorser Uid    `db:"endorser"        json:"endorser"`
 	ID       uint   `db:"id,omitempty,pk" json:"id"`
-	Post     uint   `db:"post_id" json:"post"`
+	Post     uint   `db:"post_id"         json:"post"`
 }
 
 func (v EndorsementRecord) TableName() string {
@@ -117,11 +118,11 @@ func (v EndorsementRecord) TableName() string {
 }
 
 type UserFollowRecord struct {
-	Rkey string `db:"rkey" json:"-"`
-	Cid  DbCID  `db:"cid" json:"-"`
+	Rkey string `db:"rkey"     json:"-"`
+	Cid  DbCID  `db:"cid"      json:"-"`
 	Base
 	Follower Uid `db:"follower" json:"follower"`
-	Target   Uid `db:"target" json:"target"`
+	Target   Uid `db:"target"   json:"target"`
 }
 
 func (f UserFollowRecord) TableName() string {
@@ -169,13 +170,13 @@ func ClientForPds(pds *PDS) *xrpc.Client {
 // }
 
 type Feed struct {
-	ID           uint      `db:"id,omitempty,pk" json:"id"`
-	IndexedAt    time.Time `db:"indexed_at,omitempty" json:"-"`
-	Rkey         string    `db:"rkey" json:"-"`
-	Cid          DbCID     `db:"cid" json:"-"`
+	ID           uint      `db:"id,omitempty,pk"        json:"id"`
+	IndexedAt    time.Time `db:"indexed_at,omitempty"   json:"-"`
+	Rkey         string    `db:"rkey"                   json:"-"`
+	Cid          DbCID     `db:"cid"                    json:"-"`
 	Jurisdiction string    `db:"jurisdiction,omitempty" json:"jurisdiction"`
-	Topic        []string  `db:"topic,omitempty" json:"topic"`
-	Type         string    `db:"type" json:"type"`
+	Topic        []string  `db:"topic,omitempty"        json:"topic"`
+	Type         string    `db:"type"                   json:"type"`
 }
 
 func (p Feed) TableName() string {

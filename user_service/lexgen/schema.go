@@ -1,8 +1,10 @@
+//revive:disable:exported
 package lexgen
 
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 )
@@ -23,20 +25,25 @@ type Schema struct {
 	Defs    map[string]*TypeSchema `json:"defs"`
 }
 
-func ReadSchema(f string) (*Schema, error) {
+func ReadSchema(f string) (s *Schema, err error) {
 	fi, err := os.Open(f)
 	if err != nil {
 		return nil, err
 	}
-	defer fi.Close()
+	defer func() {
+		closeErr := fi.Close()
+		if err == nil {
+			err = closeErr
+		}
+	}()
 
-	var s Schema
+	s = &Schema{}
 	if err := json.NewDecoder(fi).Decode(&s); err != nil {
 		return nil, err
 	}
 	s.path = f
 
-	return &s, nil
+	return s, nil
 }
 
 func (s *Schema) Name() string {
@@ -54,7 +61,7 @@ func (s *Schema) AllTypes(prefix string, defMap map[string]*ExtDef) []outputType
 		}
 
 		if needsCbor {
-			fmt.Println("Setting to record: ", name)
+			log.Println("Setting to record: ", name)
 			if name == "EmbedImages_View" {
 				panic("not ok")
 			}
@@ -77,25 +84,27 @@ func (s *Schema) AllTypes(prefix string, defMap map[string]*ExtDef) []outputType
 			})
 
 			for _, r := range ts.Refs {
-				if !strings.HasPrefix(r, AtProto) && !strings.HasPrefix(r, Bsky) {
-					refname := r
-					if strings.HasPrefix(refname, "#") {
-						refname = s.ID + r
-					}
-
-					ed, ok := defMap[refname]
-					if !ok {
-						panic(fmt.Sprintf("cannot find: %q", refname))
-					}
-
-					fmt.Println("UNION REF", refname, name, needsCbor)
-
-					if needsCbor {
-						ed.Type.needsCbor = true
-					}
-
-					ed.Type.needsType = true
+				if strings.HasPrefix(r, AtProto) || strings.HasPrefix(r, Bsky) {
+					continue
 				}
+
+				refname := r
+				if strings.HasPrefix(refname, "#") {
+					refname = s.ID + r
+				}
+
+				ed, ok := defMap[refname]
+				if !ok {
+					panic(fmt.Sprintf("cannot find: %q", refname))
+				}
+
+				log.Println("UNION REF", refname, name, needsCbor)
+
+				if needsCbor {
+					ed.Type.needsCbor = true
+				}
+
+				ed.Type.needsType = true
 			}
 		}
 

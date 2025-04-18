@@ -8,13 +8,12 @@ import (
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
-
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
 	refErr "github.com/referendumApp/referendumServices/internal/error"
 	"github.com/referendumApp/referendumServices/internal/util"
 )
 
-var ErrUnauthorized = errors.New("Unauthorized user request")
+var ErrUnauthorized = errors.New("unauthorized user request")
 
 func (s *Server) getAndValidatePerson(ctx context.Context) (atp.Uid, string, *refErr.APIError) {
 	uid, ok := ctx.Value(util.SubjectKey).(atp.Uid)
@@ -51,7 +50,16 @@ func (s *Server) decodeAndValidate(ctx context.Context, w http.ResponseWriter, b
 		var fieldErrs []*refErr.APIError
 		if errors.As(err, &valErr) {
 			for _, e := range valErr {
-				s.log.ErrorContext(ctx, "Request validation failed", "field", e.Field(), "valdationTag", e.ActualTag(), "error", e.Error())
+				s.log.ErrorContext(
+					ctx,
+					"Request validation failed",
+					"field",
+					e.Field(),
+					"valdationTag",
+					e.ActualTag(),
+					"error",
+					e.Error(),
+				)
 				fieldErr := util.HandleFieldError(e)
 				fieldErrs = append(fieldErrs, fieldErr)
 			}

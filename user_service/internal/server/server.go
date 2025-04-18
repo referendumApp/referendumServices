@@ -2,25 +2,27 @@ package server
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
+	"log"
 	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/whyrusleeping/go-did"
-
 	"github.com/referendumApp/referendumServices/internal/app"
 	"github.com/referendumApp/referendumServices/internal/car"
-	"github.com/referendumApp/referendumServices/internal/config"
 	"github.com/referendumApp/referendumServices/internal/database"
+	"github.com/referendumApp/referendumServices/internal/env-config"
 	"github.com/referendumApp/referendumServices/internal/events"
 	"github.com/referendumApp/referendumServices/internal/indexer"
 	"github.com/referendumApp/referendumServices/internal/pds"
 	"github.com/referendumApp/referendumServices/internal/plc"
 	"github.com/referendumApp/referendumServices/internal/repo"
+	"github.com/whyrusleeping/go-did"
 )
 
+// Server abstraction layer around PDS and App View modules
 type Server struct {
 	httpServer *http.Server
 	db         *database.DB
@@ -31,8 +33,23 @@ type Server struct {
 	log        *slog.Logger
 }
 
-// Initialize Server and setup HTTP routes and middleware
-func New(db *database.DB, srvkey *did.PrivKey, cfg *config.Config, cs car.Store, plc plc.Client) (*Server, error) {
+// New initialize 'Server' struct, setup HTTP routes, and middleware
+func New(ctx context.Context, cfg *env.Config, db *database.DB) (*Server, error) {
+	log.Println("Generating private key")
+	srvkey, err := did.GeneratePrivKey(rand.Reader, did.KeyTypeSecp256k1)
+	if err != nil {
+		log.Println("Failed to generate private key")
+		return nil, err
+	}
+	log.Println("Successfully generated private key!")
+
+	plc := plc.NewPLCServer(cfg.PLCHost)
+
+	cs, err := car.NewCarStore(ctx, cfg, db)
+	if err != nil {
+		return nil, err
+	}
+
 	evts := events.NewEventManager(events.NewMemPersister())
 
 	kmgr := indexer.NewKeyManager(plc, srvkey)
@@ -75,22 +92,22 @@ func New(db *database.DB, srvkey *did.PrivKey, cfg *config.Config, cs car.Store,
 	return srv, nil
 }
 
-// Initialize and configure HTTP Server, listen and server requests, handle shutdowns gracefully
+// Start configure HTTP Server, listen and server requests, handle shutdowns gracefully
 func (s *Server) Start(ctx context.Context) error {
 	errChan := make(chan error, 1)
 
 	// ListenAndServe is blocking so call it in a go routine to run it concurrently
 	go func() {
-		fmt.Printf("Server starting on port %d\n", s.port)
+		log.Printf("Server starting on port %d\n", s.port)
 		if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			s.log.Error("Error listening and serving: %s", "error", err)
+			log.Println("Error listening and serving")
 			errChan <- err
 		}
 	}()
 
 	select {
 	case <-ctx.Done():
-		s.log.Info("Shutdown signal received")
+		log.Println("Shutdown signal received")
 	case err := <-errChan:
 		return fmt.Errorf("server error: %w", err)
 	}
@@ -98,8 +115,9 @@ func (s *Server) Start(ctx context.Context) error {
 	return nil
 }
 
+// Shutdown http server and DB
 func (s *Server) Shutdown(ctx context.Context) error {
-	s.log.Info("Shutdown server...")
+	log.Println("Shutdown server...")
 	if err := s.httpServer.Shutdown(ctx); err != nil {
 		return fmt.Errorf("shutdown error: %w", err)
 	}

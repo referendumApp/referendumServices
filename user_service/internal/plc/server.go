@@ -17,6 +17,7 @@ import (
 	otel "go.opentelemetry.io/otel"
 )
 
+// GetDocument returns DID document
 func (s Server) GetDocument(ctx context.Context, didstr string) (*did.Document, error) {
 	ctx, span := otel.Tracer("gosky").Start(ctx, "plsResolveDid")
 	defer span.End()
@@ -25,7 +26,7 @@ func (s Server) GetDocument(ctx context.Context, didstr string) (*did.Document, 
 		s.C = http.DefaultClient
 	}
 
-	req, err := http.NewRequest("GET", s.Host+"/"+didstr, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s.Host+"/"+didstr, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -35,9 +36,15 @@ func (s Server) GetDocument(ctx context.Context, didstr string) (*did.Document, 
 		return nil, err
 	}
 
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			s.log.ErrorContext(ctx, "Error closing response body", "error", err)
+		}
+	}()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		s.log.InfoContext(ctx, "DID doc request to plc directory failed", "body", string(b))
 		return nil, fmt.Errorf("get did request failed (code %d): %s", resp.StatusCode, resp.Status)
 	}
 
@@ -49,9 +56,17 @@ func (s Server) GetDocument(ctx context.Context, didstr string) (*did.Document, 
 	return &doc, nil
 }
 
+// FlushCacheFor noop
 func (s Server) FlushCacheFor(did string) {}
 
-func (s Server) CreateDID(ctx context.Context, sigkey *did.PrivKey, recovery string, handle string, service string) (string, error) {
+// CreateDID plc_operation for creating and returning a DID
+func (s Server) CreateDID(
+	ctx context.Context,
+	sigkey *did.PrivKey,
+	recovery string,
+	handle string,
+	service string,
+) (string, error) {
 	if s.C == nil {
 		s.C = http.DefaultClient
 	}
@@ -81,12 +96,17 @@ func (s Server) CreateDID(ctx context.Context, sigkey *did.PrivKey, recovery str
 		return "", err
 	}
 
-	body, err := json.Marshal(op) // nolint:errchkjson
+	body, err := json.Marshal(op) //nolint:errchkjson
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal operation: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", s.Host+"/"+url.QueryEscape(opdid), bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		s.Host+"/"+url.QueryEscape(opdid),
+		bytes.NewReader(body),
+	)
 	if err != nil {
 		return "", err
 	}
@@ -98,17 +118,22 @@ func (s Server) CreateDID(ctx context.Context, sigkey *did.PrivKey, recovery str
 		return "", err
 	}
 
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			s.log.ErrorContext(ctx, "Error closing response body", "error", err)
+		}
+	}()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
-		fmt.Println(string(b))
+		s.log.InfoContext(ctx, "Create PLC operation request failed", "body", string(b))
 		return "", fmt.Errorf("bad response from create call: %d %s", resp.StatusCode, resp.Status)
 	}
 
 	return opdid, nil
 }
 
+// UpdateUserHandle not implemented
 func (s Server) UpdateUserHandle(ctx context.Context, did string, handle string) error {
 	return fmt.Errorf("handle updates not yet implemented")
 }
@@ -125,12 +150,13 @@ func didForCreateOp(op *CreateOp) (string, error) {
 	return "did:plc:" + enchash[:24], nil
 }
 
+// GetOpAuditLog returns all PLC directory operations
 func (s Server) GetOpAuditLog(ctx context.Context, did string) (*[]Op, error) {
 	if s.C == nil {
 		s.C = http.DefaultClient
 	}
 
-	req, err := http.NewRequest("GET", s.Host+"/"+url.QueryEscape(did)+"/log/audit", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s.Host+"/"+url.QueryEscape(did)+"/log/audit", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -140,9 +166,15 @@ func (s Server) GetOpAuditLog(ctx context.Context, did string) (*[]Op, error) {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			s.log.ErrorContext(ctx, "Error closing response body", "error", err)
+		}
+	}()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		s.log.InfoContext(ctx, "Audit log request to plc directory failed", "body", string(b))
 		return nil, fmt.Errorf("get last op request failed (code %d): %s", resp.StatusCode, resp.Status)
 	}
 
@@ -154,6 +186,7 @@ func (s Server) GetOpAuditLog(ctx context.Context, did string) (*[]Op, error) {
 	return &log, nil
 }
 
+// TombstoneDID plc_operation for deleting/deactivating a DID
 func (s Server) TombstoneDID(ctx context.Context, sigkey *did.PrivKey, did string, prev string) error {
 	if s.C == nil {
 		s.C = http.DefaultClient
@@ -173,12 +206,12 @@ func (s Server) TombstoneDID(ctx context.Context, sigkey *did.PrivKey, did strin
 
 	op.Sig = base64.RawURLEncoding.EncodeToString(sig)
 
-	body, err := json.Marshal(op) // nolint:errchkjson
+	body, err := json.Marshal(op) //nolint:errchkjson
 	if err != nil {
 		return fmt.Errorf("failed to marshal operation: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", s.Host+"/"+url.QueryEscape(did), bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.Host+"/"+url.QueryEscape(did), bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -190,17 +223,22 @@ func (s Server) TombstoneDID(ctx context.Context, sigkey *did.PrivKey, did strin
 		return err
 	}
 
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			s.log.ErrorContext(ctx, "Error closing response body", "error", err)
+		}
+	}()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
-		fmt.Println(string(b))
+		s.log.InfoContext(ctx, "Tombstone request to plc directory failed", "body", string(b))
 		return fmt.Errorf("bad response from tombstone call: %d %s", resp.StatusCode, resp.Status)
 	}
 
 	return nil
 }
 
+// GetLatestOp wrapper around 'GetOpAuditLog' that returns the latest 'Op'
 func (s Server) GetLatestOp(ctx context.Context, did string) (*Op, error) {
 	log, err := s.GetOpAuditLog(ctx, did)
 	if err != nil {

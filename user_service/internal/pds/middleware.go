@@ -6,12 +6,11 @@ import (
 	"net/http"
 
 	"github.com/golang-jwt/jwt/v5"
-
 	refErr "github.com/referendumApp/referendumServices/internal/error"
 	"github.com/referendumApp/referendumServices/internal/util"
 )
 
-// Authorize a request based on the JWT included in the request
+// AuthorizeUser validate a request based on the JWT included in the request
 func (p *PDS) AuthorizeUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestCtx := r.Context()

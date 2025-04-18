@@ -1,3 +1,4 @@
+//revive:disable:exported
 package indexer
 
 import (
@@ -8,9 +9,8 @@ import (
 	"time"
 
 	comatproto "github.com/bluesky-social/indigo/api/atproto"
-	"go.opentelemetry.io/otel"
-
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
+	"go.opentelemetry.io/otel"
 )
 
 type CrawlDispatcher struct {
@@ -249,7 +249,12 @@ func (c *CrawlDispatcher) Crawl(ctx context.Context, ai *atp.Person) error {
 	}
 }
 
-func (c *CrawlDispatcher) AddToCatchupQueue(ctx context.Context, host *atp.PDS, u *atp.Person, evt *comatproto.SyncSubscribeRepos_Commit) error {
+func (c *CrawlDispatcher) AddToCatchupQueue(
+	ctx context.Context,
+	host *atp.PDS,
+	u *atp.Person,
+	evt *comatproto.SyncSubscribeRepos_Commit,
+) error {
 	if !u.PDS.Valid {
 		panic("must have pds for user in queue")
 	}

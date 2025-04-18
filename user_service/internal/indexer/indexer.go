@@ -1,3 +1,4 @@
+//revive:disable:exported
 package indexer
 
 import (
@@ -16,12 +17,11 @@ import (
 	"github.com/bluesky-social/indigo/xrpc"
 	"github.com/ipfs/go-cid"
 	"github.com/jackc/pgx/v5"
-	"go.opentelemetry.io/otel"
-
 	"github.com/referendumApp/referendumServices/internal/database"
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
 	"github.com/referendumApp/referendumServices/internal/events"
 	"github.com/referendumApp/referendumServices/internal/repo"
+	"go.opentelemetry.io/otel"
 )
 
 const MaxEventSliceLength = 1000000
@@ -86,7 +86,7 @@ func (ix *Indexer) HandleRepoEvent(ctx context.Context, evt *repo.Event) error {
 	ctx, span := otel.Tracer("indexer").Start(ctx, "HandleRepoEvent")
 	defer span.End()
 
-	ix.log.Debug("Handling Repo Event!", "uid", evt.User)
+	ix.log.DebugContext(ctx, "Handling Repo Event!", "uid", evt.User)
 
 	outops := make([]*comatproto.SyncSubscribeRepos_RepoOp, 0, len(evt.Ops))
 	for _, op := range evt.Ops {
@@ -98,7 +98,7 @@ func (ix *Indexer) HandleRepoEvent(ctx context.Context, evt *repo.Event) error {
 		})
 
 		if err := ix.handleRepoOp(ctx, evt, &op); err != nil {
-			ix.log.Error("failed to handle repo op", "err", err)
+			ix.log.ErrorContext(ctx, "failed to handle repo op", "err", err)
 		}
 	}
 
@@ -115,7 +115,7 @@ func (ix *Indexer) HandleRepoEvent(ctx context.Context, evt *repo.Event) error {
 		toobig = true
 	}
 
-	ix.log.Debug("Sending event", "did", did)
+	ix.log.DebugContext(ctx, "Sending event", "did", did)
 	if err := ix.events.AddEvent(ctx, &events.XRPCStreamEvent{
 		RepoCommit: &comatproto.SyncSubscribeRepos_Commit{
 			Repo:   did,
@@ -129,7 +129,7 @@ func (ix *Indexer) HandleRepoEvent(ctx context.Context, evt *repo.Event) error {
 		},
 		PrivUid: evt.User,
 	}); err != nil {
-		return fmt.Errorf("failed to push event: %s", err)
+		return fmt.Errorf("failed to push event: %w", err)
 	}
 
 	return nil
@@ -193,22 +193,24 @@ func (ix *Indexer) crawlRecordReferences(ctx context.Context, op *repo.Op) error
 			if e.Type == "mention" {
 				_, err := ix.GetUserOrMissing(ctx, e.Value)
 				if err != nil {
-					ix.log.Info("failed to parse user mention", "ref", e.Value, "err", err)
+					ix.log.InfoContext(ctx, "failed to parse user mention", "ref", e.Value, "err", err)
 				}
 			}
 		}
 
-		if rec.Reply != nil {
-			if rec.Reply.Parent != nil {
-				if err := ix.crawlAtUriRef(ctx, rec.Reply.Parent.Uri); err != nil {
-					ix.log.Info("failed to crawl reply parent", "cid", op.RecCid, "replyuri", rec.Reply.Parent.Uri, "err", err)
-				}
-			}
+		if rec.Reply == nil {
+			return nil
+		}
 
-			if rec.Reply.Root != nil {
-				if err := ix.crawlAtUriRef(ctx, rec.Reply.Root.Uri); err != nil {
-					ix.log.Info("failed to crawl reply root", "cid", op.RecCid, "rooturi", rec.Reply.Root.Uri, "err", err)
-				}
+		if rec.Reply.Parent != nil {
+			if err := ix.crawlAtUriRef(ctx, rec.Reply.Parent.Uri); err != nil {
+				ix.log.InfoContext(ctx, "failed to crawl reply parent", "cid", op.RecCid, "replyuri", rec.Reply.Parent.Uri, "err", err)
+			}
+		}
+
+		if rec.Reply.Root != nil {
+			if err := ix.crawlAtUriRef(ctx, rec.Reply.Root.Uri); err != nil {
+				ix.log.InfoContext(ctx, "failed to crawl reply root", "cid", op.RecCid, "rooturi", rec.Reply.Root.Uri, "err", err)
 			}
 		}
 
@@ -216,27 +218,27 @@ func (ix *Indexer) crawlRecordReferences(ctx context.Context, op *repo.Op) error
 	case *bsky.FeedRepost:
 		if rec.Subject != nil {
 			if err := ix.crawlAtUriRef(ctx, rec.Subject.Uri); err != nil {
-				ix.log.Info("failed to crawl repost subject", "cid", op.RecCid, "subjecturi", rec.Subject.Uri, "err", err)
+				ix.log.InfoContext(ctx, "failed to crawl repost subject", "cid", op.RecCid, "subjecturi", rec.Subject.Uri, "err", err)
 			}
 		}
 		return nil
 	case *bsky.FeedLike:
 		if rec.Subject != nil {
 			if err := ix.crawlAtUriRef(ctx, rec.Subject.Uri); err != nil {
-				ix.log.Info("failed to crawl like subject", "cid", op.RecCid, "subjecturi", rec.Subject.Uri, "err", err)
+				ix.log.InfoContext(ctx, "failed to crawl like subject", "cid", op.RecCid, "subjecturi", rec.Subject.Uri, "err", err)
 			}
 		}
 		return nil
 	case *bsky.GraphFollow:
 		_, err := ix.GetUserOrMissing(ctx, rec.Subject)
 		if err != nil {
-			ix.log.Info("failed to crawl follow subject", "cid", op.RecCid, "subjectdid", rec.Subject, "err", err)
+			ix.log.InfoContext(ctx, "failed to crawl follow subject", "cid", op.RecCid, "subjectdid", rec.Subject, "err", err)
 		}
 		return nil
 	case *bsky.GraphBlock:
 		_, err := ix.GetUserOrMissing(ctx, rec.Subject)
 		if err != nil {
-			ix.log.Info("failed to crawl follow subject", "cid", op.RecCid, "subjectdid", rec.Subject, "err", err)
+			ix.log.InfoContext(ctx, "failed to crawl follow subject", "cid", op.RecCid, "subjectdid", rec.Subject, "err", err)
 		}
 		return nil
 	case *bsky.ActorProfile:
@@ -248,7 +250,7 @@ func (ix *Indexer) crawlRecordReferences(ctx context.Context, op *repo.Op) error
 	case *bsky.FeedGenerator:
 		return nil
 	default:
-		ix.log.Warn("unrecognized record type (crawling references)", "record", op.Record, "collection", op.Collection)
+		ix.log.WarnContext(ctx, "unrecognized record type (crawling references)", "record", op.Record, "collection", op.Collection)
 		return nil
 	}
 }
@@ -289,7 +291,7 @@ func (ix *Indexer) createMissingUserRecord(ctx context.Context, did string) (*at
 }
 
 func (ix *Indexer) addUserToCrawler(ctx context.Context, ai *atp.Person) error {
-	ix.log.Debug("Sending user to crawler: ", "did", ai.Did)
+	ix.log.DebugContext(ctx, "Sending user to crawler: ", "did", ai.Did)
 	if ix.Crawler == nil {
 		return nil
 	}
@@ -333,7 +335,7 @@ func (ix *Indexer) GetPost(ctx context.Context, uri string) (*atp.ActivityPost, 
 }
 
 func (ix *Indexer) handleRecordDelete(ctx context.Context, evt *repo.Event, op *repo.Op, local bool) error {
-	ix.log.Debug("record delete event", "collection", op.Collection)
+	ix.log.DebugContext(ctx, "record delete event", "collection", op.Collection)
 
 	switch op.Collection {
 	case "app.referendum.feed.post":
@@ -349,7 +351,14 @@ func (ix *Indexer) handleRecordDelete(ctx context.Context, evt *repo.Event, op *
 		fp, err := ix.GetPost(ctx, uri)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
-				ix.log.Warn("deleting post weve never seen before. Weird.", "user", evt.User, "rkey", op.Rkey)
+				ix.log.WarnContext(
+					ctx,
+					"deleting post weve never seen before. Weird.",
+					"user",
+					evt.User,
+					"rkey",
+					op.Rkey,
+				)
 				return nil
 			}
 			return err
@@ -372,7 +381,7 @@ func (ix *Indexer) handleRecordDelete(ctx context.Context, evt *repo.Event, op *
 }
 
 func (ix *Indexer) handleRecordCreate(ctx context.Context, evt *repo.Event, op *repo.Op, local bool) ([]uint, error) {
-	ix.log.Debug("record create event", "collection", op.Collection)
+	ix.log.DebugContext(ctx, "record create event", "collection", op.Collection)
 
 	var out []uint
 	switch rec := op.Record.(type) {
@@ -394,16 +403,21 @@ func (ix *Indexer) handleRecordCreate(ctx context.Context, evt *repo.Event, op *
 	case *bsky.FeedGenerator:
 		return out, nil
 	case *bsky.ActorProfile:
-		ix.log.Debug("TODO: got actor profile record creation, need to do something with this")
+		ix.log.DebugContext(ctx, "TODO: got actor profile record creation, need to do something with this")
 	default:
-		ix.log.Warn("unrecognized record", "record", op.Record, "collection", op.Collection)
+		ix.log.WarnContext(ctx, "unrecognized record", "record", op.Record, "collection", op.Collection)
 		return nil, fmt.Errorf("unrecognized record type (creation): %s", op.Collection)
 	}
 
 	return out, nil
 }
 
-func (ix *Indexer) handleRecordCreateFeedLike(ctx context.Context, rec *bsky.FeedLike, evt *repo.Event, op *repo.Op) error {
+func (ix *Indexer) handleRecordCreateFeedLike(
+	ctx context.Context,
+	rec *bsky.FeedLike,
+	evt *repo.Event,
+	op *repo.Op,
+) error {
 	post, err := ix.GetPostOrMissing(ctx, rec.Subject.Uri)
 	if err != nil {
 		return err
@@ -435,7 +449,12 @@ func (ix *Indexer) handleRecordCreateFeedLike(ctx context.Context, rec *bsky.Fee
 	return nil
 }
 
-func (ix *Indexer) handleRecordCreateGraphFollow(ctx context.Context, rec *bsky.GraphFollow, evt *repo.Event, op *repo.Op) error {
+func (ix *Indexer) handleRecordCreateGraphFollow(
+	ctx context.Context,
+	rec *bsky.GraphFollow,
+	evt *repo.Event,
+	op *repo.Op,
+) error {
 	subj, err := ix.db.LookupPersonByDid(ctx, rec.Subject)
 	if err != nil {
 		if !errors.Is(err, pgx.ErrNoRows) {
@@ -465,7 +484,7 @@ func (ix *Indexer) handleRecordCreateGraphFollow(ctx context.Context, rec *bsky.
 }
 
 func (ix *Indexer) handleRecordUpdate(ctx context.Context, evt *repo.Event, op *repo.Op, local bool) error {
-	ix.log.Debug("record update event", "collection", op.Collection)
+	ix.log.DebugContext(ctx, "record update event", "collection", op.Collection)
 
 	switch rec := op.Record.(type) {
 	case *bsky.FeedPost:
@@ -485,7 +504,7 @@ func (ix *Indexer) handleRecordUpdate(ctx context.Context, evt *repo.Event, op *
 
 		if oldReply != newReply {
 			// the 'replyness' of the post was changed... that's weird
-			ix.log.Error("need to properly handle case where reply-ness of posts is changed")
+			ix.log.ErrorContext(ctx, "need to properly handle case where reply-ness of posts is changed")
 			return nil
 		}
 
@@ -496,7 +515,7 @@ func (ix *Indexer) handleRecordUpdate(ctx context.Context, evt *repo.Event, op *
 			}
 
 			if replyto.ID != fp.ReplyTo {
-				ix.log.Error("post was changed to be a reply to a different post")
+				ix.log.ErrorContext(ctx, "post was changed to be a reply to a different post")
 				return nil
 			}
 		}
@@ -535,7 +554,7 @@ func (ix *Indexer) handleRecordUpdate(ctx context.Context, evt *repo.Event, op *
 
 		return ix.handleRecordCreateGraphFollow(ctx, rec, evt, op)
 	case *bsky.ActorProfile:
-		ix.log.Debug("TODO: got actor profile record update, need to do something with this")
+		ix.log.DebugContext(ctx, "TODO: got actor profile record update, need to do something with this")
 	default:
 		return fmt.Errorf("unrecognized record type (update): %s", op.Collection)
 	}
@@ -562,7 +581,13 @@ func (ix *Indexer) GetPostOrMissing(ctx context.Context, uri string) (*atp.Activ
 	return post, nil
 }
 
-func (ix *Indexer) handleRecordCreateActivityPost(ctx context.Context, user atp.Uid, rkey string, rcid cid.Cid, rec *bsky.FeedPost) error {
+func (ix *Indexer) handleRecordCreateActivityPost(
+	ctx context.Context,
+	user atp.Uid,
+	rkey string,
+	rcid cid.Cid,
+	rec *bsky.FeedPost,
+) error {
 	var replyid uint
 	if rec.Reply != nil {
 		replyto, err := ix.GetPostOrMissing(ctx, rec.Reply.Parent.Uri)
@@ -610,7 +635,7 @@ func (ix *Indexer) handleRecordCreateActivityPost(ctx context.Context, user atp.
 		// we're likely filling in a missing reference
 		if !maybe.Missing {
 			// TODO: we've already processed this record creation
-			ix.log.Warn("potentially erroneous event, duplicate create", "rkey", rkey, "user", user)
+			ix.log.WarnContext(ctx, "potentially erroneous event, duplicate create", "rkey", rkey, "user", user)
 		}
 
 		if err := ix.db.CreateConflict(ctx, fp, "rkey", "author"); err != nil {
@@ -630,7 +655,7 @@ func (ix *Indexer) handleRecordCreateActivityPost(ctx context.Context, user atp.
 }
 
 func (ix *Indexer) createMissingPostRecord(ctx context.Context, puri *util.ParsedUri) (*atp.ActivityPost, error) {
-	ix.log.Warn("creating missing post record")
+	ix.log.WarnContext(ctx, "creating missing post record")
 	ai, err := ix.GetUserOrMissing(ctx, puri.Did)
 	if err != nil {
 		return nil, err
@@ -651,11 +676,16 @@ func (ix *Indexer) createMissingPostRecord(ctx context.Context, puri *util.Parse
 	return fp, nil
 }
 
-func (ix *Indexer) addNewPostNotification(ctx context.Context, post *bsky.FeedPost, fp *atp.ActivityPost, mentions []*atp.Person) error {
+func (ix *Indexer) addNewPostNotification(
+	ctx context.Context,
+	post *bsky.FeedPost,
+	fp *atp.ActivityPost,
+	mentions []*atp.Person,
+) error {
 	if post.Reply != nil {
 		_, err := ix.GetPost(ctx, post.Reply.Parent.Uri)
 		if err != nil {
-			ix.log.Error("probably shouldn't error when processing a reply to a not-found post")
+			ix.log.ErrorContext(ctx, "probably shouldn't error when processing a reply to a not-found post")
 			return err
 		}
 	}

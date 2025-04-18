@@ -1,4 +1,4 @@
-package app
+package pds
 
 import (
 	"context"
@@ -8,13 +8,12 @@ import (
 	refErr "github.com/referendumApp/referendumServices/internal/error"
 )
 
-// HandleHealth database health check
-func (v *View) HandleHealth(w http.ResponseWriter, r *http.Request) *refErr.APIError {
+// HandleHealth s3 car store health check
+func (p *PDS) HandleHealth(w http.ResponseWriter, r *http.Request) *refErr.APIError {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	err := v.meta.Ping(ctx)
-	if err != nil {
+	if err := p.cs.PingStore(ctx); err != nil {
 		return refErr.ServiceUnavailable()
 	}
 

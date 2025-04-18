@@ -10,19 +10,22 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
 )
 
-type TokenType string
-
+// ContextKeyType type alias map claim keys
 type ContextKeyType string
 
+// map claim keys types
 const (
 	SubjectKey ContextKeyType = "uid"
 	DidKey     ContextKeyType = "did"
 )
 
+// TokenType type alias for access and refresh token types
+type TokenType string
+
+// token types
 const (
 	Access  TokenType = "access"
 	Refresh TokenType = "refresh"
@@ -34,6 +37,7 @@ const (
 	DefaultAuthScheme          = "Bearer"
 )
 
+// JWTConfig contains all the metadata for validating and creating JWT tokens
 type JWTConfig struct {
 	// Signing key to validate token.
 	// This is one of the three options to provide a token validation key.
@@ -80,6 +84,7 @@ type JWTConfig struct {
 	RefreshExpiry time.Duration
 }
 
+// CreateToken create the JWT token with all the necessary map claims
 func (j *JWTConfig) CreateToken(sub atp.Uid, did string, tokenType TokenType) (string, error) {
 	// Current time
 	now := time.Now()
@@ -116,7 +121,7 @@ func (j *JWTConfig) CreateToken(sub atp.Uid, did string, tokenType TokenType) (s
 	return tokenString, nil
 }
 
-// Extract the JWT from the Authorization request header
+// ExtractToken get the JWT from the Authorization request header
 func (j *JWTConfig) ExtractToken(r *http.Request) string {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
@@ -133,7 +138,7 @@ func (j *JWTConfig) ExtractToken(r *http.Request) string {
 	return ""
 }
 
-// Decode and validate the JWT and get the claims
+// DecodeJWT parse the JWT and check that the token is valid
 func (j *JWTConfig) DecodeJWT(tokenString string) (*jwt.Token, error) {
 	// Create parser with the validator
 	parser := jwt.NewParser(
@@ -145,11 +150,6 @@ func (j *JWTConfig) DecodeJWT(tokenString string) (*jwt.Token, error) {
 	)
 
 	token, err := parser.Parse(tokenString, func(token *jwt.Token) (any, error) {
-		// Validate the algorithm is what we expect
-		// if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-		// 	return nil, errors.New("unexpected signing method")
-		// }
-
 		// Return the secret key used to sign the token
 		return j.SigningKey, nil
 	})
@@ -165,6 +165,7 @@ func (j *JWTConfig) DecodeJWT(tokenString string) (*jwt.Token, error) {
 	return token, nil
 }
 
+// ValidateToken check the map claims
 func ValidateToken(token *jwt.Token, tokenType TokenType) (atp.Uid, string, error) {
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {

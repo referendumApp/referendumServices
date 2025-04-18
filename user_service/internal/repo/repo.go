@@ -3,6 +3,7 @@ package repo
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 
@@ -18,20 +19,23 @@ import (
 	"go.opentelemetry.io/otel"
 )
 
-// current version of repo currently implemented
+// ATP_REPO_VERSION current version of repo currently implemented
 const ATP_REPO_VERSION int64 = 3
 
+// ATP_REPO_VERSION_2 previous version of the repo
 const ATP_REPO_VERSION_2 int64 = 2
 
+// SignedCommit schema for repository commit which is used as the root
 type SignedCommit struct {
-	Did     string   `json:"did" cborgen:"did"`
+	Did     string   `json:"did"     cborgen:"did"`
 	Version int64    `json:"version" cborgen:"version"`
-	Prev    *cid.Cid `json:"prev" cborgen:"prev"`
-	Data    cid.Cid  `json:"data" cborgen:"data"`
-	Sig     []byte   `json:"sig" cborgen:"sig"`
-	Rev     string   `json:"rev" cborgen:"rev,omitempty"`
+	Prev    *cid.Cid `json:"prev"    cborgen:"prev"`
+	Data    cid.Cid  `json:"data"    cborgen:"data"`
+	Sig     []byte   `json:"sig"     cborgen:"sig"`
+	Rev     string   `json:"rev"     cborgen:"rev,omitempty"`
 }
 
+// UnsignedCommit schema before signing the commit
 type UnsignedCommit struct {
 	Did     string   `cborgen:"did"`
 	Version int64    `cborgen:"version"`
@@ -40,6 +44,7 @@ type UnsignedCommit struct {
 	Rev     string   `cborgen:"rev,omitempty"`
 }
 
+// Repo represents a user repository and contains all the dependencies repo CRUD operations
 type Repo struct {
 	sc  SignedCommit
 	cst cbor.IpldStore
@@ -52,7 +57,7 @@ type Repo struct {
 	dirty bool
 }
 
-// Returns a copy of commit without the Sig field. Helpful when verifying signature.
+// Unsigned returns a copy of commit without the Sig field. Helpful when verifying signature.
 func (sc *SignedCommit) Unsigned() *UnsignedCommit {
 	return &UnsignedCommit{
 		Did:     sc.Did,
@@ -63,7 +68,7 @@ func (sc *SignedCommit) Unsigned() *UnsignedCommit {
 	}
 }
 
-// returns bytes of the DAG-CBOR representation of object. This is what gets
+// BytesForSigning returns bytes of the DAG-CBOR representation of object. This is what gets
 // signed; the `go-did` library will take the SHA-256 of the bytes and sign
 // that.
 func (uc *UnsignedCommit) BytesForSigning() ([]byte, error) {
@@ -74,6 +79,8 @@ func (uc *UnsignedCommit) BytesForSigning() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// IngestRepo writes an entire CAR file
+// TODO: is unused not sure if necessary
 func IngestRepo(ctx context.Context, bs cbor.IpldBlockstore, r io.Reader) (cid.Cid, error) {
 	ctx, span := otel.Tracer("repo").Start(ctx, "Ingest")
 	defer span.End()
@@ -86,7 +93,7 @@ func IngestRepo(ctx context.Context, bs cbor.IpldBlockstore, r io.Reader) (cid.C
 	for {
 		blk, err := br.Next()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return cid.Undef, fmt.Errorf("reading block from CAR: %w", err)
@@ -100,6 +107,8 @@ func IngestRepo(ctx context.Context, bs cbor.IpldBlockstore, r io.Reader) (cid.C
 	return br.Roots[0], nil
 }
 
+// ReadRepoFromCar takes a CAR file and writes it somewhere else
+// TODO: is unused not sure if necessary
 func ReadRepoFromCar(ctx context.Context, r io.Reader) (*Repo, error) {
 	bs := blockstore.NewBlockstore(datastore.NewMapDatastore())
 	root, err := IngestRepo(ctx, bs, r)
@@ -110,6 +119,7 @@ func ReadRepoFromCar(ctx context.Context, r io.Reader) (*Repo, error) {
 	return OpenRepo(ctx, bs, root)
 }
 
+// NewRepo initializes an empty 'Repo' struct instance
 func NewRepo(ctx context.Context, did string, bs cbor.IpldBlockstore) *Repo {
 	cst := util.CborStore(bs)
 
@@ -128,6 +138,7 @@ func NewRepo(ctx context.Context, did string, bs cbor.IpldBlockstore) *Repo {
 	}
 }
 
+// OpenRepo initializes a 'Repo' struct with the root commit for the session
 func OpenRepo(ctx context.Context, bs cbor.IpldBlockstore, root cid.Cid) (*Repo, error) {
 	cst := util.CborStore(bs)
 
@@ -148,6 +159,7 @@ func OpenRepo(ctx context.Context, bs cbor.IpldBlockstore, root cid.Cid) (*Repo,
 	}, nil
 }
 
+// RepoDid returns the DID for the repo instance
 func (r *Repo) RepoDid() string {
 	if r.sc.Did == "" {
 		panic("repo has unset did")
@@ -156,23 +168,27 @@ func (r *Repo) RepoDid() string {
 	return r.sc.Did
 }
 
-// TODO(bnewbold): this could return just *cid.Cid
-func (r *Repo) PrevCommit(ctx context.Context) (*cid.Cid, error) {
-	return r.sc.Prev, nil
+// PrevCommit returns the previous signed commit (prev is deprecated in v3)
+func (r *Repo) PrevCommit(ctx context.Context) *cid.Cid {
+	return r.sc.Prev
 }
 
+// DataCid returns the CID containing the node data
 func (r *Repo) DataCid() cid.Cid {
 	return r.sc.Data
 }
 
+// SignedCommit returns the signed commit
 func (r *Repo) SignedCommit() SignedCommit {
 	return r.sc
 }
 
+// Blockstore returns the block store (DeltaSession)
 func (r *Repo) Blockstore() cbor.IpldBlockstore {
 	return r.bs
 }
 
+// CreateRecord writes the record as a node (NodeData) in the MST
 func (r *Repo) CreateRecord(ctx context.Context, rpath string, rec cbg.CBORMarshaler) (cid.Cid, error) {
 	ctx, span := otel.Tracer("repo").Start(ctx, "CreateRecord")
 	defer span.End()
@@ -197,30 +213,7 @@ func (r *Repo) CreateRecord(ctx context.Context, rpath string, rec cbg.CBORMarsh
 	return k, nil
 }
 
-func (r *Repo) PutRecord(ctx context.Context, rpath string, rec cbg.CBORMarshaler) (cid.Cid, error) {
-	ctx, span := otel.Tracer("repo").Start(ctx, "PutRecord")
-	defer span.End()
-
-	r.dirty = true
-	t, err := r.getMst(ctx)
-	if err != nil {
-		return cid.Undef, fmt.Errorf("failed to get mst: %w", err)
-	}
-
-	k, err := r.cst.Put(ctx, rec)
-	if err != nil {
-		return cid.Undef, err
-	}
-
-	nmst, err := t.Add(ctx, rpath, k, -1)
-	if err != nil {
-		return cid.Undef, fmt.Errorf("mst.Add failed: %w", err)
-	}
-
-	r.mst = nmst
-	return k, nil
-}
-
+// UpdateRecord updates an existing entry in the MST
 func (r *Repo) UpdateRecord(ctx context.Context, rpath string, rec cbg.CBORMarshaler) (cid.Cid, error) {
 	ctx, span := otel.Tracer("repo").Start(ctx, "UpdateRecord")
 	defer span.End()
@@ -245,6 +238,7 @@ func (r *Repo) UpdateRecord(ctx context.Context, rpath string, rec cbg.CBORMarsh
 	return k, nil
 }
 
+// DeleteRecord deletes an entry in the MST
 func (r *Repo) DeleteRecord(ctx context.Context, rpath string) error {
 	ctx, span := otel.Tracer("repo").Start(ctx, "DeleteRecord")
 	defer span.End()
@@ -264,14 +258,17 @@ func (r *Repo) DeleteRecord(ctx context.Context, rpath string) error {
 	return nil
 }
 
-// truncates history while retaining the same data root
+// Truncate truncates history while retaining the same data root
 func (r *Repo) Truncate() {
 	r.sc.Prev = nil
 	r.repoCid = cid.Undef
 }
 
-// creates and writes a new SignedCommit for this repo, with `prev` pointing to old value
-func (r *Repo) Commit(ctx context.Context, signer func(context.Context, string, []byte) ([]byte, error)) (cid.Cid, string, error) {
+// Commit creates and writes a new SignedCommit for this repo which will be the new root
+func (r *Repo) Commit(
+	ctx context.Context,
+	signer func(context.Context, string, []byte) ([]byte, error),
+) (cid.Cid, string, error) {
 	ctx, span := otel.Tracer("repo").Start(ctx, "Commit")
 	defer span.End()
 
@@ -331,8 +328,10 @@ func (r *Repo) getMst(ctx context.Context) (*mst.MerkleSearchTree, error) {
 	return t, nil
 }
 
+// ErrDoneIterating no more leaves
 var ErrDoneIterating = fmt.Errorf("done iterating")
 
+// ForEach execute callback function for each leaf in the tree
 func (r *Repo) ForEach(ctx context.Context, prefix string, cb func(k string, v cid.Cid) error) error {
 	ctx, span := otel.Tracer("repo").Start(ctx, "ForEach")
 	defer span.End()
@@ -340,7 +339,7 @@ func (r *Repo) ForEach(ctx context.Context, prefix string, cb func(k string, v c
 	t := mst.LoadMST(r.cst, r.sc.Data)
 
 	if err := t.WalkLeavesFrom(ctx, prefix, cb); err != nil {
-		if err != ErrDoneIterating {
+		if !errors.Is(err, ErrDoneIterating) {
 			return err
 		}
 	}
@@ -348,6 +347,7 @@ func (r *Repo) ForEach(ctx context.Context, prefix string, cb func(k string, v c
 	return nil
 }
 
+// GetRecord reads the block from the record path into the 'rec' struct
 func (r *Repo) GetRecord(ctx context.Context, rpath string, rec cbg.CBORMarshaler) (cid.Cid, error) {
 	ctx, span := otel.Tracer("repo").Start(ctx, "GetRecord")
 	defer span.End()
@@ -368,6 +368,7 @@ func (r *Repo) GetRecord(ctx context.Context, rpath string, rec cbg.CBORMarshale
 	return cc, nil
 }
 
+// GetEventRecord reads the block from the record path and returns the record
 func (r *Repo) GetEventRecord(ctx context.Context, rpath string) (cid.Cid, cbg.CBORMarshaler, error) {
 	ctx, span := otel.Tracer("repo").Start(ctx, "GetRecord")
 	defer span.End()
@@ -389,6 +390,7 @@ func (r *Repo) GetEventRecord(ctx context.Context, rpath string) (cid.Cid, cbg.C
 	return cc, rec, nil
 }
 
+// GetRecordBytes returns the CID and the slice of bytes for the requested record
 func (r *Repo) GetRecordBytes(ctx context.Context, rpath string) (cid.Cid, *[]byte, error) {
 	ctx, span := otel.Tracer("repo").Start(ctx, "GetRecordBytes")
 	defer span.End()
@@ -413,6 +415,7 @@ func (r *Repo) GetRecordBytes(ctx context.Context, rpath string) (cid.Cid, *[]by
 	return cc, &raw, nil
 }
 
+// DiffSince returns the diff between two instances of the MST
 func (r *Repo) DiffSince(ctx context.Context, oldrepo cid.Cid) ([]*mst.DiffOp, error) {
 	ctx, span := otel.Tracer("repo").Start(ctx, "DiffSince")
 	defer span.End()
@@ -449,6 +452,7 @@ func (r *Repo) DiffSince(ctx context.Context, oldrepo cid.Cid) ([]*mst.DiffOp, e
 	return mst.DiffTrees(ctx, r.bs, oldTree, curptr)
 }
 
+// CopyDataTo copies the blocks into an instance of the block store (DeltaSession)
 func (r *Repo) CopyDataTo(ctx context.Context, bs cbor.IpldBlockstore) error {
 	return copyRecCbor(ctx, r.bs, bs, r.sc.Data, make(map[cid.Cid]struct{}))
 }

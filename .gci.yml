@@ -1,0 +1,6 @@
+sections:
+  - standard
+  - default
+  - prefix(github.com/referendumApp/referendumServices)
+  - blank
+  - dot

@@ -3,14 +3,13 @@ package database
 import (
 	"context"
 	"fmt"
+	"log"
 	"log/slog"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-
 	_ "github.com/lib/pq"
-
-	"github.com/referendumApp/referendumServices/internal/config"
+	"github.com/referendumApp/referendumServices/internal/env-config"
 )
 
 type DB struct {
@@ -19,8 +18,9 @@ type DB struct {
 	Schema string
 }
 
-func Connect(ctx context.Context, cfg *config.Config) (*DB, error) {
-	slog.Info("Setting up database connection pool")
+// Connect intializes a DB struct without a schema
+func Connect(ctx context.Context, cfg *env.Config) (*DB, error) {
+	log.Println("Setting up database connection pool")
 
 	// Build the connection string
 	connStr := fmt.Sprintf(
@@ -34,20 +34,20 @@ func Connect(ctx context.Context, cfg *config.Config) (*DB, error) {
 
 	conn, err := pgx.Connect(ctx, connStr)
 	if err != nil {
-		slog.Error("Failed to establish postgres connection", "conn", connStr)
+		log.Printf("Failed to establish postgres connection: %s\n", connStr)
 		return nil, err
 	}
 
 	// Ping the database to validate the connection
 	if pingErr := conn.Ping(ctx); pingErr != nil {
-		slog.Error("Failed to ping database", "conn", connStr)
+		log.Printf("Failed to ping database: %s\n", connStr)
 		return nil, pingErr
 	}
 
 	// Set connection pool settings
 	poolConfig, err := pgxpool.ParseConfig(connStr)
 	if err != nil {
-		slog.Error("Error parsing Postgres pool config", "conn", connStr)
+		log.Printf("Error parsing Postgres pool config: %s\n", connStr)
 		return nil, err
 	}
 
@@ -58,15 +58,16 @@ func Connect(ctx context.Context, cfg *config.Config) (*DB, error) {
 
 	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
-		slog.Error("Error creating connection pool", "config", poolConfig)
+		log.Println("Error creating connection pool")
 		return nil, err
 	}
 
-	slog.Info("Successfully connected to database!")
+	log.Println("Successfully connected to database!")
 
 	return &DB{pool: pool, Log: slog.Default().With("system", "db")}, nil
 }
 
+// WithSchema intializes a DB struct with a schema
 func (db *DB) WithSchema(schema string) *DB {
 	return &DB{
 		pool:   db.pool,

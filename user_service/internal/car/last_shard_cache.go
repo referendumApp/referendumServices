@@ -4,11 +4,11 @@ import (
 	"context"
 	"sync"
 
-	"go.opentelemetry.io/otel"
-
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
+	"go.opentelemetry.io/otel"
 )
 
+// LastShardSource interface for CAR shard metadata
 type LastShardSource interface {
 	GetLastShard(context.Context, atp.Uid) (*Shard, error)
 }
@@ -20,7 +20,7 @@ type lastShardCache struct {
 	lastShardCache map[atp.Uid]*Shard
 }
 
-func (lsc *lastShardCache) Init() {
+func (lsc *lastShardCache) init() {
 	lsc.lastShardCache = make(map[atp.Uid]*Shard)
 }
 

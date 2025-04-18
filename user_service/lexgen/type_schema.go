@@ -1,8 +1,10 @@
+//revive:disable:exported
 package lexgen
 
 import (
 	"fmt"
 	"io"
+	"log"
 	"slices"
 	"strings"
 )
@@ -108,7 +110,7 @@ func (s *TypeSchema) WriteRPC(w io.Writer, typename, inputname string) error {
 			}
 
 			// TODO: deal with optional params
-			params = params + fmt.Sprintf(", %s %s", name, tn)
+			params += fmt.Sprintf(", %s %s", name, tn)
 			return nil
 		}); err != nil {
 			return err
@@ -196,7 +198,15 @@ func (s *TypeSchema) WriteRPC(w io.Writer, typename, inputname string) error {
 		return fmt.Errorf("can only generate RPC for Query or Procedure (got %s)", s.Type)
 	}
 
-	pf("\tif err := c.Do(ctx, %s, %q, \"%s\", %s, %s, %s); err != nil {\n", reqtype, inpenc, s.id, queryparams, inpvar, outvar)
+	pf(
+		"\tif err := c.Do(ctx, %s, %q, \"%s\", %s, %s, %s); err != nil {\n",
+		reqtype,
+		inpenc,
+		s.id,
+		queryparams,
+		inpvar,
+		outvar,
+	)
 	pf("\t\treturn %s\n", errRet)
 	pf("\t}\n\n")
 	pf("\treturn %s\n", outRet)
@@ -208,37 +218,35 @@ func (s *TypeSchema) WriteRPC(w io.Writer, typename, inputname string) error {
 func (s *TypeSchema) WriteHandlerStub(w io.Writer, fname, shortname, impname string) error {
 	pf := printerf(w)
 	paramtypes := []string{"ctx context.Context"}
-	if s.Type == Query {
-		if s.Parameters != nil {
-			var required map[string]bool
-			if s.Parameters.Required != nil {
-				required = make(map[string]bool)
-				for _, r := range s.Required {
-					required[r] = true
-				}
+	if s.Type == Query && s.Parameters != nil {
+		var required map[string]bool
+		if s.Parameters.Required != nil {
+			required = make(map[string]bool)
+			for _, r := range s.Required {
+				required[r] = true
 			}
-			if err := orderedMapIter(s.Parameters.Properties, func(k string, t *TypeSchema) error {
-				switch t.Type {
-				case String:
-					paramtypes = append(paramtypes, k+" string")
-				case Integer:
-					// TODO(bnewbold) could be handling "nullable" here
-					if required != nil && !required[k] {
-						paramtypes = append(paramtypes, k+" *int")
-					} else {
-						paramtypes = append(paramtypes, k+" int")
-					}
-				case Float:
-					return fmt.Errorf("non-integer numbers currently unsupported")
-				case Array:
-					paramtypes = append(paramtypes, k+"[]"+t.Items.Type)
-				default:
-					return fmt.Errorf("unsupported handler parameter type: %s", t.Type)
+		}
+		if err := orderedMapIter(s.Parameters.Properties, func(k string, t *TypeSchema) error {
+			switch t.Type {
+			case String:
+				paramtypes = append(paramtypes, k+" string")
+			case Integer:
+				// TODO(bnewbold) could be handling "nullable" here
+				if required != nil && !required[k] {
+					paramtypes = append(paramtypes, k+" *int")
+				} else {
+					paramtypes = append(paramtypes, k+" int")
 				}
-				return nil
-			}); err != nil {
-				return err
+			case Float:
+				return fmt.Errorf("non-integer numbers currently unsupported")
+			case Array:
+				paramtypes = append(paramtypes, k+"[]"+t.Items.Type)
+			default:
+				return fmt.Errorf("unsupported handler parameter type: %s", t.Type)
 			}
+			return nil
+		}); err != nil {
+			return err
 		}
 	}
 
@@ -306,7 +314,8 @@ func (s *TypeSchema) WriteRPCHandler(w io.Writer, fname, shortname, impname stri
 				case Integer:
 					params = append(params, k)
 
-					if !required[k] {
+					switch {
+					case !required[k]:
 						paramtypes = append(paramtypes, k+" *int")
 						pf(`
               var %s *int
@@ -318,7 +327,7 @@ func (s *TypeSchema) WriteRPCHandler(w io.Writer, fname, shortname, impname stri
               %s  = &%s_val
               }
               `, k, k, k, k, k)
-					} else if t.Default != nil {
+					case t.Default != nil:
 						paramtypes = append(paramtypes, k+" int")
 						def, ok := t.Default.(float64)
 						if !ok {
@@ -336,7 +345,7 @@ func (s *TypeSchema) WriteRPCHandler(w io.Writer, fname, shortname, impname stri
               %s = %d
               }
               `, k, k, k, k, int(def))
-					} else {
+					default:
 						paramtypes = append(paramtypes, k+" int")
 						pf(`
               %s, err := strconv.Atoi(c.QueryParam("%s"))
@@ -350,7 +359,9 @@ func (s *TypeSchema) WriteRPCHandler(w io.Writer, fname, shortname, impname stri
 					return fmt.Errorf("non-integer numbers currently unsupported")
 				case Boolean:
 					params = append(params, k)
-					if !required[k] {
+
+					switch {
+					case !required[k]:
 						paramtypes = append(paramtypes, k+" *bool")
 						pf(`
               var %s *bool
@@ -362,13 +373,12 @@ func (s *TypeSchema) WriteRPCHandler(w io.Writer, fname, shortname, impname stri
               %s  = &%s_val
               }
               `, k, k, k, k, k)
-					} else if t.Default != nil {
+					case t.Default != nil:
 						paramtypes = append(paramtypes, k+" bool")
 						def, ok := t.Default.(bool)
 						if !ok {
 							return fmt.Errorf("default value is not a bool: %v", t.Default)
 						}
-
 						pf(`
               var %s bool
               if p := c.QueryParam("%s"); p != "" {
@@ -381,7 +391,7 @@ func (s *TypeSchema) WriteRPCHandler(w io.Writer, fname, shortname, impname stri
               %s = %v
               }
               `, k, k, k, k, def)
-					} else {
+					default:
 						paramtypes = append(paramtypes, k+" bool")
 						pf(`
               %s, err := strconv.ParseBool(c.QueryParam("%s"))
@@ -543,7 +553,7 @@ func (s *TypeSchema) TypeName() string {
 		n = "[]" + n
 
 		if s.Items.Type == Union {
-			n = n + "_Elem"
+			n += "_Elem"
 		}
 	}
 
@@ -604,7 +614,7 @@ func (s *TypeSchema) typeNameForField(name, k string, v TypeSchema) (string, err
 func (ts *TypeSchema) lookupRef(ref string) (*TypeSchema, error) {
 	fqref := ref
 	if strings.HasPrefix(ref, "#") {
-		fmt.Println("updating fqref: ", ts.id)
+		log.Println("updating fqref: ", ts.id)
 		fqref = ts.id + ref
 	}
 
@@ -626,7 +636,7 @@ func (ts *TypeSchema) lookupRef(ref string) (*TypeSchema, error) {
 
 	rr, ok := ts.defMap[fqref]
 	if !ok {
-		fmt.Println(ts.defMap)
+		log.Println(ts.defMap)
 		panic(fmt.Sprintf("no such ref: %q", fqref))
 	}
 
@@ -690,7 +700,11 @@ func (ts *TypeSchema) writeTypeDefinition(name string, w io.Writer) error {
 			if ts.defName != "" && ts.defName != Main {
 				cval += "#" + ts.defName
 			}
-			pf("\tLexiconTypeID string `json:\"$type\" cborgen:\"$type,const=%s%s\" validate:\"required\"`\n", cval, omit)
+			pf(
+				"\tLexiconTypeID string `json:\"$type\" cborgen:\"$type,const=%s%s\" validate:\"required\"`\n",
+				cval,
+				omit,
+			)
 		}
 
 		required := make(map[string]bool)
@@ -820,38 +834,38 @@ func (ts *TypeSchema) writeTypeMethods(name string, w io.Writer) error {
 	case String, Float, Array, Boolean, Integer, Object:
 		return nil
 	case Union:
-		if len(ts.Refs) > 0 {
-			reft, err := ts.lookupRef(ts.Refs[0])
-			if err != nil {
-				return err
-			}
+		if len(ts.Refs) == 0 {
+			return fmt.Errorf("%q unsupported for marshaling", name)
+		}
 
-			if reft.Type == String {
-				return nil
-			}
+		reft, err := ts.lookupRef(ts.Refs[0])
+		if err != nil {
+			return err
+		}
 
-			if err := ts.writeJsonMarshalerEnum(name, w); err != nil {
-				return err
-			}
-
-			if err := ts.writeJsonUnmarshalerEnum(name, w); err != nil {
-				return err
-			}
-
-			if ts.needsCbor {
-				if err := ts.writeCborMarshalerEnum(name, w); err != nil {
-					return err
-				}
-
-				if err := ts.writeCborUnmarshalerEnum(name, w); err != nil {
-					return err
-				}
-			}
-
+		if reft.Type == String {
 			return nil
 		}
 
-		return fmt.Errorf("%q unsupported for marshaling", name)
+		if err := ts.writeJsonMarshalerEnum(name, w); err != nil {
+			return err
+		}
+
+		if err := ts.writeJsonUnmarshalerEnum(name, w); err != nil {
+			return err
+		}
+
+		if ts.needsCbor {
+			if err := ts.writeCborMarshalerEnum(name, w); err != nil {
+				return err
+			}
+
+			if err := ts.writeCborUnmarshalerEnum(name, w); err != nil {
+				return err
+			}
+		}
+
+		return nil
 	default:
 		return fmt.Errorf("%q has unrecognized type: %s", name, ts.Type)
 	}
@@ -863,12 +877,13 @@ func (ts *TypeSchema) writeStorageMethods(name string, collection string, w io.W
 	pf("\treturn \"%s\"\n}", collection)
 
 	pf("\n\nfunc (t %s) Key() string {\n", name)
-	if ts.Key == "tid" {
+	switch {
+	case ts.Key == "tid":
 		pf("\treturn repo.NextTID()")
-	} else if strings.HasPrefix(ts.Key, "literal:") {
+	case strings.HasPrefix(ts.Key, "literal:"):
 		keySplit := strings.Split(ts.Key, ":")
 		pf("\treturn \"%s\"", keySplit[1])
-	} else if strings.HasPrefix(ts.Key, "lid:") {
+	case strings.HasPrefix(ts.Key, "lid:"):
 		keySplit := strings.Split(ts.Key, ":")[1:]
 		for _, key := range keySplit {
 			if !slices.Contains(ts.Record.Required, key) {
@@ -883,7 +898,7 @@ func (ts *TypeSchema) writeStorageMethods(name string, collection string, w io.W
 		keyThree := fmt.Sprintf("t.%s", capitalizeFirst(keySplit[2]))
 
 		pf("\treturn repo.LID(%s, %s, %s)", keyOne, keyTwo, keyThree)
-	} else {
+	default:
 		return fmt.Errorf("invalid key type: %s", ts.Key)
 	}
 	pf("\n}")

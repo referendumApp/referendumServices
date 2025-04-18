@@ -6,18 +6,24 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
-
 	refApp "github.com/referendumApp/referendumServices/internal/domain/lexicon/referendumapp"
 	refErr "github.com/referendumApp/referendumServices/internal/error"
 	"github.com/referendumApp/referendumServices/internal/util"
 )
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	resp, err := s.av.HandleHealth(w, r)
-	if err != nil {
+	if err := s.av.HandleHealth(w, r); err != nil {
 		err.WriteResponse(w)
 		return
 	}
+
+	if err := s.pds.HandleHealth(w, r); err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	resp := map[string]bool{"healthy": true}
+
 	s.encode(r.Context(), w, http.StatusOK, resp)
 }
 
@@ -47,12 +53,12 @@ func (s *Server) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if cerr := s.av.CreateUserAndPerson(ctx, user, req.Handle, *req.DisplayName); cerr != nil {
-		err.WriteResponse(w)
+		cerr.WriteResponse(w)
 		return
 	}
 
 	if rerr := s.pds.CreateNewRepo(ctx, user.ID, user.Did, req.DisplayName); rerr != nil {
-		err.WriteResponse(w)
+		rerr.WriteResponse(w)
 		return
 	}
 }
@@ -77,7 +83,15 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		var fieldErrs []*refErr.APIError
 		if errors.As(err, &valErr) {
 			for _, e := range valErr {
-				s.log.Error("Request validation failed", "field", e.Field(), "valdationTag", e.ActualTag(), "error", e.Error())
+				s.log.Error(
+					"Request validation failed",
+					"field",
+					e.Field(),
+					"valdationTag",
+					e.ActualTag(),
+					"error",
+					e.Error(),
+				)
 				fieldErr := util.HandleFieldError(e)
 				fieldErrs = append(fieldErrs, fieldErr)
 			}
@@ -184,11 +198,16 @@ func (s *Server) handleGetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	profile, err := s.av.GetProfile(ctx, uid)
-	if err != nil {
+	var profile refApp.PersonProfile
+	if _, err := s.pds.GetRecord(ctx, uid, &profile); err != nil {
 		err.WriteResponse(w)
 		return
 	}
+	// profile, err := s.av.GetProfile(ctx, uid)
+	// if err != nil {
+	// 	err.WriteResponse(w)
+	// 	return
+	// }
 
 	s.encode(ctx, w, http.StatusOK, profile)
 }

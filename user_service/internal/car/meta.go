@@ -10,15 +10,16 @@ import (
 	sq "github.com/Masterminds/squirrel"
 	"github.com/ipfs/go-cid"
 	"github.com/jackc/pgx/v5"
-
 	"github.com/referendumApp/referendumServices/internal/database"
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
 )
 
+// StoreMeta embeds the DB specifically for CAR store related queries
 type StoreMeta struct {
 	*database.DB
 }
 
+// HasUidCid checks that a user has block references
 func (cs *StoreMeta) HasUidCid(ctx context.Context, user atp.Uid, k cid.Cid) (bool, error) {
 	var count int64
 	leftTbl := cs.Schema + "." + BlockRef{}.TableName()
@@ -43,8 +44,8 @@ func (cs *StoreMeta) HasUidCid(ctx context.Context, user atp.Uid, k cid.Cid) (bo
 	return count > 0, nil
 }
 
-// For some Cid, lookup the block ref.
-// Return the path of the file written, the offset within the file, and the user associated with the Cid.
+// LookupBlockRef for some Cid, lookup the block ref
+// Return the path of the file written, the offset within the file, and the user associated with the Cid
 func (cs *StoreMeta) LookupBlockRef(ctx context.Context, k cid.Cid) (string, int64, atp.Uid, error) {
 	var path string
 	var offset int64
@@ -59,6 +60,7 @@ func (cs *StoreMeta) LookupBlockRef(ctx context.Context, k cid.Cid) (string, int
 	return path, offset, uid, nil
 }
 
+// GetLastShard queries the car_shards table for the most recent shard written to the store
 func (cs *StoreMeta) GetLastShard(ctx context.Context, user atp.Uid) (*Shard, error) {
 	filter := sq.Eq{"uid": user}
 
@@ -87,56 +89,57 @@ func (cs *StoreMeta) GetLastShard(ctx context.Context, user atp.Uid) (*Shard, er
 	return lastShard, nil
 }
 
-// return all of a users's shards, ascending by Seq
+// GetUserShards return all of a users's shards, ascending by Seq
 func (cs *StoreMeta) GetUserShards(ctx context.Context, user atp.Uid) ([]*Shard, error) {
 	filter := sq.Eq{"uid": user}
 
 	query, err := database.BuildSelectAll(&Shard{}, cs.Schema, filter)
 	if err != nil {
-		cs.Log.ErrorContext(ctx, "Error building car shards query", "error", err, "uid", user)
+		cs.Log.ErrorContext(ctx, "Error building CAR shards query", "error", err, "uid", user)
 		return nil, err
 	}
 
 	sql, args, err := query.OrderBy("seq ASC").ToSql()
 	if err != nil {
-		cs.Log.ErrorContext(ctx, "Error building car shards query", "error", err, "uid", user)
+		cs.Log.ErrorContext(ctx, "Error building CAR shards query", "error", err, "uid", user)
 		return nil, err
 	}
 
 	shards, err := database.Select[Shard](ctx, cs.DB, sql, args...)
 	if err != nil {
-		cs.Log.ErrorContext(ctx, "Error querying car shards", "error", err, "sql", sql)
+		cs.Log.ErrorContext(ctx, "Error querying CAR shards", "error", err, "sql", sql)
 		return nil, err
 	}
 
 	return shards, nil
 }
 
-// return all of a users's shards, descending by Seq
+// GetUserShardsDesc return all of a users's shards, descending by Seq
 func (cs *StoreMeta) GetUserShardsDesc(ctx context.Context, user atp.Uid, minSeq int) ([]*Shard, error) {
 	filter := sq.And{sq.Eq{"uid": user}, sq.GtOrEq{"seq": minSeq}}
 
 	query, err := database.BuildSelectAll(&Shard{}, cs.Schema, filter)
 	if err != nil {
-		cs.Log.ErrorContext(ctx, "Error building car shards query", "error", err, "uid", user)
+		cs.Log.ErrorContext(ctx, "Error building CAR shards query", "error", err, "uid", user)
 		return nil, err
 	}
 
 	sql, args, err := query.OrderBy("seq DESC").ToSql()
 	if err != nil {
-		cs.Log.ErrorContext(ctx, "Error building raw car shards query", "error", err, "uid", user)
+		cs.Log.ErrorContext(ctx, "Error building raw CAR shards query", "error", err, "uid", user)
 		return nil, err
 	}
 
 	shards, err := database.Select[Shard](ctx, cs.DB, sql, args...)
 	if err != nil {
-		cs.Log.ErrorContext(ctx, "Error querying for car shards", "error", err, "sql", sql)
+		cs.Log.ErrorContext(ctx, "Error querying for CAR shards", "error", err, "sql", sql)
 		return nil, err
 	}
 
 	return shards, nil
 }
 
+// SeqForRev return the CAR shard sequence number for a revision
 func (cs *StoreMeta) SeqForRev(ctx context.Context, user atp.Uid, sinceRev string) (int, error) {
 	var seq int
 
@@ -157,8 +160,13 @@ func (cs *StoreMeta) SeqForRev(ctx context.Context, user atp.Uid, sinceRev strin
 	return seq, nil
 }
 
+// GetCompactionTargets return the number of CAR shards for each user
 func (cs *StoreMeta) GetCompactionTargets(ctx context.Context, minShardCount int) ([]*CompactionTarget, error) {
-	sql := fmt.Sprintf("SELECT usr, count(*) as num_shards FROM %s.%s GROUP BY usr HAVING count(*) > $1 ORDER BY num_shards DESC", cs.Schema, Shard{}.TableName())
+	sql := fmt.Sprintf(
+		"SELECT usr, count(*) as num_shards FROM %s.%s GROUP BY usr HAVING count(*) > $1 ORDER BY num_shards DESC",
+		cs.Schema,
+		Shard{}.TableName(),
+	)
 
 	targets, err := database.Select[CompactionTarget](ctx, cs.DB, sql, minShardCount)
 	if err != nil {
@@ -169,6 +177,7 @@ func (cs *StoreMeta) GetCompactionTargets(ctx context.Context, minShardCount int
 	return targets, nil
 }
 
+// PutShardAndRefs inserts records to the car_shards and block_refs tables
 func (cs *StoreMeta) PutShardAndRefs(ctx context.Context, shard *Shard, brefs []*BlockRef) error {
 	// TODO: Can use a CTE to insert both the shard and block refs in the same query
 	if err := cs.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
@@ -210,6 +219,7 @@ func (cs *StoreMeta) PutShardAndRefs(ctx context.Context, shard *Shard, brefs []
 	return nil
 }
 
+// DeleteShardsAndRefs deletes records from the car_shards and block_refs tables
 func (cs *StoreMeta) DeleteShardsAndRefs(ctx context.Context, ids []uint) error {
 	if err := cs.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		sdFilter := sq.Eq{"id": ids}
@@ -232,6 +242,7 @@ func (cs *StoreMeta) DeleteShardsAndRefs(ctx context.Context, ids []uint) error 
 	return nil
 }
 
+// GetBlockRefsForShards get the block refs based off a slice of CAR shards
 func (cs *StoreMeta) GetBlockRefsForShards(ctx context.Context, shardIds []uint) ([]*BlockRef, error) {
 	chunkSize := 2000
 	out := make([]*BlockRef, 0, len(shardIds))
@@ -242,7 +253,10 @@ func (cs *StoreMeta) GetBlockRefsForShards(ctx context.Context, shardIds []uint)
 		}
 
 		sval := valuesStatementForShards(sl)
-		sql := fmt.Sprintf(`SELECT block_refs.* FROM carstore.block_refs INNER JOIN (VALUES %s) AS vals(v) ON block_refs.shard = v`, sval)
+		sql := fmt.Sprintf(
+			`SELECT block_refs.* FROM carstore.block_refs INNER JOIN (VALUES %s) AS vals(v) ON block_refs.shard = v`,
+			sval,
+		)
 
 		chunkResults, err := database.Select[BlockRef](ctx, cs.DB, sql)
 		if err != nil {

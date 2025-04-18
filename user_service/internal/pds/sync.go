@@ -6,10 +6,10 @@ import (
 
 	lexutil "github.com/bluesky-social/indigo/lex/util"
 	"github.com/gorilla/websocket"
-
 	"github.com/referendumApp/referendumServices/internal/events"
 )
 
+// EventsHandler opens a websocket connection to another repo
 func (p *PDS) EventsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 

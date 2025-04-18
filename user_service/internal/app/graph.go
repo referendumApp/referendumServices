@@ -2,19 +2,26 @@ package app
 
 import (
 	"context"
+	"errors"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/ipfs/go-cid"
 	"github.com/jackc/pgx/v5"
-
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
 	refErr "github.com/referendumApp/referendumServices/internal/error"
 )
 
-func (v *View) HandleGraphFollow(ctx context.Context, uid atp.Uid, did string, cc cid.Cid, tid string) *refErr.APIError {
+// HandleGraphFollow proccesses a follow request for another user
+func (v *View) HandleGraphFollow(
+	ctx context.Context,
+	uid atp.Uid,
+	did string,
+	cc cid.Cid,
+	tid string,
+) *refErr.APIError {
 	target, err := v.meta.LookupPersonByDid(ctx, did)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return refErr.NotFound(did, "DID")
 		}
 
@@ -46,6 +53,7 @@ func (v *View) HandleGraphFollow(ctx context.Context, uid atp.Uid, did string, c
 	return nil
 }
 
+// HandleGraphFollowers queries the user_follow_record table for user followers
 func (v *View) HandleGraphFollowers(ctx context.Context, uid atp.Uid) ([]*atp.PersonBasic, *refErr.APIError) {
 	followers, err := v.meta.LookupGraphFollowers(ctx, uid)
 	if err != nil {
@@ -55,6 +63,7 @@ func (v *View) HandleGraphFollowers(ctx context.Context, uid atp.Uid) ([]*atp.Pe
 	return followers, nil
 }
 
+// HandleGraphFollowing queries the user_follow_record table for user follows
 func (v *View) HandleGraphFollowing(ctx context.Context, uid atp.Uid) ([]*atp.PersonBasic, *refErr.APIError) {
 	following, err := v.meta.LookupGraphFollowing(ctx, uid)
 	if err != nil {

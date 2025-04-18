@@ -4,13 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
-	cli "github.com/urfave/cli/v2"
-
 	lex "github.com/referendumApp/referendumServices/lexgen"
+	cli "github.com/urfave/cli/v2"
 )
 
 func findSchemas(dir string, out []string) ([]string, error) {
@@ -108,12 +108,12 @@ func main() {
 		var schemas []*lex.Schema
 		for _, arg := range paths {
 			if strings.HasSuffix(arg, "com/atproto/temp/importRepo.json") {
-				fmt.Printf("skipping schema: %s\n", arg)
+				log.Printf("skipping schema: %s\n", arg)
 				continue
 			}
 			s, schemaErr := lex.ReadSchema(arg)
 			if schemaErr != nil {
-				return fmt.Errorf("failed to read file %q: %w", arg, err)
+				return fmt.Errorf("failed to read file %q: %w", arg, schemaErr)
 			}
 
 			schemas = append(schemas, s)
@@ -134,10 +134,7 @@ func main() {
 			if err != nil {
 				return fmt.Errorf("--build error, %w", err)
 			}
-			if len(packages) == 0 {
-				return errors.New("--build must specify at least one Package{}")
-			}
-		} else if buildPath != "" {
+		} else {
 			blob, err := os.ReadFile(buildPath)
 			if err != nil {
 				return fmt.Errorf("--build-file error, %w", err)
@@ -146,9 +143,10 @@ func main() {
 			if err != nil {
 				return fmt.Errorf("--build-file error, %w", err)
 			}
-			if len(packages) == 0 {
-				return errors.New("--build-file must specify at least one Package{}")
-			}
+		}
+
+		if len(packages) == 0 {
+			return errors.New("must specify at least one Package{}")
 		}
 
 		if cctx.Bool("gen-server") {
