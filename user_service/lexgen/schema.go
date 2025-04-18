@@ -26,7 +26,7 @@ type Schema struct {
 }
 
 func ReadSchema(f string) (s *Schema, err error) {
-	fi, err := os.Open(f) //nolint:gosec
+	fi, err := os.Open(f)
 	if err != nil {
 		return nil, err
 	}

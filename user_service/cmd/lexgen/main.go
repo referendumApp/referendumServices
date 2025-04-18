@@ -135,7 +135,7 @@ func main() {
 				return fmt.Errorf("--build error, %w", err)
 			}
 		} else {
-			blob, err := os.ReadFile(buildPath) //nolint:gosec
+			blob, err := os.ReadFile(buildPath)
 			if err != nil {
 				return fmt.Errorf("--build-file error, %w", err)
 			}
