@@ -44,7 +44,7 @@ class LegislatorVote(CamelCaseBaseModel):
     legislator_name: str
     party_name: str
     state_abbr: str
-    role_name: str
+    chamber_name: str
     vote_choice_id: int
 
 
@@ -105,8 +105,8 @@ class DenormalizedBill(CamelCaseBaseModel):
     state_id: int = Field(description="State identifier")
     state_name: str = Field(description="Name of the state")
     legislative_body_id: int = Field(description="Legislative body identifier")
-    role_id: int = Field(description="Role ID of the legislative body")
-    legislative_body_role: str = Field(description="Role name of the legislative body")
+    chamber_id: int = Field(description="Chamber ID of the legislative body")
+    legislative_body_chamber: str = Field(description="Chamber name of the legislative body")
     sponsors: List[SponsorDetail] = Field(
         default_factory=list, description="List of all bill sponsors"
     )

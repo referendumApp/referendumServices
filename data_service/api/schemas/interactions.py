@@ -44,7 +44,7 @@ class NoNullOptions(CamelCaseBaseModel):
 
 
 class BaseFilterOptions(NoNullOptions):
-    role_id: Optional[List[int]] = None
+    chamber_id: Optional[List[int]] = None
     state_id: Optional[List[int]] = None
 
 

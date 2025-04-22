@@ -1,7 +1,7 @@
 [
   {
     "source": "ls_state",
-    "destination": "states",
+    "destination": "jurisdictions",
     "source_columns": [
       "state_id",
       "state_name",
@@ -28,7 +28,7 @@
   },
   {
     "source": "ls_role",
-    "destination": "roles",
+    "destination": "chambers",
     "source_columns": [
       "role_id",
       "role_name"
@@ -46,6 +46,17 @@
             "role_name": "name"
           }
         }
+      },
+      {
+        "function": "map",
+        "parameters": {
+          "source_name": "name",
+          "destination_name": "name",
+          "mapping": {
+            "Representative": "House of Representatives",
+            "Senator": "Senate"
+          }
+        }
       }
     ],
     "dataframe": null
@@ -60,15 +71,17 @@
     ],
     "destination_columns": [
       "id",
-      "state_id",
-      "role_id"
+      "jurisdiction_id",
+      "chamber_id"
     ],
     "transformations": [
       {
         "function": "rename",
         "parameters": {
           "columns": {
-            "body_id": "id"
+            "body_id": "id",
+            "state_id": "jurisdiction_id",
+            "role_id": "chamber_id"
           }
         }
       }
@@ -110,7 +123,7 @@
     "destination_columns": [
       "id",
       "name",
-      "state_id"
+      "jurisdiction_id"
     ],
     "transformations": [
       {
@@ -118,7 +131,8 @@
         "parameters": {
           "columns": {
             "session_id": "id",
-            "session_name": "name"
+            "session_name": "name",
+            "state_id": "jurisdiction_id"
           }
         }
       }
@@ -144,7 +158,7 @@
       "legiscan_id",
       "title",
       "description",
-      "state_id",
+      "jurisdiction_id",
       "legislative_body_id",
       "identifier",
       "session_id",
@@ -158,7 +172,8 @@
           "columns": {
             "bill_id": "id",
             "bill_number": "identifier",
-            "body_id": "legislative_body_id"
+            "body_id": "legislative_body_id",
+            "state_id": "jurisdiction_id"
           }
         }
       },
@@ -173,7 +188,7 @@
     "dataframe": null
   },
   {
-    "source": "(SELECT p.*, SPLIT_PART(p.district, '-', 2) as representing_state_abbr FROM ls_people p) AS derived_people",
+    "source": "ls_people",
     "destination": "legislators",
     "source_columns": [
       "people_id",
@@ -183,7 +198,6 @@
       "ballotpedia",
       "state_id",
       "role_id",
-      "representing_state_abbr",
       "followthemoney_eid"
     ],
     "destination_columns": [
@@ -192,26 +206,20 @@
       "name",
       "party_id",
       "district",
-      "state_id",
-      "representing_state_id",
+      "jurisdiction_id",
+      "chamber_id",
+      "level",
       "image_url",
-      "role_id",
       "followthemoney_eid"
     ],
-    "join_config": {
-      "join_type": "LEFT JOIN",
-      "table": "ls_state",
-      "on": ["representing_state_abbr", "state_abbr"],
-      "columns": [
-        "ls_state.state_id AS representing_state_id"
-      ]
-    },
     "transformations": [
       {
         "function": "rename",
         "parameters": {
           "columns": {
-            "people_id": "id"
+            "people_id": "id",
+            "state_id": "jurisdiction_id",
+            "role_id": "chamber_id"
           }
         }
       },
@@ -227,6 +235,17 @@
         "parameters": {
           "source_name": "ballotpedia",
           "destination_name": "image_url"
+        }
+      },
+      {
+        "function": "map",
+        "parameters": {
+          "source_name": "jurisdiction_id",
+          "destination_name": "level",
+          "mapping": {
+            "52": "Federal"
+          },
+          "default": "State"
         }
       }
     ],

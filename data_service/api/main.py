@@ -19,7 +19,7 @@ from .endpoints import (
     legislative_bodys,
     legislators,
     partys,
-    roles,
+    chambers,
     states,
     committees,
     bill_actions,
@@ -53,6 +53,7 @@ app.include_router(authentication.router, tags=["authentication"], prefix="/auth
 app.include_router(bills.router, tags=["bills"], prefix="/bills")
 app.include_router(bill_actions.router, tags=["bill_actions"], prefix="/bill_actions")
 app.include_router(bill_versions.router, tags=["bill_versions"], prefix="/bill_versions")
+app.include_router(chambers.router, tags=["chambers"], prefix="/chambers")
 app.include_router(comments.router, tags=["comments"], prefix="/comments")
 app.include_router(committees.router, tags=["committees"], prefix="/committees")
 app.include_router(executive_orders.router, tags=["executive_orders"], prefix="/executive_orders")
@@ -63,7 +64,6 @@ app.include_router(
 )
 app.include_router(partys.router, tags=["partys"], prefix="/partys")
 app.include_router(presidents.router, tags=["presidents"], prefix="/presidents")
-app.include_router(roles.router, tags=["roles"], prefix="/roles")
 app.include_router(sessions.router, tags=["sessions"], prefix="/sessions")
 app.include_router(states.router, tags=["states"], prefix="/states")
 app.include_router(statuses.router, tags=["statuses"], prefix="/statuses")

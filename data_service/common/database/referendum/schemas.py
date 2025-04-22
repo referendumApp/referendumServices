@@ -63,8 +63,8 @@ Party = create_schema_container(
     base_fields={"id": (int, ...), "name": (str, ...)},
 )
 
-Role = create_schema_container(
-    name="Role",
+Chamber = create_schema_container(
+    name="Chamber",
     base_fields={"id": (int, ...), "name": (str, ...)},
 )
 
@@ -85,7 +85,7 @@ Session = create_schema_container(
 
 LegislativeBody = create_schema_container(
     name="State",
-    base_fields={"id": (int, ...), "role_id": (int, ...), "state_id": (int, ...)},
+    base_fields={"id": (int, ...), "chamber_id": (int, ...), "state_id": (int, ...)},
 )
 
 Committee = create_schema_container(
@@ -111,7 +111,7 @@ Legislator = create_schema_container(
         "image_url": (Optional[str], None),
         "district": (str, ...),
         "party_id": (int, ...),
-        "role_id": (int, ...),
+        "chamber_id": (int, ...),
         "state_id": (int, ...),
         "representing_state_id": (Optional[int], None),
         "address": (Optional[str], None),
@@ -126,7 +126,7 @@ Legislator = create_schema_container(
         "state": (State.Record, None),
         "representing_state": (Optional[State.Record], None),
         "party": (Party.Record, None),
-        "role": (Role.Record, None),
+        "chamber": (Chamber.Record, None),
     },
 )
 

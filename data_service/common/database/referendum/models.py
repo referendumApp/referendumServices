@@ -96,15 +96,15 @@ class Party(Base):
     name = Column(String, nullable=False)
 
 
-class Role(Base):
-    __tablename__ = "roles"
+class Chamber(Base):
+    __tablename__ = "chambers"
 
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
 
 
-class State(Base):
-    __tablename__ = "states"
+class Jurisdiction(Base):
+    __tablename__ = "jurisdictions"
 
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
@@ -115,10 +115,10 @@ class LegislativeBody(Base):
     __tablename__ = "legislative_bodys"
 
     id = Column(Integer, primary_key=True)
-    role_id = Column(Integer, ForeignKey("roles.id"), nullable=False)
+    chamber_id = Column(Integer, ForeignKey("chamber.id"), nullable=False)
     state_id = Column(Integer, ForeignKey("states.id"), nullable=False)
 
-    role = relationship("Role")
+    chamber = relationship("Chamber")
     state = relationship("State")
 
 
@@ -216,10 +216,10 @@ class Legislator(Base):
     name = Column(String, nullable=False)
     image_url = Column(String)
     party_id = Column(Integer, ForeignKey("partys.id"))
-    role_id = Column(Integer, ForeignKey("roles.id"))
-    state_id = Column(Integer, ForeignKey("states.id"))
+    chamber_id = Column(Integer, ForeignKey("chambers.id"))
+    jurisdiction_id = Column(Integer, ForeignKey("jurisdictions.id"))
+    level = Column(String, nullable=False)
     district = Column(String, nullable=False)
-    representing_state_id = Column(Integer, ForeignKey("states.id"))
     address = Column(String)
     facebook = Column(String)
     instagram = Column(String)
@@ -229,9 +229,8 @@ class Legislator(Base):
 
     legislator_votes = relationship("LegislatorVote", back_populates="legislator")
     party = relationship("Party")
-    state = relationship("State", foreign_keys=[state_id])
-    representing_state = relationship("State", foreign_keys=[representing_state_id])
-    role = relationship("Role")
+    jurisdiction = relationship("Jurisdiction", foreign_keys=[jurisdiction_id])
+    chamber = relationship("Chamber")
     committees = relationship(
         "Committee", secondary=committee_membership, back_populates="legislators"
     )
