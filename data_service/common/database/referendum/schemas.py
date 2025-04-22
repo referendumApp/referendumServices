@@ -78,14 +78,17 @@ Status = create_schema_container(
     base_fields={"id": (int, ...), "name": (str, ...)},
 )
 
-Session = create_schema_container(
-    name="Session",
-    base_fields={"id": (int, ...), "name": (str, ...), "state_id": (int, ...)},
+Legislature = create_schema_container(
+    name="Legislature",
+    base_fields={
+        "id": (int, ...),
+        "state_id": (int, ...),
+    },
 )
 
 LegislativeBody = create_schema_container(
     name="State",
-    base_fields={"id": (int, ...), "chamber_id": (int, ...), "state_id": (int, ...)},
+    base_fields={"id": (int, ...), "chamber_id": (int, ...), "legislature_id": (int, ...)},
 )
 
 Committee = create_schema_container(
@@ -95,6 +98,11 @@ Committee = create_schema_container(
         "name": (str, ...),
         "legislative_body_id": (int, ...),
     },
+)
+
+Session = create_schema_container(
+    name="Session",
+    base_fields={"id": (int, ...), "name": (str, ...), "legislature_id": (int, ...)},
 )
 
 Topic = create_schema_container(
@@ -112,7 +120,7 @@ Legislator = create_schema_container(
         "district": (str, ...),
         "party_id": (int, ...),
         "chamber_id": (int, ...),
-        "state_id": (int, ...),
+        "legislative_body_id": (int, ...),
         "representing_state_id": (Optional[int], None),
         "address": (Optional[str], None),
         "facebook": (Optional[str], None),
@@ -123,7 +131,7 @@ Legislator = create_schema_container(
     },
     relationship_fields={
         "committees": (List[Committee.Record], []),
-        "state": (State.Record, None),
+        "legislative_body": (LegislativeBody.Record, None),
         "representing_state": (Optional[State.Record], None),
         "party": (Party.Record, None),
         "chamber": (Chamber.Record, None),

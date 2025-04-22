@@ -21,6 +21,9 @@ pytest-api:
 pytest-pipeline:
 	docker compose --profile test run --rm test pytest $(ARGS) pipeline/
 
+pytest-basic:
+	docker compose --profile test run --rm test pytest $(ARGS) api/tests/test_bill_actions.py
+
 # Clean up Docker resources
 clean:
 	docker compose down --remove-orphans
@@ -42,3 +45,4 @@ restart: clean local
 test: clean build pytest-api pytest-pipeline clean
 test-api: clean build pytest-api clean
 test-pipeline: clean build pytest-pipeline clean
+test-basic: clean build pytest-basic clean

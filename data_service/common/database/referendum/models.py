@@ -111,15 +111,22 @@ class State(Base):
     abbr = Column(String, nullable=False)
 
 
+class Legislature(Base):
+    __tablename__ = "legislatures"
+
+    id = Column(Integer, primary_key=True)
+    state_id = Column(Integer, ForeignKey("states.id"), nullable=False)
+
+
 class LegislativeBody(Base):
     __tablename__ = "legislative_bodys"
 
     id = Column(Integer, primary_key=True)
     chamber_id = Column(Integer, ForeignKey("chambers.id"), nullable=False)
-    state_id = Column(Integer, ForeignKey("states.id"), nullable=False)
+    legislature_id = Column(Integer, ForeignKey("legislatures.id"), nullable=False)
 
     chamber = relationship("Chamber")
-    state = relationship("State")
+    legislature = relationship("Legislature")
 
 
 class Topic(Base):
@@ -172,9 +179,9 @@ class Session(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
-    state_id = Column(Integer, ForeignKey("states.id"), index=True)
+    legislature_id = Column(Integer, ForeignKey("legislatures.id"), index=True)
 
-    state = relationship("State")
+    legislature = relationship("Legislature")
     bills = relationship("Bill", back_populates="session")
 
 
@@ -217,7 +224,6 @@ class Legislator(Base):
     image_url = Column(String)
     party_id = Column(Integer, ForeignKey("partys.id"))
     chamber_id = Column(Integer, ForeignKey("chambers.id"))
-    state_id = Column(Integer, ForeignKey("states.id"))
     district = Column(String, nullable=False)
     representing_state_id = Column(Integer, ForeignKey("states.id"))
     address = Column(String)
@@ -229,7 +235,7 @@ class Legislator(Base):
 
     legislator_votes = relationship("LegislatorVote", back_populates="legislator")
     party = relationship("Party")
-    state = relationship("State", foreign_keys=[state_id])
+    legislative_body = relationship("LegislativeBody", foreign_keys=[legislative_body_id])
     representing_state = relationship("State", foreign_keys=[representing_state_id])
     chamber = relationship("Chamber")
     committees = relationship(

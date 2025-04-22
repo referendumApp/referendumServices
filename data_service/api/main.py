@@ -31,6 +31,7 @@ from .endpoints import (
     statuses,
     executive_orders,
     presidents,
+    legislatures,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -61,6 +62,7 @@ app.include_router(legislator_votes.router, tags=["legislator_votes"], prefix="/
 app.include_router(
     legislative_bodys.router, tags=["legislative_bodys"], prefix="/legislative_bodys"
 )
+app.include_router(legislatures.router, tags=["legislatures"], prefix="/legislatures")
 app.include_router(partys.router, tags=["partys"], prefix="/partys")
 app.include_router(presidents.router, tags=["presidents"], prefix="/presidents")
 app.include_router(chambers.router, tags=["chambers"], prefix="/chambers")

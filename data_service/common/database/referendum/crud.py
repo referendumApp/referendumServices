@@ -400,6 +400,16 @@ class LegislativeBodyCRUD(
     pass
 
 
+class LegislatureCRUD(
+    BaseCRUD[
+        models.Legislature,
+        schemas.Legislature.Base,
+        schemas.Legislature.Record,
+    ]
+):
+    pass
+
+
 class PartyCRUD(BaseCRUD[models.Party, schemas.Party.Base, schemas.Party.Record]):
     pass
 
@@ -795,6 +805,7 @@ committee = CommitteeCRUD(models.Committee)
 executive_order = ExecutiveOrderCRUD(models.ExecutiveOrder)
 legislator = LegislatorCRUD(models.Legislator)
 legislative_body = LegislativeBodyCRUD(models.LegislativeBody)
+legislature = LegislatureCRUD(models.Legislature)
 legislator_vote = LegislatorVoteCRUD(models.LegislatorVote)
 party = PartyCRUD(models.Party)
 president = PartyCRUD(models.President)

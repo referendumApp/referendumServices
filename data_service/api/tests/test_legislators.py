@@ -28,13 +28,20 @@ async def test_list_legislators(test_manager: TestManager):
 @pytest.mark.parametrize(
     "filter_request,expected_length,expected_names",
     [
-        ({"filter_options": {"state_id": [1, 2]}}, 2, ["Batman", "Joker"]),
+        ({"filter_options": {"legislative_body_id": [1, 2]}}, 2, ["Batman", "Joker"]),
         ({"filter_options": {"chamber_id": [3]}}, 1, ["Robin"]),
-        ({"filter_options": {"party_id": [2, 3], "state_id": [2, 3]}}, 2, ["Joker", "Robin"]),
+        (
+            {"filter_options": {"party_id": [2, 3], "legislative_body_id": [2, 3]}},
+            2,
+            ["Joker", "Robin"],
+        ),
         ({"filter_options": {"party_id": [3], "chamber_id": [1]}}, 0, []),
         ({"search_query": "Batman"}, 1, ["Batman"]),
         (
-            {"filter_options": {"party_id": [2, 3], "state_id": [2, 3]}, "search_query": "Joker"},
+            {
+                "filter_options": {"party_id": [2, 3], "legislative_body_id": [2, 3]},
+                "search_query": "Joker",
+            },
             1,
             ["Joker"],
         ),
@@ -48,9 +55,15 @@ async def test_list_legislators_filter(
     test_manager: TestManager,
 ):
     # Create at least two legislator
-    await test_manager.create_legislator(name="Batman", state_id=1, chamber_id=1, party_id=1)
-    await test_manager.create_legislator(name="Joker", state_id=2, chamber_id=2, party_id=2)
-    await test_manager.create_legislator(name="Robin", state_id=3, chamber_id=3, party_id=3)
+    await test_manager.create_legislator(
+        name="Batman", legislative_body_id=1, chamber_id=1, party_id=1
+    )
+    await test_manager.create_legislator(
+        name="Joker", legislative_body_id=2, chamber_id=2, party_id=2
+    )
+    await test_manager.create_legislator(
+        name="Robin", legislative_body_id=3, chamber_id=3, party_id=3
+    )
     response = await test_manager.client.post(
         "/legislators/details",
         headers=test_manager.headers,
@@ -131,6 +144,10 @@ async def test_update_legislator_not_found(test_manager: TestManager):
     party = await test_manager.create_party()
     state = await test_manager.create_state()
     chamber = await test_manager.create_chamber()
+    legislature = await test_manager.create_legislature(state_id=state["id"])
+    legislative_body = await test_manager.create_legislative_body(
+        legislature_id=legislature["id"], chamber_id=chamber["id"]
+    )
 
     non_existent_legislator = {
         "id": DEFAULT_ID * 2,
@@ -142,9 +159,9 @@ async def test_update_legislator_not_found(test_manager: TestManager):
         "instagram": "@senantijohndoe",
         "phone": "(202) 111-1112",
         "partyId": party["id"],
-        "stateId": state["id"],
         "chamberId": chamber["id"],
         "followthemoneyEid": str(randint(100, 99999)),
+        "legislativeBodyId": legislative_body["id"],
     }
     response = await test_manager.client.put(
         "/legislators/", json=non_existent_legislator, headers=test_manager.headers
