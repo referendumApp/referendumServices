@@ -67,6 +67,7 @@ async def get_all_bill_details(
     _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
 ):
     try:
+        print(request_body)
         if request_body.federal_only:
             # federal bills have state_id == 52
             if request_body.filter_options:
@@ -156,8 +157,8 @@ async def get_all_bill_details(
                 "status_date": bill.status_date,
                 "session_id": bill.session.id,
                 "session_name": bill.session.name,
-                "state_id": bill.state.id,
-                "state_name": bill.state.name,
+                "state_id": bill.session.legislature.state.id,
+                "state_name": bill.session.legislature.state.name,
                 "current_version_id": bill.current_version_id,
                 "legislative_body_id": bill.legislative_body.id,
                 "chamber_id": bill.legislative_body.chamber.id,
@@ -215,8 +216,8 @@ async def get_bill_detail(
         "status_date": bill.status_date,
         "session_id": bill.session.id,
         "session_name": bill.session.name,
-        "state_id": bill.state.id,
-        "state_name": bill.state.name,
+        "state_id": bill.session.legislature.state.id,
+        "state_name": bill.session.legislature.state.name,
         "current_version_id": bill.current_version_id,
         "legislative_body_id": bill.legislative_body.id,
         "chamber_id": bill.legislative_body.chamber.id,

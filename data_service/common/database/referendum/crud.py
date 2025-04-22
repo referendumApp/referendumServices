@@ -187,13 +187,14 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
         db_bill = (
             db.query(models.Bill)
             .options(
-                joinedload(models.Bill.state),
                 joinedload(models.Bill.status),
                 joinedload(models.Bill.legislative_body).joinedload(models.LegislativeBody.chamber),
                 joinedload(models.Bill.sponsors).joinedload(models.Sponsor.legislator),
                 joinedload(models.Bill.topics),
                 joinedload(models.Bill.bill_versions),
-                joinedload(models.Bill.session),
+                joinedload(models.Bill.session)
+                .joinedload(models.Session.legislature)
+                .joinedload(models.Legislature.state),
             )
             .filter(models.Bill.id == bill_id)
             .first()
@@ -213,13 +214,14 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
         order_by: List[Column] | None = None,
     ) -> List[models.Bill]:
         query = db.query(models.Bill).options(
-            joinedload(models.Bill.state),
             joinedload(models.Bill.status),
             joinedload(models.Bill.legislative_body).joinedload(models.LegislativeBody.chamber),
             joinedload(models.Bill.sponsors).joinedload(models.Sponsor.legislator),
             joinedload(models.Bill.topics),
             joinedload(models.Bill.bill_versions),
-            joinedload(models.Bill.session),
+            joinedload(models.Bill.session)
+            .joinedload(models.Session.legislature)
+            .joinedload(models.Legislature.state),
         )
 
         if column_filter is not None:

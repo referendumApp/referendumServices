@@ -118,6 +118,8 @@ class Legislature(Base):
     state_id = Column(Integer, ForeignKey("states.id"), nullable=False)
     # TODO - add level
 
+    state = relationship("State")
+
 
 class LegislativeBody(Base):
     __tablename__ = "legislative_bodys"
@@ -157,7 +159,6 @@ class Bill(Base):
     identifier = Column(String, nullable=False)
     title = Column(String, nullable=False)
     description = Column(String)
-    state_id = Column(Integer, ForeignKey("states.id"), index=True)
     legislative_body_id = Column(Integer, ForeignKey("legislative_bodys.id"), index=True)
     session_id = Column(Integer, ForeignKey("sessions.id"), index=True)
     status_id = Column(Integer, ForeignKey("statuses.id"), index=True)
@@ -165,7 +166,6 @@ class Bill(Base):
     current_version_id = Column(Integer, ForeignKey("bill_versions.id"), nullable=True)
 
     status = relationship("Status")
-    state = relationship("State")
     legislative_body = relationship("LegislativeBody")
     topics = relationship("Topic", secondary=bill_topics)
     user_votes = relationship("UserVote", back_populates="bill")

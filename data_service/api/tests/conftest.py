@@ -292,12 +292,10 @@ class TestManager:
         title: Optional[str] = None,
         state_id: Optional[int] = None,
         state_name: Optional[str] = None,
-        legislature_id: Optional[int] = None,
         chamber_id: Optional[int] = None,
         chamber_name: Optional[str] = None,
-        session_id: Optional[int] = None,
         status_id: Optional[int] = None,
-        status_name: Optional[str] = None,
+        legislative_body_id: Optional[int] = None,
     ) -> Dict:
         """Create a bill with all dependencies."""
         state = await self.create_state(id=state_id, name=state_name)
@@ -331,7 +329,6 @@ class TestManager:
                 "identifier": identifier or f"HB_{random.randint(100, 999)}",
                 "title": title or f"Bill_{generate_random_string()}",
                 "description": "Test bill description",
-                "stateId": state_id,
                 "legislativeBodyId": legislative_body_id,
                 "sessionId": session_id,
                 "statusId": status_id,
