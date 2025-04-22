@@ -113,9 +113,11 @@ class TestManager:
             },
         )
 
-    async def create_role(self, id: Optional[int] = None, name: Optional[str] = None) -> Dict:
-        """Create a role with optional custom name."""
-        return await self.create_resource("/roles/", {"id": id, "name": name or "Representative"})
+    async def create_chamber(self, id: Optional[int] = None, name: Optional[str] = None) -> Dict:
+        """Create a chamber with optional custom name."""
+        return await self.create_resource(
+            "/chambers/", {"id": id, "name": name or "Representative"}
+        )
 
     async def create_party(self, id: Optional[int] = None, name: Optional[str] = None) -> Dict:
         """Create a party with optional custom name."""
@@ -193,19 +195,19 @@ class TestManager:
         return await self.create_resource("/topics/", {"name": name or "Health"})
 
     async def create_legislative_body(
-        self, *, state_id: Optional[int] = None, role_id: Optional[int] = None
+        self, *, state_id: Optional[int] = None, chamber_id: Optional[int] = None
     ) -> Dict:
         """Create a legislative body, creating dependencies if needed."""
         if state_id is None:
             state = await self.create_state()
             state_id = state["id"]
 
-        if role_id is None:
-            role = await self.create_role()
-            role_id = role["id"]
+        if chamber_id is None:
+            chamber = await self.create_chamber()
+            chamber_id = chamber["id"]
 
         return await self.create_resource(
-            "/legislative_bodys/", {"stateId": state_id, "roleId": role_id}
+            "/legislative_bodys/", {"stateId": state_id, "chamberId": chamber_id}
         )
 
     async def create_legislator(
@@ -214,8 +216,8 @@ class TestManager:
         name: Optional[str] = None,
         state_id: Optional[int] = None,
         state_name: Optional[str] = None,
-        role_id: Optional[int] = None,
-        role_name: Optional[str] = None,
+        chamber_id: Optional[int] = None,
+        chamber_name: Optional[str] = None,
         party_id: Optional[int] = None,
         party_name: Optional[str] = None,
     ) -> Dict:
@@ -223,8 +225,8 @@ class TestManager:
         state = await self.create_state(id=state_id, name=state_name)
         state_id = state["id"]
 
-        role = await self.create_role(id=role_id, name=role_name)
-        role_id = role["id"]
+        chamber = await self.create_chamber(id=chamber_id, name=chamber_name)
+        chamber_id = chamber["id"]
 
         party = await self.create_party(id=party_id, name=party_name)
         party_id = party["id"]
@@ -239,7 +241,7 @@ class TestManager:
                 "address": "123 Capitol St",
                 "partyId": party_id,
                 "stateId": state_id,
-                "roleId": role_id,
+                "chamberId": chamber_id,
                 "followthemoneyEid": str(random.randint(100, 99999)),
             },
         )
@@ -252,8 +254,8 @@ class TestManager:
         state_id: Optional[int] = None,
         state_name: Optional[str] = None,
         legislative_body_id: Optional[int] = None,
-        role_id: Optional[int] = None,
-        role_name: Optional[str] = None,
+        chamber_id: Optional[int] = None,
+        chamber_name: Optional[str] = None,
         session_id: Optional[int] = None,
         status_id: Optional[int] = None,
         status_name: Optional[str] = None,
@@ -262,8 +264,8 @@ class TestManager:
         state = await self.create_state(id=state_id, name=state_name)
         state_id = state["id"]
 
-        role = await self.create_role(id=role_id, name=role_name)
-        role_id = role["id"]
+        chamber = await self.create_chamber(id=chamber_id, name=chamber_name)
+        chamber_id = chamber["id"]
 
         session = await self.create_session(state_id=state_id)
         session_id = session["id"]
@@ -272,7 +274,7 @@ class TestManager:
             status = await self.create_status()
             status_id = status["id"]
 
-        leg_body = await self.create_legislative_body(state_id=state_id, role_id=role_id)
+        leg_body = await self.create_legislative_body(state_id=state_id, chamber_id=chamber_id)
         legislative_body_id = leg_body["id"]
 
         bill_id = random.randint(0, 999999)

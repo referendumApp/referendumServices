@@ -29,9 +29,9 @@ async def test_list_legislators(test_manager: TestManager):
     "filter_request,expected_length,expected_names",
     [
         ({"filter_options": {"state_id": [1, 2]}}, 2, ["Batman", "Joker"]),
-        ({"filter_options": {"role_id": [3]}}, 1, ["Robin"]),
+        ({"filter_options": {"chamber_id": [3]}}, 1, ["Robin"]),
         ({"filter_options": {"party_id": [2, 3], "state_id": [2, 3]}}, 2, ["Joker", "Robin"]),
-        ({"filter_options": {"party_id": [3], "role_id": [1]}}, 0, []),
+        ({"filter_options": {"party_id": [3], "chamber_id": [1]}}, 0, []),
         ({"search_query": "Batman"}, 1, ["Batman"]),
         (
             {"filter_options": {"party_id": [2, 3], "state_id": [2, 3]}, "search_query": "Joker"},
@@ -48,9 +48,9 @@ async def test_list_legislators_filter(
     test_manager: TestManager,
 ):
     # Create at least two legislator
-    await test_manager.create_legislator(name="Batman", state_id=1, role_id=1, party_id=1)
-    await test_manager.create_legislator(name="Joker", state_id=2, role_id=2, party_id=2)
-    await test_manager.create_legislator(name="Robin", state_id=3, role_id=3, party_id=3)
+    await test_manager.create_legislator(name="Batman", state_id=1, chamber_id=1, party_id=1)
+    await test_manager.create_legislator(name="Joker", state_id=2, chamber_id=2, party_id=2)
+    await test_manager.create_legislator(name="Robin", state_id=3, chamber_id=3, party_id=3)
     response = await test_manager.client.post(
         "/legislators/details",
         headers=test_manager.headers,
@@ -130,7 +130,7 @@ async def test_update_legislator_success(test_manager: TestManager):
 async def test_update_legislator_not_found(test_manager: TestManager):
     party = await test_manager.create_party()
     state = await test_manager.create_state()
-    role = await test_manager.create_role()
+    chamber = await test_manager.create_chamber()
 
     non_existent_legislator = {
         "id": DEFAULT_ID * 2,
@@ -143,7 +143,7 @@ async def test_update_legislator_not_found(test_manager: TestManager):
         "phone": "(202) 111-1112",
         "partyId": party["id"],
         "stateId": state["id"],
-        "roleId": role["id"],
+        "chamberId": chamber["id"],
         "followthemoneyEid": str(randint(100, 99999)),
     }
     response = await test_manager.client.put(

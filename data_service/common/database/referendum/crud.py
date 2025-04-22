@@ -189,7 +189,7 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
             .options(
                 joinedload(models.Bill.state),
                 joinedload(models.Bill.status),
-                joinedload(models.Bill.legislative_body).joinedload(models.LegislativeBody.role),
+                joinedload(models.Bill.legislative_body).joinedload(models.LegislativeBody.chamber),
                 joinedload(models.Bill.sponsors).joinedload(models.Sponsor.legislator),
                 joinedload(models.Bill.topics),
                 joinedload(models.Bill.bill_versions),
@@ -215,7 +215,7 @@ class BillCRUD(BaseCRUD[models.Bill, schemas.Bill.Base, schemas.Bill.Record]):
         query = db.query(models.Bill).options(
             joinedload(models.Bill.state),
             joinedload(models.Bill.status),
-            joinedload(models.Bill.legislative_body).joinedload(models.LegislativeBody.role),
+            joinedload(models.Bill.legislative_body).joinedload(models.LegislativeBody.chamber),
             joinedload(models.Bill.sponsors).joinedload(models.Sponsor.legislator),
             joinedload(models.Bill.topics),
             joinedload(models.Bill.bill_versions),
@@ -404,7 +404,7 @@ class PartyCRUD(BaseCRUD[models.Party, schemas.Party.Base, schemas.Party.Record]
     pass
 
 
-class RoleCRUD(BaseCRUD[models.Role, schemas.Role.Base, schemas.Role.Record]):
+class ChamberCRUD(BaseCRUD[models.Chamber, schemas.Chamber.Base, schemas.Chamber.Record]):
     pass
 
 
@@ -798,7 +798,7 @@ legislative_body = LegislativeBodyCRUD(models.LegislativeBody)
 legislator_vote = LegislatorVoteCRUD(models.LegislatorVote)
 party = PartyCRUD(models.Party)
 president = PartyCRUD(models.President)
-role = RoleCRUD(models.Role)
+chamber = ChamberCRUD(models.Chamber)
 state = StateCRUD(models.State)
 status = StatusCRUD(models.Status)
 session = SessionCRUD(models.Session)

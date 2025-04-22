@@ -78,22 +78,22 @@ async def get_all_bill_details(
 
         clauses = []
         if request_body.filter_options:
-            # We need this until we flatten out 'role_id' in the bills table
+            # We need this until we flatten out 'chamber_id' in the bills table
             filter_options = request_body.filter_options.model_dump(exclude_none=True)
-            role_id = filter_options.pop("role_id", None)
+            chamber_id = filter_options.pop("chamber_id", None)
 
-            if role_id is not None:
-                role_filter = models.Bill.legislative_body.has(
-                    models.LegislativeBody.role_id.in_(role_id)
+            if chamber_id is not None:
+                chamber_filter = models.Bill.legislative_body.has(
+                    models.LegislativeBody.chamber_id.in_(chamber_id)
                 )
-                clauses.append(role_filter)
+                clauses.append(chamber_filter)
 
             if filter_options:
-                non_role_filter = utils.create_column_filter(
+                non_chamber_filter = utils.create_column_filter(
                     model=models.Bill,
                     filter_options=filter_options,
                 )
-                clauses.append(non_role_filter)
+                clauses.append(non_chamber_filter)
 
         column_filter = and_(*clauses) if clauses else None
 
@@ -160,8 +160,8 @@ async def get_all_bill_details(
                 "state_name": bill.state.name,
                 "current_version_id": bill.current_version_id,
                 "legislative_body_id": bill.legislative_body.id,
-                "role_id": bill.legislative_body.role.id,
-                "legislative_body_role": bill.legislative_body.role.name,
+                "chamber_id": bill.legislative_body.chamber.id,
+                "legislative_body_chamber": bill.legislative_body.chamber.name,
                 "sponsors": sponsors,
             }
             result.append(bill_dict)
@@ -219,8 +219,8 @@ async def get_bill_detail(
         "state_name": bill.state.name,
         "current_version_id": bill.current_version_id,
         "legislative_body_id": bill.legislative_body.id,
-        "role_id": bill.legislative_body.role.id,
-        "legislative_body_role": bill.legislative_body.role.name,
+        "chamber_id": bill.legislative_body.chamber.id,
+        "legislative_body_chamber": bill.legislative_body.chamber.name,
         "sponsors": sponsors,
     }
 
@@ -344,7 +344,7 @@ async def get_bill_voting_history(
         .options(
             joinedload(models.LegislatorVote.vote_choice),
             joinedload(models.LegislatorVote.legislator).joinedload(models.Legislator.party),
-            joinedload(models.LegislatorVote.legislator).joinedload(models.Legislator.role),
+            joinedload(models.LegislatorVote.legislator).joinedload(models.Legislator.chamber),
             joinedload(models.LegislatorVote.legislator).joinedload(
                 models.Legislator.representing_state
             ),
@@ -373,7 +373,7 @@ async def get_bill_voting_history(
                     if vote.legislator.representing_state is None
                     else vote.legislator.representing_state.abbr
                 ),
-                role_name=vote.legislator.role.name,
+                chamber_name=vote.legislator.chamber.name,
                 vote_choice_id=vote.vote_choice.id,
             )
         )

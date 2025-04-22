@@ -28,7 +28,7 @@
   },
   {
     "source": "ls_role",
-    "destination": "roles",
+    "destination": "chambers",
     "source_columns": [
       "role_id",
       "role_name"
@@ -61,14 +61,15 @@
     "destination_columns": [
       "id",
       "state_id",
-      "role_id"
+      "chamber_id"
     ],
     "transformations": [
       {
         "function": "rename",
         "parameters": {
           "columns": {
-            "body_id": "id"
+            "body_id": "id",
+            "role_id": "chamber_id"
           }
         }
       }
@@ -195,7 +196,7 @@
       "state_id",
       "representing_state_id",
       "image_url",
-      "role_id",
+      "chamber_id",
       "followthemoney_eid"
     ],
     "join_config": {
@@ -211,7 +212,8 @@
         "function": "rename",
         "parameters": {
           "columns": {
-            "people_id": "id"
+            "people_id": "id",
+            "role_id": "chamber_id"
           }
         }
       },

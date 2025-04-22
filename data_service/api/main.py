@@ -19,7 +19,7 @@ from .endpoints import (
     legislative_bodys,
     legislators,
     partys,
-    roles,
+    chambers,
     states,
     committees,
     bill_actions,
@@ -63,7 +63,7 @@ app.include_router(
 )
 app.include_router(partys.router, tags=["partys"], prefix="/partys")
 app.include_router(presidents.router, tags=["presidents"], prefix="/presidents")
-app.include_router(roles.router, tags=["roles"], prefix="/roles")
+app.include_router(chambers.router, tags=["chambers"], prefix="/chambers")
 app.include_router(sessions.router, tags=["sessions"], prefix="/sessions")
 app.include_router(states.router, tags=["states"], prefix="/states")
 app.include_router(statuses.router, tags=["statuses"], prefix="/statuses")

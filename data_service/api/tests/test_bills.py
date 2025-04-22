@@ -21,7 +21,7 @@ async def test_get_bill_details(client, system_headers, test_manager: TestManage
         "statusDate",
         "sessionId",
         "stateName",
-        "legislativeBodyRole",
+        "legislativeBodyChamber",
         "sponsors",
     ]
     assert all(field in response.json() for field in expected_fields)
@@ -57,7 +57,7 @@ async def test_list_bill_details(client, system_headers, test_manager: TestManag
             "statusDate",
             "sessionId",
             "stateName",
-            "legislativeBodyRole",
+            "legislativeBodyChamber",
             "sponsors",
         ]
         assert all(field in bill for field in expected_fields)
@@ -80,9 +80,9 @@ async def test_list_bill_details(client, system_headers, test_manager: TestManag
     "filter_request,expected_length,expected_titles",
     [
         ({"filter_options": {"state_id": [1, 2]}}, 2, ["Batman", "Joker"]),
-        ({"filter_options": {"role_id": [3]}}, 1, ["Robin"]),
+        ({"filter_options": {"chamber_id": [3]}}, 1, ["Robin"]),
         ({"filter_options": {"status_id": [2, 3], "state_id": [2, 3]}}, 2, ["Joker", "Robin"]),
-        ({"filter_options": {"status_id": [3], "role_id": [1]}}, 0, []),
+        ({"filter_options": {"status_id": [3], "chamber_id": [1]}}, 0, []),
         ({"search_query": "Batman"}, 1, ["Batman"]),
         ({"search_query": "BT"}, 2, ["Batman", "Robin"]),
         (
@@ -104,21 +104,21 @@ async def test_list_bill_details_filter(
         identifier="BT1",
         title="Batman",
         state_id=1,
-        role_id=1,
+        chamber_id=1,
         status_id=1,
     )
     await test_manager.create_bill(
         identifier="JO1",
         title="Joker",
         state_id=2,
-        role_id=2,
+        chamber_id=2,
         status_id=2,
     )
     await test_manager.create_bill(
         identifier="BT2",
         title="Robin",
         state_id=3,
-        role_id=3,
+        chamber_id=3,
         status_id=3,
     )
     response = await test_manager.client.post(
@@ -407,7 +407,7 @@ async def test_voting_history(client, system_headers, test_manager: TestManager)
             "legislatorId",
             "legislatorName",
             "partyName",
-            "roleName",
+            "chamberName",
             "stateAbbr",
             "voteChoiceId",
         }
