@@ -83,6 +83,7 @@ Legislature = create_schema_container(
     base_fields={
         "id": (int, ...),
         "state_id": (int, ...),
+        "level": (str, ...),
     },
 )
 

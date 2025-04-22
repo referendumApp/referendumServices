@@ -32,6 +32,7 @@ def upgrade():
         "legislatures",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("state_id", sa.Integer(), nullable=False),
+        sa.Column("level", sa.String(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(
             ["state_id"],

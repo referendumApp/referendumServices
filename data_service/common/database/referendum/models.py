@@ -116,7 +116,7 @@ class Legislature(Base):
 
     id = Column(Integer, primary_key=True)
     state_id = Column(Integer, ForeignKey("states.id"), nullable=False)
-    # TODO - add level
+    level = Column(String, nullable=False)
 
     state = relationship("State")
 
