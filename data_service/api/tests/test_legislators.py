@@ -28,13 +28,20 @@ async def test_list_legislators(test_manager: TestManager):
 @pytest.mark.parametrize(
     "filter_request,expected_length,expected_names",
     [
-        ({"filter_options": {"state_id": [1, 2]}}, 2, ["Batman", "Joker"]),
+        ({"filter_options": {"jurisdiction_id": [1, 2]}}, 2, ["Batman", "Joker"]),
         ({"filter_options": {"chamber_id": [3]}}, 1, ["Robin"]),
-        ({"filter_options": {"party_id": [2, 3], "state_id": [2, 3]}}, 2, ["Joker", "Robin"]),
+        (
+            {"filter_options": {"party_id": [2, 3], "jurisdiction_id": [2, 3]}},
+            2,
+            ["Joker", "Robin"],
+        ),
         ({"filter_options": {"party_id": [3], "chamber_id": [1]}}, 0, []),
         ({"search_query": "Batman"}, 1, ["Batman"]),
         (
-            {"filter_options": {"party_id": [2, 3], "state_id": [2, 3]}, "search_query": "Joker"},
+            {
+                "filter_options": {"party_id": [2, 3], "jurisdiction_id": [2, 3]},
+                "search_query": "Joker",
+            },
             1,
             ["Joker"],
         ),
@@ -48,9 +55,9 @@ async def test_list_legislators_filter(
     test_manager: TestManager,
 ):
     # Create at least two legislator
-    await test_manager.create_legislator(name="Batman", state_id=1, chamber_id=1, party_id=1)
-    await test_manager.create_legislator(name="Joker", state_id=2, chamber_id=2, party_id=2)
-    await test_manager.create_legislator(name="Robin", state_id=3, chamber_id=3, party_id=3)
+    await test_manager.create_legislator(name="Batman", jurisdiction_id=1, chamber_id=1, party_id=1)
+    await test_manager.create_legislator(name="Joker", jurisdiction_id=2, chamber_id=2, party_id=2)
+    await test_manager.create_legislator(name="Robin", jurisdiction_id=3, chamber_id=3, party_id=3)
     response = await test_manager.client.post(
         "/legislators/details",
         headers=test_manager.headers,

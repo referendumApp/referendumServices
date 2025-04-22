@@ -111,15 +111,25 @@ class Jurisdiction(Base):
     abbr = Column(String, nullable=False)
 
 
+class Legislature(Base):
+    __tablename__ = "legislatures"
+
+    id = Column(Integer, primary_key=True)
+    jurisdiction_id = Column(Integer, ForeignKey("jurisdictions.id"), nullable=False)
+    level = Column(String, nullable=False)
+
+    jurisdiction = relationship("Jurisdiction")
+
+
 class LegislativeBody(Base):
     __tablename__ = "legislative_bodys"
 
     id = Column(Integer, primary_key=True)
-    chamber_id = Column(Integer, ForeignKey("chamber.id"), nullable=False)
-    state_id = Column(Integer, ForeignKey("states.id"), nullable=False)
+    legislature_id = Column(Integer, ForeignKey("legislatures.id"), nullable=False)
+    chamber_id = Column(Integer, ForeignKey("chambers.id"), nullable=False)
 
     chamber = relationship("Chamber")
-    state = relationship("State")
+    legislature = relationship("Legislature")
 
 
 class Topic(Base):
@@ -149,7 +159,6 @@ class Bill(Base):
     identifier = Column(String, nullable=False)
     title = Column(String, nullable=False)
     description = Column(String)
-    state_id = Column(Integer, ForeignKey("states.id"), index=True)
     legislative_body_id = Column(Integer, ForeignKey("legislative_bodys.id"), index=True)
     session_id = Column(Integer, ForeignKey("sessions.id"), index=True)
     status_id = Column(Integer, ForeignKey("statuses.id"), index=True)
@@ -157,7 +166,6 @@ class Bill(Base):
     current_version_id = Column(Integer, ForeignKey("bill_versions.id"), nullable=True)
 
     status = relationship("Status")
-    state = relationship("State")
     legislative_body = relationship("LegislativeBody")
     topics = relationship("Topic", secondary=bill_topics)
     user_votes = relationship("UserVote", back_populates="bill")
@@ -172,7 +180,8 @@ class Session(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
-    state_id = Column(Integer, ForeignKey("states.id"), index=True)
+    jurisdiction_id = Column(Integer, ForeignKey("jurisdictions.id"), index=True)
+    level = Column(String, nullable=False, index=True)
 
     state = relationship("State")
     bills = relationship("Bill", back_populates="session")

@@ -79,7 +79,7 @@ class TestManager:
             self.resources_to_cleanup.append((endpoint.strip("/"), resource["id"]))
         return resource
 
-    async def create_state(
+    async def create_jurisdiction(
         self,
         id: Optional[int] = None,
         name: Optional[str] = None,
@@ -87,10 +87,10 @@ class TestManager:
     ) -> Dict:
         """Create a state with optional custom name."""
         return await self.create_resource(
-            "/states/",
+            "/jurisdictions/",
             {
                 "id": id,
-                "name": name or f"State_{generate_random_string()}",
+                "name": name or f"Jurisdiction_{generate_random_string()}",
                 "abbr": abbr or f"Abbr_{generate_random_string()}",
             },
         )
@@ -212,7 +212,7 @@ class TestManager:
         self,
         *,
         name: Optional[str] = None,
-        state_id: Optional[int] = None,
+        jurisdiction_id: Optional[int] = None,
         state_name: Optional[str] = None,
         chamber_id: Optional[int] = None,
         role_name: Optional[str] = None,
@@ -220,7 +220,7 @@ class TestManager:
         party_name: Optional[str] = None,
     ) -> Dict:
         """Create a legislator with all dependencies."""
-        state = await self.create_state(id=state_id, name=state_name)
+        state = await self.create_state(id=jurisdiction_id, name=state_name)
         state_id = state["id"]
 
         chamber = await self.create_role(id=chamber_id, name=role_name)
