@@ -29,13 +29,13 @@ async def test_list_legislators(test_manager: TestManager):
     "filter_request,expected_length,expected_names",
     [
         ({"filter_options": {"legislative_body_id": [1, 2]}}, 2, ["Batman", "Joker"]),
-        ({"filter_options": {"chamber_id": [3]}}, 1, ["Robin"]),
+        ({"filter_options": {"legislative_body_id": [3]}}, 1, ["Robin"]),
         (
             {"filter_options": {"party_id": [2, 3], "legislative_body_id": [2, 3]}},
             2,
             ["Joker", "Robin"],
         ),
-        ({"filter_options": {"party_id": [3], "chamber_id": [1]}}, 0, []),
+        ({"filter_options": {"party_id": [3], "legislative_body_id": [1]}}, 0, []),
         ({"search_query": "Batman"}, 1, ["Batman"]),
         (
             {

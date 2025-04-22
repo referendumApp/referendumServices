@@ -116,6 +116,7 @@ class Legislature(Base):
 
     id = Column(Integer, primary_key=True)
     state_id = Column(Integer, ForeignKey("states.id"), nullable=False)
+    # TODO - add level
 
 
 class LegislativeBody(Base):
@@ -223,7 +224,6 @@ class Legislator(Base):
     name = Column(String, nullable=False)
     image_url = Column(String)
     party_id = Column(Integer, ForeignKey("partys.id"))
-    chamber_id = Column(Integer, ForeignKey("chambers.id"))
     legislative_body_id = Column(Integer, ForeignKey("legislative_bodys.id"))
     district = Column(String, nullable=False)
     representing_state_id = Column(Integer, ForeignKey("states.id"))
@@ -238,7 +238,6 @@ class Legislator(Base):
     party = relationship("Party")
     legislative_body = relationship("LegislativeBody", foreign_keys=[legislative_body_id])
     representing_state = relationship("State", foreign_keys=[representing_state_id])
-    chamber = relationship("Chamber")
     committees = relationship(
         "Committee", secondary=committee_membership, back_populates="legislators"
     )

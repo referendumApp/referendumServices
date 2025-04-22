@@ -119,7 +119,6 @@ Legislator = create_schema_container(
         "image_url": (Optional[str], None),
         "district": (str, ...),
         "party_id": (int, ...),
-        "chamber_id": (int, ...),
         "legislative_body_id": (int, ...),
         "representing_state_id": (Optional[int], None),
         "address": (Optional[str], None),

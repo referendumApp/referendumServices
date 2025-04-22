@@ -281,7 +281,6 @@ class TestManager:
                 "address": "123 Capitol St",
                 "partyId": party_id,
                 "legislativeBodyId": legislative_body_id,
-                "chamberId": chamber_id,
                 "followthemoneyEid": str(random.randint(100, 99999)),
             },
         )

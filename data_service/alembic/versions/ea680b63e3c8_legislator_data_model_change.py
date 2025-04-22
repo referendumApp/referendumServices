@@ -47,12 +47,10 @@ def upgrade():
     )
 
     # Update legislators table
-    op.alter_column("legislators", "role_id", new_column_name="chamber_id")
-    op.create_foreign_key(
-        "fk_legislators_chamber_id", "legislators", "chambers", ["chamber_id"], ["id"]
-    )
+    op.drop_column("legislators", "role_id")
 
     op.drop_column("legislators", "state_id")
+
     op.add_column("legislators", sa.Column("legislative_body_id", sa.Integer(), nullable=True))
     op.create_foreign_key(
         "fk_legislators_legislative_body_id",
@@ -70,6 +68,7 @@ def upgrade():
 
     op.drop_constraint("legislative_bodys_state_id_fkey", "legislative_bodys", type_="foreignkey")
     op.drop_column("legislative_bodys", "state_id")
+
     op.add_column("legislative_bodys", sa.Column("legislature_id", sa.Integer(), nullable=True))
     op.create_foreign_key(
         "fk_legislative_bodys_legislature_id",
@@ -101,6 +100,7 @@ def downgrade():
     # Revert legislators Table
     op.drop_constraint("legislators_chamber_id_fkey", "legislators", type_="foreignkey")
     op.rename_column("legislators", "chamber_id", new_column_name="role_id")
+    op.add_column("legislators", sa.Column("role_id", sa.Integer(), nullable=True))
 
     # Revert sessions table
     op.drop_constraint("fk_sessions_legislature_id", "sessions", type_="foreignkey")

@@ -344,7 +344,9 @@ async def get_bill_voting_history(
         .options(
             joinedload(models.LegislatorVote.vote_choice),
             joinedload(models.LegislatorVote.legislator).joinedload(models.Legislator.party),
-            joinedload(models.LegislatorVote.legislator).joinedload(models.Legislator.chamber),
+            joinedload(models.LegislatorVote.legislator)
+            .joinedload(models.Legislator.legislative_body)
+            .joinedload(models.LegislativeBody.chamber),
             joinedload(models.LegislatorVote.legislator).joinedload(
                 models.Legislator.representing_state
             ),
@@ -373,7 +375,7 @@ async def get_bill_voting_history(
                     if vote.legislator.representing_state is None
                     else vote.legislator.representing_state.abbr
                 ),
-                chamber_name=vote.legislator.chamber.name,
+                chamber_name=vote.legislator.legislative_body.chamber.name,
                 vote_choice_id=vote.vote_choice.id,
             )
         )
