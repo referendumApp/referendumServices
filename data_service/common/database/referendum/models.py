@@ -224,6 +224,7 @@ class Legislator(Base):
     image_url = Column(String)
     party_id = Column(Integer, ForeignKey("partys.id"))
     chamber_id = Column(Integer, ForeignKey("chambers.id"))
+    legislative_body_id = Column(Integer, ForeignKey("legislative_bodys.id"))
     district = Column(String, nullable=False)
     representing_state_id = Column(Integer, ForeignKey("states.id"))
     address = Column(String)
