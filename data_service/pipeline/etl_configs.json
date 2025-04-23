@@ -60,7 +60,7 @@
     ],
     "destination_columns": [
       "id",
-      "state_id",
+      "legislature_id",
       "role_id"
     ],
     "transformations": [
@@ -68,7 +68,8 @@
         "function": "rename",
         "parameters": {
           "columns": {
-            "body_id": "id"
+            "body_id": "id",
+            "state_id": "legislature_id"
           }
         }
       }
@@ -110,7 +111,7 @@
     "destination_columns": [
       "id",
       "name",
-      "state_id"
+      "legislature_id"
     ],
     "transformations": [
       {
@@ -118,7 +119,8 @@
         "parameters": {
           "columns": {
             "session_id": "id",
-            "session_name": "name"
+            "session_name": "name",
+            "state_id": "legislature_id"
           }
         }
       }
@@ -144,7 +146,7 @@
       "legiscan_id",
       "title",
       "description",
-      "state_id",
+      "legislature_id",
       "legislative_body_id",
       "identifier",
       "session_id",
@@ -158,7 +160,8 @@
           "columns": {
             "bill_id": "id",
             "bill_number": "identifier",
-            "body_id": "legislative_body_id"
+            "body_id": "legislative_body_id",
+            "state_id": "legislature_id"
           }
         }
       },
@@ -193,7 +196,7 @@
       "party_id",
       "district",
       "state_id",
-      "representing_state_id",
+      "legislature_id",
       "image_url",
       "role_id",
       "followthemoney_eid"
@@ -211,7 +214,9 @@
         "function": "rename",
         "parameters": {
           "columns": {
-            "people_id": "id"
+            "people_id": "id",
+            "state_id": "legislature_id",
+            "representing_state_id": "state_id"
           }
         }
       },
