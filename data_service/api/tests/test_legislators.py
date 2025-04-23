@@ -143,6 +143,7 @@ async def test_update_legislator_not_found(test_manager: TestManager):
         "phone": "(202) 111-1112",
         "partyId": party["id"],
         "stateId": state["id"],
+        "legislatureId": state["id"],
         "roleId": role["id"],
         "followthemoneyEid": str(randint(100, 99999)),
     }

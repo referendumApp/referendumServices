@@ -81,7 +81,13 @@ class Transformation(BaseModel):
                         raise ValueError(f"Source column '{source_name}' not found")
                     mapping_dict = self.parameters.get("mapping")
                     mapping_dict = {int(k): v for k, v in mapping_dict.items()}
+
+                    df = df.copy()
                     df[destination_name] = df[source_name].map(mapping_dict)
+
+                    if default_value := self.parameters.get("default", None):
+                        df[destination_name].fillna(default_value, inplace=True)
+
                     return df
 
                 case _:
