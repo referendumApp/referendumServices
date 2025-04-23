@@ -29,8 +29,13 @@ def upgrade():
     op.alter_column("legislators", "state_id", new_column_name="legislature_id")
     op.alter_column("legislators", "representing_state_id", new_column_name="state_id")
 
+    # Add level to states
+    op.add_column("states", sa.Column("level", sa.String))
+
 
 def downgrade():
+    op.drop_column("states", "level")
+
     op.alter_column("legislators", "state_id", new_column_name="representing_state_id")
     op.alter_column("legislators", "legislature_id", new_column_name="state_id")
 
