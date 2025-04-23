@@ -72,7 +72,7 @@ class SortingControllerEnum(str, Enum):
 class BillFilterOptions(BaseFilterOptions):
     status_id: Optional[List[int]] = None
     session_id: Optional[List[int]] = None
-    legislative_body_id: Optional[List[int]] = None
+    state_id: Optional[List[int]] = None
 
 
 class BillSortingOptions(NoNullOptions):
@@ -109,7 +109,7 @@ class ExecutiveOrderPaginationRequestBody(BasePaginationRequestBody):
 class LegislatorFilterOptions(BaseFilterOptions):
     party_id: Optional[List[int]] = None
     representing_state_id: Optional[List[int]] = None
-    legislative_body_id: Optional[List[int]] = None
+    state_id: Optional[List[int]] = None
 
 
 class LegislatorSortingOptions(NoNullOptions):
