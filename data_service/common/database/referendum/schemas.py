@@ -80,12 +80,12 @@ Status = create_schema_container(
 
 Session = create_schema_container(
     name="Session",
-    base_fields={"id": (int, ...), "name": (str, ...), "state_id": (int, ...)},
+    base_fields={"id": (int, ...), "name": (str, ...), "legislature_id": (int, ...)},
 )
 
 LegislativeBody = create_schema_container(
-    name="State",
-    base_fields={"id": (int, ...), "role_id": (int, ...), "state_id": (int, ...)},
+    name="LegislativeBody",
+    base_fields={"id": (int, ...), "role_id": (int, ...), "legislature_id": (int, ...)},
 )
 
 Committee = create_schema_container(
@@ -113,7 +113,7 @@ Legislator = create_schema_container(
         "party_id": (int, ...),
         "role_id": (int, ...),
         "state_id": (int, ...),
-        "representing_state_id": (Optional[int], None),
+        "legislature_id": (int, ...),
         "address": (Optional[str], None),
         "facebook": (Optional[str], None),
         "instagram": (Optional[str], None),
@@ -124,7 +124,7 @@ Legislator = create_schema_container(
     relationship_fields={
         "committees": (List[Committee.Record], []),
         "state": (State.Record, None),
-        "representing_state": (Optional[State.Record], None),
+        "legislature": (State.Record, None),
         "party": (Party.Record, None),
         "role": (Role.Record, None),
     },
@@ -160,14 +160,14 @@ Bill = create_schema_container(
         "title": (str, ...),
         "description": (str, ...),
         "session_id": (int, ...),
-        "state_id": (int, ...),
+        "legislature_id": (int, ...),
         "status_id": (int, ...),
         "status_date": (date, ...),
         "legislative_body_id": (int, ...),
     },
     record_fields={"current_version_id": (Optional[int], None)},
     relationship_fields={
-        "state": (Optional[State.Record], None),
+        "legislature": (Optional[State.Record], None),
         "status": (Optional[Status.Record], None),
         "legislative_body": (Optional[LegislativeBody.Record], None),
         "topics": (List[Topic.Record], []),

@@ -15,6 +15,9 @@ empty:
 	docker compose --profile local-empty up
 
 # Run tests
+pytest-simple:
+	docker compose --profile test run --rm test pytest $(ARGS) api/tests/test_bill_actions.py
+
 pytest-api:
 	docker compose --profile test run --rm test pytest $(ARGS) api/ common/
 
@@ -42,3 +45,4 @@ restart: clean local
 test: clean build pytest-api pytest-pipeline clean
 test-api: clean build pytest-api clean
 test-pipeline: clean build pytest-pipeline clean
+test-simple: clean build pytest-simple clean

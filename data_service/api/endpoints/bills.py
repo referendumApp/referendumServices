@@ -68,13 +68,13 @@ async def get_all_bill_details(
 ):
     try:
         if request_body.federal_only:
-            # federal bills have state_id == 52
+            # federal bills have legislature_id == 52
             if request_body.filter_options:
                 filter_options_dict = request_body.filter_options.model_dump(exclude_none=True)
-                filter_options_dict["state_id"] = [52]
+                filter_options_dict["legislature_id"] = [52]
                 request_body.filter_options = BillFilterOptions(**filter_options_dict)
             else:
-                request_body.filter_options = BillFilterOptions(state_id=[52])
+                request_body.filter_options = BillFilterOptions(legislature_id=[52])
 
         clauses = []
         if request_body.filter_options:
@@ -156,8 +156,8 @@ async def get_all_bill_details(
                 "status_date": bill.status_date,
                 "session_id": bill.session.id,
                 "session_name": bill.session.name,
-                "state_id": bill.state.id,
-                "state_name": bill.state.name,
+                "state_id": bill.legislature.id,
+                "state_name": bill.legislature.name,
                 "current_version_id": bill.current_version_id,
                 "legislative_body_id": bill.legislative_body.id,
                 "role_id": bill.legislative_body.role.id,
@@ -215,8 +215,8 @@ async def get_bill_detail(
         "status_date": bill.status_date,
         "session_id": bill.session.id,
         "session_name": bill.session.name,
-        "state_id": bill.state.id,
-        "state_name": bill.state.name,
+        "state_id": bill.legislature.id,
+        "state_name": bill.legislature.name,
         "current_version_id": bill.current_version_id,
         "legislative_body_id": bill.legislative_body.id,
         "role_id": bill.legislative_body.role.id,
@@ -345,9 +345,7 @@ async def get_bill_voting_history(
             joinedload(models.LegislatorVote.vote_choice),
             joinedload(models.LegislatorVote.legislator).joinedload(models.Legislator.party),
             joinedload(models.LegislatorVote.legislator).joinedload(models.Legislator.role),
-            joinedload(models.LegislatorVote.legislator).joinedload(
-                models.Legislator.representing_state
-            ),
+            joinedload(models.LegislatorVote.legislator).joinedload(models.Legislator.state),
         )
         .filter(models.LegislatorVote.bill_id == bill_id)
     )
@@ -368,11 +366,7 @@ async def get_bill_voting_history(
                 legislator_id=vote.legislator.id,
                 legislator_name=vote.legislator.name,
                 party_name=vote.legislator.party.name,
-                state_abbr=(
-                    "N/A"
-                    if vote.legislator.representing_state is None
-                    else vote.legislator.representing_state.abbr
-                ),
+                state_abbr=("N/A" if vote.legislator.state is None else vote.legislator.state.abbr),
                 role_name=vote.legislator.role.name,
                 vote_choice_id=vote.vote_choice.id,
             )
