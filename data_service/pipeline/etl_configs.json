@@ -27,7 +27,7 @@
       {
         "function": "map",
         "parameters": {
-          "source_name": "state_id",
+          "source_name": "id",
           "destination_name": "level",
           "mapping": {
             "52": "federal"
