@@ -79,17 +79,24 @@ async def test_list_bill_details(client, system_headers, test_manager: TestManag
 @pytest.mark.parametrize(
     "filter_request,expected_length,expected_titles",
     [
-        # ({"filter_options": {"state_id": [1, 2]}}, 2, ["Batman", "Joker"]),
+        ({"filter_options": {"legislature_id": [1, 2]}}, 2, ["Batman", "Joker"]),
         ({"filter_options": {"role_id": [3]}}, 1, ["Robin"]),
-        # ({"filter_options": {"status_id": [2, 3], "state_id": [2, 3]}}, 2, ["Joker", "Robin"]),
+        (
+            {"filter_options": {"status_id": [2, 3], "legislature_id": [2, 3]}},
+            2,
+            ["Joker", "Robin"],
+        ),
         ({"filter_options": {"status_id": [3], "role_id": [1]}}, 0, []),
         ({"search_query": "Batman"}, 1, ["Batman"]),
         ({"search_query": "BT"}, 2, ["Batman", "Robin"]),
-        # (
-        #     {"filter_options": {"status_id": [2, 3], "state_id": [2, 3]}, "search_query": "Joker"},
-        #     1,
-        #     ["Joker"],
-        # ),
+        (
+            {
+                "filter_options": {"status_id": [2, 3], "legislature_id": [2, 3]},
+                "search_query": "Joker",
+            },
+            1,
+            ["Joker"],
+        ),
         ({"search_query": "Superman"}, 0, []),
     ],
 )
@@ -103,21 +110,21 @@ async def test_list_bill_details_filter(
     await test_manager.create_bill(
         identifier="BT1",
         title="Batman",
-        state_id=1,
+        legislature_id=1,
         role_id=1,
         status_id=1,
     )
     await test_manager.create_bill(
         identifier="JO1",
         title="Joker",
-        state_id=2,
+        legislature_id=2,
         role_id=2,
         status_id=2,
     )
     await test_manager.create_bill(
         identifier="BT2",
         title="Robin",
-        state_id=3,
+        legislature_id=3,
         role_id=3,
         status_id=3,
     )
