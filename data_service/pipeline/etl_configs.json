@@ -10,7 +10,8 @@
     "destination_columns": [
       "id",
       "name",
-      "abbr"
+      "abbr",
+      "level"
     ],
     "transformations": [
       {
@@ -21,6 +22,17 @@
             "state_name": "name",
             "state_abbr": "abbr"
           }
+        }
+      },
+      {
+        "function": "map",
+        "parameters": {
+          "source_name": "state_id",
+          "destination_name": "level",
+          "mapping": {
+            "52": "Federal"
+          },
+          "default": "State"
         }
       }
     ],
