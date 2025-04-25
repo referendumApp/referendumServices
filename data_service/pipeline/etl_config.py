@@ -197,54 +197,258 @@ class ETLConfig(BaseModel):
             logger.error(f"Error transforming {self.source}: {str(e)}")
             raise
 
-    def load(self, conn: Session):
-        try:
-            logger.info(f"Loading data into {self.destination} with unique_constraints on 'id'")
+    def validate_and_log_constraint_violations(self, temp_table_name, constraints):
+        """
+        Validates that data in the temporary table satisfies constraints before upserting.
 
-            if self.dataframe.empty:
-                logger.warning("Skipping; no data to write")
-                return
+        Args:
+            temp_table_name (str): Name of the temporary table
+            constraints (dict): Dictionary of constraints to check with format:
+                                { 'column_name': {'type': 'not_null'/'unique'/'foreign_key', 'reference': 'table.column'} }
 
-            # Check if destination table exists
-            query = text("SELECT 1 FROM information_schema.tables WHERE table_name = :table_name")
-            exists = conn.execute(query, {"table_name": self.destination}).scalar() is not None
-            if not exists:
-                raise ValueError(f"Destination table '{self.destination}' does not exist")
+        Returns:
+            tuple: (valid_rows_count, invalid_rows_count, violations_log)
+        """
+        violations_log = []
+        engine = self.get_engine()
 
-            # Create temporary table
-            temp_table = f"temp_{self.destination}"
-            self.dataframe[self.destination_columns].to_sql(
-                temp_table,
-                con=conn,
-                if_exists="replace",
-                index=False,
+        with engine.connect() as connection:
+            # Start a transaction
+            with connection.begin():
+                # Check for NOT NULL constraint violations
+                for column, constraint in constraints.items():
+                    if constraint.get("type") == "not_null":
+                        query = f"""
+                            SELECT * FROM {temp_table_name} 
+                            WHERE {column} IS NULL;
+                        """
+                        result = connection.execute(text(query))
+                        null_rows = result.fetchall()
+
+                        for row in null_rows:
+                            violation = {
+                                "row": dict(row),
+                                "constraint": f"NOT NULL on {column}",
+                                "reason": f"Column {column} cannot be NULL",
+                            }
+                            violations_log.append(violation)
+
+                    # Check unique constraints
+                    elif constraint.get("type") == "unique":
+                        query = f"""
+                            SELECT {column}, COUNT(*) 
+                            FROM {temp_table_name}
+                            GROUP BY {column}
+                            HAVING COUNT(*) > 1;
+                        """
+                        result = connection.execute(text(query))
+                        duplicate_values = result.fetchall()
+
+                        for value, count in duplicate_values:
+                            query = f"""
+                                SELECT * FROM {temp_table_name}
+                                WHERE {column} = :value;
+                            """
+                            duplicate_rows = connection.execute(
+                                text(query), {"value": value}
+                            ).fetchall()
+
+                            for row in duplicate_rows:
+                                violation = {
+                                    "row": dict(row),
+                                    "constraint": f"UNIQUE on {column}",
+                                    "reason": f"Value '{value}' appears {count} times",
+                                }
+                                violations_log.append(violation)
+
+                    # Check foreign key constraints
+                    elif constraint.get("type") == "foreign_key" and constraint.get("reference"):
+                        ref_table, ref_column = constraint["reference"].split(".")
+                        query = f"""
+                            SELECT t.* FROM {temp_table_name} t
+                            LEFT JOIN {ref_table} r ON t.{column} = r.{ref_column}
+                            WHERE t.{column} IS NOT NULL AND r.{ref_column} IS NULL;
+                        """
+                        result = connection.execute(text(query))
+                        invalid_fk_rows = result.fetchall()
+
+                        for row in invalid_fk_rows:
+                            violation = {
+                                "row": dict(row),
+                                "constraint": f"FOREIGN KEY {column} REFERENCES {ref_table}.{ref_column}",
+                                "reason": f"Value {row[column]} does not exist in {ref_table}.{ref_column}",
+                            }
+                            violations_log.append(violation)
+
+        # Log violations
+        if violations_log:
+            self.logger.warning(
+                f"Found {len(violations_log)} constraint violations in {temp_table_name}"
             )
+            for violation in violations_log:
+                self.logger.warning(
+                    f"Constraint violation: {violation['constraint']} - {violation['reason']}"
+                )
 
-            # Perform UPSERT from temporary table
-            conflict_targets = ", ".join(self.unique_constraints)
-            update_sets = ", ".join(
-                f"{col} = EXCLUDED.{col}"
-                for col in self.destination_columns
-                if col not in self.unique_constraints
-            )
+        # Return valid rows count and invalid rows count
+        return len(violations_log)
 
-            # Special case where all columns are part of unique constraint
-            if not update_sets:
-                update_sets = "id = EXCLUDED.id"  # Dummy update that won't actually happen
+    def load(self, df, table_name, if_exists="replace", index=False):
+        """
+        Load dataframe to PostgreSQL with constraint validation.
+        Invalid rows are logged and excluded from the final insert.
+        """
+        # Create temp table name with timestamp to avoid conflicts
+        temp_table_name = f"temp_{table_name}_{int(time.time())}"
 
-            upsert_query = f"""
-                INSERT INTO {self.destination} ({', '.join(self.destination_columns)})
-                SELECT {', '.join(self.destination_columns)}
-                FROM {temp_table}
-                ON CONFLICT ({conflict_targets})
-                DO UPDATE SET {update_sets}
-            """
-            logger.info(f"Executing upsert query: {upsert_query}")
-            conn.execute(text(upsert_query))
-            conn.execute(text(f"DROP TABLE {temp_table}"))
-            conn.commit()
+        # Get table constraints from the schema
+        table_constraints = self._get_table_constraints(table_name)
 
-        except Exception as e:
-            logger.error(f"Error upserting data into '{self.destination}': {e}")
-            conn.rollback()
-            raise
+        # Write to temporary table
+        df.to_sql(
+            temp_table_name,
+            self.get_engine(),
+            if_exists="replace",
+            index=index,
+        )
+
+        # Validate constraints
+        violations_count = self.validate_and_log_constraint_violations(
+            temp_table_name, table_constraints
+        )
+
+        # If there are violations, create a view with only valid rows
+        if violations_count > 0:
+            with self.get_engine().connect() as connection:
+                with connection.begin():
+                    # Create view with only valid rows (example for NOT NULL constraint on status_date)
+                    valid_rows_view = f"valid_{temp_table_name}"
+
+                    # Build the validation query based on constraints
+                    validation_conditions = []
+                    for column, constraint in table_constraints.items():
+                        if constraint.get("type") == "not_null":
+                            validation_conditions.append(f"{column} IS NOT NULL")
+
+                    # Create view with valid rows only
+                    validation_clause = (
+                        " AND ".join(validation_conditions) if validation_conditions else "TRUE"
+                    )
+                    connection.execute(
+                        text(
+                            f"CREATE TEMPORARY VIEW {valid_rows_view} AS SELECT * FROM {temp_table_name} WHERE {validation_clause}"
+                        )
+                    )
+
+                    # Use the view with valid rows for the final UPSERT
+                    conflict_targets = ", ".join(self.unique_constraints)
+                    update_columns = ", ".join(
+                        [f"{col} = EXCLUDED.{col}" for col in self.update_columns]
+                    )
+
+                    insert_query = f"""
+                        INSERT INTO {table_name}
+                        SELECT * FROM {valid_rows_view}
+                        ON CONFLICT ({conflict_targets})
+                        DO UPDATE SET {update_columns}
+                    """
+                    connection.execute(text(insert_query))
+
+                    # Drop temporary objects
+                    connection.execute(text(f"DROP VIEW IF EXISTS {valid_rows_view}"))
+                    connection.execute(text(f"DROP TABLE IF EXISTS {temp_table_name}"))
+
+                    # Log statistics
+                    self.logger.info(
+                        f"Inserted/updated {df.shape[0] - violations_count} rows to {table_name}"
+                    )
+                    self.logger.warning(f"Skipped {violations_count} invalid rows")
+        else:
+            # No violations, do regular UPSERT
+            with self.get_engine().connect() as connection:
+                with connection.begin():
+                    conflict_targets = ", ".join(self.unique_constraints)
+                    update_columns = ", ".join(
+                        [f"{col} = EXCLUDED.{col}" for col in self.update_columns]
+                    )
+
+                    insert_query = f"""
+                        INSERT INTO {table_name}
+                        SELECT * FROM {temp_table_name}
+                        ON CONFLICT ({conflict_targets})
+                        DO UPDATE SET {update_columns}
+                    """
+                    connection.execute(text(insert_query))
+
+                    # Drop temporary table
+                    connection.execute(text(f"DROP TABLE IF EXISTS {temp_table_name}"))
+
+                    # Log statistics
+                    self.logger.info(f"Inserted/updated {df.shape[0]} rows to {table_name}")
+
+    def _get_table_constraints(self, table_name):
+        """
+        Get constraints for a table from the database schema.
+        Returns a dictionary of column constraints.
+        """
+        constraints = {}
+
+        # Query to get NOT NULL constraints
+        not_null_query = """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = :table_name
+            AND is_nullable = 'NO'
+        """
+
+        # Query to get unique constraints
+        unique_query = """
+            SELECT kcu.column_name
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu
+                ON tc.constraint_name = kcu.constraint_name
+            WHERE tc.table_name = :table_name
+            AND tc.constraint_type = 'UNIQUE'
+        """
+
+        # Query to get foreign key constraints
+        fk_query = """
+            SELECT
+                kcu.column_name,
+                ccu.table_name AS referenced_table,
+                ccu.column_name AS referenced_column
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu
+                ON tc.constraint_name = kcu.constraint_name
+            JOIN information_schema.constraint_column_usage ccu
+                ON tc.constraint_name = ccu.constraint_name
+            WHERE tc.table_name = :table_name
+            AND tc.constraint_type = 'FOREIGN KEY'
+        """
+
+        with self.get_engine().connect() as connection:
+            # Get NOT NULL constraints
+            not_null_result = connection.execute(text(not_null_query), {"table_name": table_name})
+            for row in not_null_result:
+                column = row["column_name"]
+                constraints[column] = constraints.get(column, {})
+                constraints[column]["type"] = "not_null"
+
+            # Get unique constraints
+            unique_result = connection.execute(text(unique_query), {"table_name": table_name})
+            for row in unique_result:
+                column = row["column_name"]
+                constraints[column] = constraints.get(column, {})
+                constraints[column]["type"] = "unique"
+
+            # Get foreign key constraints
+            fk_result = connection.execute(text(fk_query), {"table_name": table_name})
+            for row in fk_result:
+                column = row["column_name"]
+                ref_table = row["referenced_table"]
+                ref_column = row["referenced_column"]
+                constraints[column] = constraints.get(column, {})
+                constraints[column]["type"] = "foreign_key"
+                constraints[column]["reference"] = f"{ref_table}.{ref_column}"
+
+        return constraints
