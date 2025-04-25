@@ -1,0 +1,33 @@
+{
+  "lexicon": 1,
+  "id": "com.referendumapp.server.refreshSession",
+  "defs": {
+    "main": {
+      "type": "string",
+      "description": "Refresh an authentication session.",
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["refreshToken"],
+          "properties": {
+            "refreshToken": { "type": "string" }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["accessToken", "refreshToken", "tokenType"],
+          "properties": {
+            "accessToken": { "type": "string" },
+            "refreshToken": { "type": "string" },
+            "tokenType": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}
+

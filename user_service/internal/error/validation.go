@@ -1,6 +1,8 @@
+//revive:disable:exported
 package error
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -19,21 +21,18 @@ type ValidationFieldError struct {
 	Type ValidationErrorType `json:"type"`
 }
 
-func (v *ValidationFieldError) Raise() *APIError {
-	return &APIError{
-		Detail:     v,
-		StatusCode: http.StatusUnprocessableEntity,
-		Code:       ErrorCodeValidation,
-	}
-}
-
-func NewValidationFieldError(field, message string, errorType ValidationErrorType) ValidationFieldError {
-	return ValidationFieldError{
+func NewValidationFieldError(field string, message string, errorType ValidationErrorType) *APIError {
+	detail := ValidationFieldError{
 		FieldError: FieldError{
 			Field:   field,
 			Message: message,
 		},
 		Type: errorType,
+	}
+	return &APIError{
+		Detail:     detail,
+		StatusCode: http.StatusUnprocessableEntity,
+		Code:       ErrorCodeValidation,
 	}
 }
 
@@ -50,5 +49,18 @@ func ValidationError(validationErrors []ValidationFieldError) *APIError {
 		Detail:     detail,
 		StatusCode: http.StatusUnprocessableEntity,
 		Code:       ErrorCodeValidation,
+	}
+}
+
+func WriteFieldErrors(w http.ResponseWriter, fieldErrs []*APIError) {
+	h := w.Header()
+
+	h.Set("Content-Type", "application/json")
+
+	w.WriteHeader(http.StatusUnprocessableEntity)
+
+	// Write the error as JSON
+	if err := json.NewEncoder(w).Encode(fieldErrs); err != nil {
+		http.Error(w, "Failed to encode API error to JSON", http.StatusInternalServerError)
 	}
 }

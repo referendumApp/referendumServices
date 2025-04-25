@@ -3,37 +3,32 @@ package database
 import (
 	"context"
 	"errors"
-	"fmt"
 
+	sq "github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
-
-	repo "github.com/referendumApp/referendumServices/internal/repository"
 )
 
 var ErrNoRowsAffected = errors.New("no rows affected")
 
-type MutationFunc func(ctx context.Context, tx pgx.Tx) error
-
 // WithTransaction executes any function within a db transaction
-func (d *Database) WithTransaction(ctx context.Context, fn MutationFunc) error {
+func (d *DB) WithTransaction(ctx context.Context, fn func(ctx context.Context, tx pgx.Tx) error) error {
 	conn, err := d.pool.Acquire(ctx)
 	if err != nil {
-		d.log.ErrorContext(ctx, "Failed to acquire connection from db pool", "error", err)
+		d.Log.ErrorContext(ctx, "Failed to acquire connection from db pool", "error", err)
 		return err
 	}
 	defer conn.Release()
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
-		d.log.ErrorContext(ctx, "Failed to start transaction", "error", err)
+		d.Log.ErrorContext(ctx, "Failed to start transaction", "error", err)
 		return err
 	}
 	defer func() {
 		// If it's already committed, Rollback will be a no-op
 		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 			// Log the error or update the return error if needed
-			d.log.ErrorContext(ctx, "Failed to rollback transaction", "error", err)
+			d.Log.ErrorContext(ctx, "Failed to rollback transaction", "error", err)
 		}
 	}()
 
@@ -44,88 +39,126 @@ func (d *Database) WithTransaction(ctx context.Context, fn MutationFunc) error {
 
 	// Commit the transaction
 	if err := tx.Commit(ctx); err != nil {
-		d.log.ErrorContext(ctx, "Failed to commit transaction", "error", err)
+		d.Log.ErrorContext(ctx, "Failed to commit transaction", "error", err)
 		return err
 	}
 
 	return nil
 }
 
-func (d *Database) PrepareAndExecute(
-	ctx context.Context,
-	tx pgx.Tx,
-	name string,
-	sql string,
-	args []any,
-) (*pgconn.CommandTag, error) {
-	if _, err := tx.Prepare(ctx, name, sql); err != nil {
-		d.log.ErrorContext(ctx, "Error preparing statement", "error", err)
-		return nil, err
-	}
-
-	tag, err := tx.Exec(ctx, sql, args...)
-	if err != nil {
-		d.log.ErrorContext(ctx, "Error executing statement", "error", err)
-		return nil, err
-	}
-
-	return &tag, nil
-}
-
+// Create inserts record
 // TODO: Pretty sure we can combine all these non transaction methods into one method. But leaving for now for simplicities sake
-func (d *Database) Create(ctx context.Context, entity repo.TableEntity) error {
-	sql, args, err := repo.BuildInsertQuery(entity, d.schema)
-
+func (d *DB) Create(ctx context.Context, entity TableEntity) error {
+	query, err := BuildInsertQuery(entity, d.Schema)
 	if err != nil {
-		d.log.ErrorContext(ctx, "Error building insert query", "error", err, "table", entity.TableName())
+		d.Log.ErrorContext(ctx, "Error building insert query", "error", err, "table", entity.TableName())
+		return err
+	}
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error creating raw insert query", "error", err, "table", entity.TableName())
 		return err
 	}
 
 	if _, err := d.pool.Exec(ctx, sql, args...); err != nil {
+		d.Log.ErrorContext(ctx, "Error executing statement", "error", err, "sql", sql)
 		return err
 	}
 
 	return nil
 }
 
-func (d *Database) CreateWithConflict(ctx context.Context, entity repo.TableEntity, conflictCol ...string) error {
-	sql, args, err := repo.BuildInsertWithConflictQuery(entity, d.schema, conflictCol...)
+// CreateBatch inserts records
+func (d *DB) CreateBatch(ctx context.Context, entities []TableEntity) error {
+	query, err := BuildBatchInsertQuery(entities, d.Schema)
 	if err != nil {
-		d.log.ErrorContext(ctx, "Error building insert with conflict query", "error", err, "table", entity.TableName())
+		d.Log.ErrorContext(ctx, "Error building batch insert query", "error", err)
+		return err
+	}
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error creating raw batch insert query", "error", err)
 		return err
 	}
 
 	if _, err := d.pool.Exec(ctx, sql, args...); err != nil {
+		d.Log.ErrorContext(ctx, "Error executing statement", "error", err, "sql", sql)
 		return err
 	}
 
 	return nil
 }
 
-func CreateWithReturning[T repo.TableEntity](
+// CreateConflict inserts record and updates on conflicts
+func (d *DB) CreateConflict(ctx context.Context, entity TableEntity, conflictCol ...string) error {
+	query, err := BuildInsertWithConflictQuery(entity, d.Schema, conflictCol...)
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error building insert w/ conflict query", "error", err, "table", entity.TableName())
+		return err
+	}
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		d.Log.ErrorContext(
+			ctx,
+			"Error creating raw insert w/ conflict query",
+			"error",
+			err,
+			"table",
+			entity.TableName(),
+		)
+		return err
+	}
+
+	if _, err := d.pool.Exec(ctx, sql, args...); err != nil {
+		d.Log.ErrorContext(ctx, "Error executing statement", "error", err, "sql", sql)
+		return err
+	}
+
+	return nil
+}
+
+// CreateReturning inserts record and returns columns
+func CreateReturning[T TableEntity](
 	ctx context.Context,
-	d *Database,
+	d *DB,
 	entity T,
 	returnCol ...string,
 ) (*T, error) {
-	sql, args, err := repo.BuildInsertWithReturnQuery(entity, d.schema, returnCol...)
+	query, err := BuildInsertWithReturnQuery(entity, d.Schema, returnCol...)
 	if err != nil {
-		d.log.ErrorContext(ctx, "Error building insert with returning query", "error", err, "table", entity.TableName())
+		d.Log.ErrorContext(ctx, "Error building insert w/ return query", "error", err, "table", entity.TableName())
+		return nil, err
+	}
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error creating raw insert w/ return query", "error", err, "table", entity.TableName())
 		return nil, err
 	}
 
 	return Get[T](ctx, d, sql, args...)
 }
 
-func (d *Database) Update(ctx context.Context, entity repo.TableEntity, idField string) error {
-	sql, args, err := repo.BuildUpdateQuery(entity, d.schema, idField)
+// Update updates record
+func (d *DB) Update(ctx context.Context, entity TableEntity, filters ...sq.Sqlizer) error {
+	query, err := BuildUpdateQuery(entity, d.Schema, filters...)
 	if err != nil {
-		d.log.ErrorContext(ctx, "Error building update query", "error", err, "table", entity.TableName())
+		d.Log.ErrorContext(ctx, "Error building update query", "error", err, "table", entity.TableName())
+		return err
+	}
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error creating raw update query", "error", err, "table", entity.TableName())
 		return err
 	}
 
 	tag, err := d.pool.Exec(ctx, sql, args...)
 	if err != nil {
+		d.Log.ErrorContext(ctx, "Error executing statement", "error", err, "sql", sql)
 		return err
 	}
 	if tag.RowsAffected() == 0 {
@@ -135,15 +168,41 @@ func (d *Database) Update(ctx context.Context, entity repo.TableEntity, idField 
 	return nil
 }
 
-func (d *Database) Delete(ctx context.Context, entity repo.TableEntity, filters ...repo.Filter) error {
-	sql, args, err := repo.BuildDeleteQuery(entity, d.schema, filters...)
+// UpdateCount increments a column
+func (d *DB) UpdateCount(ctx context.Context, entity TableEntity, field string, filters ...sq.Sqlizer) error {
+	query, err := BuildUpdateCountQuery(entity, d.Schema, field, filters...)
 	if err != nil {
-		d.log.ErrorContext(ctx, "Error building delete query", "error", err, "table", entity.TableName())
+		d.Log.ErrorContext(
+			ctx,
+			"Error building update query in DB tx",
+			"error",
+			err,
+			"table",
+			entity.TableName(),
+			"field",
+			field,
+		)
+		return err
+	}
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		d.Log.ErrorContext(
+			ctx,
+			"Error creating raw update query in DB tx",
+			"error",
+			err,
+			"table",
+			entity.TableName(),
+			"field",
+			field,
+		)
 		return err
 	}
 
 	tag, err := d.pool.Exec(ctx, sql, args...)
 	if err != nil {
+		d.Log.ErrorContext(ctx, "Error executing statement in DB tx", "error", err, "sql", sql)
 		return err
 	}
 	if tag.RowsAffected() == 0 {
@@ -153,67 +212,171 @@ func (d *Database) Delete(ctx context.Context, entity repo.TableEntity, filters 
 	return nil
 }
 
-func (d *Database) CreateWithTx(ctx context.Context, tx pgx.Tx, entity repo.TableEntity) error {
-	name := fmt.Sprintf("create_%s", entity.TableName())
-	sql, args, err := repo.BuildInsertQuery(entity, d.schema)
-
+// Delete deletes a record
+func (d *DB) Delete(ctx context.Context, entity TableEntity, filters ...sq.Sqlizer) error {
+	query, err := BuildDeleteQuery(entity, d.Schema, filters...)
 	if err != nil {
-		d.log.ErrorContext(ctx, "Error building insert query", "error", err, "table", entity.TableName())
+		d.Log.ErrorContext(ctx, "Error building delete query", "error", err, "table", entity.TableName())
 		return err
 	}
 
-	if _, err := d.PrepareAndExecute(ctx, tx, name, sql, args); err != nil {
+	sql, args, err := query.ToSql()
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error creating raw delete query", "error", err, "table", entity.TableName())
+		return err
+	}
+
+	tag, err := d.pool.Exec(ctx, sql, args...)
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error executing statement", "error", err, "sql", sql)
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNoRowsAffected
+	}
+
+	return nil
+}
+
+// CreateWithTx inserts record within a transaction
+func (d *DB) CreateWithTx(ctx context.Context, tx pgx.Tx, entity TableEntity) error {
+	query, err := BuildInsertQuery(entity, d.Schema)
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error building insert query in DB tx", "error", err, "table", entity.TableName())
+		return err
+	}
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error creating raw insert query in DB tx", "error", err, "table", entity.TableName())
+		return err
+	}
+
+	if _, err := tx.Exec(ctx, sql, args...); err != nil {
+		d.Log.ErrorContext(ctx, "Error executing statement in DB tx", "error", err, "sql", sql)
 		return err
 	}
 
 	return nil
 }
 
-func (d *Database) CreateWithConflictWithTx(
+// CreateBatchWithTx inserts records within a transaction
+func (d *DB) CreateBatchWithTx(ctx context.Context, tx pgx.Tx, entities []TableEntity) error {
+	query, err := BuildBatchInsertQuery(entities, d.Schema)
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error building batch insert query in DB tx", "error", err)
+		return err
+	}
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error creating raw batch insert query in DB tx", "error", err)
+		return err
+	}
+
+	if _, err := tx.Exec(ctx, sql, args...); err != nil {
+		d.Log.ErrorContext(ctx, "Error executing statement in DB tx", "error", err, "sql", sql)
+		return err
+	}
+
+	return nil
+}
+
+// CreateConflictWithTx inserts record and updates on conflict within a transaction
+func (d *DB) CreateConflictWithTx(
 	ctx context.Context,
 	tx pgx.Tx,
-	entity repo.TableEntity,
+	entity TableEntity,
 	conflictCol ...string,
 ) error {
-	name := fmt.Sprintf("create_conflict_%s", entity.TableName())
-	sql, args, err := repo.BuildInsertWithConflictQuery(entity, d.schema, conflictCol...)
+	query, err := BuildInsertWithConflictQuery(entity, d.Schema, conflictCol...)
 	if err != nil {
-		d.log.ErrorContext(ctx, "Error building insert with conflict query", "error", err, "table", entity.TableName())
+		d.Log.ErrorContext(
+			ctx,
+			"Error building insert w/ conflict query in DB tx",
+			"error",
+			err,
+			"table",
+			entity.TableName(),
+		)
 		return err
 	}
 
-	if _, err := d.PrepareAndExecute(ctx, tx, name, sql, args); err != nil {
+	sql, args, err := query.ToSql()
+	if err != nil {
+		d.Log.ErrorContext(
+			ctx,
+			"Error creating raw insert w/ conflict query in DB tx",
+			"error",
+			err,
+			"table",
+			entity.TableName(),
+		)
+		return err
+	}
+
+	if _, err := tx.Exec(ctx, sql, args...); err != nil {
+		d.Log.ErrorContext(ctx, "Error executing statement in DB tx", "error", err, "sql", sql)
 		return err
 	}
 
 	return nil
 }
 
-func CreateWithReturningWithTx[T repo.TableEntity](
+// CreateReturningWithTx inserts record and returns columns within a transaction
+func CreateReturningWithTx[T TableEntity](
 	ctx context.Context,
-	d *Database,
+	d *DB,
 	tx pgx.Tx,
 	entity T,
 	returnCol ...string,
-) (*T, error) {
-	sql, args, err := repo.BuildInsertWithReturnQuery(entity, d.schema, returnCol...)
+) (pgx.Row, error) {
+	query, err := BuildInsertWithReturnQuery(entity, d.Schema, returnCol...)
 	if err != nil {
+		d.Log.ErrorContext(
+			ctx,
+			"Error building insert w/ return query in DB tx",
+			"error",
+			err,
+			"table",
+			entity.TableName(),
+		)
 		return nil, err
 	}
 
-	return GetWithTx[T](ctx, tx, sql, args...)
+	sql, args, err := query.ToSql()
+	if err != nil {
+		d.Log.ErrorContext(
+			ctx,
+			"Error compiling raw insert w/ return query in DB tx",
+			"error",
+			err,
+			"table",
+			entity.TableName(),
+		)
+		return nil, err
+	}
+
+	return d.GetRowWithTx(ctx, tx, sql, args...), nil
 }
 
-func (d *Database) UpdateWithTx(ctx context.Context, tx pgx.Tx, entity repo.TableEntity, idField string) error {
-	name := fmt.Sprintf("update_%s", entity.TableName())
-	sql, args, err := repo.BuildUpdateQuery(entity, d.schema, idField)
+// UpdateWithTx updates record within a transaction
+func (d *DB) UpdateWithTx(ctx context.Context, tx pgx.Tx, entity TableEntity, filters ...sq.Sqlizer) error {
+	query, err := BuildUpdateQuery(entity, d.Schema, filters...)
 	if err != nil {
-		d.log.ErrorContext(ctx, "Error building update query", "error", err, "table", entity.TableName())
+		d.Log.ErrorContext(ctx, "Error building update query in DB tx", "error", err, "table", entity.TableName())
 		return err
 	}
 
-	tag, err := d.PrepareAndExecute(ctx, tx, name, sql, args)
+	sql, args, err := query.ToSql()
 	if err != nil {
+		d.Log.ErrorContext(ctx, "Error creating raw update query in DB tx", "error", err, "table", entity.TableName())
+		return err
+	}
+
+	tag, err := tx.Exec(ctx, sql, args...)
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error executing statement in DB tx", "error", err, "sql", sql)
 		return err
 	}
 	if tag.RowsAffected() == 0 {
@@ -223,16 +386,73 @@ func (d *Database) UpdateWithTx(ctx context.Context, tx pgx.Tx, entity repo.Tabl
 	return nil
 }
 
-func (d *Database) DeleteWithTx(ctx context.Context, tx pgx.Tx, entity repo.TableEntity, filters ...repo.Filter) error {
-	name := fmt.Sprintf("delete_%s", entity.TableName())
-	sql, args, err := repo.BuildDeleteQuery(entity, d.schema, filters...)
+// UpdateCountWithTx increments a column within a transaction
+func (d *DB) UpdateCountWithTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	entity TableEntity,
+	field string,
+	filters ...sq.Sqlizer,
+) error {
+	query, err := BuildUpdateCountQuery(entity, d.Schema, field, filters...)
 	if err != nil {
-		d.log.ErrorContext(ctx, "Error building delete query", "error", err, "table", entity.TableName())
+		d.Log.ErrorContext(
+			ctx,
+			"Error building update query in DB tx",
+			"error",
+			err,
+			"table",
+			entity.TableName(),
+			"field",
+			field,
+		)
 		return err
 	}
 
-	tag, err := d.PrepareAndExecute(ctx, tx, name, sql, args)
+	sql, args, err := query.ToSql()
 	if err != nil {
+		d.Log.ErrorContext(
+			ctx,
+			"Error creating raw update query in DB tx",
+			"error",
+			err,
+			"table",
+			entity.TableName(),
+			"field",
+			field,
+		)
+		return err
+	}
+
+	tag, err := tx.Exec(ctx, sql, args...)
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error executing statement in DB tx", "error", err, "sql", sql)
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNoRowsAffected
+	}
+
+	return nil
+}
+
+// DeleteWithTx deletes a record within a transaction
+func (d *DB) DeleteWithTx(ctx context.Context, tx pgx.Tx, entity TableEntity, filters ...sq.Sqlizer) error {
+	query, err := BuildDeleteQuery(entity, d.Schema, filters...)
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error building delete query in DB tx", "error", err, "table", entity.TableName())
+		return err
+	}
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error creating raw delete query in DB tx", "error", err, "table", entity.TableName())
+		return err
+	}
+
+	tag, err := tx.Exec(ctx, sql, args...)
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error executing statement in DB tx", "error", err, "sql", sql)
 		return err
 	}
 	if tag.RowsAffected() == 0 {

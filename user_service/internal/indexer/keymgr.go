@@ -1,3 +1,4 @@
+//revive:disable:exported
 package indexer
 
 import (
@@ -40,7 +41,20 @@ func (km *KeyManager) VerifyUserSignature(ctx context.Context, did string, sig [
 
 	err = k.Verify(msg, sig)
 	if err != nil {
-		km.log.Warn("signature failed to verify", "err", err, "did", did, "pubKey", k, "sigBytes", sig, "msgBytes", msg)
+		km.log.WarnContext(
+			ctx,
+			"signature failed to verify",
+			"err",
+			err,
+			"did",
+			did,
+			"pubKey",
+			k,
+			"sigBytes",
+			sig,
+			"msgBytes",
+			msg,
+		)
 	}
 	return err
 }

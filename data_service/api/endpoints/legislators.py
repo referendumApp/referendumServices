@@ -58,13 +58,13 @@ async def get_legislators(
     )
     try:
         if request_body.federal_only:
-            # federal bills have state_id == 52
+            # federal bills have legislature_id == 52
             if request_body.filter_options:
                 filter_options_dict = request_body.filter_options.model_dump(exclude_none=True)
-                filter_options_dict["state_id"] = [52]
+                filter_options_dict["legislature_id"] = [52]
                 request_body.filter_options = LegislatorFilterOptions(**filter_options_dict)
             else:
-                request_body.filter_options = LegislatorFilterOptions(state_id=[52])
+                request_body.filter_options = LegislatorFilterOptions(legislature_id=[52])
 
         column_filter = None
         if request_body.filter_options:
@@ -92,7 +92,7 @@ async def get_legislators(
                 fields=[models.Legislator.name],
             )
 
-            state_filter = models.Legislator.representing_state.has(
+            state_filter = models.Legislator.state.has(
                 or_(
                     models.State.name == request_body.search_query,
                     models.State.abbr == request_body.search_query,

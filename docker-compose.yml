@@ -12,14 +12,19 @@ services:
     container_name: api
     extends:
       service: api-base
-    command: [
-      "python",
-      "-m", "uvicorn",
-      "api.main:app",
-      "--host", "0.0.0.0",
-      "--port", "80",
-      "--log-config", "None"
-    ]
+    command:
+      [
+        "python",
+        "-m",
+        "uvicorn",
+        "api.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "80",
+        "--log-config",
+        "None",
+      ]
     profiles: ["api"]
 
   api-local:
@@ -37,12 +42,27 @@ services:
       migrations:
         condition: service_completed_successfully
     ports:
-      - "5678:5678"  # debugger port
-      - "6000:6000"  # pytest debugger port
+      - "5678:5678" # debugger port
+      - "6000:6000" # pytest debugger port
     volumes:
-      - ./data_service/api:/code/api  # mount the api and common directory
+      - ./data_service/api:/code/api # mount the api and common directory
       - ./data_service/common:/code/common
-    command: ["python", "-m", "debugpy", "--listen", "0.0.0.0:5678", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
+    command:
+      [
+        "python",
+        "-m",
+        "debugpy",
+        "--listen",
+        "0.0.0.0:5678",
+        "-m",
+        "uvicorn",
+        "api.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "80",
+        "--reload",
+      ]
     profiles: ["local-data", "local-empty"]
 
   user-api-base:
@@ -50,11 +70,14 @@ services:
       context: ./user_service
       target: base
     env_file: .env
+    environment:
+      - AWS_ACCESS_KEY_ID=$S3_ACCESS_KEY
+      - AWS_SECRET_ACCESS_KEY=$S3_SECRET_KEY
     profiles: ["base"]
 
   user-api:
     container_name: user-api
-    extends: 
+    extends:
       service: user-api-base
     build:
       context: ./user_service
@@ -65,15 +88,13 @@ services:
 
   user-api-local:
     container_name: user-api-local
-    extends: 
+    extends:
       service: user-api-base
     build:
       context: ./user_service
       target: user-local
     environment:
-      - CGO_ENABLED=1
-      - GOOS=linux
-      - GOARCH=amd64
+      - CGO_ENABLED=0
     depends_on:
       db:
         condition: service_healthy
@@ -86,7 +107,13 @@ services:
       - ./user_service/internal:/code/internal
     ports:
       - "8080:80"
-    profiles: ["local-data", "local-empty"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+    profiles: ["local-data", "local-empty", "test"]
 
   db:
     container_name: db
@@ -109,14 +136,14 @@ services:
       - MINIO_ROOT_PASSWORD=minioadmin
     command: server /data --console-address ":9001"
     ports:
-      - "9000:9000"  # API
-      - "9001:9001"  # Console
+      - "9000:9000" # API
+      - "9001:9001" # Console
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 2s
       timeout: 5s
       retries: 3
-    profiles: [ "local-data", "local-empty", "test" ]
+    profiles: ["local-data", "local-empty", "test"]
 
   minio-init:
     image: minio/mc
@@ -130,7 +157,7 @@ services:
       mc policy set public localminio/bill-texts;
       exit 0;
       "
-    profiles: [ "local-data", "local-empty", "test" ]
+    profiles: ["local-data", "local-empty", "test"]
 
   local-db-init:
     container_name: local_db_init
@@ -173,6 +200,8 @@ services:
         condition: service_completed_successfully
       migrations:
         condition: service_completed_successfully
+      user-api-local:
+        condition: service_healthy
     env_file: .env
     profiles: ["local-data"]
 
@@ -190,5 +219,7 @@ services:
         condition: service_completed_successfully
       migrations:
         condition: service_completed_successfully
+      user-api-local:
+        condition: service_healthy
     env_file: .env
     profiles: ["test"]

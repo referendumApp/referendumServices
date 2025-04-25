@@ -2,12 +2,12 @@ name: Run User Service Tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
       - "user_service/**"
       - ".github/workflows/user_service_test.yml"
   pull_request:
-    branches: [ main ]
+    branches: [main]
     paths:
       - "user_service/**"
       - ".github/workflows/user_service_test.yml"
@@ -16,16 +16,28 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - uses: actions/setup-go@v5
-      with:
+      - uses: actions/setup-go@v5
+        with:
           go-version: "1.24"
           cache: true
           cache-dependency-path: user_service/go.sum
 
-    - name: golangci-lint
-      uses: golangci/golangci-lint-action@v6
-      with:
-        working-directory: user_service
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v7
+        with:
+          working-directory: user_service
 
+  build-schema:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
+          cache-dependency-path: user_service/go.sum
+      - name: Build Lexicon Schema
+        working-directory: user_service
+        run: go run ./cmd/lexgen --build-file ./cmd/lexgen/build-config.json "./cmd/lexgen/lexicons/com/referendumapp"

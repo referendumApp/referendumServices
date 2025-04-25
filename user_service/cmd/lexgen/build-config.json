@@ -1,0 +1,8 @@
+[
+  {
+    "outdir": "internal/domain/lexicon/referendumapp",
+    "package": "referendumapp",
+    "prefix": "com.referendumapp",
+    "import": "referendumapp"
+  }
+]

@@ -1,3 +1,4 @@
+//revive:disable:exported
 package indexer
 
 import (
@@ -8,25 +9,22 @@ import (
 	"time"
 
 	comatproto "github.com/bluesky-social/indigo/api/atproto"
-	"github.com/bluesky-social/indigo/models"
-
-	"go.opentelemetry.io/otel"
-
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
+	"go.opentelemetry.io/otel"
 )
 
 type CrawlDispatcher struct {
 	// from Crawl()
-	ingest chan *atp.Citizen
+	ingest chan *atp.Person
 	// from AddToCatchupQueue()
 	catchup chan *crawlWork
 	// from main loop to fetchWorker()
 	repoSync chan *crawlWork
 
 	done       chan struct{}
-	complete   chan models.Uid
-	todo       map[models.Uid]*crawlWork
-	inProgress map[models.Uid]*crawlWork
+	complete   chan atp.Uid
+	todo       map[atp.Uid]*crawlWork
+	inProgress map[atp.Uid]*crawlWork
 
 	log         *slog.Logger
 	repoFetcher CrawlRepoFetcher
@@ -46,14 +44,14 @@ func NewCrawlDispatcher(repoFetcher CrawlRepoFetcher, concurrency int, log *slog
 	}
 
 	out := &CrawlDispatcher{
-		ingest:      make(chan *atp.Citizen),
+		ingest:      make(chan *atp.Person),
 		repoSync:    make(chan *crawlWork),
-		complete:    make(chan models.Uid),
+		complete:    make(chan atp.Uid),
 		catchup:     make(chan *crawlWork),
 		repoFetcher: repoFetcher,
 		concurrency: concurrency,
-		todo:        make(map[models.Uid]*crawlWork),
-		inProgress:  make(map[models.Uid]*crawlWork),
+		todo:        make(map[atp.Uid]*crawlWork),
+		inProgress:  make(map[atp.Uid]*crawlWork),
 		log:         log,
 		done:        make(chan struct{}),
 	}
@@ -77,11 +75,11 @@ func (c *CrawlDispatcher) Shutdown() {
 type catchupJob struct {
 	evt  *comatproto.SyncSubscribeRepos_Commit
 	host *atp.PDS
-	user *atp.Citizen
+	user *atp.Person
 }
 
 type crawlWork struct {
-	act *atp.Citizen
+	act *atp.Person
 
 	// for events that come in while this actor's crawl is enqueued
 	// catchup items are processed during the crawl
@@ -164,7 +162,7 @@ func (c *CrawlDispatcher) mainLoop() {
 }
 
 // enqueueJobForActor adds a new crawl job to the todo list if there isn't already a job in progress for this actor
-func (c *CrawlDispatcher) enqueueJobForActor(ai *atp.Citizen) *crawlWork {
+func (c *CrawlDispatcher) enqueueJobForActor(ai *atp.Person) *crawlWork {
 	c.maplk.Lock()
 	defer c.maplk.Unlock()
 	_, ok := c.inProgress[ai.Uid]
@@ -233,8 +231,8 @@ func (c *CrawlDispatcher) fetchWorker() {
 	}
 }
 
-func (c *CrawlDispatcher) Crawl(ctx context.Context, ai *atp.Citizen) error {
-	if ai.PDS == 0 {
+func (c *CrawlDispatcher) Crawl(ctx context.Context, ai *atp.Person) error {
+	if !ai.PDS.Valid {
 		panic("must have pds for user in queue")
 	}
 
@@ -251,8 +249,13 @@ func (c *CrawlDispatcher) Crawl(ctx context.Context, ai *atp.Citizen) error {
 	}
 }
 
-func (c *CrawlDispatcher) AddToCatchupQueue(ctx context.Context, host *atp.PDS, u *atp.Citizen, evt *comatproto.SyncSubscribeRepos_Commit) error {
-	if u.PDS == 0 {
+func (c *CrawlDispatcher) AddToCatchupQueue(
+	ctx context.Context,
+	host *atp.PDS,
+	u *atp.Person,
+	evt *comatproto.SyncSubscribeRepos_Commit,
+) error {
+	if !u.PDS.Valid {
 		panic("must have pds for user in queue")
 	}
 
@@ -275,7 +278,7 @@ func (c *CrawlDispatcher) AddToCatchupQueue(ctx context.Context, host *atp.PDS, 
 	}
 }
 
-func (c *CrawlDispatcher) RepoInSlowPath(ctx context.Context, uid models.Uid) bool {
+func (c *CrawlDispatcher) RepoInSlowPath(ctx context.Context, uid atp.Uid) bool {
 	c.maplk.Lock()
 	defer c.maplk.Unlock()
 	if _, ok := c.todo[uid]; ok {

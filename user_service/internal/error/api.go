@@ -1,3 +1,4 @@
+//revive:disable:exported
 package error
 
 import (
@@ -28,6 +29,7 @@ const (
 	// Server errors
 	ErrorCodeInternal           Code = "INTERNAL_ERROR"
 	ErrorCodeServiceUnavailable Code = "SERVICE_UNAVAILABLE"
+	ErrorDatabase               Code = "DATABASE_ERROR"
 )
 
 type FieldError struct {
@@ -107,24 +109,18 @@ func UnproccessableEntity(detail string) *APIError {
 	}
 }
 
-func InvalidToken(detail string) *APIError {
-	if detail == "" {
-		detail = "Invalid token"
-	}
+func InvalidToken() *APIError {
 	return &APIError{
-		Detail:     detail,
+		Detail:     "Invalid token",
 		StatusCode: http.StatusBadRequest,
 		Code:       ErrorCodeInvalidToken,
 		Headers:    map[string]string{"WWW-Authenticate": "Bearer"},
 	}
 }
 
-func ExpiredToken(detail string) *APIError {
-	if detail == "" {
-		detail = "Token expired"
-	}
+func ExpiredToken() *APIError {
 	return &APIError{
-		Detail:     detail,
+		Detail:     "Token expired",
 		StatusCode: http.StatusUnauthorized,
 		Code:       ErrorCodeTokenExpired,
 		Headers:    map[string]string{"WWW-Authenticate": "Bearer"},
@@ -132,9 +128,6 @@ func ExpiredToken(detail string) *APIError {
 }
 
 func Unauthorized(detail string) *APIError {
-	if detail == "" {
-		detail = "Authentication required"
-	}
 	return &APIError{
 		Detail:     detail,
 		StatusCode: http.StatusUnauthorized,
@@ -152,11 +145,43 @@ func NotFound(value any, resourceType string) *APIError {
 	}
 }
 
+func Database() *APIError {
+	return &APIError{
+		Detail:     "Database Query Error",
+		StatusCode: http.StatusInternalServerError,
+		Code:       ErrorCodeInternal,
+	}
+}
+
+func Repo() *APIError {
+	return &APIError{
+		Detail:     "Repo Store Error",
+		StatusCode: http.StatusInternalServerError,
+		Code:       ErrorCodeInternal,
+	}
+}
+
+func PLCServer() *APIError {
+	return &APIError{
+		Detail:     "PLC Server Error",
+		StatusCode: http.StatusInternalServerError,
+		Code:       ErrorCodeInternal,
+	}
+}
+
 func InternalServer() *APIError {
 	return &APIError{
 		Detail:     "Internal Server Error",
 		StatusCode: http.StatusInternalServerError,
 		Code:       ErrorCodeInternal,
+	}
+}
+
+func ServiceUnavailable() *APIError {
+	return &APIError{
+		Detail:     "Service Unavailable",
+		StatusCode: http.StatusServiceUnavailable,
+		Code:       ErrorCodeServiceUnavailable,
 	}
 }
 

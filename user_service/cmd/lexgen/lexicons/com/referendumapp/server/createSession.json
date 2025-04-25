@@ -1,0 +1,64 @@
+{
+  "lexicon": 1,
+  "id": "com.referendumapp.server.createSession",
+  "defs": {
+    "main": {
+      "type": "string",
+      "description": "Create an authentication session.",
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["grantType", "username", "password"],
+          "properties": {
+            "grantType": {
+              "type": "string",
+              "enum": ["password"]
+            },
+            "username": {
+              "type": "string",
+              "format": "username",
+              "description": "Handle or other identifier supported by the server for the authenticating user."
+            },
+            "password": {
+              "type": "string",
+              "format": "strongpassword",
+              "minLength": 8,
+              "maxLength": 100
+            }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["accessToken", "refreshToken", "handle", "did", "tokenType"],
+          "properties": {
+            "accessToken": { "type": "string" },
+            "refreshToken": { "type": "string" },
+            "handle": {
+              "type": "string",
+              "format": "handle",
+              "minLength": 8,
+              "maxLength": 100
+            },
+            "did": { "type": "string", "format": "did" },
+            "didDoc": { "type": "unknown" },
+            "email": {
+              "type": "string",
+              "format": "email",
+              "maxLength": 100
+            },
+            "emailConfirmed": { "type": "boolean" },
+            "tokenType": { "type": "string" }
+          }
+        }
+      },
+      "errors": [
+        { "name": "AccountTakedown" },
+        { "name": "AuthFactorTokenRequired" }
+      ]
+    }
+  }
+}

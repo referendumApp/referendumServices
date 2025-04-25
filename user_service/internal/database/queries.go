@@ -4,12 +4,22 @@ import (
 	"context"
 	"fmt"
 
+	sq "github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
-
-	repo "github.com/referendumApp/referendumServices/internal/repository"
 )
 
-func GetWithTx[T repo.TableEntity](ctx context.Context, tx pgx.Tx, sql string, args ...any) (*T, error) {
+// GetRowWithTx returns a scannable row within a transaction
+func (d *DB) GetRowWithTx(ctx context.Context, tx pgx.Tx, sql string, args ...any) pgx.Row {
+	return tx.QueryRow(ctx, sql, args...)
+}
+
+// GetRow returns a scannable row
+func (d *DB) GetRow(ctx context.Context, sql string, args ...any) pgx.Row {
+	return d.pool.QueryRow(ctx, sql, args...)
+}
+
+// GetWithTx returns a record within a transaction
+func GetWithTx[T TableEntity](ctx context.Context, tx pgx.Tx, sql string, args ...any) (*T, error) {
 	rows, err := tx.Query(ctx, sql, args...)
 	if err != nil {
 		return nil, err
@@ -31,79 +41,135 @@ func GetWithTx[T repo.TableEntity](ctx context.Context, tx pgx.Tx, sql string, a
 	return result, rows.Err()
 }
 
-func Get[T repo.TableEntity](ctx context.Context, d *Database, sql string, args ...any) (*T, error) {
+// Get returns a record
+func Get[T TableEntity](ctx context.Context, d *DB, sql string, args ...any) (*T, error) {
 	rows, err := d.pool.Query(ctx, sql, args...)
 	if err != nil {
-		d.log.ErrorContext(ctx, "Error executing query", "error", err, "sql", sql, "args", args)
+		d.Log.ErrorContext(ctx, "Error executing query", "error", err, "sql", sql)
 		return nil, err
 	}
 	defer rows.Close()
 
 	if !rows.Next() {
 		if rows.Err() == nil {
-			d.log.WarnContext(ctx, "No rows found", "sql", sql, "args", args)
+			d.Log.WarnContext(ctx, "No rows found", "sql", sql)
 			return nil, pgx.ErrNoRows
 		}
-		d.log.ErrorContext(ctx, "Error iterating through rows", "error", rows.Err(), "sql", sql, "args", args)
+		d.Log.ErrorContext(ctx, "Error iterating through rows", "error", rows.Err(), "sql", sql)
 		return nil, rows.Err()
 	}
 
 	result, err := pgx.RowToAddrOfStructByNameLax[T](rows)
 	if err != nil {
-		d.log.ErrorContext(ctx, "Error scanning rows", "error", err, "sql", sql, "args", args)
+		d.Log.ErrorContext(ctx, "Error scanning rows", "error", err, "sql", sql)
 		return nil, err
 	}
 
 	return result, rows.Err()
 }
 
-func GetAll[T repo.TableEntity](
+// GetAll returns a record with all columns
+func GetAll[T TableEntity](
 	ctx context.Context,
-	d *Database,
+	d *DB,
 	entity T,
-	filters ...repo.Filter,
+	filters ...sq.Sqlizer,
 ) (*T, error) {
-	sql, args, err := repo.BuildSelectAll(entity, d.schema, filters...)
+	query, err := BuildSelectAll(entity, d.Schema, filters...)
 	if err != nil {
-		d.log.ErrorContext(ctx, "Error building select query", "error", err, "table", entity.TableName(), "filters", filters)
+		d.Log.ErrorContext(ctx, "Error building select query", "error", err, "table", entity.TableName())
 		return nil, err
 	}
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error compiling raw select query", "error", err)
+		return nil, err
+	}
+
 	return Get[T](ctx, d, sql, args...)
 }
 
-func Select[T repo.TableEntity](ctx context.Context, d *Database, sql string, args ...any) (*[]T, error) {
+// Select returns all records
+func Select[T TableEntity](ctx context.Context, d *DB, sql string, args ...any) ([]*T, error) {
 	rows, err := d.pool.Query(ctx, sql, args...)
 	if err != nil {
-		d.log.ErrorContext(ctx, "Error executing query", "error", err, "sql", sql, "args", args)
+		d.Log.ErrorContext(ctx, "Error executing query", "error", err, "sql", sql)
 		return nil, fmt.Errorf("error executing query: %w", err)
 	}
 	defer rows.Close()
 
-	var result []T
+	var result []*T
 
 	for rows.Next() {
-		row, err := pgx.RowToStructByName[T](rows)
+		row, err := pgx.RowToAddrOfStructByNameLax[T](rows)
 		if err != nil {
-			d.log.ErrorContext(ctx, "Error scanning rows", "error", err, "sql", sql, "args", args)
+			d.Log.ErrorContext(ctx, "Error scanning rows", "error", err, "sql", sql)
 			return nil, err
 		}
 
 		result = append(result, row)
 	}
 
-	return &result, rows.Err()
+	return result, rows.Err()
 }
 
-func SelectAll[T repo.TableEntity](
+// SelectAll returns all records with all columns
+func SelectAll[T TableEntity](
 	ctx context.Context,
-	d *Database,
+	d *DB,
 	entity T,
-	filters ...repo.Filter,
-) (*[]T, error) {
-	sql, args, err := repo.BuildSelectAll(entity, d.schema, filters...)
+	filters ...sq.Sqlizer,
+) ([]*T, error) {
+	query, err := BuildSelectAll(entity, d.Schema, filters...)
 	if err != nil {
-		d.log.ErrorContext(ctx, "Error building select query", "error", err, "table", entity.TableName(), "filters", filters)
+		d.Log.ErrorContext(ctx, "Error building select query", "error", err, "table", entity.TableName())
 		return nil, err
 	}
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error compiling raw select query", "error", err)
+		return nil, err
+	}
+
+	return Select[T](ctx, d, sql, args...)
+}
+
+// SelectLeft  returns all records with all columns from a left join
+func SelectLeft[T TableEntity](
+	ctx context.Context,
+	d *DB,
+	entity T,
+	onLeft string,
+	rightEnt TableEntity,
+	onRight string,
+	filters ...sq.Sqlizer,
+) ([]*T, error) {
+	leftTbl := d.Schema + "." + entity.TableName()
+	rightTbl := d.Schema + "." + rightEnt.TableName()
+	leftJoin := fmt.Sprintf("%s ON %s.%s = %s.%s", rightTbl, leftTbl, onLeft, rightTbl, onRight)
+
+	query, err := BuildSelect(entity, d.Schema, filters...)
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error building select query", "error", err)
+		return nil, err
+	}
+
+	sql, args, err := query.LeftJoin(leftJoin).ToSql()
+	if err != nil {
+		d.Log.ErrorContext(
+			ctx,
+			"Failed to compile left join select query",
+			"error",
+			err,
+			"left",
+			leftTbl,
+			"right",
+			rightTbl,
+		)
+		return nil, err
+	}
+
 	return Select[T](ctx, d, sql, args...)
 }

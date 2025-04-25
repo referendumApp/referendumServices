@@ -108,7 +108,6 @@ class TestManager:
             "/committees/",
             {
                 "name": name or f"Committee_{generate_random_string()}",
-                "stateId": legislative_body["stateId"],
                 "legislativeBodyId": legislative_body["id"],
             },
         )
@@ -172,16 +171,19 @@ class TestManager:
         )
 
     async def create_session(
-        self, *, state_id: Optional[int] = None, name: Optional[str] = None
+        self, *, legislature_id: Optional[int] = None, name: Optional[str] = None
     ) -> Dict:
         """Create a session, creating state if needed."""
-        if state_id is None:
-            state = await self.create_state()
-            state_id = state["id"]
+        if legislature_id is None:
+            legislature = await self.create_state()
+            legislature_id = legislature["id"]
 
         return await self.create_resource(
             "/sessions/",
-            {"name": name or f"Session_{generate_random_string()}", "stateId": state_id},
+            {
+                "name": name or f"Session_{generate_random_string()}",
+                "legislatureId": legislature_id,
+            },
         )
 
     async def create_status(self, id: Optional[int] = None, name: Optional[str] = None) -> Dict:
@@ -193,19 +195,19 @@ class TestManager:
         return await self.create_resource("/topics/", {"name": name or "Health"})
 
     async def create_legislative_body(
-        self, *, state_id: Optional[int] = None, role_id: Optional[int] = None
+        self, *, legislature_id: Optional[int] = None, role_id: Optional[int] = None
     ) -> Dict:
         """Create a legislative body, creating dependencies if needed."""
-        if state_id is None:
-            state = await self.create_state()
-            state_id = state["id"]
+        if legislature_id is None:
+            legislature = await self.create_state()
+            legislature_id = legislature["id"]
 
         if role_id is None:
             role = await self.create_role()
             role_id = role["id"]
 
         return await self.create_resource(
-            "/legislative_bodys/", {"stateId": state_id, "roleId": role_id}
+            "/legislative_bodys/", {"legislatureId": legislature_id, "roleId": role_id}
         )
 
     async def create_legislator(
@@ -214,6 +216,8 @@ class TestManager:
         name: Optional[str] = None,
         state_id: Optional[int] = None,
         state_name: Optional[str] = None,
+        legislature_id: Optional[int] = None,
+        legislature_name: Optional[str] = None,
         role_id: Optional[int] = None,
         role_name: Optional[str] = None,
         party_id: Optional[int] = None,
@@ -222,6 +226,9 @@ class TestManager:
         """Create a legislator with all dependencies."""
         state = await self.create_state(id=state_id, name=state_name)
         state_id = state["id"]
+
+        legislature = await self.create_state(id=legislature_id, name=legislature_name)
+        legislature_id = legislature["id"]
 
         role = await self.create_role(id=role_id, name=role_name)
         role_id = role["id"]
@@ -239,6 +246,7 @@ class TestManager:
                 "address": "123 Capitol St",
                 "partyId": party_id,
                 "stateId": state_id,
+                "legislatureId": legislature_id,
                 "roleId": role_id,
                 "followthemoneyEid": str(random.randint(100, 99999)),
             },
@@ -249,30 +257,28 @@ class TestManager:
         *,
         identifier: Optional[str] = None,
         title: Optional[str] = None,
-        state_id: Optional[int] = None,
-        state_name: Optional[str] = None,
-        legislative_body_id: Optional[int] = None,
         role_id: Optional[int] = None,
         role_name: Optional[str] = None,
-        session_id: Optional[int] = None,
+        legislature_id: Optional[int] = None,
         status_id: Optional[int] = None,
-        status_name: Optional[str] = None,
     ) -> Dict:
         """Create a bill with all dependencies."""
-        state = await self.create_state(id=state_id, name=state_name)
-        state_id = state["id"]
+        legislature = await self.create_state(id=legislature_id)
+        legislature_id = legislature["id"]
 
         role = await self.create_role(id=role_id, name=role_name)
         role_id = role["id"]
 
-        session = await self.create_session(state_id=state_id)
+        session = await self.create_session(legislature_id=legislature_id)
         session_id = session["id"]
 
         if status_id is None:
             status = await self.create_status()
             status_id = status["id"]
 
-        leg_body = await self.create_legislative_body(state_id=state_id, role_id=role_id)
+        leg_body = await self.create_legislative_body(
+            legislature_id=legislature_id, role_id=role_id
+        )
         legislative_body_id = leg_body["id"]
 
         bill_id = random.randint(0, 999999)
@@ -285,7 +291,7 @@ class TestManager:
                 "identifier": identifier or f"HB_{random.randint(100, 999)}",
                 "title": title or f"Bill_{generate_random_string()}",
                 "description": "Test bill description",
-                "stateId": state_id,
+                "legislatureId": legislature_id,
                 "legislativeBodyId": legislative_body_id,
                 "sessionId": session_id,
                 "statusId": status_id,

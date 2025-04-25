@@ -2,8 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import Dict
-from botocore.exceptions import ClientError
-import boto3
 import os
 
 from common.object_storage.client import ObjectStorageClient
@@ -14,21 +12,6 @@ from ..schemas.interactions import ErrorResponse, HealthResponse
 router = APIRouter()
 
 BILL_TEXT_BUCKET_NAME = os.getenv("BILL_TEXT_BUCKET_NAME")
-
-
-def check_s3_access(bucket_name: str) -> bool:
-    """
-    Verify S3 access by attempting to list objects in the specified bucket.
-    """
-    try:
-        s3_client = boto3.client("s3")
-        s3_client.list_objects_v2(Bucket=bucket_name, MaxKeys=1)
-        return True
-    except ClientError as e:
-        error_code = e.response.get("Error", {}).get("Code", "")
-        if error_code in ["NoSuchBucket", "AccessDenied"]:
-            return False
-        raise e
 
 
 @router.get(
