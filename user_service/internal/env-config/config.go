@@ -31,6 +31,7 @@ func getIntEnv(key string) int {
 
 // Config contains all required environment variables
 type Config struct {
+	Environment  string
 	PgUser       string
 	PgPassword   string
 	PgHost       string
@@ -39,6 +40,8 @@ type Config struct {
 	AtpDBSchema  string
 	HandleSuffix string
 	ServiceUrl   string
+	RecoveryKey  string
+	KeyDir       string
 	CarDir       string
 	CarDBSchema  string
 	PLCHost      string
@@ -55,6 +58,7 @@ func LoadConfigFromEnv() *Config {
 	log.Println("Loading runtime env vars")
 
 	config := Config{
+		Environment: getEnvOrFail("ENVIRONMENT"),
 		// Database
 		PgUser:     getEnvOrFail("POSTGRES_USER"),
 		PgPassword: getEnvOrFail("POSTGRES_PASSWORD"),
@@ -75,6 +79,8 @@ func LoadConfigFromEnv() *Config {
 		HandleSuffix: getEnvOrFail("ATP_HANDLE_SUFFIX"),
 		ServiceUrl:   getEnvOrFail("ATP_SERVICE_URL"),
 		AtpDBSchema:  getEnvOrFail("ATP_DB_SCHEMA"),
+		RecoveryKey:  getEnvOrFail("PDS_RECOVERY_DID_KEY"),
+		KeyDir:       getEnvOrFail("KEYSTORE_DIR"),
 
 		// Carstore
 		CarDir:      getEnvOrFail("CARSTORE_DIR"),

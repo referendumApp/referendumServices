@@ -12,6 +12,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	blockstore "github.com/ipfs/boxo/blockstore"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
@@ -56,26 +57,36 @@ type S3CarStore struct {
 }
 
 // NewCarStore initializes a 'S3CarStore' struct
-func NewCarStore(ctx context.Context, cfg *env.Config, db *database.DB) (Store, error) {
+func NewCarStore(
+	ctx context.Context,
+	cfg *env.Config,
+	db *database.DB,
+	client *s3.Client,
+	logger *slog.Logger,
+) (Store, error) {
 	log.Println("Setting up CAR store")
 
 	carDb := db.WithSchema(cfg.CarDBSchema)
 
-	client, err := newS3Client(ctx, cfg.CarDir)
-	if err != nil {
-		log.Println("Error creating S3 client")
-		return nil, err
+	if cfg.Environment == "local" {
+		if _, err := client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: &cfg.CarDir}); err != nil {
+			log.Printf("The %s bucket does not exist, attempting to create bucket...\n", cfg.CarDir)
+			if _, err := client.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: &cfg.CarDir}); err != nil {
+				return nil, err
+			}
+			log.Println("Successfully created bucket!")
+		}
 	}
 
 	meta := &StoreMeta{carDb}
 	out := &S3CarStore{
 		meta:    meta,
-		client:  client,
+		client:  &s3Client{client: client, bucket: cfg.CarDir},
 		rootDir: cfg.CarDir,
 		lastShardCache: lastShardCache{
 			source: meta,
 		},
-		log: slog.Default().With("system", "carstore"),
+		log: logger.WithGroup("carstore"),
 	}
 	out.lastShardCache.init()
 
@@ -102,7 +113,7 @@ func (cs *S3CarStore) getLastShard(ctx context.Context, user atp.Uid) (*Shard, e
 
 // PingStore checks that the S3 car store bucket exists
 func (cs *S3CarStore) PingStore(ctx context.Context) error {
-	if err := cs.client.storeExists(ctx); err != nil {
+	if err := cs.client.checkConnection(ctx); err != nil {
 		return err
 	}
 
@@ -208,7 +219,7 @@ func (cs *S3CarStore) ReadUserCar(
 
 // inner loop part of ReadUserCar
 // copy shard blocks from disk to Writer
-func (cs *S3CarStore) writeShardBlocks(ctx context.Context, sh *Shard, shardOut io.Writer) (err error) {
+func (cs *S3CarStore) writeShardBlocks(ctx context.Context, sh *Shard, shardOut io.Writer) error {
 	_, span := otel.Tracer("carstore").Start(ctx, "writeShardBlocks")
 	defer span.End()
 
@@ -217,9 +228,8 @@ func (cs *S3CarStore) writeShardBlocks(ctx context.Context, sh *Shard, shardOut 
 		return err
 	}
 	defer func() {
-		closeErr := obj.Body.Close()
-		if err == nil {
-			err = closeErr
+		if closeErr := obj.Body.Close(); closeErr != nil {
+			cs.log.WarnContext(ctx, "Error closing S3 object body", "error", closeErr, "path", sh.Path)
 		}
 	}()
 
@@ -232,15 +242,14 @@ func (cs *S3CarStore) writeShardBlocks(ctx context.Context, sh *Shard, shardOut 
 }
 
 // inner loop part of compactBucket
-func (cs *S3CarStore) iterateShardBlocks(sh *Shard, cb func(blk blocks.Block) error) (err error) {
+func (cs *S3CarStore) iterateShardBlocks(ctx context.Context, sh *Shard, cb func(blk blocks.Block) error) error {
 	fi, err := os.Open(sh.Path)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		closeErr := fi.Close()
-		if err == nil {
-			err = closeErr
+		if closeErr := fi.Close(); closeErr != nil {
+			cs.log.WarnContext(ctx, "Error closing file", "error", closeErr, "path", sh.Path)
 		}
 	}()
 
@@ -818,7 +827,7 @@ func (cs *S3CarStore) compactBucket(
 	user atp.Uid,
 	b *compBucket,
 	shardsById map[uint]*Shard,
-) (err error) {
+) error {
 	ctx, span := otel.Tracer("carstore").Start(ctx, "compactBucket")
 	defer span.End()
 
@@ -831,9 +840,8 @@ func (cs *S3CarStore) compactBucket(
 		return fmt.Errorf("opening new file: %w", err)
 	}
 	defer func() {
-		closeErr := fi.Close()
-		if err == nil {
-			err = closeErr
+		if closeErr := fi.Close(); closeErr != nil {
+			cs.log.WarnContext(ctx, "Error closing file", "error", closeErr, "seq", last.Seq)
 		}
 	}()
 
@@ -849,7 +857,7 @@ func (cs *S3CarStore) compactBucket(
 	written := make(map[cid.Cid]bool)
 	for _, s := range b.shards {
 		sh := shardsById[s.ID]
-		if err := cs.iterateShardBlocks(sh, func(blk blocks.Block) error {
+		if err := cs.iterateShardBlocks(ctx, sh, func(blk blocks.Block) error {
 			if written[blk.Cid()] {
 				return nil
 			}

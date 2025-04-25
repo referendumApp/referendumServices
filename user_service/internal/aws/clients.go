@@ -1,0 +1,49 @@
+package aws
+
+import (
+	"context"
+	"log"
+	"net/http"
+	"os"
+
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+)
+
+// Clients holds all AWS service clients
+type Clients struct {
+	S3  *s3.Client
+	KMS *kms.Client
+}
+
+// NewClients creates and initializes all AWS clients
+func NewClients(ctx context.Context, env string) (*Clients, error) {
+	cfg, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	s3Client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		endpoint := os.Getenv("S3_ENDPOINT_URL")
+		if endpoint != "" {
+			o.BaseEndpoint = &endpoint
+		}
+		o.UsePathStyle = true
+		o.DisableLogOutputChecksumValidationSkipped = true
+	})
+
+	kmsClient := kms.NewFromConfig(cfg, func(o *kms.Options) {
+		if env == "local" {
+			log.Println("Configurating local KMS instance")
+			o.EndpointResolverV2 = &localKMSResolver{kmsHost: os.Getenv("KMS_HOST")}
+			o.HTTPClient = &http.Client{Transport: &kmsTransport{base: http.DefaultTransport}}
+		}
+	})
+
+	return &Clients{
+
+		S3:  s3Client,
+		KMS: kmsClient,
+	}, nil
+}

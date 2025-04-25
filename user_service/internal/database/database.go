@@ -19,8 +19,10 @@ type DB struct {
 }
 
 // Connect intializes a DB struct without a schema
-func Connect(ctx context.Context, cfg *env.Config) (*DB, error) {
+func Connect(ctx context.Context, cfg *env.Config, logger *slog.Logger) (*DB, error) {
 	log.Println("Setting up database connection pool")
+
+	dbLogger := logger.WithGroup("db")
 
 	// Build the connection string
 	connStr := fmt.Sprintf(
@@ -64,14 +66,14 @@ func Connect(ctx context.Context, cfg *env.Config) (*DB, error) {
 
 	log.Println("Successfully connected to database!")
 
-	return &DB{pool: pool, Log: slog.Default().With("system", "db")}, nil
+	return &DB{pool: pool, Log: dbLogger}, nil
 }
 
 // WithSchema intializes a DB struct with a schema
 func (db *DB) WithSchema(schema string) *DB {
 	return &DB{
 		pool:   db.pool,
-		Log:    db.Log,
+		Log:    db.Log.With("schema", schema),
 		Schema: schema,
 	}
 }
