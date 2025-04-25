@@ -41,8 +41,7 @@ func NewPDS(
 	atExpiry := 30 * time.Minute
 	rtExpiry := 24 * time.Hour
 
-	// km, err := keymgr.NewKeyManager(ctx, cfg, aws.KMS, aws.S3, rtExpiry, atExpiry-(5*time.Minute), pdsLogger)
-	km, err := keymgr.NewKeyManager(ctx, cfg, aws.KMS, aws.S3, 10*time.Minute, 5*time.Second, pdsLogger)
+	km, err := keymgr.NewKeyManager(ctx, cfg, aws.KMS, aws.S3, rtExpiry, atExpiry-(5*time.Minute), pdsLogger)
 	if err != nil {
 		return nil, err
 	}

@@ -161,7 +161,7 @@ func (kc *repoKeyCache) Sign(did string, cmt []byte) ([]byte, error) {
 }
 
 func (kc *repoKeyCache) cleanupExpiredKeys() {
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
 
 	for range ticker.C {
