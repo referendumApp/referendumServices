@@ -27,7 +27,6 @@ func (d *DB) WithTransaction(ctx context.Context, fn func(ctx context.Context, t
 	defer func() {
 		// If it's already committed, Rollback will be a no-op
 		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
-			// Log the error or update the return error if needed
 			d.Log.ErrorContext(ctx, "Failed to rollback transaction", "error", err)
 		}
 	}()

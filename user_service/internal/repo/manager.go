@@ -29,12 +29,12 @@ import (
 )
 
 // NewRepoManager initializes 'Manager' struct
-func NewRepoManager(cs cs.Store, kmgr KeyManager) *Manager {
+func NewRepoManager(cs cs.Store, kmgr KeyManager, logger *slog.Logger) *Manager {
 	return &Manager{
 		cs:        cs,
 		userLocks: make(map[atp.Uid]*userLock),
 		kmgr:      kmgr,
-		log:       slog.Default().With("system", "repomgr"),
+		log:       logger.With("service", "repomgr"),
 	}
 }
 

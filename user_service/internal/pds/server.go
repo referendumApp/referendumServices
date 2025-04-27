@@ -22,13 +22,23 @@ func (p *PDS) CreateUser(
 		recoveryKey = *req.RecoveryKey
 	}
 	if recoveryKey == "" {
-		recoveryKey = p.signingKey.Public().DID()
+		recoveryKey = p.km.RecoveryKey()
 	}
 
-	d, err := p.plc.CreateDID(ctx, p.signingKey, recoveryKey, req.Handle, p.serviceUrl)
+	sigkey, err := p.km.CreateSigningKey(ctx)
+	if err != nil {
+		return nil, refErr.InternalServer()
+	}
+
+	did, err := p.plc.CreateDID(ctx, sigkey, []string{recoveryKey, p.km.RotationKey()}, req.Handle, p.serviceUrl)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Failed to create DID", "error", err)
-		return nil, refErr.Repo()
+		return nil, refErr.PLCServer()
+	}
+
+	if err := p.km.CreateEncryptedKey(ctx, did, sigkey); err != nil {
+		p.log.ErrorContext(ctx, "Failed to create encrypted signing key", "error", err)
+		return nil, refErr.InternalServer()
 	}
 
 	user := &atp.User{
@@ -36,27 +46,42 @@ func (p *PDS) CreateUser(
 		Email:          sql.NullString{String: req.Email, Valid: true},
 		HashedPassword: sql.NullString{String: pw, Valid: true},
 		RecoveryKey:    recoveryKey,
-		Did:            d,
+		Did:            did,
 	}
 
 	return user, nil
 }
 
 // CreateNewRepo initialize a new repo and write the first record to the CAR store
-func (p *PDS) CreateNewRepo(ctx context.Context, uid atp.Uid, did string, dname *string) *refErr.APIError {
+func (p *PDS) CreateNewRepo(
+	ctx context.Context,
+	user *atp.User,
+	dname *string,
+) (*refApp.ServerCreateSession_Output, *refErr.APIError) {
 	profile := &refApp.PersonProfile{
 		DisplayName: dname,
 	}
 
-	if err := p.repoman.InitNewRepo(ctx, uid, did, profile.NSID(), profile.Key(), profile); err != nil {
-		p.log.ErrorContext(ctx, "Failed write profile record to CAR store", "error", err, "did", did)
-		return refErr.Repo()
+	if err := p.repoman.InitNewRepo(ctx, user.ID, user.Did, profile.NSID(), profile.Key(), profile); err != nil {
+		p.log.ErrorContext(ctx, "Error initializing new user repository", "error", err, "did", user.Did)
+		return nil, refErr.Repo()
 	}
 
-	return nil
+	accessToken, refreshToken, err := p.CreateTokens(ctx, user.ID, user.Did)
+	if err != nil {
+		return nil, refErr.InternalServer()
+	}
+
+	return &refApp.ServerCreateSession_Output{
+		Did:          user.Did,
+		Handle:       user.Handle.String,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    p.jwt.AuthScheme,
+	}, nil
 }
 
-// CreateTokens method to create the access and refresh tokens for a session
+// CreateTokens method to create the access and refresh tokens and update the signing key cache for a session
 func (p *PDS) CreateTokens(ctx context.Context, uid atp.Uid, did string) (string, string, error) {
 	accessToken, err := p.jwt.CreateToken(uid, did, util.Access)
 	if err != nil {
@@ -79,7 +104,11 @@ func (p *PDS) CreateSession(
 ) (*refApp.ServerCreateSession_Output, *refErr.APIError) {
 	accessToken, refreshToken, err := p.CreateTokens(ctx, user.ID, user.Did)
 	if err != nil {
-		return nil, refErr.Repo()
+		return nil, refErr.InternalServer()
+	}
+
+	if err := p.km.UpdateKeyCache(ctx, user.Did); err != nil {
+		return nil, refErr.InternalServer()
 	}
 
 	return &refApp.ServerCreateSession_Output{
@@ -112,7 +141,11 @@ func (p *PDS) RefreshSession(
 
 	accessToken, refreshToken, err := p.CreateTokens(ctx, uid, did)
 	if err != nil {
-		return nil, 0, "", refErr.Repo()
+		return nil, 0, "", refErr.InternalServer()
+	}
+
+	if err := p.km.UpdateKeyCache(ctx, did); err != nil {
+		return nil, 0, "", refErr.InternalServer()
 	}
 
 	resp := &refApp.ServerRefreshSession_Output{
@@ -124,6 +157,12 @@ func (p *PDS) RefreshSession(
 	return resp, uid, did, nil
 }
 
+func (p *PDS) DeleteSession(did string) *refErr.APIError {
+	p.km.InvalidateKeys(did)
+
+	return nil
+}
+
 // DeleteAccount tombstones the DID in the PLC, deletes DB metadata, and deletes CAR files
 func (p *PDS) DeleteAccount(ctx context.Context, uid atp.Uid, did string) *refErr.APIError {
 	op, err := p.plc.GetLatestOp(ctx, did)
@@ -132,7 +171,7 @@ func (p *PDS) DeleteAccount(ctx context.Context, uid atp.Uid, did string) *refEr
 		return refErr.PLCServer()
 	}
 
-	if err := p.plc.TombstoneDID(ctx, p.signingKey, did, op.CID); err != nil {
+	if err := p.plc.TombstoneDID(ctx, did, op.CID); err != nil {
 		p.log.ErrorContext(ctx, "Tombstone request to PLC directory failed", "error", err)
 		return refErr.PLCServer()
 	}
@@ -142,10 +181,7 @@ func (p *PDS) DeleteAccount(ctx context.Context, uid atp.Uid, did string) *refEr
 		return refErr.Repo()
 	}
 
-	if err := p.events.TakeDownRepo(ctx, uid); err != nil {
-		p.log.ErrorContext(ctx, "Failed to broadcast tombstone operation", "error", err)
-		return refErr.Repo()
-	}
+	p.km.InvalidateKeys(did)
 
 	return nil
 }

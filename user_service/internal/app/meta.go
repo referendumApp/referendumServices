@@ -115,9 +115,9 @@ func (vm *ViewMeta) lookupUserQuery(ctx context.Context, filter sq.Sqlizer) (*at
 	return user, nil
 }
 
-// LookupUserById queries user record by user ID
-func (vm *ViewMeta) LookupUserById(ctx context.Context, userId atp.Uid) (*atp.User, error) {
-	filter := sq.Eq{"id": userId}
+// LookupUserByID queries user record by user ID
+func (vm *ViewMeta) LookupUserByID(ctx context.Context, uid atp.Uid) (*atp.User, error) {
+	filter := sq.Eq{"id": uid}
 	return vm.lookupUserQuery(ctx, filter)
 }
 

@@ -25,25 +25,22 @@ type Schema struct {
 	Defs    map[string]*TypeSchema `json:"defs"`
 }
 
-func ReadSchema(f string) (s *Schema, err error) {
+func ReadSchema(f string) (*Schema, error) {
 	fi, err := os.Open(f)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
-		closeErr := fi.Close()
-		if err == nil {
-			err = closeErr
-		}
+		_ = fi.Close()
 	}()
 
-	s = &Schema{}
+	var s Schema
 	if err := json.NewDecoder(fi).Decode(&s); err != nil {
 		return nil, err
 	}
 	s.path = f
 
-	return s, nil
+	return &s, nil
 }
 
 func (s *Schema) Name() string {

@@ -36,12 +36,12 @@ type EventManager struct {
 	log *slog.Logger
 }
 
-func NewEventManager(persister EventPersistence) *EventManager {
+func NewEventManager(persister EventPersistence, logger *slog.Logger) *EventManager {
 	em := &EventManager{
 		bufferSize:          16 << 10,
 		crossoverBufferSize: 512,
 		persister:           persister,
-		log:                 slog.Default().With("system", "events"),
+		log:                 logger.WithGroup("events"),
 	}
 
 	persister.SetEventBroadcaster(em.broadcastEvent)
