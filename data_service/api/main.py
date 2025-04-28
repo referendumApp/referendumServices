@@ -8,7 +8,7 @@ import logging
 from common.database.referendum import models
 
 from .security import get_current_user
-from .settings import settings
+from .settings import settings, RequestLoggingMiddleware
 from .endpoints import (
     _core,
     health,
@@ -33,6 +33,7 @@ from .endpoints import (
     presidents,
 )
 
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RequestLoggingMiddleware)
+
 
 app.include_router(health.router, tags=["health"])
 app.include_router(authentication.router, tags=["authentication"], prefix="/auth")
