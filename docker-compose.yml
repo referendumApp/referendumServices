@@ -111,7 +111,7 @@ services:
       - "8080:80"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/health"]
-      interval: 30s
+      interval: 31s
       timeout: 3s
       retries: 3
       start_period: 30s
