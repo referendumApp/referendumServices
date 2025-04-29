@@ -4,7 +4,7 @@ import boto3
 import logging
 import watchtower
 import time
-from typing import Optional, Dict, Any
+from typing import Optional
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 import structlog
@@ -238,40 +238,6 @@ class RequestLoggingMiddleware:
 
             # Clear context
             structlog.contextvars.clear_contextvars()
-
-
-class MetricsCollector:
-    """Collect and expose application metrics"""
-
-    def __init__(self):
-        self.requests_total = 0
-        self.requests_by_status = {}
-        self.requests_by_endpoint = {}
-        self.response_times = []
-
-    def record_request(self, path: str, status_code: int, response_time: float):
-        self.requests_total += 1
-        self.requests_by_status[status_code] = self.requests_by_status.get(status_code, 0) + 1
-        self.requests_by_endpoint[path] = self.requests_by_endpoint.get(path, 0) + 1
-        self.response_times.append(response_time)
-
-        # Keep only last 1000 response times for avg calculation
-        if len(self.response_times) > 1000:
-            self.response_times.pop(0)
-
-    def get_metrics(self) -> Dict[str, Any]:
-        avg_response_time = (
-            sum(self.response_times) / len(self.response_times) if self.response_times else 0
-        )
-        return {
-            "requests_total": self.requests_total,
-            "requests_by_status": self.requests_by_status,
-            "requests_by_endpoint": self.requests_by_endpoint,
-            "avg_response_time": avg_response_time,
-        }
-
-
-metrics_collector = MetricsCollector()
 
 
 @lru_cache()

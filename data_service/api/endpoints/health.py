@@ -8,7 +8,6 @@ from common.object_storage.client import ObjectStorageClient
 
 from ..database import get_db
 from ..schemas.interactions import ErrorResponse, HealthResponse
-from ..settings import metrics_collector
 
 router = APIRouter()
 
@@ -47,8 +46,3 @@ async def healthcheck(
         )
 
     return {"status": "healthy"}
-
-
-@router.get("/metrics")
-async def get_metrics():
-    return metrics_collector.get_metrics()
