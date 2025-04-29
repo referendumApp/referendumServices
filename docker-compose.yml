@@ -109,10 +109,9 @@ services:
       - "8080:80"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/health"]
-      interval: 30s
+      interval: 120s
       timeout: 3s
       retries: 3
-      start_period: 120s
     profiles: ["local-data", "local-empty", "test"]
 
   db:
