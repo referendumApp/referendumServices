@@ -300,6 +300,7 @@ class ETLConfig(BaseModel):
         Invalid rows are logged and excluded from the final insert.
         """
         try:
+            import time
 
             logger.info(f"Loading data into {self.destination} with unique_constraints on 'id'")
 
@@ -316,8 +317,10 @@ class ETLConfig(BaseModel):
             # Create temp table name with timestamp to avoid conflicts
             temp_table = f"temp_{self.destination}_{int(time.time())}"
 
-            # Get table constraints from the schema
-            table_constraints = self._get_table_constraints(self.destination, conn)
+            # Get table constraints from the schema - fix argument count
+            table_constraints = self._get_table_constraints(
+                self.destination
+            )  # Removed conn parameter
 
             # Write to temporary table
             self.dataframe[self.destination_columns].to_sql(
@@ -327,11 +330,10 @@ class ETLConfig(BaseModel):
                 index=False,
             )
 
-            # Validate constraints
+            # Validate constraints - adjust method call
             violations_count = self.validate_and_log_constraint_violations(
                 temp_table, table_constraints, conn
             )
-
             # If there are violations, create a view with only valid rows
             if violations_count > 0:
                 # Create view with only valid rows
