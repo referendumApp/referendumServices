@@ -186,7 +186,8 @@ def run_text_extraction(batch_size=20):
 
 
 def run_pds_processing():
-    UserServiceClient()
+    # UserServiceClient()
+    pass
 
 
 def orchestrate(stage: str = "all"):
