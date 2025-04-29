@@ -113,7 +113,6 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:80/health"]
       interval: 30s
       timeout: 3s
-      retries: 3
       start_period: 30s
     profiles: ["local-data", "local-empty"]
 
@@ -123,6 +122,9 @@ services:
     env_file: .env
     ports:
       - "${POSTGRES_PORT}:5432"
+    command: ["postgres", "-c", "log_statement=all", "-c", "log_destination=stderr", "-c", "log_min_duration_statement=0"]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 2s
@@ -248,3 +250,7 @@ services:
         condition: service_completed_successfully
     env_file: .env
     profiles: ["test"]
+
+
+volumes:
+  postgres_data:
