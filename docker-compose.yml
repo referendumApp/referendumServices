@@ -112,7 +112,7 @@ services:
       interval: 30s
       timeout: 3s
       retries: 3
-      start_period: 30s
+      start_period: 45s
     profiles: ["local-data", "local-empty", "test"]
 
   db:
