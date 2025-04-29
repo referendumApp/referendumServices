@@ -299,6 +299,9 @@ class ETLConfig(BaseModel):
         Invalid rows are logged and excluded from the final insert.
         """
         try:
+
+            import time
+
             logger.info(f"Loading data into {self.destination} with unique_constraints on 'id'")
 
             if self.dataframe.empty:
