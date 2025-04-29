@@ -45,11 +45,9 @@ jobs:
       run: |
         docker compose --profile test run --rm test pytest api/ common/
 
-    - name: Clean up & log after API tests
+    - name: Clean up after API tests
       if: always()
-      run: |
-        docker compose logs user-api-service
-        docker compose --profile test down
+      run: docker compose --profile test down
 
     - name: Run Pipeline Tests
       run: |
