@@ -151,7 +151,7 @@ func (uv *userView) prefetchRead(
 	k cid.Cid,
 	path string,
 	offset int64,
-) (outblk blocks.Block, err error) {
+) (blocks.Block, error) {
 	_, span := otel.Tracer("carstore").Start(ctx, "getLastShard")
 	defer span.End()
 
@@ -160,10 +160,7 @@ func (uv *userView) prefetchRead(
 		return nil, err
 	}
 	defer func() {
-		closeErr := obj.Body.Close()
-		if err == nil {
-			err = closeErr
-		}
+		_ = obj.Body.Close()
 	}()
 	size := *obj.ContentLength
 
@@ -207,16 +204,13 @@ func (uv *userView) singleRead(
 	k cid.Cid,
 	path string,
 	offset int64,
-) (blk blocks.Block, err error) {
+) (blocks.Block, error) {
 	obj, err := uv.client.readFile(ctx, path, &offset)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
-		closeErr := obj.Body.Close()
-		if err == nil {
-			err = closeErr
-		}
+		_ = obj.Body.Close()
 	}()
 
 	return doBlockRead(obj.Body, k)

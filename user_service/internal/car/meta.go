@@ -79,7 +79,7 @@ func (cs *StoreMeta) GetLastShard(ctx context.Context, user atp.Uid) (*Shard, er
 	lastShard, err := database.Get[Shard](ctx, cs.DB, sql, args...)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			cs.Log.InfoContext(ctx, "No last shard found")
+			cs.Log.InfoContext(ctx, "No CAR shards found")
 			return &Shard{}, nil
 		}
 		cs.Log.ErrorContext(ctx, "Error querying for last shard", "error", err, "sql", sql)
@@ -181,7 +181,7 @@ func (cs *StoreMeta) GetCompactionTargets(ctx context.Context, minShardCount int
 func (cs *StoreMeta) PutShardAndRefs(ctx context.Context, shard *Shard, brefs []*BlockRef) error {
 	// TODO: Can use a CTE to insert both the shard and block refs in the same query
 	if err := cs.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		row, err := database.CreateReturningWithTx(ctx, cs.DB, tx, *shard, "id")
+		row, err := database.CreateReturningWithTx(ctx, cs.DB, tx, shard, "id")
 		if err != nil {
 			cs.Log.ErrorContext(ctx, "Error creating shard", "error", err)
 			return err

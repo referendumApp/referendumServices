@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
 	"log"
 	"log/slog"
@@ -11,15 +10,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/referendumApp/referendumServices/internal/app"
+	"github.com/referendumApp/referendumServices/internal/aws"
 	"github.com/referendumApp/referendumServices/internal/car"
 	"github.com/referendumApp/referendumServices/internal/database"
 	"github.com/referendumApp/referendumServices/internal/env-config"
-	"github.com/referendumApp/referendumServices/internal/events"
-	"github.com/referendumApp/referendumServices/internal/indexer"
 	"github.com/referendumApp/referendumServices/internal/pds"
-	"github.com/referendumApp/referendumServices/internal/plc"
-	"github.com/referendumApp/referendumServices/internal/repo"
-	"github.com/whyrusleeping/go-did"
 )
 
 // Server abstraction layer around PDS and App View modules
@@ -34,45 +29,49 @@ type Server struct {
 }
 
 // New initialize 'Server' struct, setup HTTP routes, and middleware
-func New(ctx context.Context, cfg *env.Config, db *database.DB) (*Server, error) {
-	log.Println("Generating private key")
-	srvkey, err := did.GeneratePrivKey(rand.Reader, did.KeyTypeSecp256k1)
-	if err != nil {
-		log.Println("Failed to generate private key")
-		return nil, err
-	}
-	log.Println("Successfully generated private key!")
-
-	plc := plc.NewPLCServer(cfg.PLCHost)
-
-	cs, err := car.NewCarStore(ctx, cfg, db)
+func New(ctx context.Context, cfg *env.Config, db *database.DB, logger *slog.Logger) (*Server, error) {
+	clients, err := aws.NewClients(ctx, cfg.Environment)
 	if err != nil {
 		return nil, err
 	}
 
-	evts := events.NewEventManager(events.NewMemPersister())
-
-	kmgr := indexer.NewKeyManager(plc, srvkey)
-
-	repoman := repo.NewRepoManager(cs, kmgr)
-
-	rf := indexer.NewRepoFetcher(db, repoman, 10)
-
-	idxr, err := indexer.NewIndexer(db, evts, plc, rf, false, true, true)
+	cs, err := car.NewCarStore(ctx, cfg, db, clients.S3, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	av := app.NewAppView(db, repoman, cs, cfg)
+	// evts := events.NewEventManager(events.NewMemPersister(), logger)
 
-	pds := pds.NewPDS(repoman, idxr, evts, srvkey, cfg, cs, plc)
+	// kmgr := indexer.NewKeyManager(plc, srvkey, logger)
+
+	// repoman := repo.NewRepoManager(cs, kmgr, logger)
+
+	// rf := indexer.NewRepoFetcher(db, repoman, 10, logger)
+
+	// idxr, err := indexer.NewIndexer(db, evts, plc, rf, false, true, true)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// repoman.SetEventHandler(func(ctx context.Context, evt *repo.Event) {
+	// 	if err := idxr.HandleRepoEvent(ctx, evt); err != nil {
+	// 		log.ErrorContext(ctx, "Handle repo event failed", "user", evt.User, "err", err)
+	// 	}
+	// }, true)
+
+	av := app.NewAppView(db, cfg, logger)
+
+	pds, err := pds.NewPDS(ctx, cfg, clients, cs, logger)
+	if err != nil {
+		return nil, err
+	}
 
 	srv := &Server{
 		mux:  chi.NewRouter(),
 		av:   av,
 		pds:  pds,
 		port: 80,
-		log:  slog.Default().With("system", "server"),
+		log:  logger,
 	}
 
 	// ix.SendRemoteFollow = srv.sendRemoteFollow

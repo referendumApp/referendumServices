@@ -57,10 +57,13 @@ func (s *Server) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if rerr := s.pds.CreateNewRepo(ctx, user.ID, user.Did, req.DisplayName); rerr != nil {
-		rerr.WriteResponse(w)
+	resp, err := s.pds.CreateNewRepo(ctx, user, req.DisplayName)
+	if err != nil {
+		err.WriteResponse(w)
 		return
 	}
+
+	s.encode(ctx, w, http.StatusCreated, resp)
 }
 
 func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
@@ -138,6 +141,19 @@ func (s *Server) handleRefreshSession(w http.ResponseWriter, r *http.Request) {
 	s.encode(ctx, w, http.StatusOK, resp)
 }
 
+func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
+	_, did, err := s.getAndValidatePerson(r.Context())
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	if err := s.pds.DeleteSession(did); err != nil {
+		err.WriteResponse(w)
+		return
+	}
+}
+
 func (s *Server) handleUserDelete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -147,10 +163,10 @@ func (s *Server) handleUserDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.pds.DeleteAccount(ctx, uid, did); err != nil {
-		err.WriteResponse(w)
-		return
-	}
+	// if err := s.pds.DeleteAccount(ctx, uid, did); err != nil {
+	// 	err.WriteResponse(w)
+	// 	return
+	// }
 
 	if err := s.av.DeleteAccount(ctx, uid, did); err != nil {
 		err.WriteResponse(w)

@@ -32,14 +32,14 @@ func (dbc *DbCID) Scan(v any) error {
 	return nil
 }
 
-func (dbc *DbCID) Value() (driver.Value, error) {
+func (dbc DbCID) Value() (driver.Value, error) {
 	if !dbc.CID.Defined() {
 		return nil, fmt.Errorf("cannot serialize undefined cid to database")
 	}
 	return dbc.CID.Bytes(), nil
 }
 
-func (dbc *DbCID) MarshalJSON() ([]byte, error) {
+func (dbc DbCID) MarshalJSON() ([]byte, error) {
 	return json.Marshal(dbc.CID.String())
 }
 
