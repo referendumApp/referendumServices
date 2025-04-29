@@ -51,7 +51,7 @@ func (s *Server) logRequest(next http.Handler) http.Handler {
 			"Request started",
 			"method",
 			r.Method,
-			"urlPath",
+			"path",
 			r.URL.Path,
 			"address",
 			r.RemoteAddr,
@@ -61,13 +61,13 @@ func (s *Server) logRequest(next http.Handler) http.Handler {
 		next.ServeHTTP(rw, r)
 
 		// Log completion time
-		duration := time.Since(startTime)
+		duration := fmt.Sprintf("%d ms", time.Since(startTime).Milliseconds())
 		s.log.InfoContext(
 			r.Context(),
 			"Request completed",
 			"method",
 			r.Method,
-			"urlPath",
+			"path",
 			r.URL.Path,
 			"status",
 			rw.StatusCode,

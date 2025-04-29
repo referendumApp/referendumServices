@@ -102,6 +102,8 @@ services:
         condition: service_completed_successfully
       migrations:
         condition: service_completed_successfully
+      kms:
+        condition: service_healthy
     volumes:
       - ./user_service/cmd:/code/cmd
       - ./user_service/internal:/code/internal
@@ -109,10 +111,10 @@ services:
       - "8080:80"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/health"]
-      interval: 120s
+      interval: 30s
       timeout: 3s
-      retries: 3
-    profiles: ["local-data", "local-empty", "test"]
+      start_period: 30s
+    profiles: ["local-data", "local-empty"]
 
   db:
     container_name: db
@@ -161,6 +163,33 @@ services:
       "
     profiles: ["local-data", "local-empty", "test"]
 
+  kms:
+    container_name: kms
+    image: kng93/local-kms
+    ports:
+      - "9002:8080"
+    environment:
+      - KMS_REGION=$AWS_REGION
+      - KMS_ACCOUNT_ID=$KMS_ACCOUNT_ID
+    volumes:
+      - ./user_service/local/kms_seed.yaml:/init/seed.yaml
+    healthcheck:
+      test:
+        - "CMD"
+        - "curl"
+        - "-l"
+        - "http://localhost:8080"
+        - "-H"
+        - "X-Amz-Target: TrentService.ListKeys"
+        - "-H"
+        - "Content-Type: application/x-amz-json-1.1"
+        - "-d"
+        - "{}"
+      start_period: 3s
+      interval: 2s
+      timeout: 5s
+      retries: 3
+
   local-db-init:
     container_name: local_db_init
     build:
@@ -202,8 +231,6 @@ services:
         condition: service_completed_successfully
       migrations:
         condition: service_completed_successfully
-      user-api-local:
-        condition: service_healthy
     env_file: .env
     profiles: ["local-data"]
 
@@ -221,8 +248,6 @@ services:
         condition: service_completed_successfully
       migrations:
         condition: service_completed_successfully
-      user-api-local:
-        condition: service_healthy
     env_file: .env
     profiles: ["test"]
 

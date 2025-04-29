@@ -1,35 +1,11 @@
 package plc
 
 import (
-	"context"
 	"fmt"
-	"log/slog"
-	"net/http"
 	"time"
 
-	"github.com/bluesky-social/indigo/plc"
 	did "github.com/whyrusleeping/go-did"
 )
-
-// Client method implementations for PLC server endpoints and operations
-type Client interface {
-	plc.PLCClient
-	GetOpAuditLog(ctx context.Context, did string) (*[]Op, error)
-	GetLatestOp(ctx context.Context, did string) (*Op, error)
-	TombstoneDID(ctx context.Context, sigkey *did.PrivKey, did string, prev string) error
-}
-
-// Server contains the host and client for making PLC directory requests
-type Server struct {
-	C    *http.Client
-	Host string
-	log  *slog.Logger
-}
-
-// NewPLCServer initializes a 'Server' struct
-func NewPLCServer(host string) *Server {
-	return &Server{Host: host, C: http.DefaultClient, log: slog.Default().With("system", "plc")}
-}
 
 // Service schema for the Services field in a DID document
 type Service struct {
