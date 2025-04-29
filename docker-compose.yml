@@ -172,7 +172,7 @@ services:
       - KMS_REGION=$AWS_REGION
       - KMS_ACCOUNT_ID=$KMS_ACCOUNT_ID
     volumes:
-      - ./user_service/local/kms_seed.yaml:/init/seed.yaml
+      - ./user_service/kms_local/seed.yaml:/init/seed.yaml
     healthcheck:
       test:
         - "CMD"
