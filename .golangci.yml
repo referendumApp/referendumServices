@@ -241,6 +241,11 @@ linters:
         - name: exported
           severity: warning
           disabled: false
+    recvcheck:
+      disable-builtin: true
+      exclusions:
+        - "*.Value"
+        - "*.MarshalJSON"
     errcheck:
       check-type-assertions: true
       exclude-functions:

@@ -11,6 +11,7 @@ func (s *Server) setupRoutes() {
 			r.Post("/signup", s.handleCreateAccount)
 			r.Post("/login", s.handleCreateSession)
 			r.Post("/refresh", s.handleRefreshSession)
+			r.Delete("/", s.handleDeleteSession)
 		})
 
 		r.Route("/user", func(r chi.Router) {
@@ -26,6 +27,6 @@ func (s *Server) setupRoutes() {
 		})
 
 		r.Get("/com.atproto.server.describeServer", s.handleDescribeServer)
-		r.Get("/com.atproto.sync.subscribeRepos", s.pds.EventsHandler)
+		// r.Get("/com.atproto.sync.subscribeRepos", s.pds.EventsHandler)
 	})
 }

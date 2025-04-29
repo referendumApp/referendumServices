@@ -2,54 +2,53 @@ package pds
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"time"
 
-	"github.com/bluesky-social/indigo/api/atproto"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/referendumApp/referendumServices/internal/aws"
 	"github.com/referendumApp/referendumServices/internal/car"
 	"github.com/referendumApp/referendumServices/internal/env-config"
-	"github.com/referendumApp/referendumServices/internal/events"
-	"github.com/referendumApp/referendumServices/internal/indexer"
+	"github.com/referendumApp/referendumServices/internal/keymgr"
 	"github.com/referendumApp/referendumServices/internal/plc"
 	"github.com/referendumApp/referendumServices/internal/repo"
 	"github.com/referendumApp/referendumServices/internal/util"
-	"github.com/whyrusleeping/go-did"
 )
 
 // PDS contains all the dependencies to implement a Personal Data Server
 type PDS struct {
 	repoman        *repo.Manager
-	indexer        *indexer.Indexer
-	events         *events.EventManager
 	log            *slog.Logger
-	signingKey     *did.PrivKey
 	jwt            *util.JWTConfig
+	km             *keymgr.KeyManager
 	cs             car.Store
-	plc            plc.Client
+	plc            plc.ServiceClient
 	handleSuffix   string
 	serviceUrl     string
 	enforcePeering bool
 }
 
-// NewPDS initializes a 'PDS' structs
+// NewPDS initializes a 'PDS' struct
 func NewPDS(
-	repoman *repo.Manager,
-	idxr *indexer.Indexer,
-	evts *events.EventManager,
-	srvkey *did.PrivKey,
+	ctx context.Context,
 	cfg *env.Config,
+	aws *aws.Clients,
 	cs car.Store,
-	plc plc.Client,
-) *PDS {
-	log := slog.Default().With("system", "pds")
+	logger *slog.Logger,
+) (*PDS, error) {
+	pdsLogger := logger.WithGroup("pds")
 
-	repoman.SetEventHandler(func(ctx context.Context, evt *repo.Event) {
-		if err := idxr.HandleRepoEvent(ctx, evt); err != nil {
-			log.Error("handle repo event failed", "user", evt.User, "err", err)
-		}
-	}, true)
+	atExpiry := 30 * time.Minute
+	rtExpiry := 24 * time.Hour
+
+	km, err := keymgr.NewKeyManager(ctx, cfg, aws.KMS, aws.S3, rtExpiry, atExpiry-(5*time.Minute), pdsLogger)
+	if err != nil {
+		return nil, err
+	}
+
+	plc := plc.NewPLCClient(cfg.PLCHost, km, pdsLogger)
+
+	repoman := repo.NewRepoManager(cs, km, pdsLogger)
 
 	jwtConfig := &util.JWTConfig{
 		SigningKey:    cfg.SecretKey,
@@ -59,23 +58,21 @@ func NewPDS(
 		DidKey:        util.DidKey,
 		TokenLookup:   util.DefaultHeaderAuthorization,
 		AuthScheme:    util.DefaultAuthScheme,
-		TokenExpiry:   30 * time.Minute,
-		RefreshExpiry: 24 * time.Hour,
+		TokenExpiry:   atExpiry,
+		RefreshExpiry: rtExpiry,
 	}
 
 	return &PDS{
 		cs:             cs,
-		indexer:        idxr,
 		plc:            plc,
-		events:         evts,
 		repoman:        repoman,
+		km:             km,
 		jwt:            jwtConfig,
-		signingKey:     srvkey,
 		handleSuffix:   cfg.HandleSuffix,
 		serviceUrl:     cfg.ServiceUrl,
 		enforcePeering: false,
-		log:            log,
-	}
+		log:            pdsLogger,
+	}, nil
 }
 
 // func (s *PDS) handleFedEvent(ctx context.Context, host *Peering, env *events.XRPCStreamEvent) error {
@@ -323,66 +320,66 @@ func NewPDS(
 // 	return nil
 // }
 
-// TakedownRepo pushes a takedown account event
-func (p *PDS) TakedownRepo(ctx context.Context, did string) error {
-	if err := p.events.AddEvent(ctx, &events.XRPCStreamEvent{
-		RepoAccount: &atproto.SyncSubscribeRepos_Account{
-			Did:    did,
-			Active: false,
-			Status: &events.AccountStatusTakendown,
-			Time:   time.Now().Format(util.ISO8601),
-		},
-	}); err != nil {
-		return fmt.Errorf("failed to push event: %w", err)
-	}
-
-	return nil
-}
-
-// SuspendRepo pushes a suspend account event
-func (p *PDS) SuspendRepo(ctx context.Context, did string) error {
-	if err := p.events.AddEvent(ctx, &events.XRPCStreamEvent{
-		RepoAccount: &atproto.SyncSubscribeRepos_Account{
-			Did:    did,
-			Active: false,
-			Status: &events.AccountStatusSuspended,
-			Time:   time.Now().Format(util.ISO8601),
-		},
-	}); err != nil {
-		return fmt.Errorf("failed to push event: %w", err)
-	}
-
-	return nil
-}
-
-// DeactivateRepo pushes a deactivate account event
-func (p *PDS) DeactivateRepo(ctx context.Context, did string) error {
-	if err := p.events.AddEvent(ctx, &events.XRPCStreamEvent{
-		RepoAccount: &atproto.SyncSubscribeRepos_Account{
-			Did:    did,
-			Active: false,
-			Status: &events.AccountStatusDeactivated,
-			Time:   time.Now().Format(util.ISO8601),
-		},
-	}); err != nil {
-		return fmt.Errorf("failed to push event: %w", err)
-	}
-
-	return nil
-}
-
-// ReactivateRepo pushes a reactivate account event
-func (p *PDS) ReactivateRepo(ctx context.Context, did string) error {
-	if err := p.events.AddEvent(ctx, &events.XRPCStreamEvent{
-		RepoAccount: &atproto.SyncSubscribeRepos_Account{
-			Did:    did,
-			Active: true,
-			Status: &events.AccountStatusActive,
-			Time:   time.Now().Format(util.ISO8601),
-		},
-	}); err != nil {
-		return fmt.Errorf("failed to push event: %w", err)
-	}
-
-	return nil
-}
+// // TakedownRepo pushes a takedown account event
+// func (p *PDS) TakedownRepo(ctx context.Context, did string) error {
+// 	if err := p.events.AddEvent(ctx, &events.XRPCStreamEvent{
+// 		RepoAccount: &atproto.SyncSubscribeRepos_Account{
+// 			Did:    did,
+// 			Active: false,
+// 			Status: &events.AccountStatusTakendown,
+// 			Time:   time.Now().Format(util.ISO8601),
+// 		},
+// 	}); err != nil {
+// 		return fmt.Errorf("failed to push event: %w", err)
+// 	}
+//
+// 	return nil
+// }
+//
+// // SuspendRepo pushes a suspend account event
+// func (p *PDS) SuspendRepo(ctx context.Context, did string) error {
+// 	if err := p.events.AddEvent(ctx, &events.XRPCStreamEvent{
+// 		RepoAccount: &atproto.SyncSubscribeRepos_Account{
+// 			Did:    did,
+// 			Active: false,
+// 			Status: &events.AccountStatusSuspended,
+// 			Time:   time.Now().Format(util.ISO8601),
+// 		},
+// 	}); err != nil {
+// 		return fmt.Errorf("failed to push event: %w", err)
+// 	}
+//
+// 	return nil
+// }
+//
+// // DeactivateRepo pushes a deactivate account event
+// func (p *PDS) DeactivateRepo(ctx context.Context, did string) error {
+// 	if err := p.events.AddEvent(ctx, &events.XRPCStreamEvent{
+// 		RepoAccount: &atproto.SyncSubscribeRepos_Account{
+// 			Did:    did,
+// 			Active: false,
+// 			Status: &events.AccountStatusDeactivated,
+// 			Time:   time.Now().Format(util.ISO8601),
+// 		},
+// 	}); err != nil {
+// 		return fmt.Errorf("failed to push event: %w", err)
+// 	}
+//
+// 	return nil
+// }
+//
+// // ReactivateRepo pushes a reactivate account event
+// func (p *PDS) ReactivateRepo(ctx context.Context, did string) error {
+// 	if err := p.events.AddEvent(ctx, &events.XRPCStreamEvent{
+// 		RepoAccount: &atproto.SyncSubscribeRepos_Account{
+// 			Did:    did,
+// 			Active: true,
+// 			Status: &events.AccountStatusActive,
+// 			Time:   time.Now().Format(util.ISO8601),
+// 		},
+// 	}); err != nil {
+// 		return fmt.Errorf("failed to push event: %w", err)
+// 	}
+//
+// 	return nil
+// }
