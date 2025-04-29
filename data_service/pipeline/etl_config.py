@@ -293,98 +293,132 @@ class ETLConfig(BaseModel):
         # Return valid rows count and invalid rows count
         return len(violations_log)
 
-    def load(self, df, table_name, if_exists="replace", index=False):
+    def load(self, conn: Session):
         """
         Load dataframe to PostgreSQL with constraint validation.
         Invalid rows are logged and excluded from the final insert.
         """
-        # Create temp table name with timestamp to avoid conflicts
-        temp_table_name = f"temp_{table_name}_{int(time.time())}"
+        try:
+            logger.info(f"Loading data into {self.destination} with unique_constraints on 'id'")
 
-        # Get table constraints from the schema
-        table_constraints = self._get_table_constraints(table_name)
+            if self.dataframe.empty:
+                logger.warning("Skipping; no data to write")
+                return
 
-        # Write to temporary table
-        df.to_sql(
-            temp_table_name,
-            self.get_engine(),
-            if_exists="replace",
-            index=index,
-        )
+            # Check if destination table exists
+            query = text("SELECT 1 FROM information_schema.tables WHERE table_name = :table_name")
+            exists = conn.execute(query, {"table_name": self.destination}).scalar() is not None
+            if not exists:
+                raise ValueError(f"Destination table '{self.destination}' does not exist")
 
-        # Validate constraints
-        violations_count = self.validate_and_log_constraint_violations(
-            temp_table_name, table_constraints
-        )
+            # Create temp table name with timestamp to avoid conflicts
+            temp_table = f"temp_{self.destination}_{int(time.time())}"
 
-        # If there are violations, create a view with only valid rows
-        if violations_count > 0:
-            with self.get_engine().connect() as connection:
-                with connection.begin():
-                    # Create view with only valid rows (example for NOT NULL constraint on status_date)
-                    valid_rows_view = f"valid_{temp_table_name}"
+            # Get table constraints from the schema
+            table_constraints = self._get_table_constraints(self.destination, conn)
 
-                    # Build the validation query based on constraints
-                    validation_conditions = []
-                    for column, constraint in table_constraints.items():
-                        if constraint.get("type") == "not_null":
-                            validation_conditions.append(f"{column} IS NOT NULL")
+            # Write to temporary table
+            self.dataframe[self.destination_columns].to_sql(
+                temp_table,
+                con=conn,
+                if_exists="replace",
+                index=False,
+            )
 
-                    # Create view with valid rows only
-                    validation_clause = (
-                        " AND ".join(validation_conditions) if validation_conditions else "TRUE"
+            # Validate constraints
+            violations_count = self.validate_and_log_constraint_violations(
+                temp_table, table_constraints, conn
+            )
+
+            # If there are violations, create a view with only valid rows
+            if violations_count > 0:
+                # Create view with only valid rows
+                valid_rows_view = f"valid_{temp_table}"
+
+                # Build the validation query based on constraints
+                validation_conditions = []
+                for column, constraint in table_constraints.items():
+                    if constraint.get("type") == "not_null":
+                        validation_conditions.append(f"{column} IS NOT NULL")
+
+                # Create view with valid rows only
+                validation_clause = (
+                    " AND ".join(validation_conditions) if validation_conditions else "TRUE"
+                )
+                conn.execute(
+                    text(
+                        f"CREATE TEMPORARY VIEW {valid_rows_view} AS SELECT * FROM {temp_table} WHERE {validation_clause}"
                     )
-                    connection.execute(
-                        text(
-                            f"CREATE TEMPORARY VIEW {valid_rows_view} AS SELECT * FROM {temp_table_name} WHERE {validation_clause}"
-                        )
-                    )
+                )
 
-                    # Use the view with valid rows for the final UPSERT
-                    conflict_targets = ", ".join(self.unique_constraints)
-                    update_columns = ", ".join(
-                        [f"{col} = EXCLUDED.{col}" for col in self.update_columns]
-                    )
+                # Use the view with valid rows for the final UPSERT
+                conflict_targets = ", ".join(self.unique_constraints)
+                update_columns = ", ".join(
+                    [
+                        f"{col} = EXCLUDED.{col}"
+                        for col in self.destination_columns
+                        if col not in self.unique_constraints
+                    ]
+                )
 
-                    insert_query = f"""
-                        INSERT INTO {table_name}
-                        SELECT * FROM {valid_rows_view}
-                        ON CONFLICT ({conflict_targets})
-                        DO UPDATE SET {update_columns}
-                    """
-                    connection.execute(text(insert_query))
+                # Special case where all columns are part of unique constraint
+                if not update_columns:
+                    update_columns = "id = EXCLUDED.id"  # Dummy update that won't actually happen
 
-                    # Drop temporary objects
-                    connection.execute(text(f"DROP VIEW IF EXISTS {valid_rows_view}"))
-                    connection.execute(text(f"DROP TABLE IF EXISTS {temp_table_name}"))
+                insert_query = f"""
+                    INSERT INTO {self.destination}
+                    SELECT * FROM {valid_rows_view}
+                    ON CONFLICT ({conflict_targets})
+                    DO UPDATE SET {update_columns}
+                """
+                conn.execute(text(insert_query))
 
-                    # Log statistics
-                    self.logger.info(
-                        f"Inserted/updated {df.shape[0] - violations_count} rows to {table_name}"
-                    )
-                    self.logger.warning(f"Skipped {violations_count} invalid rows")
-        else:
-            # No violations, do regular UPSERT
-            with self.get_engine().connect() as connection:
-                with connection.begin():
-                    conflict_targets = ", ".join(self.unique_constraints)
-                    update_columns = ", ".join(
-                        [f"{col} = EXCLUDED.{col}" for col in self.update_columns]
-                    )
+                # Drop temporary objects
+                conn.execute(text(f"DROP VIEW IF EXISTS {valid_rows_view}"))
+                conn.execute(text(f"DROP TABLE IF EXISTS {temp_table}"))
 
-                    insert_query = f"""
-                        INSERT INTO {table_name}
-                        SELECT * FROM {temp_table_name}
-                        ON CONFLICT ({conflict_targets})
-                        DO UPDATE SET {update_columns}
-                    """
-                    connection.execute(text(insert_query))
+                # Log statistics
+                logger.info(
+                    f"Inserted/updated {self.dataframe.shape[0] - violations_count} rows to {self.destination}"
+                )
+                logger.warning(f"Skipped {violations_count} invalid rows")
+            else:
+                # No violations, do regular UPSERT
+                conflict_targets = ", ".join(self.unique_constraints)
+                update_columns = ", ".join(
+                    [
+                        f"{col} = EXCLUDED.{col}"
+                        for col in self.destination_columns
+                        if col not in self.unique_constraints
+                    ]
+                )
 
-                    # Drop temporary table
-                    connection.execute(text(f"DROP TABLE IF EXISTS {temp_table_name}"))
+                # Special case where all columns are part of unique constraint
+                if not update_columns:
+                    update_columns = "id = EXCLUDED.id"  # Dummy update that won't actually happen
 
-                    # Log statistics
-                    self.logger.info(f"Inserted/updated {df.shape[0]} rows to {table_name}")
+                insert_query = f"""
+                    INSERT INTO {self.destination}
+                    SELECT * FROM {temp_table}
+                    ON CONFLICT ({conflict_targets})
+                    DO UPDATE SET {update_columns}
+                """
+                conn.execute(text(insert_query))
+
+                # Drop temporary table
+                conn.execute(text(f"DROP TABLE IF EXISTS {temp_table}"))
+
+                # Log statistics
+                logger.info(
+                    f"Inserted/updated {self.dataframe.shape[0]} rows to {self.destination}"
+                )
+
+            conn.commit()
+
+        except Exception as e:
+            logger.error(f"Error upserting data into '{self.destination}': {e}")
+            conn.rollback()
+            raise
 
     def _get_table_constraints(self, table_name):
         """
