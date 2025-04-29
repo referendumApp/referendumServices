@@ -100,7 +100,7 @@ async def add_feedback(
         Destination={"ToAddresses": ["feedback@referendumapp.com"]},
         Message={
             "Subject": {
-                "Data": f"New User Feedback Received ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})"
+                "Data": f"New(ish) User Feedback Received ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})"
             },
             "Body": {"Text": {"Data": email_body}},
         },
