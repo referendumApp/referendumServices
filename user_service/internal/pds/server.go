@@ -177,7 +177,7 @@ func (p *PDS) DeleteAccount(ctx context.Context, uid atp.Uid, did string) *refEr
 	}
 
 	if err := p.repoman.TakeDownRepo(ctx, uid); err != nil {
-		p.log.ErrorContext(ctx, "Failed to delete CAR shards", "error", err)
+		p.log.ErrorContext(ctx, "Failed to delete take down repo", "error", err)
 		return refErr.Repo()
 	}
 

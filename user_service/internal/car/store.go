@@ -448,9 +448,7 @@ func (cs *S3CarStore) WipeUserData(ctx context.Context, user atp.Uid) error {
 	}
 
 	if err := cs.deleteShards(ctx, user, shards); err != nil {
-		// if !os.IsNotExist(err) {
 		return err
-		// }
 	}
 
 	cs.removeLastShardCache(user)
@@ -476,10 +474,7 @@ func (cs *S3CarStore) deleteShards(ctx context.Context, user atp.Uid, shs []*Sha
 		}
 
 		if err := cs.client.deleteShardFiles(ctx, user, seqs); err != nil {
-			// if !os.IsNotExist(err) {
-			// 	return err
-			// }
-			// cs.log.WarnContext(ctx, "shard file we tried to delete did not exist", "shard", sh.ID, "path", sh.Path)
+			cs.log.ErrorContext(ctx, "Error deleting CAR files from store", "error", err)
 			return err
 		}
 
