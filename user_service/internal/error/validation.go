@@ -18,16 +18,26 @@ const (
 
 type ValidationFieldError struct {
 	FieldError
-	Type ValidationErrorType `json:"type"`
+	Type     ValidationErrorType `json:"type"`
+	Criteria []string            `json:"criteria"`
 }
 
-func NewValidationFieldError(field string, message string, errorType ValidationErrorType) *APIError {
+func NewValidationFieldError(
+	field string,
+	message string,
+	errorType ValidationErrorType,
+	criteria ...string,
+) *APIError {
+	if criteria == nil {
+		criteria = []string{}
+	}
 	detail := ValidationFieldError{
 		FieldError: FieldError{
 			Field:   field,
 			Message: message,
 		},
-		Type: errorType,
+		Type:     errorType,
+		Criteria: criteria,
 	}
 	return &APIError{
 		Detail:     detail,

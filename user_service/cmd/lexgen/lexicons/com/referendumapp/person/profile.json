@@ -11,8 +11,9 @@
         "properties": {
           "displayName": {
             "type": "string",
+            "format": "name",
             "maxGraphemes": 64,
-            "maxLength": 640
+            "maxLength": 60
           },
           "description": {
             "type": "string",

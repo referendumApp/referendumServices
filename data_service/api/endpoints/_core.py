@@ -14,7 +14,7 @@ from common.database.referendum.crud import (
 
 from ..database import get_db
 from ..schemas.interactions import ErrorResponse
-from ..security import get_current_user_or_verify_system_token, verify_system_token
+from ..security import validate_user_or_verify_system_token, verify_system_token
 
 logger = logging.getLogger(__name__)
 
@@ -100,10 +100,10 @@ class EndpointGenerator(Generic[T, CreateSchema, UpdateSchema, ResponseSchema]):
         if not permissions:
             permissions = CRUDPermissions(
                 create=verify_system_token,
-                read=get_current_user_or_verify_system_token,
+                read=validate_user_or_verify_system_token,
                 update=verify_system_token,
                 delete=verify_system_token,
-                read_all=get_current_user_or_verify_system_token,
+                read_all=validate_user_or_verify_system_token,
             )
 
         @router.post(

@@ -447,10 +447,10 @@ func (cs *S3CarStore) WipeUserData(ctx context.Context, user atp.Uid) error {
 		return err
 	}
 
-	if err := cs.deleteShards(ctx, shards); err != nil {
-		if !os.IsNotExist(err) {
-			return err
-		}
+	if err := cs.deleteShards(ctx, user, shards); err != nil {
+		// if !os.IsNotExist(err) {
+		return err
+		// }
 	}
 
 	cs.removeLastShardCache(user)
@@ -458,14 +458,16 @@ func (cs *S3CarStore) WipeUserData(ctx context.Context, user atp.Uid) error {
 	return nil
 }
 
-func (cs *S3CarStore) deleteShards(ctx context.Context, shs []*Shard) error {
+func (cs *S3CarStore) deleteShards(ctx context.Context, user atp.Uid, shs []*Shard) error {
 	ctx, span := otel.Tracer("carstore").Start(ctx, "deleteShards")
 	defer span.End()
 
 	deleteSlice := func(ctx context.Context, subs []*Shard) error {
 		ids := make([]uint, len(subs))
+		seqs := make([]int, len(subs))
 		for i, sh := range subs {
 			ids[i] = sh.ID
+			seqs[i] = sh.Seq
 		}
 
 		err := cs.meta.DeleteShardsAndRefs(ctx, ids)
@@ -473,13 +475,12 @@ func (cs *S3CarStore) deleteShards(ctx context.Context, shs []*Shard) error {
 			return err
 		}
 
-		for _, sh := range subs {
-			if err := cs.deleteShardFile(sh); err != nil {
-				if !os.IsNotExist(err) {
-					return err
-				}
-				cs.log.WarnContext(ctx, "shard file we tried to delete did not exist", "shard", sh.ID, "path", sh.Path)
-			}
+		if err := cs.client.deleteShardFiles(ctx, user, seqs); err != nil {
+			// if !os.IsNotExist(err) {
+			// 	return err
+			// }
+			// cs.log.WarnContext(ctx, "shard file we tried to delete did not exist", "shard", sh.ID, "path", sh.Path)
+			return err
 		}
 
 		return nil
@@ -806,7 +807,7 @@ func (cs *S3CarStore) CompactUserShards(
 		}
 
 		stats.ShardsDeleted += len(todelete)
-		if err := cs.deleteShards(ctx, todelete); err != nil {
+		if err := cs.deleteShards(ctx, user, todelete); err != nil {
 			return nil, fmt.Errorf("deleting shards: %w", err)
 		}
 	}

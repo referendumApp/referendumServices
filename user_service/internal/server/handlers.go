@@ -52,7 +52,7 @@ func (s *Server) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if cerr := s.av.CreateUserAndPerson(ctx, user, req.Handle, *req.DisplayName); cerr != nil {
+	if cerr := s.av.CreateUserAndPerson(ctx, user, req.Handle, req.DisplayName); cerr != nil {
 		cerr.WriteResponse(w)
 		return
 	}
@@ -154,7 +154,7 @@ func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) handleUserDelete(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleDeleteAccount(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	uid, did, err := s.getAndValidatePerson(ctx)
@@ -163,10 +163,10 @@ func (s *Server) handleUserDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// if err := s.pds.DeleteAccount(ctx, uid, did); err != nil {
-	// 	err.WriteResponse(w)
-	// 	return
-	// }
+	if err := s.pds.DeleteAccount(ctx, uid, did); err != nil {
+		err.WriteResponse(w)
+		return
+	}
 
 	if err := s.av.DeleteAccount(ctx, uid, did); err != nil {
 		err.WriteResponse(w)

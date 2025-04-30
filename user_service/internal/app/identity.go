@@ -22,11 +22,6 @@ func (v *View) validateHandle(ctx context.Context, handle string) *refErr.APIErr
 		return fieldErr.Invalid()
 	}
 
-	if strings.Contains(strings.TrimSuffix(handle, v.handleSuffix), ".") {
-		fieldErr := refErr.FieldError{Field: "handle", Message: "Invalid character '.'"}
-		return fieldErr.Invalid()
-	}
-
 	filter := sq.Eq{"handle": handle}
 	if exists, err := v.meta.userExists(ctx, filter); err != nil {
 		v.log.ErrorContext(ctx, "Error checking database for user handle", "error", err)

@@ -73,6 +73,15 @@ class VoteChoice(Base):
     name = Column(String, nullable=False, unique=True)
 
 
+# ATP models
+class ATPUser(Base):
+    __tablename__ = "user"
+    __table_args__ = {"schema": "atproto"}
+
+    id = Column(Integer, primary_key=True)
+    did = Column(String, unique=True, nullable=False)
+
+
 # Core models
 class User(Base):
     __tablename__ = "users"

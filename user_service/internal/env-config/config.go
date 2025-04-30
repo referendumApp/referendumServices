@@ -76,8 +76,8 @@ func LoadConfigFromEnv() *Config {
 		SecretKey: []byte(getEnvOrFail("SECRET_KEY")),
 
 		// ATP
-		HandleSuffix: getEnvOrFail("ATP_HANDLE_SUFFIX"),
-		ServiceUrl:   getEnvOrFail("ATP_SERVICE_URL"),
+		HandleSuffix: getEnvOrFail("HANDLE_SUFFIX"),
+		ServiceUrl:   getEnvOrFail("USER_SERVICE_URL"),
 		AtpDBSchema:  getEnvOrFail("ATP_DB_SCHEMA"),
 		RecoveryKey:  getEnvOrFail("PDS_RECOVERY_DID_KEY"),
 		KeyDir:       getEnvOrFail("KEYSTORE_DIR"),

@@ -2,11 +2,10 @@ import logging
 from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
 
 from pydantic import BaseModel
-from sqlalchemy import Column
+from sqlalchemy import Column, exists
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import Session, joinedload, attributes
+from sqlalchemy.orm import Session, attributes, joinedload
 from sqlalchemy.sql.elements import BinaryExpression, ColumnElement
-
 
 from common.database.referendum import models, schemas
 
@@ -787,6 +786,17 @@ class ExecutiveOrderCRUD(
             query = query.order_by(*order_by)
 
         return query.offset(skip).limit(limit).all()
+
+
+def validate_atp_user(db: Session, uid: int, did: str) -> bool:
+    try:
+        user_exists = db.query(
+            exists().where(models.ATPUser.id == uid, models.ATPUser.did == did)
+        ).scalar()
+
+        return user_exists
+    except SQLAlchemyError as e:
+        raise DatabaseException(f"Database error: {str(e)}")
 
 
 bill = BillCRUD(models.Bill)

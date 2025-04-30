@@ -35,6 +35,7 @@ func (s *Server) encode(ctx context.Context, w http.ResponseWriter, status int, 
 	if err := json.NewEncoder(w).Encode(v); err != nil {
 		s.log.ErrorContext(ctx, "Error encoding response: %v", "error", err)
 		refErr.UnproccessableEntity("Unproccessable response body").WriteResponse(w)
+		return
 	}
 }
 

@@ -1,3 +1,4 @@
+# TODO: Migrate all these endpoints
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
 from sqlalchemy.orm import Session
@@ -25,7 +26,6 @@ from ..schemas.interactions import (
 )
 from ..security import (
     get_current_user,
-    get_current_user_or_verify_system_token,
     get_user_create_with_hashed_password,
     get_password_hash,
     verify_system_token,

@@ -56,10 +56,10 @@ func (p *PDS) CreateUser(
 func (p *PDS) CreateNewRepo(
 	ctx context.Context,
 	user *atp.User,
-	dname *string,
+	dname string,
 ) (*refApp.ServerCreateSession_Output, *refErr.APIError) {
 	profile := &refApp.PersonProfile{
-		DisplayName: dname,
+		DisplayName: &dname,
 	}
 
 	if err := p.repoman.InitNewRepo(ctx, user.ID, user.Did, profile.NSID(), profile.Key(), profile); err != nil {
