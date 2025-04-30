@@ -88,7 +88,7 @@ func (v *View) AuthenticateUser(ctx context.Context, username string, pw string)
 	defaultErr := refErr.FieldError{Field: "username", Message: "Email or password not found"}
 	user, err := v.meta.authenticateUser(ctx, username)
 	if err != nil {
-		v.log.ErrorContext(ctx, "Failed to authenticate user", "error", err)
+		v.log.ErrorContext(ctx, "Failed to authenticate user", "error", err, "username", username)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, defaultErr.NotFound()
 		}
@@ -96,10 +96,10 @@ func (v *View) AuthenticateUser(ctx context.Context, username string, pw string)
 	}
 
 	if ok, verr := util.VerifyPassword(pw, user.HashedPassword.String); verr != nil {
-		v.log.ErrorContext(ctx, "Error verifying password", "error", verr)
+		v.log.ErrorContext(ctx, "Error verifying password", "error", verr, "username", username)
 		return nil, refErr.InternalServer()
 	} else if !ok {
-		v.log.ErrorContext(ctx, "Invalid login password")
+		v.log.ErrorContext(ctx, "Invalid login password", "username", username)
 		return nil, defaultErr.NotFound()
 	}
 
