@@ -7,7 +7,7 @@ package referendumapp
 // ServerCreateSession_Input is the input argument to a com.referendumapp.server.createSession call.
 type ServerCreateSession_Input struct {
 	GrantType string `json:"grantType" cborgen:"grantType" validate:"required,oneof=password"`
-	Password  string `json:"password" cborgen:"password" validate:"required,strongpassword,min=8,max=100"`
+	Password  string `json:"password" cborgen:"password" validate:"required"`
 	// username: Handle or other identifier supported by the server for the authenticating user.
 	Username string `json:"username" cborgen:"username" validate:"required,username"`
 }

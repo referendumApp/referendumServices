@@ -62,7 +62,7 @@ func (v *FieldError) NotFound() *APIError {
 }
 
 type APIError struct {
-	Detail     any               `json:"detail,omitempty"`
+	Detail     any               `json:"detail"`
 	Headers    map[string]string `json:"-"`
 	Code       Code              `json:"code"`
 	StatusCode int               `json:"-"`

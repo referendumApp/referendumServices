@@ -28,6 +28,7 @@ from ..schemas.resources import (
 from ..schemas.users import UserBillVotes
 from ..security import (
     get_current_user_or_verify_system_token,
+    validate_user_or_verify_system_token,
     verify_system_token,
 )
 from ._core import EndpointGenerator, handle_crud_exceptions, handle_general_exceptions
@@ -64,7 +65,7 @@ EndpointGenerator.add_crud_routes(
 async def get_all_bill_details(
     request_body: BillPaginationRequestBody,
     db: Session = Depends(get_db),
-    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+    _: Dict[str, Any] = Depends(validate_user_or_verify_system_token),
 ):
     try:
         if request_body.federal_only:
@@ -190,7 +191,7 @@ async def get_all_bill_details(
 async def get_bill_detail(
     bill_id: int,
     db: Session = Depends(get_db),
-    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+    _: Dict[str, Any] = Depends(validate_user_or_verify_system_token),
 ):
     bill = crud.bill.read_denormalized(db=db, bill_id=bill_id)
     sponsors = [
@@ -243,7 +244,7 @@ async def get_bill_detail(
 async def get_bill_versions(
     bill_id: int,
     db: Session = Depends(get_db),
-    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+    _: Dict[str, Any] = Depends(validate_user_or_verify_system_token),
 ) -> dict:
     bill = crud.bill.read(db=db, obj_id=bill_id)
     return bill.bill_versions
@@ -267,12 +268,13 @@ async def get_bill_versions(
 async def get_bill_vote_counts(
     bill_id: int,
     db: Session = Depends(get_db),
-    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+    _: Dict[str, Any] = Depends(validate_user_or_verify_system_token),
 ):
     bill_votes = crud.bill.get_bill_user_votes(db, bill_id)
     return bill_votes
 
 
+# TODO: Migrate to user service
 @router.get(
     "/{bill_id}/comments",
     response_model=List[Comment],
@@ -337,7 +339,7 @@ async def get_bill_comments(
 async def get_bill_voting_history(
     bill_id: int,
     db: Session = Depends(get_db),
-    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+    _: Dict[str, Any] = Depends(validate_user_or_verify_system_token),
 ) -> BillVotingHistory:
     query = (
         select(models.LegislatorVote)

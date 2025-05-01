@@ -2,11 +2,13 @@ package car
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 
 	"github.com/ipfs/go-cid"
 	cbor "github.com/ipfs/go-ipld-cbor"
 	car "github.com/ipld/go-car"
+	"github.com/referendumApp/referendumServices/internal/domain/atp"
 )
 
 // LdWrite length-delimited Write
@@ -51,4 +53,12 @@ func writeCarHeader(w io.Writer, root cid.Cid) (int64, error) {
 	}
 
 	return hnw, nil
+}
+
+func fnameForShard(user atp.Uid, seq int) string {
+	return fmt.Sprintf("sh-%d-%d", user, seq)
+}
+
+func keyForShard(user atp.Uid, seq int) string {
+	return fmt.Sprintf("sh-%d/seq-%d", user, seq)
 }

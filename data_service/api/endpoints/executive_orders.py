@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from common.database.referendum import crud, models, schemas, utils
-from common.database.referendum.crud import DatabaseException, ObjectNotFoundException
 
 from ..database import get_db
 from ..schemas.interactions import (
@@ -14,8 +13,8 @@ from ..schemas.interactions import (
     PaginatedResponse,
 )
 from ..schemas.resources import DenormalizedExecutiveOrder
-from ..security import get_current_user_or_verify_system_token
-from ._core import EndpointGenerator, handle_general_exceptions, handle_crud_exceptions
+from ..security import validate_user_or_verify_system_token
+from ._core import EndpointGenerator, handle_crud_exceptions
 
 
 logger = logging.getLogger(__name__)
@@ -49,7 +48,7 @@ EndpointGenerator.add_crud_routes(
 async def get_executive_order_details(
     request_body: ExecutiveOrderPaginationRequestBody,
     db: Session = Depends(get_db),
-    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+    _: Dict[str, Any] = Depends(validate_user_or_verify_system_token),
 ):
     try:
         column_filter = None
@@ -123,7 +122,7 @@ async def get_executive_order_details(
 async def get_executive_order_detail(
     executive_order_id: int,
     db: Session = Depends(get_db),
-    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+    _: Dict[str, Any] = Depends(validate_user_or_verify_system_token),
 ):
     executive_orders = crud.executive_order.read_denormalized(
         db=db, executive_order_id=executive_order_id

@@ -56,10 +56,10 @@ func (p *PDS) CreateUser(
 func (p *PDS) CreateNewRepo(
 	ctx context.Context,
 	user *atp.User,
-	dname *string,
+	dname string,
 ) (*refApp.ServerCreateSession_Output, *refErr.APIError) {
 	profile := &refApp.PersonProfile{
-		DisplayName: dname,
+		DisplayName: &dname,
 	}
 
 	if err := p.repoman.InitNewRepo(ctx, user.ID, user.Did, profile.NSID(), profile.Key(), profile); err != nil {
@@ -177,7 +177,7 @@ func (p *PDS) DeleteAccount(ctx context.Context, uid atp.Uid, did string) *refEr
 	}
 
 	if err := p.repoman.TakeDownRepo(ctx, uid); err != nil {
-		p.log.ErrorContext(ctx, "Failed to delete CAR shards", "error", err)
+		p.log.ErrorContext(ctx, "Failed to delete take down repo", "error", err)
 		return refErr.Repo()
 	}
 
