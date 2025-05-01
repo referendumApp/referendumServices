@@ -3,9 +3,7 @@ package error
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
-	"strings"
 )
 
 type ValidationErrorType string
@@ -27,11 +25,11 @@ func NewValidationFieldError(
 	message string,
 	errorType ValidationErrorType,
 	criteria ...string,
-) *APIError {
+) *ValidationFieldError {
 	if criteria == nil {
 		criteria = []string{}
 	}
-	detail := ValidationFieldError{
+	return &ValidationFieldError{
 		FieldError: FieldError{
 			Field:   field,
 			Message: message,
@@ -39,24 +37,24 @@ func NewValidationFieldError(
 		Type:     errorType,
 		Criteria: criteria,
 	}
-	return &APIError{
-		Detail:     detail,
-		StatusCode: http.StatusUnprocessableEntity,
-		Code:       ErrorCodeValidation,
-	}
+	// detail := ValidationFieldError{
+	// 	FieldError: FieldError{
+	// 		Field:   field,
+	// 		Message: message,
+	// 	},
+	// 	Type:     errorType,
+	// 	Criteria: criteria,
+	// }
+	// return &APIError{
+	// 	Detail:     detail,
+	// 	StatusCode: http.StatusUnprocessableEntity,
+	// 	Code:       ErrorCodeValidation,
+	// }
 }
 
-func ValidationError(validationErrors []ValidationFieldError) *APIError {
-	var detail strings.Builder
-	detail.WriteString("Validation errors:")
-
-	for i, err := range validationErrors {
-		detail.WriteString(fmt.Sprintf("\n %d. Field '%s': %s (%s)",
-			i+1, err.Field, err.Message, err.Type))
-	}
-
+func ValidationAPIError(validationErrors []*ValidationFieldError) *APIError {
 	return &APIError{
-		Detail:     detail,
+		Detail:     validationErrors,
 		StatusCode: http.StatusUnprocessableEntity,
 		Code:       ErrorCodeValidation,
 	}

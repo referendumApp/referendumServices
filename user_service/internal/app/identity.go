@@ -85,7 +85,7 @@ func (v *View) CreateUserAndPerson(ctx context.Context, user *atp.User, handle s
 
 // AuthenticateUser validates username and password for a create session request
 func (v *View) AuthenticateUser(ctx context.Context, username string, pw string) (*atp.User, *refErr.APIError) {
-	defaultErr := refErr.FieldError{Field: "username", Message: "Email or password not found"}
+	defaultErr := refErr.FieldError{Message: "Email or password not found"}
 	user, err := v.meta.authenticateUser(ctx, username)
 	if err != nil {
 		v.log.ErrorContext(ctx, "Failed to authenticate user", "error", err, "username", username)

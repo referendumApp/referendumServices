@@ -115,8 +115,8 @@ func ValidateStrongPassword(fl validator.FieldLevel) bool {
 	return hasDigit && hasUpper && hasLower && hasSymbol
 }
 
-// HandleFieldError initializes 'APIError' struct with the msg and type based on the validation error
-func HandleFieldError(e validator.FieldError) *refErr.APIError {
+// HandleFieldError initializes 'ValidationFieldError' struct with the msg and type based on the validation error
+func HandleFieldError(e validator.FieldError) *refErr.ValidationFieldError {
 	var errMsg string
 	var errType refErr.ValidationErrorType
 	var criteria []string
