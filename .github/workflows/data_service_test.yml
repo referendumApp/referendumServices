@@ -48,6 +48,7 @@ jobs:
     - name: Clean up after API tests
       if: always()
       run: docker compose --profile test down
+
     - name: Run Pipeline Tests
       run: |
         docker compose --profile test build

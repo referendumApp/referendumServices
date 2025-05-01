@@ -30,7 +30,9 @@ dependencies = [
     "requests==2.32.3",
     "sqlalchemy==2.0.40",
     "tenacity==9.1.2",
-    "watchtower==3.4.0"
+    "watchtower==3.4.0",
+    "structlog",
+    "sentry-sdk[fastapi]"
 ]
 
 [project.optional-dependencies]
