@@ -28,7 +28,7 @@ FROM alpine:latest as user-prod
 ARG BINARY_PATH
 ENV BINARY_PATH=$BINARY_PATH
 
-COPY --from=builder ${BINARY_PATH} .
+COPY --from=builder /code/${BINARY_PATH} ./app
 
 ENTRYPOINT ["./app"]
 

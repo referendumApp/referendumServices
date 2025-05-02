@@ -114,8 +114,6 @@ services:
       - ./user_service/go.sum:/code/go.sum
       - ./user_service/cmd:/code/cmd
       - ./user_service/internal:/code/internal
-      - go-mod-cache:${GOMODCACHE}  # Mount Go module cache
-      # - go-build-cache:${GOCACHE}  # Mount Go build cache
     ports:
       - "8080:80"
     healthcheck:
