@@ -69,6 +69,9 @@ services:
     build:
       context: ./user_service
       target: base
+      args:
+        - GOCACHE=$GOCACHE
+        - BINARY_PATH=$BINARY_PATH
     env_file: .env
     environment:
       - AWS_ACCESS_KEY_ID=$S3_ACCESS_KEY
@@ -93,6 +96,8 @@ services:
     build:
       context: ./user_service
       target: user-local
+      args:
+        - GOMODCACHE=$GOMODCACHE
     environment:
       - CGO_ENABLED=0
     depends_on:
@@ -105,8 +110,12 @@ services:
       kms:
         condition: service_healthy
     volumes:
+      - ./user_service/go.mod:/code/go.mod
+      - ./user_service/go.sum:/code/go.sum
       - ./user_service/cmd:/code/cmd
       - ./user_service/internal:/code/internal
+      - go-mod-cache:${GOMODCACHE}  # Mount Go module cache
+      # - go-build-cache:${GOCACHE}  # Mount Go build cache
     ports:
       - "8080:80"
     healthcheck:
@@ -122,7 +131,16 @@ services:
     env_file: .env
     ports:
       - "${POSTGRES_PORT}:5432"
-    command: ["postgres", "-c", "log_statement=all", "-c", "log_destination=stderr", "-c", "log_min_duration_statement=0"]
+    command:
+      [
+        "postgres",
+        "-c",
+        "log_statement=all",
+        "-c",
+        "log_destination=stderr",
+        "-c",
+        "log_min_duration_statement=0",
+      ]
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -251,6 +269,7 @@ services:
     env_file: .env
     profiles: ["test"]
 
-
 volumes:
   postgres_data:
+  go-mod-cache:
+  go-build-cache:
