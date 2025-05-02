@@ -20,7 +20,7 @@ var (
 	appPath          = "/cmd/api"
 	buildCmd         = "go"
 	buildArgs        = [4]string{"build", "-o"}
-	binaryName       = "app"
+	binaryName       = os.Getenv("BINARY_PATH")
 	debounceInterval = 50 * time.Millisecond
 	watchExts        = []string{".go"}
 	ignoreDirs       = []string{".github", ".vscode", "data_service"}
