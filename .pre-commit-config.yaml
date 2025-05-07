@@ -62,5 +62,5 @@ repos:
             \.venv|
             build|
             dist"""
-        language_version: python3.11
+        language_version: python3.13
         files: ^data_service/

@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = ""
 authors = [{name = "Makani Dalton", email = "makani@referendumapp.com"}]
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.13.3"
 dependencies = [
     "alembic==1.15.2",
     "argon2-cffi==23.1.0",
@@ -31,8 +31,8 @@ dependencies = [
     "sqlalchemy==2.0.40",
     "tenacity==9.1.2",
     "watchtower==3.4.0",
-    "structlog",
-    "sentry-sdk[fastapi]"
+    "structlog==24.1.0",
+    "sentry-sdk[fastapi]==1.43.0"
 ]
 
 [project.optional-dependencies]
