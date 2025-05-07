@@ -93,7 +93,7 @@ services:
       target: user-prod
     ports:
       - "80:80"
-    profiles: ["atp"]
+    profiles: ["user-api"]
 
   user-api-local:
     container_name: user-api-local
@@ -152,7 +152,7 @@ services:
       interval: 2s
       timeout: 5s
       retries: 5
-    profiles: ["local-data", "local-empty", "test"]
+    profiles: ["local-data", "local-empty", "test", "user-test"]
 
   minio:
     container_name: minio
@@ -169,7 +169,7 @@ services:
       interval: 2s
       timeout: 5s
       retries: 3
-    profiles: ["local-data", "local-empty", "test"]
+    profiles: ["local-data", "local-empty", "test", "user-test"]
 
   minio-init:
     image: minio/mc
@@ -211,7 +211,7 @@ services:
       interval: 2s
       timeout: 5s
       retries: 3
-    profiles: ["local-data", "local-empty"]
+    profiles: ["local-data", "local-empty", "user-test"]
 
   local-db-init:
     container_name: local_db_init
@@ -240,7 +240,7 @@ services:
         condition: service_healthy
       local-db-init:
         condition: service_completed_successfully
-    profiles: ["local-data", "local-empty", "test"]
+    profiles: ["local-data", "local-empty", "test", "user-test"]
 
   pipeline:
     container_name: pipeline

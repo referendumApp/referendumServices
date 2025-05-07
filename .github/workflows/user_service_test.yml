@@ -50,7 +50,7 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Build Dependency Images
-      run: docker compose --profile=local-empty build
+      run: docker compose --profile=user-test build
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -67,7 +67,7 @@ jobs:
       uses: docker/build-push-action@v6
       with:
         context: ./user_service
-        file: ./Dockerfile
+        file: ./user_service/Dockerfile
         push: false
         load: true
         tags: user-test:latest
