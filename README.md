@@ -38,14 +38,14 @@ Each service includes its own documentation, dependencies, and setup instruction
    sudo apt update
    sudo apt install -y build-essential zlib1g-dev libssl-dev libncurses5-dev libnss3-dev libreadline-dev libffi-dev curl
    curl https://pyenv.run | bash
-   pyenv install 3.11.4
-   pyenv global 3.11.4
+   pyenv install 3.13.3
+   pyenv global 3.13.3
    ```
 
    - **macOS (Using `brew`)**:
 
    ```bash
-   brew install python@3.11
+   brew install python@3.13
    ```
 
    - **Windows**:
