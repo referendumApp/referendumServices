@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = ""
 authors = [{name = "Makani Dalton", email = "makani@referendumapp.com"}]
 readme = "README.md"
-requires-python = ">=3.1311"
+requires-python = ">=3.13.3"
 dependencies = [
     "alembic==1.15.2",
     "argon2-cffi==23.1.0",
