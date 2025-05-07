@@ -16,7 +16,7 @@ from ..schemas.interactions import (
     LegislatorFilterOptions,
 )
 from ..schemas.resources import LegislatorScorecard, LegislatorVotingHistory
-from ..security import get_current_user_or_verify_system_token
+from ..security import validate_user_or_verify_system_token
 from ._core import EndpointGenerator, handle_general_exceptions
 
 logger = logging.getLogger(__name__)
@@ -51,7 +51,7 @@ EndpointGenerator.add_crud_routes(
 async def get_legislators(
     request_body: LegislatorPaginationRequestBody,
     db: Session = Depends(get_db),
-    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+    _: Dict[str, Any] = Depends(validate_user_or_verify_system_token),
 ):
     logger.info(
         f"Attempting to read all legislators (skip: {request_body.skip}, limit: {request_body.limit})"
@@ -139,7 +139,7 @@ async def get_legislators(
 async def get_legislator_voting_history(
     legislator_id: int,
     db: Session = Depends(get_db),
-    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+    _: Dict[str, Any] = Depends(validate_user_or_verify_system_token),
 ) -> List[LegislatorVotingHistory]:
     vote_query = (
         select(models.LegislatorVote)
@@ -205,7 +205,7 @@ async def get_legislator_voting_history(
 async def get_legislator_scorecard(
     legislator_id: int,
     db: Session = Depends(get_db),
-    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+    _: Dict[str, Any] = Depends(validate_user_or_verify_system_token),
 ) -> LegislatorScorecard:
     # TODO - cache this and/or the subquery
     # TODO - Calculate success score (% of votes that go the way this legislator voted)

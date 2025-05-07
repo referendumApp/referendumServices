@@ -23,7 +23,7 @@ type LegislatorProfile struct {
 	Instagram       *string       `json:"instagram,omitempty" cborgen:"instagram,omitempty" validate:"omitempty"`
 	LegislativeBody string        `json:"legislativeBody" cborgen:"legislativeBody" validate:"required"`
 	Level           string        `json:"level" cborgen:"level" validate:"required,oneof=federal,oneof=state,oneof=local"`
-	Name            string        `json:"name" cborgen:"name" validate:"required"`
+	Name            string        `json:"name" cborgen:"name" validate:"required,name,max=60"`
 	Party           string        `json:"party" cborgen:"party" validate:"required"`
 	Phone           *string       `json:"phone,omitempty" cborgen:"phone,omitempty" validate:"omitempty,e164"`
 	State           string        `json:"state" cborgen:"state" validate:"required"`

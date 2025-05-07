@@ -20,7 +20,7 @@ type PersonProfile struct {
 	CreatedAt *string       `json:"createdAt,omitempty" cborgen:"createdAt,omitempty" validate:"omitempty,datetime"`
 	// description: Free-form profile description text.
 	Description *string `json:"description,omitempty" cborgen:"description,omitempty" validate:"omitempty,max=2560"`
-	DisplayName *string `json:"displayName,omitempty" cborgen:"displayName,omitempty" validate:"omitempty,max=640"`
+	DisplayName *string `json:"displayName,omitempty" cborgen:"displayName,omitempty" validate:"omitempty,name,max=60"`
 }
 
 func (t PersonProfile) NSID() string {

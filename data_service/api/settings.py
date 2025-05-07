@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     SECRET_KEY: str
+    USER_SERVICE_URL: str
 
     # AWS
     AWS_REGION: Optional[str] = "us-east-2"

@@ -29,12 +29,36 @@ func (s *Server) getAndValidatePerson(ctx context.Context) (atp.Uid, string, *re
 	return uid, did, nil
 }
 
+func (s *Server) handleValidationErrors(ctx context.Context, err error) *refErr.APIError {
+	var valErr validator.ValidationErrors
+	if errors.As(err, &valErr) {
+		fieldErrs := make([]*refErr.ValidationFieldError, 0, len(valErr))
+		for _, e := range valErr {
+			s.log.ErrorContext(
+				ctx,
+				"Request validation failed",
+				"field",
+				e.Field(),
+				"valdationTag",
+				e.ActualTag(),
+				"error",
+				e.Error(),
+			)
+			fieldErr := util.HandleFieldError(e)
+			fieldErrs = append(fieldErrs, fieldErr)
+		}
+		return refErr.ValidationAPIError(fieldErrs)
+	}
+	return nil
+}
+
 func (s *Server) encode(ctx context.Context, w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(v); err != nil {
 		s.log.ErrorContext(ctx, "Error encoding response: %v", "error", err)
 		refErr.UnproccessableEntity("Unproccessable response body").WriteResponse(w)
+		return
 	}
 }
 
@@ -46,26 +70,8 @@ func (s *Server) decodeAndValidate(ctx context.Context, w http.ResponseWriter, b
 	}
 
 	if err := util.Validate.Struct(v); err != nil {
-		var valErr validator.ValidationErrors
-		var fieldErrs []*refErr.APIError
-		if errors.As(err, &valErr) {
-			for _, e := range valErr {
-				s.log.ErrorContext(
-					ctx,
-					"Request validation failed",
-					"field",
-					e.Field(),
-					"valdationTag",
-					e.ActualTag(),
-					"error",
-					e.Error(),
-				)
-				fieldErr := util.HandleFieldError(e)
-				fieldErrs = append(fieldErrs, fieldErr)
-			}
-		}
-
-		refErr.WriteFieldErrors(w, fieldErrs)
+		apiErr := s.handleValidationErrors(ctx, err)
+		apiErr.WriteResponse(w)
 		return err
 	}
 

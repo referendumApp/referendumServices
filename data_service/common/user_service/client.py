@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 class UserServiceClient:
     def __init__(self) -> None:
-        self.base_url = os.getenv("ATP_SERVICE_URL")
+        self.base_url = os.getenv("USER_SERVICE_URL")
         self.check_connection()
         logger.info(f"Initialized UserServiceClient with URL: {self.base_url}")
 

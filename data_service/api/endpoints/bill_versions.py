@@ -16,7 +16,7 @@ from ..schemas.interactions import (
     ChatMessageRequest,
     ChatMessageResponse,
 )
-from ..security import get_current_user_or_verify_system_token
+from ..security import get_current_user_or_verify_system_token, validate_user_or_verify_system_token
 from ..settings import settings
 from ._core import EndpointGenerator, handle_crud_exceptions, handle_general_exceptions
 
@@ -53,7 +53,7 @@ EndpointGenerator.add_crud_routes(
 async def get_bill_text(
     bill_version_id: int,
     db: Session = Depends(get_db),
-    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+    _: Dict[str, Any] = Depends(validate_user_or_verify_system_token),
 ) -> dict:
     bill_version = crud.bill_version.read(db=db, obj_id=bill_version_id)
 
@@ -79,7 +79,7 @@ async def get_bill_text(
 async def get_bill_briefing(
     bill_version_id: int,
     db: Session = Depends(get_db),
-    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+    _: Dict[str, Any] = Depends(validate_user_or_verify_system_token),
 ) -> dict:
     bill_version = crud.bill_version.read(db=db, obj_id=bill_version_id)
 
@@ -127,7 +127,7 @@ async def get_bill_briefing(
 async def initialize_chat(
     bill_version_id: int,
     db: Session = Depends(get_db),
-    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+    _: Dict[str, Any] = Depends(validate_user_or_verify_system_token),
 ) -> dict:
     """Initialize a new chat session for a specific bill version."""
     bill_version = crud.bill_version.read(db=db, obj_id=bill_version_id)
@@ -146,6 +146,7 @@ async def initialize_chat(
     }
 
 
+# TODO: Settings field is now in the 'Person' table need to update this
 @router.post(
     "/{bill_version_id}/chat",
     response_model=ChatMessageResponse,
@@ -205,7 +206,7 @@ async def message_chat(
 async def terminate_chat(
     bill_version_id: int,
     session_id: str,
-    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+    _: Dict[str, Any] = Depends(validate_user_or_verify_system_token),
 ) -> dict:
     """Terminate an existing chat session."""
     session_manager.terminate_session(session_id)

@@ -74,7 +74,7 @@ func (vm *ViewMeta) createUserAndPerson(ctx context.Context, user *atp.User, han
 func (vm *ViewMeta) authenticateUser(ctx context.Context, uname string) (*atp.User, error) {
 	var user atp.User
 	sql := fmt.Sprintf(
-		"SELECT id, did, handle, hashed_password FROM %s.%s WHERE email = $1 OR handle = $1",
+		"SELECT id, did, handle, hashed_password FROM %s.%s WHERE deleted_at IS NULL AND (email = $1 OR handle = $1)",
 		vm.Schema,
 		user.TableName(),
 	)

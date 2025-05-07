@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
 	"go.opentelemetry.io/otel"
 )
@@ -54,4 +55,19 @@ func (c *s3Client) readFile(ctx context.Context, key string, offset *int64) (*s3
 	}
 
 	return obj, nil
+}
+
+func (c *s3Client) deleteShardFiles(ctx context.Context, user atp.Uid, seqs []int) error {
+	delObjs := make([]types.ObjectIdentifier, len(seqs))
+	for i, seq := range seqs {
+		key := keyForShard(user, seq)
+		delObjs[i] = types.ObjectIdentifier{Key: &key}
+	}
+
+	_, err := c.client.DeleteObjects(
+		ctx,
+		&s3.DeleteObjectsInput{Bucket: &c.bucket, Delete: &types.Delete{Objects: delObjs}},
+	)
+
+	return err
 }

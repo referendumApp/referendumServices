@@ -84,7 +84,7 @@ async def test_cast_vote_unauthorized(test_manager: TestManager):
 
     vote_data = {"billId": test_bill["id"], "voteChoiceId": YEA_VOTE_ID}
     response = await test_manager.client.put("/users/votes", json=vote_data)
-    assert_status_code(response, 401)
+    assert_status_code(response, 403)
 
 
 async def test_cast_vote_invalid_bill(test_manager: TestManager):
@@ -181,7 +181,7 @@ async def test_get_votes_for_bill(test_manager: TestManager):
 
 async def test_get_votes_unauthorized(test_manager: TestManager):
     response = await test_manager.client.get("/users/votes")
-    assert_status_code(response, 401)
+    assert_status_code(response, 403)
 
 
 async def test_get_votes_for_other_user(test_manager: TestManager):

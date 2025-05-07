@@ -19,7 +19,7 @@
         ],
         "properties": {
           "legiscanId": { "type": "integer" },
-          "name": { "type": "string" },
+          "name": { "type": "string", "format": "name", "maxLength": 60 },
           "district": { "type": "string" },
           "party": { "type": "string" },
           "role": { "type": "string" },

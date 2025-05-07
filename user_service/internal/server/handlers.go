@@ -1,11 +1,9 @@
 package server
 
 import (
-	"errors"
 	"net/http"
 	"time"
 
-	"github.com/go-playground/validator/v10"
 	refApp "github.com/referendumApp/referendumServices/internal/domain/lexicon/referendumapp"
 	refErr "github.com/referendumApp/referendumServices/internal/error"
 	"github.com/referendumApp/referendumServices/internal/util"
@@ -52,7 +50,7 @@ func (s *Server) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if cerr := s.av.CreateUserAndPerson(ctx, user, req.Handle, *req.DisplayName); cerr != nil {
+	if cerr := s.av.CreateUserAndPerson(ctx, user, req.Handle, req.DisplayName); cerr != nil {
 		cerr.WriteResponse(w)
 		return
 	}
@@ -82,25 +80,8 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := util.Validate.Struct(login); err != nil {
-		var valErr validator.ValidationErrors
-		var fieldErrs []*refErr.APIError
-		if errors.As(err, &valErr) {
-			for _, e := range valErr {
-				s.log.Error(
-					"Request validation failed",
-					"field",
-					e.Field(),
-					"valdationTag",
-					e.ActualTag(),
-					"error",
-					e.Error(),
-				)
-				fieldErr := util.HandleFieldError(e)
-				fieldErrs = append(fieldErrs, fieldErr)
-			}
-		}
-
-		refErr.WriteFieldErrors(w, fieldErrs)
+		apiErr := s.handleValidationErrors(ctx, err)
+		apiErr.WriteResponse(w)
 		return
 	}
 
@@ -154,7 +135,7 @@ func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) handleUserDelete(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleDeleteAccount(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	uid, did, err := s.getAndValidatePerson(ctx)
@@ -163,10 +144,10 @@ func (s *Server) handleUserDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// if err := s.pds.DeleteAccount(ctx, uid, did); err != nil {
-	// 	err.WriteResponse(w)
-	// 	return
-	// }
+	if err := s.pds.DeleteAccount(ctx, uid, did); err != nil {
+		err.WriteResponse(w)
+		return
+	}
 
 	if err := s.av.DeleteAccount(ctx, uid, did); err != nil {
 		err.WriteResponse(w)
