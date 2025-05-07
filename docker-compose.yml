@@ -211,6 +211,7 @@ services:
       interval: 2s
       timeout: 5s
       retries: 3
+    profiles: ["local-data", "local-empty"]
 
   local-db-init:
     container_name: local_db_init
@@ -293,7 +294,6 @@ services:
       - KMS_PORT=9002
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    profiles: ["test"]
 
 volumes:
   postgres_data:
