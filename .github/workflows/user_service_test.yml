@@ -12,10 +12,6 @@ on:
       - "user_service/**"
       - ".github/workflows/user_service_test.yml"
 
-env:
-  GOMODCACHE: /go/pkg/mod/
-  GOCACHE: /root/.cache/go-build
-
 jobs:
   lint:
     runs-on: ubuntu-latest
