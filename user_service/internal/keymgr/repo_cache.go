@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/awnumar/memguard"
@@ -24,6 +25,10 @@ type encryptKey struct {
 
 func (ec *encryptKeyCache) add(did string, ek []byte) {
 	ec.cache[did] = &encryptKey{value: ek, expiresAt: time.Now().Add(ec.sessionTimeout)}
+}
+
+func (ec *encryptKeyCache) wipe(did string) {
+	delete(ec.cache, did)
 }
 
 type signKeyCache struct {
@@ -49,12 +54,27 @@ func (sc *signKeyCache) add(did string, secureBuf *memguard.LockedBuffer) error 
 	return nil
 }
 
+func (sc *signKeyCache) wipe(did string) error {
+	sk, exists := sc.cache[did]
+	if !exists {
+		return fmt.Errorf("signing key not found")
+	}
+
+	sk.value = nil
+	sc.cache[did] = nil
+	delete(sc.cache, did)
+
+	return nil
+}
+
 type repoKeyCache struct {
-	kmsClient       *kms.Client
-	kmsAlias        string
-	encryptKeyCache *encryptKeyCache
-	signKeyCache    *signKeyCache
-	mu              sync.RWMutex
+	kmsClient         *kms.Client
+	encryptKeyCache   *encryptKeyCache
+	signKeyCache      *signKeyCache
+	mu                sync.RWMutex
+	kmsAlias          string
+	shutdownRequested int32
+	stopCh            chan struct{}
 }
 
 func newRepoKeyCache(kmsClient *kms.Client, env string, eto time.Duration, sto time.Duration) *repoKeyCache {
@@ -63,6 +83,7 @@ func newRepoKeyCache(kmsClient *kms.Client, env string, eto time.Duration, sto t
 		kmsAlias:        "alias/" + env + "-did-master",
 		encryptKeyCache: &encryptKeyCache{cache: make(map[string]*encryptKey), sessionTimeout: eto},
 		signKeyCache:    &signKeyCache{cache: make(map[string]*signKey), sessionTimeout: sto},
+		stopCh:          make(chan struct{}),
 	}
 
 	go kc.cleanupExpiredKeys()
@@ -141,11 +162,16 @@ func (kc *repoKeyCache) Set(ctx context.Context, did string, key []byte) error {
 }
 
 // Remove removes signing and encrypted keys from the cache
-func (kc *repoKeyCache) Remove(did string) {
+func (kc *repoKeyCache) Remove(did string) error {
 	kc.mu.Lock()
-	delete(kc.encryptKeyCache.cache, did)
-	delete(kc.signKeyCache.cache, did)
-	kc.mu.Unlock()
+	defer kc.mu.Unlock()
+
+	kc.encryptKeyCache.wipe(did)
+	if err := kc.signKeyCache.wipe(did); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Sign gets the signing key and returns the signature
@@ -160,27 +186,63 @@ func (kc *repoKeyCache) Sign(did string, cmt []byte) ([]byte, error) {
 	return sk.value.Sign(cmt)
 }
 
+func (kc *repoKeyCache) Stop() {
+	atomic.StoreInt32(&kc.shutdownRequested, 1)
+
+	if kc.stopCh != nil {
+		close(kc.stopCh)
+	}
+
+	kc.mu.Lock()
+	defer kc.mu.Unlock()
+
+	for did := range kc.encryptKeyCache.cache {
+		kc.encryptKeyCache.wipe(did)
+	}
+
+	for did := range kc.signKeyCache.cache {
+		_ = kc.signKeyCache.wipe(did)
+	}
+
+	kc.encryptKeyCache = nil
+	kc.signKeyCache = nil
+}
+
 func (kc *repoKeyCache) cleanupExpiredKeys() {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		kc.mu.Lock()
-		now := time.Now()
-
-		for did, ek := range kc.encryptKeyCache.cache {
-			if now.After(ek.expiresAt) {
-				delete(kc.encryptKeyCache.cache, did)
-				delete(kc.signKeyCache.cache, did)
+	for {
+		select {
+		case <-ticker.C:
+			if atomic.LoadInt32(&kc.shutdownRequested) == 1 {
+				return
 			}
-		}
 
-		for did, sk := range kc.signKeyCache.cache {
-			if now.After(sk.expiresAt) {
-				delete(kc.signKeyCache.cache, did)
+			kc.mu.Lock()
+			now := time.Now()
+
+			for did, ek := range kc.encryptKeyCache.cache {
+				if now.After(ek.expiresAt) {
+					kc.encryptKeyCache.wipe(did)
+					_ = kc.signKeyCache.wipe(did)
+				}
 			}
-		}
 
-		kc.mu.Unlock()
+			if atomic.LoadInt32(&kc.shutdownRequested) == 1 {
+				kc.mu.Unlock()
+				return
+			}
+
+			for did, sk := range kc.signKeyCache.cache {
+				if now.After(sk.expiresAt) {
+					_ = kc.signKeyCache.wipe(did)
+				}
+			}
+
+			kc.mu.Unlock()
+		case <-kc.stopCh:
+			return
+		}
 	}
 }

@@ -25,12 +25,13 @@ type ServerCreateAccount_Input struct {
 //
 // Account login session returned on successful account creation.
 type ServerCreateAccount_Output struct {
-	AccessJwt *string `json:"accessJwt,omitempty" cborgen:"accessJwt,omitempty" validate:"omitempty"`
+	AccessToken string `json:"accessToken" cborgen:"accessToken" validate:"required"`
 	// did: The DID of the new account.
 	Did string `json:"did" cborgen:"did" validate:"required,did"`
 	// didDoc: Complete DID document.
-	DidDoc      *interface{} `json:"didDoc,omitempty" cborgen:"didDoc,omitempty" validate:"omitempty"`
-	DisplayName string       `json:"displayName" cborgen:"displayName" validate:"required,name,max=60"`
-	Handle      string       `json:"handle" cborgen:"handle" validate:"required,handle"`
-	RefreshJwt  *string      `json:"refreshJwt,omitempty" cborgen:"refreshJwt,omitempty" validate:"omitempty"`
+	DidDoc       *interface{} `json:"didDoc,omitempty" cborgen:"didDoc,omitempty" validate:"omitempty"`
+	DisplayName  string       `json:"displayName" cborgen:"displayName" validate:"required,name,max=60"`
+	Handle       string       `json:"handle" cborgen:"handle" validate:"required,handle"`
+	RefreshToken string       `json:"refreshToken" cborgen:"refreshToken" validate:"required"`
+	TokenType    string       `json:"tokenType" cborgen:"tokenType" validate:"required"`
 }

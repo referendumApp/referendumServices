@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	lex "github.com/referendumApp/referendumServices/lexgen"
+	lex "github.com/referendumApp/referendumServices/pkg/lexgen"
 	cli "github.com/urfave/cli/v2"
 )
 

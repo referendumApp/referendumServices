@@ -25,10 +25,16 @@ const (
 // TokenType type alias for access and refresh token types
 type TokenType string
 
-// token types
+// Auth token types
 const (
 	Access  TokenType = "access"
 	Refresh TokenType = "refresh"
+)
+
+// Token expiry times
+const (
+	AccessExpiry  = 30 * time.Minute
+	RefreshExpiry = 24 * time.Hour
 )
 
 // Auth Constants
@@ -82,6 +88,20 @@ type JWTConfig struct {
 	TokenExpiry time.Duration
 
 	RefreshExpiry time.Duration
+}
+
+func NewConfig(sk []byte, iss string, method *jwt.SigningMethodHMAC) *JWTConfig {
+	return &JWTConfig{
+		SigningKey:    sk,
+		SigningMethod: method,
+		Issuer:        iss,
+		SubjectKey:    SubjectKey,
+		DidKey:        DidKey,
+		TokenLookup:   DefaultHeaderAuthorization,
+		AuthScheme:    DefaultAuthScheme,
+		TokenExpiry:   AccessExpiry,
+		RefreshExpiry: RefreshExpiry,
+	}
 }
 
 // CreateToken create the JWT token with all the necessary map claims

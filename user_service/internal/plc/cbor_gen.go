@@ -18,7 +18,7 @@ var _ = cid.Undef
 var _ = math.E
 var _ = sort.Sort
 
-func (t *CreateOp) MarshalCBOR(w io.Writer) error {
+func (t *Op) MarshalCBOR(w io.Writer) error {
 	if t == nil {
 		_, err := w.Write(cbg.CborNull)
 		return err
@@ -282,8 +282,8 @@ func (t *CreateOp) MarshalCBOR(w io.Writer) error {
 	return nil
 }
 
-func (t *CreateOp) UnmarshalCBOR(r io.Reader) (err error) {
-	*t = CreateOp{}
+func (t *Op) UnmarshalCBOR(r io.Reader) (err error) {
+	*t = Op{}
 
 	cr := cbg.NewCborReader(r)
 
@@ -302,7 +302,7 @@ func (t *CreateOp) UnmarshalCBOR(r io.Reader) (err error) {
 	}
 
 	if extra > cbg.MaxLength {
-		return fmt.Errorf("CreateOp: map struct too large (%d)", extra)
+		return fmt.Errorf("Op: map struct too large (%d)", extra)
 	}
 
 	n := extra

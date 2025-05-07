@@ -59,10 +59,10 @@
         "schema": {
           "type": "object",
           "description": "Account login session returned on successful account creation.",
-          "required": ["accessToken", "refreshToken", "handle", "displayName", "did"],
+          "required": ["accessToken", "refreshToken", "handle", "displayName", "did", "tokenType"],
           "properties": {
-            "accessJwt": { "type": "string" },
-            "refreshJwt": { "type": "string" },
+            "accessToken": { "type": "string" },
+            "refreshToken": { "type": "string" },
             "handle": {
               "type": "string",
               "format": "handle"
@@ -80,7 +80,8 @@
             "didDoc": {
               "type": "unknown",
               "description": "Complete DID document."
-            }
+            },
+            "tokenType": { "type": "string" }
           }
         }
       }

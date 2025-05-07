@@ -124,13 +124,14 @@ func (v *View) AuthenticateSession(ctx context.Context, uid atp.Uid, did string)
 // DeleteAccount deletes a user and person record from the DB
 func (v *View) DeleteAccount(ctx context.Context, uid atp.Uid, did string) *refErr.APIError {
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		updatedUser := atp.User{DeletedAt: sql.NullTime{Time: time.Now(), Valid: true}}
-		if err := v.meta.UpdateWithTx(ctx, tx, updatedUser, sq.Eq{"id": uid}); err != nil {
+		deletedAt := sql.NullTime{Time: time.Now(), Valid: true}
+
+		if err := v.meta.UpdateWithTx(ctx, tx, atp.User{DeletedAt: deletedAt}, sq.Eq{"id": uid}); err != nil {
 			v.log.ErrorContext(ctx, "Failed to delete user", "error", err)
 			return err
 		}
 
-		person := atp.Person{Handle: sql.NullString{Valid: false}, Settings: &atp.Settings{Deleted: true}}
+		person := atp.Person{Handle: sql.NullString{Valid: false}, Base: atp.Base{DeletedAt: deletedAt}}
 		if err := v.meta.UpdateWithTx(ctx, tx, person, sq.Eq{"uid": uid}); err != nil {
 			v.log.ErrorContext(ctx, "Failed to delete person", "error", err)
 			return err

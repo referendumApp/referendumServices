@@ -12,7 +12,7 @@ func main() {
 		MaxStringLength: 1_000_000,
 	}
 
-	if err := genCfg.WriteMapEncodersToFile("internal/plc/cbor_gen.go", "plc", plc.CreateOp{}, plc.Service{}, plc.TombstoneOp{}); err != nil {
+	if err := genCfg.WriteMapEncodersToFile("internal/plc/cbor_gen.go", "plc", plc.Op{}, plc.Service{}, plc.TombstoneOp{}); err != nil {
 		panic(err)
 	}
 

@@ -10,7 +10,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/referendumApp/referendumServices/internal/env-config"
 	did "github.com/whyrusleeping/go-did"
 )
 
@@ -18,9 +17,10 @@ import (
 type KeyCacher interface {
 	Create(context.Context, string, any) ([]byte, error)
 	Has(context.Context, string) bool
-	Remove(string)
 	Set(context.Context, string, []byte) error
 	Sign(string, []byte) ([]byte, error)
+	Remove(string) error
+	Stop()
 }
 
 // KeyStore method signatures for working with the key store
@@ -41,27 +41,27 @@ type KeyManager struct {
 // NewKeyManager initializes a 'KeyManager' struct
 func NewKeyManager(
 	ctx context.Context,
-	cfg *env.Config,
 	kmsClient *kms.Client,
 	s3Client *s3.Client,
+	env, keyDir, recoveryKey string,
 	eto time.Duration,
 	sto time.Duration,
 	logger *slog.Logger,
 ) (*KeyManager, error) {
 	log.Println("Setting up key manager")
 
-	if cfg.Environment == "local" {
-		if _, err := s3Client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: &cfg.KeyDir}); err != nil {
-			log.Printf("The %s bucket does not exist, attempting to create bucket...\n", cfg.KeyDir)
-			if _, err := s3Client.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: &cfg.KeyDir}); err != nil {
+	if env == "local" {
+		if _, err := s3Client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: &keyDir}); err != nil {
+			log.Printf("The %s bucket does not exist, attempting to create bucket...\n", keyDir)
+			if _, err := s3Client.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: &keyDir}); err != nil {
 				return nil, err
 			}
 			log.Println("Successfully created bucket!")
 		}
 	}
 
-	rc := newRepoKeyCache(kmsClient, cfg.Environment, eto, sto)
-	pc, err := newPLCKeyCache(ctx, kmsClient, cfg.Environment, cfg.RecoveryKey)
+	rc := newRepoKeyCache(kmsClient, env, eto, sto)
+	pc, err := newPLCKeyCache(ctx, kmsClient, env, recoveryKey)
 	if err != nil {
 		log.Printf("Failed to generated PLC rotation DID key: %v\n", err)
 		return nil, err
@@ -70,7 +70,7 @@ func NewKeyManager(
 	log.Println("Successfully setup key manager!")
 
 	return &KeyManager{
-		store:         &s3KeyStore{client: s3Client, bucket: cfg.KeyDir},
+		store:         &s3KeyStore{client: s3Client, bucket: keyDir},
 		repoKeyCacher: rc,
 		plcKeyCacher:  pc,
 		log:           logger.With("service", "keymgr"),
@@ -124,8 +124,10 @@ func (km *KeyManager) UpdateKeyCache(ctx context.Context, did string) error {
 }
 
 // InvalidateKeys removes signing and encrypted keys from the cache
-func (km *KeyManager) InvalidateKeys(did string) {
-	km.repoKeyCacher.Remove(did)
+func (km *KeyManager) InvalidateKeys(ctx context.Context, did string) {
+	if err := km.repoKeyCacher.Remove(did); err != nil {
+		km.log.WarnContext(ctx, "Failed to remove signing key from cache", "error", err, "did", did)
+	}
 }
 
 // SignForUser checks for the signing key, refreshes the cache if the key isnt found, and finally signs the commit
@@ -167,4 +169,20 @@ func (km *KeyManager) SignForPLC(ctx context.Context, op []byte) ([]byte, error)
 // VerifyUserSignature noop
 func (km *KeyManager) VerifyUserSignature(ctx context.Context, did string, sig []byte, msg []byte) error {
 	return fmt.Errorf("VerifyUserSignature not implemented")
+}
+
+func (km *KeyManager) Flush(ctx context.Context) error {
+	done := make(chan struct{})
+
+	go func() {
+		km.repoKeyCacher.Stop()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }

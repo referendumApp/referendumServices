@@ -1,4 +1,4 @@
-package server
+package service
 
 import (
 	"context"
@@ -15,10 +15,10 @@ import (
 
 var ErrUnauthorized = errors.New("unauthorized user request")
 
-func (s *Server) getAndValidatePerson(ctx context.Context) (atp.Uid, string, *refErr.APIError) {
+func (s *Service) getAndValidatePerson(ctx context.Context) (atp.Uid, string, *refErr.APIError) {
 	uid, ok := ctx.Value(util.SubjectKey).(atp.Uid)
 	if !ok {
-		s.log.ErrorContext(ctx, "Invalid user ID")
+		s.log.ErrorContext(ctx, "Invalid user ID", "uid", uid)
 		return 0, "", refErr.Unauthorized(ErrUnauthorized.Error())
 	}
 	did, ok := ctx.Value(util.DidKey).(string)
@@ -29,7 +29,7 @@ func (s *Server) getAndValidatePerson(ctx context.Context) (atp.Uid, string, *re
 	return uid, did, nil
 }
 
-func (s *Server) handleValidationErrors(ctx context.Context, err error) *refErr.APIError {
+func (s *Service) handleValidationErrors(ctx context.Context, err error) *refErr.APIError {
 	var valErr validator.ValidationErrors
 	if errors.As(err, &valErr) {
 		fieldErrs := make([]*refErr.ValidationFieldError, 0, len(valErr))
@@ -44,7 +44,7 @@ func (s *Server) handleValidationErrors(ctx context.Context, err error) *refErr.
 				"error",
 				e.Error(),
 			)
-			fieldErr := util.HandleFieldError(e)
+			fieldErr := refErr.HandleFieldError(e)
 			fieldErrs = append(fieldErrs, fieldErr)
 		}
 		return refErr.ValidationAPIError(fieldErrs)
@@ -52,7 +52,7 @@ func (s *Server) handleValidationErrors(ctx context.Context, err error) *refErr.
 	return nil
 }
 
-func (s *Server) encode(ctx context.Context, w http.ResponseWriter, status int, v any) {
+func (s *Service) encode(ctx context.Context, w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(v); err != nil {
@@ -62,7 +62,7 @@ func (s *Server) encode(ctx context.Context, w http.ResponseWriter, status int, 
 	}
 }
 
-func (s *Server) decodeAndValidate(ctx context.Context, w http.ResponseWriter, body io.ReadCloser, v any) error {
+func (s *Service) decodeAndValidate(ctx context.Context, w http.ResponseWriter, body io.ReadCloser, v any) error {
 	if err := json.NewDecoder(body).Decode(v); err != nil {
 		s.log.ErrorContext(ctx, "Failed to decode request body", "error", err)
 		refErr.UnproccessableEntity("Invalid entity").WriteResponse(w)

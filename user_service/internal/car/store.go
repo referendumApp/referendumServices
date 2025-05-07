@@ -19,7 +19,6 @@ import (
 	car "github.com/ipld/go-car"
 	"github.com/referendumApp/referendumServices/internal/database"
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
-	"github.com/referendumApp/referendumServices/internal/env-config"
 	cbg "github.com/whyrusleeping/cbor-gen"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -59,19 +58,19 @@ type S3CarStore struct {
 // NewCarStore initializes a 'S3CarStore' struct
 func NewCarStore(
 	ctx context.Context,
-	cfg *env.Config,
 	db *database.DB,
 	client *s3.Client,
+	dbSchema, env, carDir string,
 	logger *slog.Logger,
 ) (Store, error) {
 	log.Println("Setting up CAR store")
 
-	carDb := db.WithSchema(cfg.CarDBSchema)
+	carDb := db.WithSchema(dbSchema)
 
-	if cfg.Environment == "local" {
-		if _, err := client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: &cfg.CarDir}); err != nil {
-			log.Printf("The %s bucket does not exist, attempting to create bucket...\n", cfg.CarDir)
-			if _, err := client.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: &cfg.CarDir}); err != nil {
+	if env == "local" {
+		if _, err := client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: &carDir}); err != nil {
+			log.Printf("The %s bucket does not exist, attempting to create bucket...\n", carDir)
+			if _, err := client.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: &carDir}); err != nil {
 				return nil, err
 			}
 			log.Println("Successfully created bucket!")
@@ -81,12 +80,12 @@ func NewCarStore(
 	meta := &StoreMeta{carDb}
 	out := &S3CarStore{
 		meta:    meta,
-		client:  &s3Client{client: client, bucket: cfg.CarDir},
-		rootDir: cfg.CarDir,
+		client:  &s3Client{client: client, bucket: carDir},
+		rootDir: carDir,
 		lastShardCache: lastShardCache{
 			source: meta,
 		},
-		log: logger.WithGroup("carstore"),
+		log: logger.With("system", "carstore"),
 	}
 	out.lastShardCache.init()
 

@@ -1,16 +1,15 @@
-package server
+package service
 
 import "github.com/go-chi/chi/v5"
 
-// Server method for handling routers
-func (s *Server) setupRoutes() {
+func (s *Service) setupRoutes() {
 	s.mux.Get("/health", s.handleHealth)
 
 	s.mux.Route("/auth", func(r chi.Router) {
 		r.Post("/signup", s.handleCreateAccount)
 		r.Post("/login", s.handleCreateSession)
 		r.Post("/refresh", s.handleRefreshSession)
-		r.Delete("/", s.handleDeleteSession)
+		r.With(s.pds.AuthorizeUser).Delete("/", s.handleDeleteSession)
 	})
 
 	s.mux.Route("/user", func(r chi.Router) {
