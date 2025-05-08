@@ -84,7 +84,9 @@ jobs:
         push: false
         load: true
         tags: user-test:latest
-        add-hosts: host.docker.internal=host-gateway
+        # TODO: Bug with resolving the docker host so we're hardcoding the docker host IP from the default bridge
+        # https://github.com/docker/buildx/issues/1832
+        add-hosts: host.docker.internal:172.17.0.1
         build-args: |
           GOMODCACHE=${{ env.GOMODCACHE }}
           GOCACHE=${{ env.GOCACHE }}
