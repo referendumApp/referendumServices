@@ -104,7 +104,6 @@ jobs:
           --env KMS_PORT=9002 \
           --env-file .env \
           --volume /var/run/docker.sock:/var/run/docker.sock \
-          --add-host=host.docker.internal:172.17.0.1 \
           user-test
 
     - name: Update Cache
