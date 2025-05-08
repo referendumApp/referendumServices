@@ -65,9 +65,10 @@ jobs:
       with:
         context: ./data_service
         file: ./data_service/Dockerfile
+        target: migrations
         push: false
         load: true
-        tags: migrations:latest
+        tags: migrations:${{ github.sha }}-${{ github.run_number }}
         cache-from: type=local,src=/tmp/.buildx-cache
         cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
 
@@ -81,12 +82,10 @@ jobs:
       with:
         context: ./user_service
         file: ./user_service/Dockerfile
+        target: test
         push: false
         load: true
-        tags: user-test:latest
-        # TODO: Bug with resolving the docker host so we're hardcoding the docker host IP from the default bridge
-        # https://github.com/docker/buildx/issues/1832
-        add-hosts: host.docker.internal:172.17.0.1
+        tags: user-test::${{ github.sha }}-${{ github.run_number }}
         build-args: |
           GOMODCACHE=${{ env.GOMODCACHE }}
           GOCACHE=${{ env.GOCACHE }}
@@ -118,7 +117,7 @@ jobs:
       run: |
         docker run \
           --name user-test \
-          --env CI=true \
+          # --env CI=true \
           --env AWS_ACCESS_KEY_ID=$S3_ACCESS_KEY \
           --env AWS_SECRET_ACCESS_KEY=$S3_SECRET_KEY \
           --env MINIO_API_PORT=9000 \
@@ -126,6 +125,7 @@ jobs:
           --env KMS_PORT=9002 \
           --env-file .env \
           --volume /var/run/docker.sock:/var/run/docker.sock \
+        --add-host host.docker.internal:host-gateway
           user-test
 
     - name: Clean Tests
