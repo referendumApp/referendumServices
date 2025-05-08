@@ -55,7 +55,6 @@ func (d *Docker) SetupPostgres(ctx context.Context, cfg *env.DBConfig) (*Postgre
 
 		postgresPort = pgContainer.GetPort(cfg.PgPort + "/tcp")
 
-		// Wait for database to be ready
 		if dbErr = d.pool.Retry(func() error {
 			var err error
 			postgresDB, err = sql.Open("postgres", fmt.Sprintf(
