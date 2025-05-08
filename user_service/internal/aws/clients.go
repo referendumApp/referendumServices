@@ -35,7 +35,7 @@ func NewClients(ctx context.Context, env string) (*Clients, error) {
 
 	kmsClient := kms.NewFromConfig(cfg, func(o *kms.Options) {
 		if env == "local" {
-			log.Println("Configurating local KMS instance")
+			log.Println("Configuring local KMS client")
 			o.EndpointResolverV2 = &localKMSResolver{kmsHost: os.Getenv("KMS_HOST")}
 			o.HTTPClient = &http.Client{Transport: &kmsTransport{base: http.DefaultTransport}}
 		}

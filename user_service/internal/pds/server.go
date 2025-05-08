@@ -8,6 +8,7 @@ import (
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
 	refApp "github.com/referendumApp/referendumServices/internal/domain/lexicon/referendumapp"
 	refErr "github.com/referendumApp/referendumServices/internal/error"
+	"github.com/referendumApp/referendumServices/internal/plc"
 	"github.com/referendumApp/referendumServices/internal/util"
 )
 
@@ -57,7 +58,7 @@ func (p *PDS) CreateNewRepo(
 	ctx context.Context,
 	user *atp.User,
 	dname string,
-) (*refApp.ServerCreateSession_Output, *refErr.APIError) {
+) (*refApp.ServerCreateAccount_Output, *refErr.APIError) {
 	profile := &refApp.PersonProfile{
 		DisplayName: &dname,
 	}
@@ -72,8 +73,9 @@ func (p *PDS) CreateNewRepo(
 		return nil, refErr.InternalServer()
 	}
 
-	return &refApp.ServerCreateSession_Output{
+	return &refApp.ServerCreateAccount_Output{
 		Did:          user.Did,
+		DisplayName:  dname,
 		Handle:       user.Handle.String,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
@@ -157,8 +159,8 @@ func (p *PDS) RefreshSession(
 	return resp, uid, did, nil
 }
 
-func (p *PDS) DeleteSession(did string) *refErr.APIError {
-	p.km.InvalidateKeys(did)
+func (p *PDS) DeleteSession(ctx context.Context, did string) *refErr.APIError {
+	p.km.InvalidateKeys(ctx, did)
 
 	return nil
 }
@@ -171,6 +173,14 @@ func (p *PDS) DeleteAccount(ctx context.Context, uid atp.Uid, did string) *refEr
 		return refErr.PLCServer()
 	}
 
+	if operation, ok := op.Operation.(*plc.Op); !ok {
+		p.log.ErrorContext(ctx, "Latest operation in PLC audit log is invalid", "did", did)
+		return refErr.BadRequest("Invalid operation in PLC directory audit log")
+	} else if operation.Type == "plc_tombstone" {
+		p.log.ErrorContext(ctx, "User has already been tombstoned in the PLC directory", "did", did)
+		return refErr.BadRequest("User has already been deleted")
+	}
+
 	if err := p.plc.TombstoneDID(ctx, did, op.CID); err != nil {
 		p.log.ErrorContext(ctx, "Tombstone request to PLC directory failed", "error", err)
 		return refErr.PLCServer()
@@ -181,7 +191,7 @@ func (p *PDS) DeleteAccount(ctx context.Context, uid atp.Uid, did string) *refEr
 		return refErr.Repo()
 	}
 
-	p.km.InvalidateKeys(did)
+	p.km.InvalidateKeys(ctx, did)
 
 	return nil
 }

@@ -1,4 +1,4 @@
-package server
+package service
 
 import (
 	"net/http"
@@ -9,7 +9,7 @@ import (
 	"github.com/referendumApp/referendumServices/internal/util"
 )
 
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleHealth(w http.ResponseWriter, r *http.Request) {
 	if err := s.av.HandleHealth(w, r); err != nil {
 		err.WriteResponse(w)
 		return
@@ -25,12 +25,12 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	s.encode(r.Context(), w, http.StatusOK, resp)
 }
 
-func (s *Server) handleDescribeServer(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleDescribeServer(w http.ResponseWriter, r *http.Request) {
 	resp := s.pds.HandleAtprotoDescribeServer()
 	s.encode(r.Context(), w, http.StatusOK, resp)
 }
 
-func (s *Server) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var req refApp.ServerCreateAccount_Input
@@ -64,7 +64,7 @@ func (s *Server) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 	s.encode(ctx, w, http.StatusCreated, resp)
 }
 
-func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	if err := r.ParseForm(); err != nil {
@@ -97,10 +97,10 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.encode(ctx, w, http.StatusOK, resp)
+	s.encode(ctx, w, http.StatusCreated, resp)
 }
 
-func (s *Server) handleRefreshSession(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleRefreshSession(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var req refApp.ServerRefreshSession_Input
@@ -122,20 +122,22 @@ func (s *Server) handleRefreshSession(w http.ResponseWriter, r *http.Request) {
 	s.encode(ctx, w, http.StatusOK, resp)
 }
 
-func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
-	_, did, err := s.getAndValidatePerson(r.Context())
+func (s *Service) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	_, did, err := s.getAndValidatePerson(ctx)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	if err := s.pds.DeleteSession(did); err != nil {
+	if err := s.pds.DeleteSession(ctx, did); err != nil {
 		err.WriteResponse(w)
 		return
 	}
 }
 
-func (s *Server) handleDeleteAccount(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleDeleteAccount(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	uid, did, err := s.getAndValidatePerson(ctx)
@@ -155,7 +157,7 @@ func (s *Server) handleDeleteAccount(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) handleProfileUpdate(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleProfileUpdate(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var req refApp.PersonUpdateProfile_Input
@@ -186,7 +188,7 @@ func (s *Server) handleProfileUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) handleGetProfile(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleGetProfile(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	uid, _, err := s.getAndValidatePerson(ctx)
@@ -209,7 +211,7 @@ func (s *Server) handleGetProfile(w http.ResponseWriter, r *http.Request) {
 	s.encode(ctx, w, http.StatusOK, profile)
 }
 
-func (s *Server) handleGraphFollow(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleGraphFollow(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var req refApp.GraphFollow_Input
@@ -236,7 +238,7 @@ func (s *Server) handleGraphFollow(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) handleGraphFollowers(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleGraphFollowers(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	uid, _, err := s.getAndValidatePerson(ctx)
@@ -254,7 +256,7 @@ func (s *Server) handleGraphFollowers(w http.ResponseWriter, r *http.Request) {
 	s.encode(ctx, w, http.StatusOK, followers)
 }
 
-func (s *Server) handleGraphFollowing(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleGraphFollowing(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	uid, _, err := s.getAndValidatePerson(ctx)

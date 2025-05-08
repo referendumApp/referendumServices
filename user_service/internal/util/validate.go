@@ -8,7 +8,6 @@ import (
 	"unicode"
 
 	"github.com/go-playground/validator/v10"
-	refErr "github.com/referendumApp/referendumServices/internal/error"
 )
 
 // Validate new instance of a go-playground validator
@@ -113,51 +112,4 @@ func ValidateStrongPassword(fl validator.FieldLevel) bool {
 	}
 
 	return hasDigit && hasUpper && hasLower && hasSymbol
-}
-
-// HandleFieldError initializes 'ValidationFieldError' struct with the msg and type based on the validation error
-func HandleFieldError(e validator.FieldError) *refErr.ValidationFieldError {
-	var errMsg string
-	var errType refErr.ValidationErrorType
-	var criteria []string
-	switch e.ActualTag() {
-	case "required":
-		errMsg = e.StructField() + " is required"
-		errType = refErr.MissingField
-	case "name":
-		errMsg = "Invalid name format"
-		errType = refErr.InvalidInput
-		criteria = []string{"No special characters allowed", "No numbers allowed", "Check for consecutive spaces"}
-	case "handle":
-		errMsg = "Invalid handle format"
-		errType = refErr.InvalidInput
-	case "email":
-		errMsg = "Invalid email format"
-		errType = refErr.InvalidInput
-	case "max":
-		errMsg = fmt.Sprintf("%s must not exceed %s characters", e.StructField(), e.Param())
-		errType = refErr.InvalidInput
-	case "min":
-		errMsg = fmt.Sprintf("%s must be at least %s characters", e.StructField(), e.Param())
-		errType = refErr.InvalidInput
-	case "strongpassword":
-		errMsg = "Password must contain:"
-		errType = refErr.InvalidInput
-		criteria = []string{
-			"At least one uppercase letter (A-Z)",
-			"At least one digit (0-9)",
-			"At least one special character",
-		}
-	case "username":
-		errMsg = "Invalid email or handle"
-		errType = refErr.InvalidInput
-	case "oneof":
-		errMsg = "Invalid value found"
-		errType = refErr.InvalidInput
-	default:
-		errMsg = "Validation failed"
-		errType = refErr.InvalidInput
-	}
-
-	return refErr.NewValidationFieldError(e.Field(), errMsg, errType, criteria...)
 }

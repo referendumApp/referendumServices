@@ -2,13 +2,11 @@ package pds
 
 import (
 	"context"
+	"log"
 	"log/slog"
-	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/referendumApp/referendumServices/internal/aws"
 	"github.com/referendumApp/referendumServices/internal/car"
-	"github.com/referendumApp/referendumServices/internal/env-config"
 	"github.com/referendumApp/referendumServices/internal/keymgr"
 	"github.com/referendumApp/referendumServices/internal/plc"
 	"github.com/referendumApp/referendumServices/internal/repo"
@@ -31,36 +29,34 @@ type PDS struct {
 // NewPDS initializes a 'PDS' struct
 func NewPDS(
 	ctx context.Context,
-	cfg *env.Config,
-	aws *aws.Clients,
+	km *keymgr.KeyManager,
+	plc plc.ServiceClient,
 	cs car.Store,
+	handleSuffix, serviceUrl string,
+	secretKey []byte,
 	logger *slog.Logger,
 ) (*PDS, error) {
-	pdsLogger := logger.WithGroup("pds")
+	repoman := repo.NewRepoManager(cs, km, logger)
 
-	atExpiry := 30 * time.Minute
-	rtExpiry := 24 * time.Hour
+	// evts := events.NewEventManager(events.NewMemPersister(), logger)
 
-	km, err := keymgr.NewKeyManager(ctx, cfg, aws.KMS, aws.S3, rtExpiry, atExpiry-(5*time.Minute), pdsLogger)
-	if err != nil {
-		return nil, err
-	}
+	// rf := indexer.NewRepoFetcher(db, repoman, 10, logger)
 
-	plc := plc.NewPLCClient(cfg.PLCHost, km, pdsLogger)
+	// idxr, err := indexer.NewIndexer(db, evts, plc, rf, false, true, true)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	repoman := repo.NewRepoManager(cs, km, pdsLogger)
+	// repoman.SetEventHandler(func(ctx context.Context, evt *repo.Event) {
+	// 	if err := idxr.HandleRepoEvent(ctx, evt); err != nil {
+	// 		log.ErrorContext(ctx, "Handle repo event failed", "user", evt.User, "err", err)
+	// 	}
+	// }, true)
 
-	jwtConfig := &util.JWTConfig{
-		SigningKey:    cfg.SecretKey,
-		SigningMethod: jwt.SigningMethodHS256,
-		Issuer:        cfg.ServiceUrl,
-		SubjectKey:    util.SubjectKey,
-		DidKey:        util.DidKey,
-		TokenLookup:   util.DefaultHeaderAuthorization,
-		AuthScheme:    util.DefaultAuthScheme,
-		TokenExpiry:   atExpiry,
-		RefreshExpiry: rtExpiry,
-	}
+	// ix.SendRemoteFollow = srv.sendRemoteFollow
+	// ix.CreateExternalUser = srv.createExternalUser
+
+	jwtConfig := util.NewConfig(secretKey, serviceUrl, jwt.SigningMethodHS256)
 
 	return &PDS{
 		cs:             cs,
@@ -68,14 +64,25 @@ func NewPDS(
 		repoman:        repoman,
 		km:             km,
 		jwt:            jwtConfig,
-		handleSuffix:   cfg.HandleSuffix,
-		serviceUrl:     cfg.ServiceUrl,
+		handleSuffix:   handleSuffix,
+		serviceUrl:     serviceUrl,
 		enforcePeering: false,
-		log:            pdsLogger,
+		log:            logger,
 	}, nil
 }
 
-// func (s *PDS) handleFedEvent(ctx context.Context, host *Peering, env *events.XRPCStreamEvent) error {
+func (p *PDS) Shutdown(ctx context.Context) error {
+	if p.km != nil {
+		log.Println("Flushing key manager cache")
+		if err := p.km.Flush(ctx); err != nil {
+			log.Printf("error flushing key manager cache: %v\n", err)
+			return err
+		}
+	}
+	return nil
+}
+
+// func (p *PDS) handleFedEvent(ctx context.Context, host *Peering, env *events.XRPCStreamEvent) error {
 // 	s.log.InfoContext(ctx, "[%s] got fed event from %q\n", s.serviceUrl, host.Host)
 // 	switch {
 // 	case env.RepoCommit != nil:
@@ -101,7 +108,7 @@ func NewPDS(
 // 	}
 // }
 //
-// func (s *PDS) createExternalUser(ctx context.Context, did string) (*atp.Person, error) {
+// func (p *PDS) createExternalUser(ctx context.Context, did string) (*atp.Person, error) {
 // 	doc, err := s.plc.GetDocument(ctx, did)
 // 	if err != nil {
 // 		return nil, fmt.Errorf("could not locate DID document for followed user: %s", err)
@@ -181,7 +188,7 @@ func NewPDS(
 // 	return subj, nil
 // }
 
-// func (s *PDS) repoEventToFedEvent(ctx context.Context, evt *repo.RepoEvent) (*atproto.SyncSubscribeRepos_Commit, error) {
+// func (p *PDS) repoEventToFedEvent(ctx context.Context, evt *repo.RepoEvent) (*atproto.SyncSubscribeRepos_Commit, error) {
 // 	did, err := s.db.DidForActor(ctx, evt.User)
 // 	if err != nil {
 // 		return nil, err
@@ -205,7 +212,7 @@ func NewPDS(
 // 	return out, nil
 // }
 //
-// func (s *PDS) readRecordFunc(ctx context.Context, user atp.Uid, c cid.Cid) (lexutil.CBOR, error) {
+// func (p *PDS) readRecordFunc(ctx context.Context, user atp.Uid, c cid.Cid) (lexutil.CBOR, error) {
 // 	bs, err := s.cs.ReadOnlySession(user)
 // 	if err != nil {
 // 		return nil, err
@@ -219,7 +226,7 @@ func NewPDS(
 // 	return lexutil.CborDecodeValue(blk.RawData())
 // }
 
-// func (s *PDS) HandleResolveDid(c echo.Context) error {
+// func (p *PDS) HandleResolveDid(c echo.Context) error {
 // 	ctx := c.Request().Context()
 //
 // 	handle := c.Request().Host
