@@ -28,8 +28,6 @@ type KMSContainer struct {
 
 // SetupKMS creates a local-kms container
 func (d *Docker) SetupKMS(ctx context.Context, cfg *env.Config) (*KMSContainer, error) {
-	dockerHost := d.getLocalDockerHost()
-
 	var (
 		initContainer *dockertest.Resource
 		seedContent   []byte
@@ -113,7 +111,7 @@ func (d *Docker) SetupKMS(ctx context.Context, cfg *env.Config) (*KMSContainer, 
 				[]string{
 					"curl",
 					"-f",
-					fmt.Sprintf("http://%s:%s", dockerHost, expPort),
+					fmt.Sprintf("http://%s:%s", d.host, expPort),
 					"-H",
 					"X-Amz-Target: TrentService.ListKeys",
 					"-H",
@@ -138,7 +136,7 @@ func (d *Docker) SetupKMS(ctx context.Context, cfg *env.Config) (*KMSContainer, 
 
 	log.Printf("Successfully setup KMS container on port: %s\n", kmsPort)
 
-	if err := os.Setenv("KMS_HOST", dockerHost+":"+kmsPort); err != nil {
+	if err := os.Setenv("KMS_HOST", d.host+":"+kmsPort); err != nil {
 		return nil, fmt.Errorf("failed to set KMS_HOST environment variable: %w", err)
 	}
 

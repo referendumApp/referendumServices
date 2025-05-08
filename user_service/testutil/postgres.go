@@ -31,8 +31,6 @@ type PostgresContainer struct {
 
 // SetupPostgres creates a postgres container and runs migrations
 func (d *Docker) SetupPostgres(ctx context.Context, cfg *env.DBConfig) (*PostgresContainer, error) {
-	dockerHost := d.getLocalDockerHost()
-
 	var (
 		migrationContainer *dockertest.Resource
 		dbErr              error
@@ -62,7 +60,7 @@ func (d *Docker) SetupPostgres(ctx context.Context, cfg *env.DBConfig) (*Postgre
 			var err error
 			postgresDB, err = sql.Open("postgres", fmt.Sprintf(
 				"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-				dockerHost, postgresPort, cfg.PgUser, cfg.PgPassword, cfg.DBName,
+				d.host, postgresPort, cfg.PgUser, cfg.PgPassword, cfg.DBName,
 			))
 			if err != nil {
 				return err
@@ -132,7 +130,7 @@ func (d *Docker) SetupPostgres(ctx context.Context, cfg *env.DBConfig) (*Postgre
 
 	log.Printf("Successfully setup postgres DB container on port: %s\n", postgresPort)
 
-	cfg.PgHost = dockerHost
+	cfg.PgHost = d.host
 	cfg.PgPort = postgresPort
 
 	return &PostgresContainer{

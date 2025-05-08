@@ -22,6 +22,7 @@ var (
 type Docker struct {
 	pool    *dockertest.Pool
 	network *docker.Network
+	host    string
 }
 
 // SetupDocker creates a pool and network
@@ -50,7 +51,9 @@ func SetupDocker() (*Docker, error) {
 
 	log.Println("Successfully setup Docker pool and network")
 
-	return &Docker{pool: pool, network: network}, nil
+	host := getLocalDockerHost(pool.Client)
+
+	return &Docker{pool: pool, network: network, host: host}, nil
 }
 
 // CleanupDocker cleans up test docker network
@@ -64,11 +67,13 @@ func (d *Docker) CleanupDocker() {
 	log.Println("Docker test network removed")
 }
 
-func (d *Docker) getLocalDockerHost() string {
-	if _, err := os.Stat("/.dockerenv"); err == nil {
-		hostIP, err := d.getHostGatewayIP()
+func getLocalDockerHost(c *docker.Client) string {
+	// TODO: This is a workaround for the `host-gateway` mapping bug when running the Docker Engine natively on Linux
+	// https://github.com/docker/buildx/issues/1832
+	if os.Getenv("CI") == "true" {
+		hostIP, err := getHostGatewayIP(c)
 		if err == nil && hostIP != "" {
-			log.Printf("Host IP found: %s", hostIP)
+			log.Printf("Docker network host IP found: %s", hostIP)
 			return hostIP
 		}
 
@@ -77,16 +82,18 @@ func (d *Docker) getLocalDockerHost() string {
 			log.Printf("Default IP found: %s", defaultIP)
 			return defaultIP
 		}
+	}
 
+	if _, err := os.Stat("/.dockerenv"); err == nil {
 		return "host.docker.internal"
 	}
 
 	return "localhost"
 }
 
-func (d *Docker) getHostGatewayIP() (string, error) {
+func getHostGatewayIP(c *docker.Client) (string, error) {
 	// Get details about the "bridge" network
-	network, err := d.pool.Client.NetworkInfo("bridge")
+	network, err := c.NetworkInfo("bridge")
 	if err != nil {
 		return "", fmt.Errorf("failed to get bridge network info: %w", err)
 	}
