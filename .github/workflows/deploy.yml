@@ -1,4 +1,4 @@
-name: Deploy Services
+name: Deploy Data Services & Pipeline
 
 on:
   push:
