@@ -113,7 +113,7 @@ jobs:
     # TODO: Bug with `--add-host host.docker.internal:host-gateway`
     # https://github.com/docker/buildx/issues/1832
     - name: Run Tests
-      run: docker compose run --rm user-test
+      run: docker compose run --env CI=true --rm user-test
         # docker run \
         #   --name user-test \
         #   --env AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID }} \
