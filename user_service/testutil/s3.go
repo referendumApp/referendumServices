@@ -15,7 +15,6 @@ import (
 var (
 	s3Once      sync.Once
 	s3Container *dockertest.Resource
-	s3IP        string
 	s3Port      string
 )
 
@@ -27,6 +26,8 @@ type S3Container struct {
 
 // SetupS3 creates a minio container
 func (d *Docker) SetupS3(ctx context.Context) (*S3Container, error) {
+	dockerHost := d.getLocalDockerHost()
+
 	var s3Err error
 
 	user, err := common.GetEnvOrFail("AWS_ACCESS_KEY_ID")
@@ -63,12 +64,11 @@ func (d *Docker) SetupS3(ctx context.Context) (*S3Container, error) {
 			return
 		}
 
-		s3IP = d.getLocalDockerHost(s3Container.Container.NetworkSettings)
 		s3Port = s3Container.GetPort(apiPort + "/tcp")
 
 		if s3Err = d.pool.Retry(func() error {
 			if _, err := s3Container.Exec(
-				[]string{"curl", "-f", fmt.Sprintf("http://%s:%s/minio/health/live", s3IP, apiPort)},
+				[]string{"curl", "-f", fmt.Sprintf("http://%s:%s/minio/health/live", dockerHost, apiPort)},
 				dockertest.ExecOptions{},
 			); err != nil {
 				return err
@@ -86,7 +86,7 @@ func (d *Docker) SetupS3(ctx context.Context) (*S3Container, error) {
 
 	log.Printf("Successfully setup S3 container on port: %s\n", s3Port)
 
-	if err := os.Setenv("S3_ENDPOINT_URL", "http://"+s3IP+":"+s3Port); err != nil {
+	if err := os.Setenv("S3_ENDPOINT_URL", "http://"+dockerHost+":"+s3Port); err != nil {
 		return nil, fmt.Errorf("failed to set KMS_HOST environment variable: %w", err)
 	}
 

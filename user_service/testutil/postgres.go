@@ -15,11 +15,10 @@ import (
 )
 
 var (
-	dbOnce      sync.Once
-	postgresDB  *sql.DB
-	pgContainer *dockertest.Resource
-	pgIP        string
-	pgPort      string
+	dbOnce       sync.Once
+	postgresDB   *sql.DB
+	pgContainer  *dockertest.Resource
+	postgresPort string
 )
 
 // PostgresContainer holds information about the postgres container
@@ -32,6 +31,8 @@ type PostgresContainer struct {
 
 // SetupPostgres creates a postgres container and runs migrations
 func (d *Docker) SetupPostgres(ctx context.Context, cfg *env.DBConfig) (*PostgresContainer, error) {
+	dockerHost := d.getLocalDockerHost()
+
 	var (
 		migrationContainer *dockertest.Resource
 		dbErr              error
@@ -54,15 +55,14 @@ func (d *Docker) SetupPostgres(ctx context.Context, cfg *env.DBConfig) (*Postgre
 			return
 		}
 
-		pgIP = d.getLocalDockerHost(pgContainer.Container.NetworkSettings)
-		pgPort = pgContainer.GetPort(cfg.PgPort + "/tcp")
+		postgresPort = pgContainer.GetPort(cfg.PgPort + "/tcp")
 
 		// Wait for database to be ready
 		if dbErr = d.pool.Retry(func() error {
 			var err error
 			postgresDB, err = sql.Open("postgres", fmt.Sprintf(
 				"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-				pgIP, pgPort, cfg.PgUser, cfg.PgPassword, cfg.DBName,
+				dockerHost, postgresPort, cfg.PgUser, cfg.PgPassword, cfg.DBName,
 			))
 			if err != nil {
 				return err
@@ -75,14 +75,12 @@ func (d *Docker) SetupPostgres(ctx context.Context, cfg *env.DBConfig) (*Postgre
 			return
 		}
 
+		pgIP := pgContainer.Container.NetworkSettings.Networks[d.network.Name].IPAddress
 		migrationContainer, dbErr = d.pool.RunWithOptions(&dockertest.RunOptions{
 			Repository: "migrations",
 			Tag:        "latest",
 			Env: []string{
-				fmt.Sprintf(
-					"POSTGRES_HOST=%s",
-					pgContainer.Container.NetworkSettings.Networks[d.network.Name].IPAddress,
-				),
+				fmt.Sprintf("POSTGRES_HOST=%s", pgIP),
 				fmt.Sprintf("POSTGRES_PORT=%s", cfg.PgPort),
 				fmt.Sprintf("POSTGRES_USER=%s", cfg.PgUser),
 				fmt.Sprintf("POSTGRES_PASSWORD=%s", cfg.PgPassword),
@@ -132,14 +130,14 @@ func (d *Docker) SetupPostgres(ctx context.Context, cfg *env.DBConfig) (*Postgre
 		return nil, dbErr
 	}
 
-	log.Printf("Successfully setup postgres DB container on port: %s\n", pgPort)
+	log.Printf("Successfully setup postgres DB container on port: %s\n", postgresPort)
 
-	cfg.PgHost = pgIP
-	cfg.PgPort = pgPort
+	cfg.PgHost = dockerHost
+	cfg.PgPort = postgresPort
 
 	return &PostgresContainer{
 		DB:          postgresDB,
-		Port:        pgPort,
+		Port:        postgresPort,
 		DBSchema:    cfg.AtpDBSchema,
 		pgContainer: pgContainer,
 	}, nil

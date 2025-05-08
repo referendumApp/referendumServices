@@ -61,10 +61,9 @@ func (d *Docker) CleanupDocker() {
 	log.Println("Docker test network removed")
 }
 
-func (d *Docker) getLocalDockerHost(ns *docker.NetworkSettings) string {
+func (d *Docker) getLocalDockerHost() string {
 	if _, err := os.Stat("/.dockerenv"); err == nil {
-		return ns.Networks[d.network.Name].IPAddress
-		// return "host.docker.internal"
+		return "host.docker.internal"
 	}
 
 	return "localhost"
