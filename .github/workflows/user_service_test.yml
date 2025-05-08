@@ -70,7 +70,7 @@ jobs:
         load: true
         tags: migrations:${{ github.sha }}-${{ github.run_number }}
         cache-from: type=local,src=/tmp/.buildx-cache
-        cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+        cache-to: type=local,dest=/tmp/.buildx-cache-new1,mode=max
 
     - name: Set Go cache env vars
       run: |
@@ -94,24 +94,49 @@ jobs:
     
     - name: Update Cache
       run: |
-        rm -rf /tmp/.buildx-cache-old
-
-        if [ -d "/tmp/.buildx-cache" ]; then
-          mv /tmp/.buildx-cache /tmp/.buildx-cache-old
-        else
-          # Create cache directory if it doesn't exist
-          mkdir -p /tmp/.buildx-cache
-        fi
+        echo "Current directory structure before any operations:"
+        ls -la /tmp/
         
-        # Merge all cache directories
+        echo "Removing old cache directory if it exists..."
+        rm -rf /tmp/.buildx-cache-old || true
+        
+        echo "Creating new merged cache directory..."
+        mkdir -p /tmp/.buildx-cache-new-merged
+        
+        echo "Available cache directories:"
+        ls -la /tmp/.buildx-cache-new* 2>/dev/null || echo "No .buildx-cache-new* directories found"
+        
+        echo "Merging cache directories..."
         for dir in /tmp/.buildx-cache-new*; do
           if [ -d "$dir" ] && [ "$(ls -A "$dir" 2>/dev/null)" ]; then
-            cp -r "$dir"/* /tmp/.buildx-cache/ 2>/dev/null || true
-            rm -rf "$dir"
+            echo "Processing directory: $dir"
+            echo "Contents of $dir:"
+            ls -la "$dir" | head -10  # Show first 10 files/dirs for debugging
+            echo "Copying files from $dir to /tmp/.buildx-cache-new-merged/"
+            cp -r "$dir"/* /tmp/.buildx-cache-new-merged/ 2>/dev/null || echo "Warning: Copy from $dir had some errors (this may be normal for some files)"
           fi
         done
         
-        rm -rf /tmp/.buildx-cache-old
+        echo "Contents of merged directory:"
+        ls -la /tmp/.buildx-cache-new-merged/ | head -10  # Show first 10 files/dirs
+        
+        if [ -f "/tmp/.buildx-cache-new-merged/index.json" ]; then
+          echo "SUCCESS: index.json found in merged directory"
+        else
+          echo "WARNING: index.json not found in merged directory"
+        fi
+        
+        echo "Removing old cache directory..."
+        rm -rf /tmp/.buildx-cache || true
+        
+        echo "Moving merged cache to main cache location..."
+        mv /tmp/.buildx-cache-new-merged /tmp/.buildx-cache
+        
+        echo "Final cache directory structure:"
+        ls -la /tmp/.buildx-cache/ 2>/dev/null || echo "Cache directory does not exist or is empty"
+        
+        echo "Cleaning up temporary cache directories..."
+        rm -rf /tmp/.buildx-cache-new* || true
 
     - name: Run Tests
       run: |
