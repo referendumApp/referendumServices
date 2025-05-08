@@ -84,13 +84,12 @@ jobs:
         push: false
         load: true
         tags: user-test:latest
+        add-hosts: host.docker.internal:host-gateway
         build-args: |
           GOMODCACHE=${{ env.GOMODCACHE }}
           GOCACHE=${{ env.GOCACHE }}
         cache-from: type=local,src=/tmp/.buildx-cache
         cache-to: type=local,dest=/tmp/.buildx-cache-new2G,mode=max
-        extra-opts: |
-          --add-host=host.docker.internal:host-gateway
     
     - name: Run Tests
       run: docker compose run user-test
