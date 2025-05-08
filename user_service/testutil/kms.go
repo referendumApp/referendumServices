@@ -106,13 +106,14 @@ func (d *Docker) SetupKMS(ctx context.Context, cfg *env.Config) (*KMSContainer, 
 		}
 
 		kmsPort = kmsContainer.GetPort(expPort + "/tcp")
+		kmsIP := s3Container.Container.NetworkSettings.Networks[d.network.Name].IPAddress
 
 		if kmsErr = d.pool.Retry(func() error {
-			if _, err := kmsContainer.Exec(
+			if ec, err := kmsContainer.Exec(
 				[]string{
 					"curl",
 					"-f",
-					fmt.Sprintf("http://%s:%s", d.Host, expPort),
+					fmt.Sprintf("http://%s:%s", kmsIP, expPort),
 					"-H",
 					"X-Amz-Target: TrentService.ListKeys",
 					"-H",
@@ -123,9 +124,13 @@ func (d *Docker) SetupKMS(ctx context.Context, cfg *env.Config) (*KMSContainer, 
 				dockertest.ExecOptions{},
 			); err != nil {
 				return err
+			} else if ec != 0 {
+				return fmt.Errorf("KMS container healthcheck exited with code: %d", ec)
 			}
+
 			return nil
 		}); kmsErr != nil {
+			_ = d.pool.Purge(s3Container)
 			log.Printf("KMS healthcheck failed: %v", kmsErr)
 			return
 		}
