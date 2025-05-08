@@ -78,6 +78,10 @@ jobs:
       #   with:
       #     path: ${{ steps.go-cache-paths.outputs.go-mod }}
       #     key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
+      
+      - name: Pre-build Test Binary
+        working-directory: user_service
+        run: go test -c -tags=init,integration ./...
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -90,13 +94,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-migrations-
 
-      # - name: Cache User Test Docker Layers
-      #   uses: actions/cache@v3
-      #   with:
-      #     path: /tmp/.buildx-cache-user-tests
-      #     key: ${{ runner.os }}-buildx-user-tests-${{ github.sha }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-buildx-user-tests-
+      - name: Cache User Test Docker Layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache-user-tests
+          key: ${{ runner.os }}-buildx-user-tests-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-user-tests-
 
       - name: Build Migrations Image
         uses: docker/build-push-action@v6
@@ -110,38 +114,36 @@ jobs:
           cache-from: type=local,src=/tmp/.buildx-cache-migrations
           cache-to: type=local,dest=/tmp/.buildx-cache-migrations-new,mode=max
 
-      # - name: Build Test Image
-      #   uses: docker/build-push-action@v6
-      #   with:
-      #     context: ./user_service
-      #     file: ./user_service/Dockerfile
-      #     target: test
-      #     push: false
-      #     load: true
-      #     tags: user-test
-      #     build-args: |
-      #       GOMODCACHE=${{ steps.go-cache-paths.outputs.go-build }}
-      #       GOCACHE=${{ steps.go-cache-paths.outputs.go-mod }}
-      #     cache-from: type=local,src=/tmp/.buildx-cache-user-tests
-      #     cache-to: type=local,dest=/tmp/.buildx-cache-user-tests-new,mode=max
+      - name: Build Test Image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./user_service
+          file: ./user_service/Dockerfile
+          target: test
+          push: false
+          load: true
+          tags: user-test
+          build-args: |
+            GOMODCACHE=${{ steps.go-cache-paths.outputs.go-build }}
+            GOCACHE=${{ steps.go-cache-paths.outputs.go-mod }}
+          cache-from: type=local,src=/tmp/.buildx-cache-user-tests
+          cache-to: type=local,dest=/tmp/.buildx-cache-user-tests-new,mode=max
 
       # TODO: Bug with `--add-host host.docker.internal:host-gateway`
       # https://github.com/docker/buildx/issues/1832
       - name: Run Tests
-        working-directory: user_service
-        run: go test -tags=init,integration ./...
-        # run: |
-        #   docker run \
-        #     --name user-test \
-        #     --env CI=true \
-        #     --env AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID }} \
-        #     --env AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY }} \
-        #     --env MINIO_CONSOLE_PORT=${{ env.MINIO_CONSOLE_PORT }} \
-        #     --env KMS_PORT=${{ env.KMS_PORT }} \
-        #     --env-file .env \
-        #     --volume /var/run/docker.sock:/var/run/docker.sock \
-        #     --rm \
-        #     user-test
+        run: |
+          docker run \
+            --name user-test \
+            --env CI=true \
+            --env AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID }} \
+            --env AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY }} \
+            --env MINIO_CONSOLE_PORT=${{ env.MINIO_CONSOLE_PORT }} \
+            --env KMS_PORT=${{ env.KMS_PORT }} \
+            --env-file .env \
+            --volume /var/run/docker.sock:/var/run/docker.sock \
+            --rm \
+            user-test
 
       - name: Update Cache
         run: |
