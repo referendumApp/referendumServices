@@ -96,8 +96,13 @@ jobs:
     - name: Update Cache
       run: |
         rm -rf /tmp/.buildx-cache-old
-        mv /tmp/.buildx-cache /tmp/.buildx-cache-old
-        mkdir -p /tmp/.buildx-cache
+
+        if [ -d "/tmp/.buildx-cache" ]; then
+          mv /tmp/.buildx-cache /tmp/.buildx-cache-old
+        else
+          # Create cache directory if it doesn't exist
+          mkdir -p /tmp/.buildx-cache
+        fi
         
         # Merge all cache directories
         for dir in /tmp/.buildx-cache-new*; do
