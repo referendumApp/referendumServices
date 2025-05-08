@@ -1,6 +1,7 @@
 import hashlib
 import logging
 import time
+import psycopg2
 from enum import Enum
 from typing import Dict, List, Optional, Set
 
@@ -365,10 +366,42 @@ class ETLConfig(BaseModel):
             logger.info(
                 f"Inserted/updated {self.dataframe.shape[0] - violations_count} rows to {self.destination}"
             )
-            if violations_count > 0:
-                logger.warning(f"Skipped {violations_count} invalid rows")
 
             conn.commit()
+
+        except psycopg2.errors.NotNullViolation as e:
+            logger.warning(
+                f"NOT NULL constraint violation while loading into '{self.destination}': {e}"
+            )
+
+            # isolate the bad rows
+            required_columns = [
+                col.name
+                for col in conn.execute(
+                    text(
+                        f"""
+                    SELECT column_name AS name
+                    FROM information_schema.columns
+                    WHERE table_name = :table_name AND is_nullable = 'NO'
+                """
+                    ),
+                    {"table_name": self.destination},
+                ).fetchall()
+            ]
+
+            logger.info(f"Required columns (NOT NULL): {required_columns}")
+
+            # Filter out rows with nulls in required columns
+            healthy_rows = self.dataframe.dropna(subset=required_columns)
+
+            bad_rows_count = len(self.dataframe) - len(healthy_rows)
+            logger.warning(
+                f"Excluding {bad_rows_count} invalid rows with NULLs in NOT NULL columns"
+            )
+
+            # Retry with only healthy rows
+            self.dataframe = healthy_rows
+            self.load(conn)
 
         except Exception as e:
             logger.error(f"Error upserting data into '{self.destination}': {e}")
