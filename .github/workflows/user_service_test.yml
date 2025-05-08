@@ -76,7 +76,7 @@ jobs:
         target: migrations
         push: false
         load: true
-        tags: migrations:${{ github.sha }}-${{ github.run_number }}
+        tags: migrations
         cache-from: type=local,src=/tmp/.buildx-cache-migrations
         cache-to: type=local,dest=/tmp/.buildx-cache-migrations-new,mode=max
 
@@ -93,7 +93,7 @@ jobs:
         target: test
         push: false
         load: true
-        tags: user-test:${{ github.sha }}-${{ github.run_number }}
+        tags: user-test
         build-args: |
           GOMODCACHE=${{ env.GOMODCACHE }}
           GOCACHE=${{ env.GOCACHE }}
