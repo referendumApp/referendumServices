@@ -81,7 +81,7 @@ jobs:
       
       - name: Pre-build Test Binary
         working-directory: user_service
-        run: go test -c -tags=init,integration ./cmd/api ./internal
+        run: go test -c -tags=init,integration ./cmd/api/... ./internal/...
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
