@@ -38,16 +38,10 @@ func (d *Docker) SetupS3(ctx context.Context) (*S3Container, error) {
 	if err != nil {
 		return nil, err
 	}
-	// apiPort, err := common.GetEnvOrFail("MINIO_API_PORT")
-	// if err != nil {
-	// 	return nil, err
-	// }
 	consolePort, err := common.GetEnvOrFail("MINIO_CONSOLE_PORT")
 	if err != nil {
 		return nil, err
 	}
-	// log.Printf("S3 API Port: %s", apiPort)
-	log.Printf("S3 Console Port: %s", consolePort)
 
 	s3Once.Do(func() {
 		s3Container, s3Err = d.pool.RunWithOptions(&dockertest.RunOptions{
@@ -57,7 +51,6 @@ func (d *Docker) SetupS3(ctx context.Context) (*S3Container, error) {
 				fmt.Sprintf("MINIO_ROOT_USER=%s", user),
 				fmt.Sprintf("MINIO_ROOT_PASSWORD=%s", pw),
 			},
-			// ExposedPorts: []string{apiPort, consolePort},
 			ExposedPorts: []string{consolePort},
 			Cmd:          []string{"server", "/data", "--console-address", fmt.Sprintf(":%s", consolePort)},
 			NetworkID:    d.network.ID,
@@ -67,32 +60,9 @@ func (d *Docker) SetupS3(ctx context.Context) (*S3Container, error) {
 			return
 		}
 
-		// s3Port = s3Container.GetPort(apiPort + "/tcp")
 		s3Port = s3Container.GetPort(apiPort + "/tcp")
 		s3IP := s3Container.Container.NetworkSettings.Networks[d.network.Name].IPAddress
 
-		log.Printf("MinIO Container ID: %s", s3Container.Container.ID)
-		log.Printf("MinIO Container Name: %s", s3Container.Container.Name)
-		// log.Printf("MinIO API Port Mapping: %s → %s", apiPort, s3Port)
-
-		// Inspect the container for network details
-		containerInfo, err := pool.Client.InspectContainer(s3Container.Container.ID)
-		if err == nil {
-			// Log bridge network info
-			if bridgeNetwork, ok := containerInfo.NetworkSettings.Networks["bridge"]; ok {
-				log.Printf("MinIO Bridge Network IP: %s, Gateway: %s",
-					bridgeNetwork.IPAddress, bridgeNetwork.Gateway)
-			}
-
-			// Log custom network info
-			if customNetwork, ok := containerInfo.NetworkSettings.Networks["test-network"]; ok {
-				log.Printf("MinIO Custom Network IP: %s, Gateway: %s",
-					customNetwork.IPAddress, customNetwork.Gateway)
-			}
-		}
-
-		// Check port bindings
-		log.Printf("MinIO Port Bindings: %+v", containerInfo.NetworkSettings.Ports)
 		if s3Err = d.pool.Retry(func() error {
 			if ec, err := s3Container.Exec(
 				[]string{"curl", "-f", fmt.Sprintf("http://%s:%s/minio/health/live", s3IP, apiPort)},
@@ -118,7 +88,7 @@ func (d *Docker) SetupS3(ctx context.Context) (*S3Container, error) {
 	log.Printf("Successfully setup S3 container on port: %s\n", s3Port)
 
 	if err := os.Setenv("S3_ENDPOINT_URL", "http://"+d.Host+":"+s3Port); err != nil {
-		return nil, fmt.Errorf("failed to set KMS_HOST environment variable: %w", err)
+		return nil, fmt.Errorf("failed to set S3_ENDPOINT_URL environment variable: %w", err)
 	}
 
 	return &S3Container{Port: s3Port, s3Container: s3Container}, nil

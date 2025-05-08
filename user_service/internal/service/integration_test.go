@@ -72,8 +72,6 @@ func setupAndRunTests(m *testing.M, servChErr chan error) int {
 	}
 	defer pc.CleanupPostgres(docker)
 
-	// s3Port := os.Getenv("MINIO_API_PORT")
-	// os.Setenv("S3_ENDPOINT_URL", "http://"+docker.Host+":"+s3Port)
 	sc, err := docker.SetupS3(ctx)
 	if err != nil {
 		log.Printf("Failed to setup minio container: %v\n", err)
@@ -81,8 +79,6 @@ func setupAndRunTests(m *testing.M, servChErr chan error) int {
 	}
 	defer sc.CleanupS3(docker)
 
-	// kmsPort := os.Getenv("KMS_PORT")
-	// os.Setenv("KMS_HOST", docker.Host+":"+kmsPort)
 	kms, err := docker.SetupKMS(ctx, cfg)
 	if err != nil {
 		log.Printf("Failed to setup kms container: %v\n", err)

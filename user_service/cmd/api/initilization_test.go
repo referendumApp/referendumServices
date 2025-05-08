@@ -40,14 +40,12 @@ func TestServiceInitialization(t *testing.T) {
 		t.Fatalf("Failed to setup minio container: %v", err)
 	}
 	defer sc.CleanupS3(docker)
-	t.Logf("S3_ENDPOINT_URL: %s\n", os.Getenv("S3_ENDPOINT_URL"))
 
 	kms, err := docker.SetupKMS(ctx, cfg)
 	if err != nil {
 		t.Fatalf("Failed to setup kms container: %v", err)
 	}
 	defer kms.CleanupKMS(docker)
-	t.Logf("KMS_HOST: %s\n", os.Getenv("KMS_HOST"))
 
 	done := make(chan struct{})
 

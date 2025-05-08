@@ -50,7 +50,6 @@ func (d *Docker) SetupKMS(ctx context.Context, cfg *env.Config) (*KMSContainer, 
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("KMS Port: %s", expPort)
 
 	kmsOnce.Do(func() {
 		// Create a Docker volume
@@ -154,7 +153,7 @@ func (kc *KMSContainer) CleanupKMS(d *Docker) {
 	// Remove containers
 	if kc.kmsContainer != nil {
 		if err := d.pool.Purge(kc.kmsContainer); err != nil {
-			log.Printf("Could not purge minio container: %s", err)
+			log.Printf("Could not purge KMS container: %s", err)
 		}
 	}
 

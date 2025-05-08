@@ -15,9 +15,8 @@ on:
 env:
   AWS_ACCESS_KEY_ID: minioadmin
   AWS_SECRET_ACCESS_KEY: minioadmin
-  MINIO_API_PORT: 9003
-  MINIO_CONSOLE_PORT: 9004
-  KMS_PORT: 9005
+  MINIO_CONSOLE_PORT: 9001
+  KMS_PORT: 9002
 
 jobs:
   lint:
@@ -56,6 +55,12 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
+    - uses: actions/setup-go@v5
+      with:
+        go-version: "1.24"
+        cache: true
+        cache-dependency-path: user_service/go.sum
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
@@ -66,21 +71,6 @@ jobs:
         key: ${{ runner.os }}-buildx-migrations-${{ github.sha }}
         restore-keys: |
           ${{ runner.os }}-buildx-migrations-
-
-    - name: Set Go cache env vars
-      run: |
-        echo "GOCACHE=$(go env GOCACHE)" >> $GITHUB_ENV
-        echo "GOMODCACHE=$(go env GOMODCACHE)" >> $GITHUB_ENV
-
-    - name: Go Build Cache
-      uses: actions/cache@v3
-      with:
-        path: |
-          ${{ env.GOCACHE }}
-          ${{ env.GOMODCACHE }}
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-
 
     - name: Cache User Test Docker Layers
       uses: actions/cache@v3
@@ -120,14 +110,12 @@ jobs:
     # TODO: Bug with `--add-host host.docker.internal:host-gateway`
     # https://github.com/docker/buildx/issues/1832
     - name: Run Tests
-      # run: docker compose run --env CI=true --rm user-test
       run: |
         docker run \
           --name user-test \
           --env CI=true \
           --env AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID }} \
           --env AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY }} \
-          --env MINIO_API_PORT=${{ env.MINIO_API_PORT }} \
           --env MINIO_CONSOLE_PORT=${{ env.MINIO_CONSOLE_PORT }} \
           --env KMS_PORT=${{ env.KMS_PORT }} \
           --env-file .env \
@@ -137,9 +125,6 @@ jobs:
 
     - name: Update Cache
       run: |
-        echo "Current directory structure before any operations:"
-        ls -la /tmp/
-        
         echo "Removing old cache directory if it exists..."
         rm -rf /tmp/.buildx-cache-migrations || true
         rm -rf /tmp/.buildx-cache-user-tests || true
@@ -147,13 +132,9 @@ jobs:
         echo "Creating new merged cache directory..."
         mv /tmp/.buildx-cache-migrations-new /tmp/.buildx-cache-migrations
         mv /tmp/.buildx-cache-user-tests-new /tmp/.buildx-cache-user-tests
-        
-        echo "Current directory structure after any operations:"
-        ls -la /tmp/
 
     - name: Clean Tests
       if: always()
-      # run: docker compose --profile user-test down -v
       run: |
         docker container prune -f
         docker volume prune -f
