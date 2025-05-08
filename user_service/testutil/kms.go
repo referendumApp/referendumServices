@@ -105,8 +105,7 @@ func (d *Docker) SetupKMS(ctx context.Context, cfg *env.Config) (*KMSContainer, 
 			return
 		}
 
-		// kmsPort = kmsContainer.GetPort(expPort + "/tcp")
-		kmsPort = kmsContainer.GetPort(expPort)
+		kmsPort = kmsContainer.GetPort(expPort + "/tcp")
 
 		if kmsErr = d.pool.Retry(func() error {
 			if _, err := kmsContainer.Exec(

@@ -64,8 +64,7 @@ func (d *Docker) SetupS3(ctx context.Context) (*S3Container, error) {
 			return
 		}
 
-		// s3Port = s3Container.GetPort(apiPort + "/tcp")
-		s3Port = s3Container.GetPort(apiPort)
+		s3Port = s3Container.GetPort(apiPort + "/tcp")
 
 		if s3Err = d.pool.Retry(func() error {
 			if _, err := s3Container.Exec(
