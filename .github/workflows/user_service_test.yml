@@ -129,7 +129,7 @@ jobs:
       # https://github.com/docker/buildx/issues/1832
       - name: Run Tests
         working-directory: user_service
-        run: go tests ./...
+        run: go tests -tags=init,integration ./...
         # run: |
         #   docker run \
         #     --name user-test \
