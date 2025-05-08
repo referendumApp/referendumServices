@@ -31,8 +31,8 @@ type ServiceClient interface {
 		service string,
 	) (string, error)
 	UpdateUserHandle(ctx context.Context, didstr string, nhandle string) error
-	GetOpAuditLog(ctx context.Context, did string) (*[]Op, error)
-	GetLatestOp(ctx context.Context, did string) (*Op, error)
+	GetOpAuditLog(ctx context.Context, did string) ([]LogOp, error)
+	GetLatestOp(ctx context.Context, did string) (*LogOp, error)
 	TombstoneDID(ctx context.Context, did string, prev string) error
 }
 
@@ -44,13 +44,13 @@ type Client struct {
 	log  *slog.Logger
 }
 
-// NewPLCClient initializes a 'Client' struct
-func NewPLCClient(host string, km *keymgr.KeyManager, logger *slog.Logger) *Client {
+// NewClient initializes a 'Client' struct
+func NewClient(host string, km *keymgr.KeyManager, logger *slog.Logger) *Client {
 	return &Client{Host: host, C: http.DefaultClient, km: km, log: logger.With("service", "plc")}
 }
 
 // GetDocument returns DID document
-func (c Client) GetDocument(ctx context.Context, didstr string) (*did.Document, error) {
+func (c *Client) GetDocument(ctx context.Context, didstr string) (*did.Document, error) {
 	ctx, span := otel.Tracer("plc").Start(ctx, "plsResolveDid")
 	defer span.End()
 
@@ -77,7 +77,7 @@ func (c Client) GetDocument(ctx context.Context, didstr string) (*did.Document, 
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
 		c.log.InfoContext(ctx, "DID doc request to plc directory failed", "body", string(b))
-		return nil, fmt.Errorf("get did request failed (code %d): %s", resp.StatusCode, resp.Status)
+		return nil, fmt.Errorf("get did request failed: %s", resp.Status)
 	}
 
 	var doc did.Document
@@ -89,10 +89,10 @@ func (c Client) GetDocument(ctx context.Context, didstr string) (*did.Document, 
 }
 
 // FlushCacheFor noop
-func (c Client) FlushCacheFor(did string) {}
+func (c *Client) FlushCacheFor(did string) {}
 
 // CreateDID plc_operation for creating and returning a DID
-func (c Client) CreateDID(
+func (c *Client) CreateDID(
 	ctx context.Context,
 	sigkey *did.PrivKey,
 	rotation []string,
@@ -103,7 +103,7 @@ func (c Client) CreateDID(
 		c.C = http.DefaultClient
 	}
 
-	op := CreateOp{
+	op := Op{
 		Type:                "plc_operation",
 		Services:            map[string]Service{"atproto_pds": {Type: "AtprotoPersonalDataClient", Endpoint: service}},
 		AlsoKnownAs:         []string{handle},
@@ -128,10 +128,7 @@ func (c Client) CreateDID(
 		return "", err
 	}
 
-	body, err := json.Marshal(op) //nolint:errchkjson
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal operation: %w", err)
-	}
+	body, _ := json.Marshal(op)
 
 	req, err := http.NewRequestWithContext(
 		ctx,
@@ -159,31 +156,19 @@ func (c Client) CreateDID(
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
 		c.log.InfoContext(ctx, "Create PLC operation request failed", "body", string(b))
-		return "", fmt.Errorf("bad response from create call: %d %s", resp.StatusCode, resp.Status)
+		return "", fmt.Errorf("bad response from create call: %s", resp.Status)
 	}
 
 	return opdid, nil
 }
 
 // UpdateUserHandle not implemented
-func (c Client) UpdateUserHandle(ctx context.Context, did string, handle string) error {
+func (c *Client) UpdateUserHandle(ctx context.Context, did string, handle string) error {
 	return fmt.Errorf("handle updates not yet implemented")
 }
 
-func didForCreateOp(op *CreateOp) (string, error) {
-	buf := new(bytes.Buffer)
-	if err := op.MarshalCBOR(buf); err != nil {
-		return "", err
-	}
-
-	h := sha256.Sum256(buf.Bytes())
-	enchash := base32.StdEncoding.EncodeToString(h[:])
-	enchash = strings.ToLower(enchash)
-	return "did:plc:" + enchash[:24], nil
-}
-
 // GetOpAuditLog returns all PLC directory operations
-func (c Client) GetOpAuditLog(ctx context.Context, did string) (*[]Op, error) {
+func (c *Client) GetOpAuditLog(ctx context.Context, did string) ([]LogOp, error) {
 	if c.C == nil {
 		c.C = http.DefaultClient
 	}
@@ -207,19 +192,19 @@ func (c Client) GetOpAuditLog(ctx context.Context, did string) (*[]Op, error) {
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
 		c.log.InfoContext(ctx, "Audit log request to plc directory failed", "body", string(b))
-		return nil, fmt.Errorf("get last op request failed (code %d): %s", resp.StatusCode, resp.Status)
+		return nil, fmt.Errorf("get last op request failed: %s", resp.Status)
 	}
 
-	var log []Op
+	var log []LogOp
 	if err := json.NewDecoder(resp.Body).Decode(&log); err != nil {
 		return nil, err
 	}
 
-	return &log, nil
+	return log, nil
 }
 
 // TombstoneDID plc_operation for deleting/deactivating a DID
-func (c Client) TombstoneDID(ctx context.Context, did string, prev string) error {
+func (c *Client) TombstoneDID(ctx context.Context, did string, prev string) error {
 	if c.C == nil {
 		c.C = http.DefaultClient
 	}
@@ -238,11 +223,7 @@ func (c Client) TombstoneDID(ctx context.Context, did string, prev string) error
 
 	op.Sig = base64.RawURLEncoding.EncodeToString(sig)
 
-	body, err := json.Marshal(op) //nolint:errchkjson
-	if err != nil {
-		c.log.InfoContext(ctx, "Failed to marshal tombstone operation", "error", err)
-		return err
-	}
+	body, _ := json.Marshal(op)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.Host+"/"+url.QueryEscape(did), bytes.NewReader(body))
 	if err != nil {
@@ -265,19 +246,20 @@ func (c Client) TombstoneDID(ctx context.Context, did string, prev string) error
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
 		c.log.InfoContext(ctx, "Tombstone request to plc directory failed", "body", string(b))
-		return fmt.Errorf("bad response from tombstone call: %d %s", resp.StatusCode, resp.Status)
+		return fmt.Errorf("bad response from tombstone call: %s", resp.Status)
 	}
 
 	return nil
 }
 
 // GetLatestOp wrapper around 'GetOpAuditLog' that returns the latest 'Op'
-func (c Client) GetLatestOp(ctx context.Context, did string) (*Op, error) {
+func (c *Client) GetLatestOp(ctx context.Context, did string) (*LogOp, error) {
 	log, err := c.GetOpAuditLog(ctx, did)
 	if err != nil {
 		return nil, err
 	}
 
+	c.log.InfoContext(ctx, "Audit log", "log", log)
 	op, err := findLatestOp(log)
 	if err != nil {
 		c.log.InfoContext(ctx, "Failed to get the latest PLC operation", "err", err)
@@ -285,4 +267,32 @@ func (c Client) GetLatestOp(ctx context.Context, did string) (*Op, error) {
 	}
 
 	return op, nil
+}
+
+func findLatestOp(log []LogOp) (*LogOp, error) {
+	if len(log) == 0 {
+		return nil, fmt.Errorf("no operations found in PLC log")
+	}
+
+	newest := &log[0]
+
+	for _, op := range log[1:] {
+		if op.CreatedAt.After(newest.CreatedAt) {
+			newest = &op
+		}
+	}
+
+	return newest, nil
+}
+
+func didForCreateOp(op *Op) (string, error) {
+	buf := new(bytes.Buffer)
+	if err := op.MarshalCBOR(buf); err != nil {
+		return "", err
+	}
+
+	h := sha256.Sum256(buf.Bytes())
+	enchash := base32.StdEncoding.EncodeToString(h[:])
+	enchash = strings.ToLower(enchash)
+	return "did:plc:" + enchash[:24], nil
 }

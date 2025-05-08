@@ -3,7 +3,6 @@
 package main
 
 import (
-	"fmt"
 	"io/fs"
 	"log"
 	"os"
@@ -14,16 +13,17 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/referendumApp/referendumServices/pkg/common"
 )
 
 var (
 	appPath          = "/cmd/api"
 	buildCmd         = "go"
 	buildArgs        = [4]string{"build", "-o"}
-	binaryName       = "app"
 	debounceInterval = 50 * time.Millisecond
 	watchExts        = []string{".go"}
 	ignoreDirs       = []string{".github", ".vscode", "data_service"}
+	binaryName       string
 )
 
 func main() {
@@ -33,9 +33,13 @@ func main() {
 	}
 	defer watcher.Close()
 
-	projectRoot, err := findProjectRoot()
+	projectRoot, err := common.FindProjectRoot()
 	if err != nil {
 		log.Fatalf("Failed to find project Root: %v (%T)", err, err)
+	}
+	binaryName, err = common.GetEnvOrFail("BINARY_PATH")
+	if err != nil {
+		log.Fatalf("Failed to get binary name: %v", err)
 	}
 	binaryPath := filepath.Join(projectRoot, binaryName)
 	buildArgs[2] = binaryPath
@@ -87,26 +91,6 @@ func main() {
 		}
 	}
 
-}
-
-func findProjectRoot() (string, error) {
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-
-	// Only return the directory if `go.mod` is found in the filepath
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return dir, nil
-		}
-
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "", fmt.Errorf("could not find project root, no go.mod file found")
-		}
-		dir = parent
-	}
 }
 
 // Returns a callback function which only adds the relevant directories to the Watcher

@@ -4,7 +4,6 @@ import (
 	"log/slog"
 
 	"github.com/referendumApp/referendumServices/internal/database"
-	"github.com/referendumApp/referendumServices/internal/env-config"
 )
 
 // View struct containing dependencies for the app view
@@ -15,12 +14,12 @@ type View struct {
 }
 
 // NewAppView initializes a 'View' struct
-func NewAppView(db *database.DB, cfg *env.Config, logger *slog.Logger) *View {
-	avDb := db.WithSchema(cfg.AtpDBSchema)
+func NewAppView(db *database.DB, dbSchema string, handleSuffix string, logger *slog.Logger) *View {
+	avDb := db.WithSchema(dbSchema)
 	vm := &ViewMeta{avDb}
 	return &View{
 		meta:         vm,
-		handleSuffix: cfg.HandleSuffix,
+		handleSuffix: handleSuffix,
 		log:          logger.WithGroup("appview"),
 	}
 }

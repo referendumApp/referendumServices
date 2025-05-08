@@ -3,7 +3,6 @@ package car
 import (
 	"context"
 	"fmt"
-	"os"
 
 	blockstore "github.com/ipfs/boxo/blockstore"
 	blocks "github.com/ipfs/go-block-format"
@@ -111,18 +110,6 @@ func (ds *DeltaSession) GetSize(ctx context.Context, c cid.Cid) (int, error) {
 	}
 
 	return ds.base.GetSize(ctx, c)
-}
-
-func fnameForShard(user atp.Uid, seq int) string {
-	return fmt.Sprintf("sh-%d-%d", user, seq)
-}
-
-func keyForShard(user atp.Uid, seq int) string {
-	return fmt.Sprintf("sh-%d/seq-%d", user, seq)
-}
-
-func (cs *S3CarStore) deleteShardFile(sh *Shard) error {
-	return os.Remove(sh.Path)
 }
 
 // CloseWithRoot writes all new blocks in a car file to the writer with the

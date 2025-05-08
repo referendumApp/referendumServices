@@ -7,7 +7,7 @@ from common.database.referendum import crud, schemas
 
 from ..database import get_db
 from ..schemas.interactions import ErrorResponse
-from ..security import get_current_user_or_verify_system_token, verify_system_token
+from ..security import validate_user_or_verify_system_token, verify_system_token
 from ._core import EndpointGenerator, handle_crud_exceptions
 
 
@@ -44,7 +44,7 @@ EndpointGenerator.add_crud_routes(
 async def get_committee_legislators(
     committee_id: int,
     db: Session = Depends(get_db),
-    _: Dict[str, Any] = Depends(get_current_user_or_verify_system_token),
+    _: Dict[str, Any] = Depends(validate_user_or_verify_system_token),
 ) -> dict:
     return crud.committee.get_legislators(db=db, committee_id=committee_id)
 

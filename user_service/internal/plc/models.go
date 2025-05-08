@@ -1,9 +1,10 @@
 package plc
 
 import (
-	"fmt"
+	"encoding/json"
 	"time"
 
+	cbg "github.com/whyrusleeping/cbor-gen"
 	did "github.com/whyrusleeping/go-did"
 )
 
@@ -13,8 +14,8 @@ type Service struct {
 	Endpoint string `json:"endpoint" cborgen:"endpoint"`
 }
 
-// CreateOp PLC operation schema for creating a DID
-type CreateOp struct {
+// Op PLC operation schema
+type Op struct {
 	Prev                *string            `json:"prev"                cborgen:"prev"`
 	Type                string             `json:"type"                cborgen:"type"`
 	Sig                 string             `json:"sig"                 cborgen:"sig,omitempty"`
@@ -31,29 +32,39 @@ type TombstoneOp struct {
 	Sig  string `json:"sig"  cborgen:"sig,omitempty"`
 }
 
-// Op response schema from PLC server
-type Op struct {
+type Operation interface {
+	cbg.CBORMarshaler
+	cbg.CBORUnmarshaler
+}
+
+// LogOp response schema from PLC server
+type LogOp struct {
 	DID       did.DID   `json:"did"`
-	Operation CreateOp  `json:"operation"`
+	Operation Operation `json:"operation"`
 	CID       string    `json:"cid"`
 	Nullified bool      `json:"nullfied"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 
-func findLatestOp(log *[]Op) (*Op, error) {
-	derefLog := *log
-
-	if len(derefLog) == 0 {
-		return nil, fmt.Errorf("no operations found in PLC log")
+func (l *LogOp) UnmarshalJSON(data []byte) error {
+	type TempLogOp struct {
+		DID       did.DID   `json:"did"`
+		Operation *Op       `json:"operation"`
+		CID       string    `json:"cid"`
+		Nullified bool      `json:"nullified"`
+		CreatedAt time.Time `json:"createdAt"`
 	}
 
-	newest := &derefLog[0]
-
-	for _, op := range derefLog[1:] {
-		if op.CreatedAt.After(newest.CreatedAt) {
-			newest = &op
-		}
+	var temp TempLogOp
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
 	}
 
-	return newest, nil
+	l.DID = temp.DID
+	l.Operation = temp.Operation
+	l.CID = temp.CID
+	l.Nullified = temp.Nullified
+	l.CreatedAt = temp.CreatedAt
+
+	return nil
 }

@@ -1,7 +1,8 @@
-package server
+package service
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -38,7 +39,7 @@ func getOrCreateCustomWriter(w http.ResponseWriter) *CustomResponseWriter {
 	}
 }
 
-func (s *Server) logRequest(next http.Handler) http.Handler {
+func (s *Service) logRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
 
@@ -57,10 +58,8 @@ func (s *Server) logRequest(next http.Handler) http.Handler {
 			r.RemoteAddr,
 		)
 
-		// Call the next handler
 		next.ServeHTTP(rw, r)
 
-		// Log completion time
 		duration := fmt.Sprintf("%d ms", time.Since(startTime).Milliseconds())
 		s.log.InfoContext(
 			r.Context(),
@@ -74,5 +73,32 @@ func (s *Server) logRequest(next http.Handler) http.Handler {
 			"duration",
 			duration,
 		)
+	})
+}
+
+func withCancellation(parent context.Context, ch <-chan struct{}) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(parent)
+	go func() {
+		select {
+		case <-ch:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+	return ctx, cancel
+}
+
+func (s *Service) gracefulShutdown(next http.Handler, cancelCh <-chan struct{}) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := withCancellation(r.Context(), cancelCh)
+		defer cancel()
+		r = r.WithContext(ctx)
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (s *Service) requestTimeout(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.TimeoutHandler(next, 15*time.Second, "Request timed out").ServeHTTP(w, r)
 	})
 }

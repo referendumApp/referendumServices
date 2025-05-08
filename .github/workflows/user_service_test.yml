@@ -12,6 +12,12 @@ on:
       - "user_service/**"
       - ".github/workflows/user_service_test.yml"
 
+env:
+  AWS_ACCESS_KEY_ID: minioadmin
+  AWS_SECRET_ACCESS_KEY: minioadmin
+  MINIO_CONSOLE_PORT: 9001
+  KMS_PORT: 9002
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -33,11 +39,120 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
       - uses: actions/setup-go@v5
         with:
           go-version: "1.24"
           cache: true
           cache-dependency-path: user_service/go.sum
+
       - name: Build Lexicon Schema
         working-directory: user_service
         run: go run ./cmd/lexgen --build-file ./cmd/lexgen/build-config.json "./cmd/lexgen/lexicons/com/referendumapp"
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
+          cache-dependency-path: user_service/go.sum
+
+      - name: Set Go Cache Paths
+        id: go-cache-paths
+        run: |
+          echo "go-mod=$(go env GOMODCACHE)" >> $GITHUB_OUTPUT
+          echo "go-build=$(go env GOCACHE)" >> $GITHUB_OUTPUT
+
+      - name: Go Build Cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.go-cache-paths.outputs.go-build }}
+          key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-build-
+
+      - name: Pre-build Test Binary
+        working-directory: user_service
+        run: go test -c -tags=init,integration ./cmd/api/... ./internal/...
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Migration Docker Layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache-migrations
+          key: ${{ runner.os }}-buildx-migrations-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-migrations-
+
+      - name: Cache User Test Docker Layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache-user-tests
+          key: ${{ runner.os }}-buildx-user-tests-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-user-tests-
+
+      - name: Build Migrations Image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./data_service
+          file: ./data_service/Dockerfile
+          target: migrations
+          push: false
+          load: true
+          tags: migrations
+          cache-from: type=local,src=/tmp/.buildx-cache-migrations
+          cache-to: type=local,dest=/tmp/.buildx-cache-migrations-new,mode=max
+
+      - name: Build Test Image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./user_service
+          file: ./user_service/Dockerfile
+          target: test
+          push: false
+          load: true
+          tags: user-test
+          build-args: |
+            GOMODCACHE=${{ steps.go-cache-paths.outputs.go-build }}
+            GOCACHE=${{ steps.go-cache-paths.outputs.go-mod }}
+          cache-from: type=local,src=/tmp/.buildx-cache-user-tests
+          cache-to: type=local,dest=/tmp/.buildx-cache-user-tests-new,mode=max
+
+      # TODO: Bug with `--add-host host.docker.internal:host-gateway`
+      # https://github.com/docker/buildx/issues/1832
+      - name: Run Tests
+        run: |
+          docker run \
+            --name user-test \
+            --env CI=true \
+            --env AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID }} \
+            --env AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY }} \
+            --env MINIO_CONSOLE_PORT=${{ env.MINIO_CONSOLE_PORT }} \
+            --env KMS_PORT=${{ env.KMS_PORT }} \
+            --env-file .env \
+            --volume /var/run/docker.sock:/var/run/docker.sock \
+            --rm \
+            user-test
+
+      - name: Update Cache
+        run: |
+          echo "Removing old cache directory if it exists..."
+          rm -rf /tmp/.buildx-cache-migrations || true
+          rm -rf /tmp/.buildx-cache-user-tests || true
+          
+          echo "Creating new merged cache directory..."
+          mv /tmp/.buildx-cache-migrations-new /tmp/.buildx-cache-migrations
+          mv /tmp/.buildx-cache-user-tests-new /tmp/.buildx-cache-user-tests
+
+      - name: Clean Tests
+        if: always()
+        run: |
+          docker container prune -f
+          docker volume prune -f

@@ -1,3 +1,4 @@
+# TODO: Migrate all these endpoints
 import boto3
 import logging
 from datetime import datetime
@@ -10,7 +11,6 @@ from common.database.referendum import crud, schemas, models
 from common.database.referendum.crud import (
     ObjectAlreadyExistsException,
     ObjectNotFoundException,
-    DatabaseException,
     DependencyException,
 )
 
@@ -20,6 +20,7 @@ from ..schemas.interactions import ErrorResponse
 from ..security import (
     get_current_user,
     get_current_user_or_verify_system_token,
+    validate_user_or_verify_system_token,
 )
 from ._core import handle_general_exceptions, handle_crud_exceptions
 

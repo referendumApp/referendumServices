@@ -222,15 +222,15 @@ func (cs *StoreMeta) PutShardAndRefs(ctx context.Context, shard *Shard, brefs []
 // DeleteShardsAndRefs deletes records from the car_shards and block_refs tables
 func (cs *StoreMeta) DeleteShardsAndRefs(ctx context.Context, ids []uint) error {
 	if err := cs.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		sdFilter := sq.Eq{"id": ids}
-		if err := cs.DeleteWithTx(ctx, tx, &Shard{}, sdFilter); err != nil {
-			cs.Log.ErrorContext(ctx, "Error deleting shards", "error", err, "ids", ids)
-			return err
-		}
-
 		blkFilter := sq.Eq{"shard": ids}
 		if err := cs.DeleteWithTx(ctx, tx, &BlockRef{}, blkFilter); err != nil {
 			cs.Log.ErrorContext(ctx, "Error deleting block refs", "error", err, "ids", ids)
+			return err
+		}
+
+		sdFilter := sq.Eq{"id": ids}
+		if err := cs.DeleteWithTx(ctx, tx, &Shard{}, sdFilter); err != nil {
+			cs.Log.ErrorContext(ctx, "Error deleting shards", "error", err, "ids", ids)
 			return err
 		}
 

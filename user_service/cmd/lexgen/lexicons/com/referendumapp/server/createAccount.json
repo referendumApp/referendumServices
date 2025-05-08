@@ -10,23 +10,22 @@
         "schema": {
           "needsType": true,
           "type": "object",
-          "required": ["handle", "password", "email"],
+          "required": ["handle", "displayName", "password", "email"],
           "properties": {
             "email": {
               "type": "string",
               "format": "email",
-              "maxLength": 100
+              "maxLength": 60
             },
             "handle": {
               "type": "string",
               "format": "handle",
-              "description": "Requested handle for the account.",
-              "minLength": 8,
-              "maxLength": 100
+              "description": "Requested handle for the account."
             },
             "displayName": {
               "type": "string",
-              "maxLength": 100
+              "format": "name",
+              "maxLength": 60
             },
             "did": {
               "type": "string",
@@ -42,7 +41,7 @@
               "format": "strongpassword",
               "description": "Initial account password. May need to meet instance-specific password strength requirements.",
               "minLength": 8,
-              "maxLength": 100
+              "maxLength": 60
             },
             "recoveryKey": {
               "type": "string",
@@ -60,20 +59,18 @@
         "schema": {
           "type": "object",
           "description": "Account login session returned on successful account creation.",
-          "required": ["accessToken", "refreshToken", "handle", "did"],
+          "required": ["accessToken", "refreshToken", "handle", "displayName", "did", "tokenType"],
           "properties": {
-            "accessJwt": { "type": "string" },
-            "refreshJwt": { "type": "string" },
+            "accessToken": { "type": "string" },
+            "refreshToken": { "type": "string" },
             "handle": {
               "type": "string",
-              "format": "handle",
-              "minLength": 8,
-              "maxLength": 100
+              "format": "handle"
             },
             "displayName": {
               "type": "string",
-              "minLength": 8,
-              "maxLength": 100
+              "format": "name",
+              "maxLength": 60
             },
             "did": {
               "type": "string",
@@ -83,7 +80,8 @@
             "didDoc": {
               "type": "unknown",
               "description": "Complete DID document."
-            }
+            },
+            "tokenType": { "type": "string" }
           }
         }
       }

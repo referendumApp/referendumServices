@@ -43,7 +43,7 @@ class FormException(HTTPException):
 
 class CredentialsException(HTTPException):
     def __init__(self, detail: str):
-        self.status_code = status.HTTP_401_UNAUTHORIZED
+        self.status_code = status.HTTP_403_FORBIDDEN
         self.detail = detail
         self.headers = {"WWW-Authenticate": "Bearer"}
 
@@ -65,7 +65,12 @@ def get_password_hash(password: str) -> str:
 
 def decode_token(token: str):
     try:
-        return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        return jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM],
+            issuer=settings.USER_SERVICE_URL,
+        )
     except ExpiredSignatureError as e:
         logger.warning(f"Invalid access token: {str(e)}")
         raise CredentialsException(f"Invalid access token: {str(e)}")
@@ -87,7 +92,7 @@ def authenticate_user(db: Session, email: str, password: str) -> models.User:
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire, "type": "access"})
+    to_encode.update({"exp": expire, "type": "access", "iss": settings.USER_SERVICE_URL})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     logger.debug(f"Access token created for user: {data.get('sub')}")
     return encoded_jwt
@@ -96,10 +101,64 @@ def create_access_token(data: dict) -> str:
 def create_refresh_token(data: dict) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
-    to_encode.update({"exp": expire, "type": "refresh"})
+    to_encode.update({"exp": expire, "type": "refresh", "iss": settings.USER_SERVICE_URL})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     logger.debug(f"Refresh token created for user: {data.get('sub')}")
     return encoded_jwt
+
+
+async def validate_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    if not token:
+        raise CredentialsException("No token provided")
+
+    payload = decode_token(token)
+    if not payload:
+        raise CredentialsException("Decoded token returned None")
+
+    if payload.get("type") != "access":
+        raise CredentialsException("Invalid token type for access token")
+
+    uid = payload.get("sub")
+    if not uid:
+        raise CredentialsException("Missing user ID in access token")
+
+    did = payload.get("did")
+    if not did:
+        raise CredentialsException("Missing DID in access token")
+
+    try:
+        user = crud.validate_atp_user(db, int(uid), did)
+        if not user:
+            raise CredentialsException(f"User not found for ID: {uid}")
+        logger.info(f"User authenticated: {uid}")
+    except Exception as e:
+        raise CredentialsException(f"Error retrieving user: {str(e)}")
+
+
+async def validate_user_or_verify_system_token(
+    api_key: str = Security(api_key_header),
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+):
+    if api_key:
+        if api_key == settings.API_ACCESS_TOKEN:
+            logger.info("System token used for authentication")
+            return
+        else:
+            raise CredentialsException("Invalid API key provided")
+    if token:
+        try:
+            await validate_user(token, db)
+            return
+        except crud.ObjectNotFoundException:
+            raise CredentialsException("Could not find user for provided token")
+        except crud.DatabaseException as e:
+            logger.error(f"Database error during user authentication: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Database error: {str(e)}",
+            )
+    raise CredentialsException("No valid authentication provided")
 
 
 async def get_current_user(

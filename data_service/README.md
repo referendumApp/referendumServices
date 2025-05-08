@@ -6,7 +6,7 @@ Backend infrastructure for the Referendum mobile app
 
 1. **Prerequisites**
    - Docker and Docker Compose
-   - Python 3.11+
+   - Python 3.13+
    - [Referendum AWS Account](https://d-9a677b7194.awsapps.com/start)
    - AWS CLI configured with SSO access
 

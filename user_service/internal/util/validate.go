@@ -3,15 +3,23 @@ package util
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 	"unicode"
 
 	"github.com/go-playground/validator/v10"
-	refErr "github.com/referendumApp/referendumServices/internal/error"
 )
 
 // Validate new instance of a go-playground validator
 var Validate *validator.Validate
+
+var (
+	nameRegex   = regexp.MustCompile(`^[a-zA-Z]+([ ]?[a-zA-Z]+)*$`)
+	handleRegex = regexp.MustCompile(`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`)
+	didRegex    = regexp.MustCompile(`^did:[a-z]+:(?:[a-zA-Z0-9._:%-]*(?:%[0-9A-Fa-f]{2})?[a-zA-Z0-9._-]*)$`)
+)
+
+const specialCharacters = `!@#$%^&*()_-+=[]{};:'"\|,.<>?/~`
 
 func init() {
 	Validate = validator.New()
@@ -24,6 +32,9 @@ func init() {
 		return fld.Name
 	})
 
+	if err := Validate.RegisterValidation("name", ValidateName); err != nil {
+		panic(fmt.Sprintf("Error registering handle validator function: %v", err))
+	}
 	if err := Validate.RegisterValidation("handle", ValidateHandle); err != nil {
 		panic(fmt.Sprintf("Error registering handle validator function: %v", err))
 	}
@@ -38,11 +49,18 @@ func init() {
 	}
 }
 
-// ValidateHandle checks that the handle has the correct prefix
+// ValidateName checks that the name is formatted correctly
+func ValidateName(fl validator.FieldLevel) bool {
+	name := fl.Field().String()
+
+	return nameRegex.MatchString(name)
+}
+
+// ValidateHandle checks that the handle is formatted correctly
 func ValidateHandle(fl validator.FieldLevel) bool {
 	handle := fl.Field().String()
 
-	return strings.HasPrefix(handle, "at://")
+	return handleRegex.MatchString(handle)
 }
 
 // ValidateUsername applies validation based on either the handle or email
@@ -58,11 +76,11 @@ func ValidateUsername(fl validator.FieldLevel) bool {
 	return err == nil
 }
 
-// ValidateDID checks for the appropriate prefix
+// ValidateDID checks for the appropriate format
 func ValidateDID(fl validator.FieldLevel) bool {
 	did := fl.Field().String()
 
-	return strings.HasPrefix(did, "did:plc")
+	return didRegex.MatchString(did)
 }
 
 // ValidateStrongPassword checks for the password requirements
@@ -70,11 +88,11 @@ func ValidateStrongPassword(fl validator.FieldLevel) bool {
 	password := fl.Field().String()
 
 	// Check for at least one digit
-	hasDigit := false
+	var hasDigit bool
 	// Check for at least one uppercase letter
-	hasUpper := false
+	var hasUpper bool
 	// Check for at least one lowercase letter
-	hasLower := false
+	var hasLower bool
 
 	for _, char := range password {
 		switch {
@@ -88,48 +106,10 @@ func ValidateStrongPassword(fl validator.FieldLevel) bool {
 	}
 
 	// Check for at least one symbol
-	hasSymbol := false
-	symbols := "!@#$%^&*()_+-=[]{}|;':\",./<>?"
-	for _, char := range password {
-		if strings.ContainsRune(symbols, char) {
-			hasSymbol = true
-			break
-		}
+	var hasSymbol bool
+	if strings.ContainsAny(password, specialCharacters) {
+		hasSymbol = true
 	}
 
 	return hasDigit && hasUpper && hasLower && hasSymbol
-}
-
-// HandleFieldError initializes 'APIError' struct with the msg and type based on the validation error
-func HandleFieldError(e validator.FieldError) *refErr.APIError {
-	var errMsg string
-	var errType refErr.ValidationErrorType
-	switch e.ActualTag() {
-	case "required":
-		errMsg = "Required field is missing"
-		errType = refErr.MissingField
-	case "email":
-		errMsg = "Invalid email"
-		errType = refErr.InvalidInput
-	case "max":
-		errMsg = fmt.Sprintf("Must not exceed %s characters", e.Param())
-		errType = refErr.InvalidInput
-	case "min":
-		errMsg = fmt.Sprintf("Must be at least %s characters", e.Param())
-		errType = refErr.InvalidInput
-	case "strongpassword":
-		errMsg = "Password must contain: \n• At least one uppercase letter (A-Z)\n• At least one digit (0-9)\n• At least one special character"
-		errType = refErr.InvalidInput
-	case "identifier":
-		errMsg = "Invalid email or handle"
-		errType = refErr.InvalidInput
-	case "oneof":
-		errMsg = "Invalid value found"
-		errType = refErr.InvalidInput
-	default:
-		errMsg = "Validation failed"
-		errType = refErr.InvalidInput
-	}
-
-	return refErr.NewValidationFieldError(e.Field(), errMsg, errType)
 }

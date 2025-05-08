@@ -1,11 +1,11 @@
 package util
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,10 +25,16 @@ const (
 // TokenType type alias for access and refresh token types
 type TokenType string
 
-// token types
+// Auth token types
 const (
 	Access  TokenType = "access"
 	Refresh TokenType = "refresh"
+)
+
+// Token expiry times
+const (
+	AccessExpiry  = 30 * time.Minute
+	RefreshExpiry = 24 * time.Hour
 )
 
 // Auth Constants
@@ -84,6 +90,20 @@ type JWTConfig struct {
 	RefreshExpiry time.Duration
 }
 
+func NewConfig(sk []byte, iss string, method *jwt.SigningMethodHMAC) *JWTConfig {
+	return &JWTConfig{
+		SigningKey:    sk,
+		SigningMethod: method,
+		Issuer:        iss,
+		SubjectKey:    SubjectKey,
+		DidKey:        DidKey,
+		TokenLookup:   DefaultHeaderAuthorization,
+		AuthScheme:    DefaultAuthScheme,
+		TokenExpiry:   AccessExpiry,
+		RefreshExpiry: RefreshExpiry,
+	}
+}
+
 // CreateToken create the JWT token with all the necessary map claims
 func (j *JWTConfig) CreateToken(sub atp.Uid, did string, tokenType TokenType) (string, error) {
 	// Current time
@@ -103,7 +123,7 @@ func (j *JWTConfig) CreateToken(sub atp.Uid, did string, tokenType TokenType) (s
 	claims := jwt.MapClaims{
 		"iat":  now.Unix(),
 		"exp":  now.Add(exp).Unix(),
-		"sub":  sub,
+		"sub":  strconv.FormatUint(uint64(sub), 10),
 		"did":  did,
 		"iss":  j.Issuer,
 		"type": tokenType,
@@ -201,23 +221,34 @@ func ValidateToken(token *jwt.Token, tokenType TokenType) (atp.Uid, string, erro
 		return 0, "", fmt.Errorf("expected user did in subject")
 	}
 
-	jsonNum, ok := sub.(json.Number)
+	// TODO: re-enable this when the data service no longer needs the JWTs (python doesn't support non-string subs)
+	// jsonNum, ok := sub.(json.Number)
+	// if !ok {
+	// 	return 0, "", fmt.Errorf("expected subject to be a json.Number, got %T", sub)
+	// }
+	//
+	// subInt, err := jsonNum.Int64()
+	// if err != nil {
+	// 	return 0, "", fmt.Errorf("failed to convert subject to integer: %w", err)
+	// }
+	//
+	// if subInt < 0 {
+	// 	return 0, "", fmt.Errorf("subject contains negative value: %d", subInt)
+	// }
+	//
+	// maxUint := uint64(^uint(0)) // Maximum value for uint on current platform
+	// if uint64(subInt) > maxUint {
+	// 	return 0, "", fmt.Errorf("subject value too large for uint: %d", subInt)
+	// }
+
+	subStr, ok := sub.(string)
 	if !ok {
-		return 0, "", fmt.Errorf("expected subject to be a json.Number, got %T", sub)
+		return 0, "", fmt.Errorf("expected subject to be a string, got %T", sub)
 	}
 
-	subInt, err := jsonNum.Int64()
+	subInt, err := strconv.ParseUint(subStr, 10, 64)
 	if err != nil {
 		return 0, "", fmt.Errorf("failed to convert subject to integer: %w", err)
-	}
-
-	if subInt < 0 {
-		return 0, "", fmt.Errorf("subject contains negative value: %d", subInt)
-	}
-
-	maxUint := uint64(^uint(0)) // Maximum value for uint on current platform
-	if uint64(subInt) > maxUint {
-		return 0, "", fmt.Errorf("subject value too large for uint: %d", subInt)
 	}
 
 	uid := atp.Uid(uint(subInt))

@@ -22,11 +22,6 @@ func (v *View) validateHandle(ctx context.Context, handle string) *refErr.APIErr
 		return fieldErr.Invalid()
 	}
 
-	if strings.Contains(strings.TrimSuffix(handle, v.handleSuffix), ".") {
-		fieldErr := refErr.FieldError{Field: "handle", Message: "Invalid character '.'"}
-		return fieldErr.Invalid()
-	}
-
 	filter := sq.Eq{"handle": handle}
 	if exists, err := v.meta.userExists(ctx, filter); err != nil {
 		v.log.ErrorContext(ctx, "Error checking database for user handle", "error", err)
@@ -90,10 +85,10 @@ func (v *View) CreateUserAndPerson(ctx context.Context, user *atp.User, handle s
 
 // AuthenticateUser validates username and password for a create session request
 func (v *View) AuthenticateUser(ctx context.Context, username string, pw string) (*atp.User, *refErr.APIError) {
-	defaultErr := refErr.FieldError{Field: "username", Message: "Email or password not found"}
+	defaultErr := refErr.FieldError{Message: "Email or password not found"}
 	user, err := v.meta.authenticateUser(ctx, username)
 	if err != nil {
-		v.log.ErrorContext(ctx, "Failed to authenticate user", "error", err)
+		v.log.ErrorContext(ctx, "Failed to authenticate user", "error", err, "username", username)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, defaultErr.NotFound()
 		}
@@ -101,10 +96,10 @@ func (v *View) AuthenticateUser(ctx context.Context, username string, pw string)
 	}
 
 	if ok, verr := util.VerifyPassword(pw, user.HashedPassword.String); verr != nil {
-		v.log.ErrorContext(ctx, "Error verifying password", "error", verr)
+		v.log.ErrorContext(ctx, "Error verifying password", "error", verr, "username", username)
 		return nil, refErr.InternalServer()
 	} else if !ok {
-		v.log.ErrorContext(ctx, "Invalid login password")
+		v.log.ErrorContext(ctx, "Invalid login password", "username", username)
 		return nil, defaultErr.NotFound()
 	}
 
@@ -129,13 +124,14 @@ func (v *View) AuthenticateSession(ctx context.Context, uid atp.Uid, did string)
 // DeleteAccount deletes a user and person record from the DB
 func (v *View) DeleteAccount(ctx context.Context, uid atp.Uid, did string) *refErr.APIError {
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		updatedUser := atp.User{DeletedAt: sql.NullTime{Time: time.Now(), Valid: true}}
-		if err := v.meta.UpdateWithTx(ctx, tx, updatedUser, sq.Eq{"id": uid}); err != nil {
+		deletedAt := sql.NullTime{Time: time.Now(), Valid: true}
+
+		if err := v.meta.UpdateWithTx(ctx, tx, atp.User{DeletedAt: deletedAt}, sq.Eq{"id": uid}); err != nil {
 			v.log.ErrorContext(ctx, "Failed to delete user", "error", err)
 			return err
 		}
 
-		person := atp.Person{Handle: sql.NullString{Valid: false}, Settings: &atp.Settings{Deleted: true}}
+		person := atp.Person{Handle: sql.NullString{Valid: false}, Base: atp.Base{DeletedAt: deletedAt}}
 		if err := v.meta.UpdateWithTx(ctx, tx, person, sq.Eq{"uid": uid}); err != nil {
 			v.log.ErrorContext(ctx, "Failed to delete person", "error", err)
 			return err

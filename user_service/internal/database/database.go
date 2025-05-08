@@ -19,7 +19,7 @@ type DB struct {
 }
 
 // Connect intializes a DB struct without a schema
-func Connect(ctx context.Context, cfg *env.Config, logger *slog.Logger) (*DB, error) {
+func Connect(ctx context.Context, cfg *env.DBConfig, logger *slog.Logger) (*DB, error) {
 	log.Println("Setting up database connection pool")
 
 	dbLogger := logger.WithGroup("db")
@@ -34,14 +34,19 @@ func Connect(ctx context.Context, cfg *env.Config, logger *slog.Logger) (*DB, er
 		cfg.DBName,
 	)
 
-	conn, err := pgx.Connect(ctx, connStr)
+	tmpConn, err := pgx.Connect(ctx, connStr)
 	if err != nil {
 		log.Printf("Failed to establish postgres connection: %s\n", connStr)
 		return nil, err
 	}
+	defer func() {
+		if connErr := tmpConn.Close(ctx); err != nil {
+			log.Printf("Error closing temporary DB connection: %v\n", connErr)
+		}
+	}()
 
 	// Ping the database to validate the connection
-	if pingErr := conn.Ping(ctx); pingErr != nil {
+	if pingErr := tmpConn.Ping(ctx); pingErr != nil {
 		log.Printf("Failed to ping database: %s\n", connStr)
 		return nil, pingErr
 	}
@@ -80,6 +85,7 @@ func (db *DB) WithSchema(schema string) *DB {
 
 func (db *DB) Close() {
 	if db.pool != nil {
+		log.Println("Closing database pool connections")
 		db.pool.Close()
 	}
 }

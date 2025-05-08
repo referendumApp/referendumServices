@@ -1,17 +1,15 @@
-package server
+package service
 
 import (
-	"errors"
 	"net/http"
 	"time"
 
-	"github.com/go-playground/validator/v10"
 	refApp "github.com/referendumApp/referendumServices/internal/domain/lexicon/referendumapp"
 	refErr "github.com/referendumApp/referendumServices/internal/error"
 	"github.com/referendumApp/referendumServices/internal/util"
 )
 
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleHealth(w http.ResponseWriter, r *http.Request) {
 	if err := s.av.HandleHealth(w, r); err != nil {
 		err.WriteResponse(w)
 		return
@@ -27,12 +25,12 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	s.encode(r.Context(), w, http.StatusOK, resp)
 }
 
-func (s *Server) handleDescribeServer(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleDescribeServer(w http.ResponseWriter, r *http.Request) {
 	resp := s.pds.HandleAtprotoDescribeServer()
 	s.encode(r.Context(), w, http.StatusOK, resp)
 }
 
-func (s *Server) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var req refApp.ServerCreateAccount_Input
@@ -52,7 +50,7 @@ func (s *Server) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if cerr := s.av.CreateUserAndPerson(ctx, user, req.Handle, *req.DisplayName); cerr != nil {
+	if cerr := s.av.CreateUserAndPerson(ctx, user, req.Handle, req.DisplayName); cerr != nil {
 		cerr.WriteResponse(w)
 		return
 	}
@@ -66,7 +64,7 @@ func (s *Server) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 	s.encode(ctx, w, http.StatusCreated, resp)
 }
 
-func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	if err := r.ParseForm(); err != nil {
@@ -82,25 +80,8 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := util.Validate.Struct(login); err != nil {
-		var valErr validator.ValidationErrors
-		var fieldErrs []*refErr.APIError
-		if errors.As(err, &valErr) {
-			for _, e := range valErr {
-				s.log.Error(
-					"Request validation failed",
-					"field",
-					e.Field(),
-					"valdationTag",
-					e.ActualTag(),
-					"error",
-					e.Error(),
-				)
-				fieldErr := util.HandleFieldError(e)
-				fieldErrs = append(fieldErrs, fieldErr)
-			}
-		}
-
-		refErr.WriteFieldErrors(w, fieldErrs)
+		apiErr := s.handleValidationErrors(ctx, err)
+		apiErr.WriteResponse(w)
 		return
 	}
 
@@ -116,10 +97,10 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.encode(ctx, w, http.StatusOK, resp)
+	s.encode(ctx, w, http.StatusCreated, resp)
 }
 
-func (s *Server) handleRefreshSession(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleRefreshSession(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var req refApp.ServerRefreshSession_Input
@@ -141,20 +122,22 @@ func (s *Server) handleRefreshSession(w http.ResponseWriter, r *http.Request) {
 	s.encode(ctx, w, http.StatusOK, resp)
 }
 
-func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
-	_, did, err := s.getAndValidatePerson(r.Context())
+func (s *Service) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	_, did, err := s.getAndValidatePerson(ctx)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	if err := s.pds.DeleteSession(did); err != nil {
+	if err := s.pds.DeleteSession(ctx, did); err != nil {
 		err.WriteResponse(w)
 		return
 	}
 }
 
-func (s *Server) handleUserDelete(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleDeleteAccount(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	uid, did, err := s.getAndValidatePerson(ctx)
@@ -163,10 +146,10 @@ func (s *Server) handleUserDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// if err := s.pds.DeleteAccount(ctx, uid, did); err != nil {
-	// 	err.WriteResponse(w)
-	// 	return
-	// }
+	if err := s.pds.DeleteAccount(ctx, uid, did); err != nil {
+		err.WriteResponse(w)
+		return
+	}
 
 	if err := s.av.DeleteAccount(ctx, uid, did); err != nil {
 		err.WriteResponse(w)
@@ -174,7 +157,7 @@ func (s *Server) handleUserDelete(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) handleProfileUpdate(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleProfileUpdate(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var req refApp.PersonUpdateProfile_Input
@@ -205,7 +188,7 @@ func (s *Server) handleProfileUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) handleGetProfile(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleGetProfile(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	uid, _, err := s.getAndValidatePerson(ctx)
@@ -228,7 +211,7 @@ func (s *Server) handleGetProfile(w http.ResponseWriter, r *http.Request) {
 	s.encode(ctx, w, http.StatusOK, profile)
 }
 
-func (s *Server) handleGraphFollow(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleGraphFollow(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var req refApp.GraphFollow_Input
@@ -255,7 +238,7 @@ func (s *Server) handleGraphFollow(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) handleGraphFollowers(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleGraphFollowers(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	uid, _, err := s.getAndValidatePerson(ctx)
@@ -273,7 +256,7 @@ func (s *Server) handleGraphFollowers(w http.ResponseWriter, r *http.Request) {
 	s.encode(ctx, w, http.StatusOK, followers)
 }
 
-func (s *Server) handleGraphFollowing(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleGraphFollowing(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	uid, _, err := s.getAndValidatePerson(ctx)
