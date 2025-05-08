@@ -50,6 +50,7 @@ func (d *Docker) SetupKMS(ctx context.Context, cfg *env.Config) (*KMSContainer, 
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("KMS Port: %s", expPort)
 
 	kmsOnce.Do(func() {
 		// Create a Docker volume

@@ -44,6 +44,8 @@ func (d *Docker) SetupS3(ctx context.Context) (*S3Container, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("S3 API Port: %s", apiPort)
+	log.Printf("S3 Console Port: %s", consolePort)
 
 	s3Once.Do(func() {
 		s3Container, s3Err = d.pool.RunWithOptions(&dockertest.RunOptions{
