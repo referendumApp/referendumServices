@@ -145,6 +145,6 @@ jobs:
 
     - name: Clean Tests
       if: always()
-      run: docker compose --profile=user-test down -v
+      run: docker compose --profile user-test down -v
         # docker container prune -f
         # docker volume prune -f
