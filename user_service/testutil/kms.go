@@ -137,7 +137,7 @@ func (d *Docker) SetupKMS(ctx context.Context, cfg *env.Config) (*KMSContainer, 
 
 	log.Printf("Successfully setup KMS container on port: %s\n", kmsPort)
 
-	if err := os.Setenv("KMS_HOST", d.Host+":"+kmsPort); err != nil {
+	if err := os.Setenv("KMS_HOST", d.Host+":"+expPort); err != nil {
 		return nil, fmt.Errorf("failed to set KMS_HOST environment variable: %w", err)
 	}
 
