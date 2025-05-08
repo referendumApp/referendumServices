@@ -12,12 +12,12 @@ on:
       - "user_service/**"
       - ".github/workflows/user_service_test.yml"
 
-env:
-  AWS_ACCESS_KEY_ID: minioadmin
-  AWS_SECRET_ACCESS_KEY: minioadmin
-  MINIO_API_PORT: 19000
-  MINIO_CONSOLE_PORT: 19001
-  KMS_PORT: 19002
+# env:
+#   AWS_ACCESS_KEY_ID: minioadmin
+#   AWS_SECRET_ACCESS_KEY: minioadmin
+#   MINIO_API_PORT: 19000
+#   MINIO_CONSOLE_PORT: 19001
+#   KMS_PORT: 19002
 
 jobs:
   lint:
@@ -113,19 +113,19 @@ jobs:
     # TODO: Bug with `--add-host host.docker.internal:host-gateway`
     # https://github.com/docker/buildx/issues/1832
     - name: Run Tests
-      run: |
-        docker run \
-          --name user-test \
-          --env AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID }} \
-          --env AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY }} \
-          --env MINIO_API_PORT=${{ env.MINIO_API_PORT }} \
-          --env MINIO_CONSOLE_PORT=${{ env.MINIO_CONSOLE_PORT }} \
-          --env KMS_PORT=${{ env.KMS_PORT }} \
-          --env-file .env \
-          --volume /var/run/docker.sock:/var/run/docker.sock \
-          --add-host host.docker.internal:host-gateway \
-          --rm \
-          user-test
+      run: docker compose run --rm user-test
+        # docker run \
+        #   --name user-test \
+        #   --env AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID }} \
+        #   --env AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY }} \
+        #   --env MINIO_API_PORT=${{ env.MINIO_API_PORT }} \
+        #   --env MINIO_CONSOLE_PORT=${{ env.MINIO_CONSOLE_PORT }} \
+        #   --env KMS_PORT=${{ env.KMS_PORT }} \
+        #   --env-file .env \
+        #   --volume /var/run/docker.sock:/var/run/docker.sock \
+        #   --add-host host.docker.internal:host-gateway \
+        #   --rm \
+        #   user-test
 
     - name: Update Cache
       run: |
@@ -145,6 +145,6 @@ jobs:
 
     - name: Clean Tests
       if: always()
-      run: |
-        docker container prune -f
-        docker volume prune -f
+      run: docker compose --profile=user-test down -v
+        # docker container prune -f
+        # docker volume prune -f

@@ -68,7 +68,7 @@ func (d *Docker) SetupS3(ctx context.Context) (*S3Container, error) {
 
 		if s3Err = d.pool.Retry(func() error {
 			if _, err := s3Container.Exec(
-				[]string{"curl", "-f", fmt.Sprintf("http://%s:%s/minio/health/live", d.host, apiPort)},
+				[]string{"curl", "-f", fmt.Sprintf("http://%s:%s/minio/health/live", d.Host, apiPort)},
 				dockertest.ExecOptions{},
 			); err != nil {
 				return err
@@ -86,7 +86,7 @@ func (d *Docker) SetupS3(ctx context.Context) (*S3Container, error) {
 
 	log.Printf("Successfully setup S3 container on port: %s\n", s3Port)
 
-	if err := os.Setenv("S3_ENDPOINT_URL", "http://"+d.host+":"+s3Port); err != nil {
+	if err := os.Setenv("S3_ENDPOINT_URL", "http://"+d.Host+":"+s3Port); err != nil {
 		return nil, fmt.Errorf("failed to set KMS_HOST environment variable: %w", err)
 	}
 

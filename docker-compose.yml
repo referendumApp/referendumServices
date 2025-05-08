@@ -152,7 +152,7 @@ services:
       interval: 2s
       timeout: 5s
       retries: 5
-    profiles: ["local-data", "local-empty", "test", "user-test"]
+    profiles: ["local-data", "local-empty", "test"]
 
   minio:
     container_name: minio
@@ -240,7 +240,7 @@ services:
         condition: service_healthy
       local-db-init:
         condition: service_completed_successfully
-    profiles: ["local-data", "local-empty", "test", "user-test"]
+    profiles: ["local-data", "local-empty", "test"]
 
   pipeline:
     container_name: pipeline
@@ -289,11 +289,19 @@ services:
     environment:
       - AWS_ACCESS_KEY_ID=$S3_ACCESS_KEY
       - AWS_SECRET_ACCESS_KEY=$S3_SECRET_KEY
-      - MINIO_API_PORT=9000
-      - MINIO_CONSOLE_PORT=9001
-      - KMS_PORT=9002
+      - S3_ENDPOINT_URL=http://localhost:9000
+      - KMS_HOST=http:localhost:9002
+      # - MINIO_API_PORT=9000
+      # - MINIO_CONSOLE_PORT=9001
+      # - KMS_PORT=9002
+    depends_on:
+      minio:
+        condition: service_healthy
+      kms:
+        condition: service_healthy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    profiles: ["user-test"]
 
 volumes:
   postgres_data:

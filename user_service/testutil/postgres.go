@@ -60,7 +60,7 @@ func (d *Docker) SetupPostgres(ctx context.Context, cfg *env.DBConfig) (*Postgre
 			var err error
 			postgresDB, err = sql.Open("postgres", fmt.Sprintf(
 				"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-				d.host, postgresPort, cfg.PgUser, cfg.PgPassword, cfg.DBName,
+				d.Host, postgresPort, cfg.PgUser, cfg.PgPassword, cfg.DBName,
 			))
 			if err != nil {
 				return err
@@ -130,7 +130,7 @@ func (d *Docker) SetupPostgres(ctx context.Context, cfg *env.DBConfig) (*Postgre
 
 	log.Printf("Successfully setup postgres DB container on port: %s\n", postgresPort)
 
-	cfg.PgHost = d.host
+	cfg.PgHost = d.Host
 	cfg.PgPort = postgresPort
 
 	return &PostgresContainer{

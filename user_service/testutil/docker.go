@@ -22,7 +22,7 @@ var (
 type Docker struct {
 	pool    *dockertest.Pool
 	network *docker.Network
-	host    string
+	Host    string
 }
 
 // SetupDocker creates a pool and network
@@ -53,7 +53,7 @@ func SetupDocker() (*Docker, error) {
 
 	host := getLocalDockerHost(pool.Client)
 
-	return &Docker{pool: pool, network: network, host: host}, nil
+	return &Docker{pool: pool, network: network, Host: host}, nil
 }
 
 // CleanupDocker cleans up test docker network
