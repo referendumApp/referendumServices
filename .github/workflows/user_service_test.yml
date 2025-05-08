@@ -19,7 +19,6 @@ env:
   MINIO_CONSOLE_PORT: 9001
   KMS_PORT: 9002
 
-
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -107,7 +106,15 @@ jobs:
           GOCACHE=${{ env.GOCACHE }}
         cache-from: type=local,src=/tmp/.buildx-cache-user-tests
         cache-to: type=local,dest=/tmp/.buildx-cache-user-tests-new,mode=max
-    
+
+    - name: Cleanup before starting
+      run: |
+        docker container prune -f
+        # Kill any processes using the required ports
+        sudo kill -9 $(sudo lsof -t -i:9000) || true
+        sudo kill -9 $(sudo lsof -t -i:9001) || true
+        sudo kill -9 $(sudo lsof -t -i:9002) || true
+
     # TODO: Bug with `--add-host host.docker.internal:host-gateway`
     # https://github.com/docker/buildx/issues/1832
     - name: Run Tests
@@ -142,4 +149,6 @@ jobs:
 
     - name: Clean Tests
       if: always()
-      run: docker compose down -v
+      run: |
+        docker container prune -f
+        docker volume prune -f
