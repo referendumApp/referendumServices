@@ -1,8 +1,11 @@
 package testutil
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"os/exec"
+	"strings"
 	"sync"
 
 	"github.com/ory/dockertest/v3"
@@ -62,9 +65,47 @@ func (d *Docker) CleanupDocker() {
 }
 
 func (d *Docker) getLocalDockerHost() string {
+	if os.Getenv("CI") == "true" {
+		hostIP, err := d.getHostGatewayIP()
+		if err == nil && hostIP != "" {
+			log.Printf("Host IP found: %s", hostIP)
+			return hostIP
+		}
+
+		defaultIP, err := getDefaultRouteIP()
+		if err == nil && defaultIP != "" {
+			log.Printf("Default IP found: %s", defaultIP)
+			return defaultIP
+		}
+	}
+
 	if _, err := os.Stat("/.dockerenv"); err == nil {
 		return "host.docker.internal"
 	}
 
 	return "localhost"
+}
+
+func (d *Docker) getHostGatewayIP() (string, error) {
+	// Get details about the "bridge" network
+	network, err := d.pool.Client.NetworkInfo("bridge")
+	if err != nil {
+		return "", fmt.Errorf("failed to get bridge network info: %w", err)
+	}
+
+	// Extract the gateway IP address
+	if len(network.IPAM.Config) > 0 {
+		return network.IPAM.Config[0].Gateway, nil
+	}
+
+	return "", fmt.Errorf("no gateway found for bridge network")
+}
+
+func getDefaultRouteIP() (string, error) {
+	cmd := exec.Command("sh", "-c", "ip route | grep default | awk '{print $3}'")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
 }
