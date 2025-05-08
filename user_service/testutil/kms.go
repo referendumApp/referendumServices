@@ -106,7 +106,7 @@ func (d *Docker) SetupKMS(ctx context.Context, cfg *env.Config) (*KMSContainer, 
 		}
 
 		kmsPort = kmsContainer.GetPort(expPort + "/tcp")
-		kmsIP := s3Container.Container.NetworkSettings.Networks[d.network.Name].IPAddress
+		kmsIP := kmsContainer.Container.NetworkSettings.Networks[d.network.Name].IPAddress
 
 		if kmsErr = d.pool.Retry(func() error {
 			if ec, err := kmsContainer.Exec(
@@ -130,7 +130,7 @@ func (d *Docker) SetupKMS(ctx context.Context, cfg *env.Config) (*KMSContainer, 
 
 			return nil
 		}); kmsErr != nil {
-			_ = d.pool.Purge(s3Container)
+			_ = d.pool.Purge(kmsContainer)
 			log.Printf("KMS healthcheck failed: %v", kmsErr)
 			return
 		}
@@ -142,7 +142,7 @@ func (d *Docker) SetupKMS(ctx context.Context, cfg *env.Config) (*KMSContainer, 
 
 	log.Printf("Successfully setup KMS container on port: %s\n", kmsPort)
 
-	if err := os.Setenv("KMS_HOST", d.Host+":"+expPort); err != nil {
+	if err := os.Setenv("KMS_HOST", d.Host+":"+kmsPort); err != nil {
 		return nil, fmt.Errorf("failed to set KMS_HOST environment variable: %w", err)
 	}
 

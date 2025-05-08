@@ -67,6 +67,21 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-buildx-migrations-
 
+    - name: Set Go cache env vars
+      run: |
+        echo "GOCACHE=$(go env GOCACHE)" >> $GITHUB_ENV
+        echo "GOMODCACHE=$(go env GOMODCACHE)" >> $GITHUB_ENV
+
+    - name: Go Build Cache
+      uses: actions/cache@v3
+      with:
+        path: |
+          ${{ env.GOCACHE }}
+          ${{ env.GOMODCACHE }}
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
     - name: Cache User Test Docker Layers
       uses: actions/cache@v3
       with:
@@ -87,11 +102,6 @@ jobs:
         cache-from: type=local,src=/tmp/.buildx-cache-migrations
         cache-to: type=local,dest=/tmp/.buildx-cache-migrations-new,mode=max
 
-    - name: Set Go cache env vars
-      run: |
-        echo "GOCACHE=$(go env GOCACHE)" >> $GITHUB_ENV
-        echo "GOMODCACHE=$(go env GOMODCACHE)" >> $GITHUB_ENV
-
     - name: Build Test Image
       uses: docker/build-push-action@v6
       with:
@@ -106,9 +116,6 @@ jobs:
           GOCACHE=${{ env.GOCACHE }}
         cache-from: type=local,src=/tmp/.buildx-cache-user-tests
         cache-to: type=local,dest=/tmp/.buildx-cache-user-tests-new,mode=max
-
-    - name: Check Cache Directory
-      run: ls -la /tmp/.buildx-cache-user-tests/
 
     # TODO: Bug with `--add-host host.docker.internal:host-gateway`
     # https://github.com/docker/buildx/issues/1832

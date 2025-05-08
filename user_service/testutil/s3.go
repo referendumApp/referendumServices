@@ -12,6 +12,8 @@ import (
 	"github.com/referendumApp/referendumServices/pkg/common"
 )
 
+const apiPort = "9000"
+
 var (
 	s3Once      sync.Once
 	s3Container *dockertest.Resource
@@ -66,7 +68,7 @@ func (d *Docker) SetupS3(ctx context.Context) (*S3Container, error) {
 		}
 
 		// s3Port = s3Container.GetPort(apiPort + "/tcp")
-		s3Port = s3Container.GetPort("9000/tcp")
+		s3Port = s3Container.GetPort(apiPort + "/tcp")
 		s3IP := s3Container.Container.NetworkSettings.Networks[d.network.Name].IPAddress
 
 		log.Printf("MinIO Container ID: %s", s3Container.Container.ID)
@@ -93,7 +95,7 @@ func (d *Docker) SetupS3(ctx context.Context) (*S3Container, error) {
 		log.Printf("MinIO Port Bindings: %+v", containerInfo.NetworkSettings.Ports)
 		if s3Err = d.pool.Retry(func() error {
 			if ec, err := s3Container.Exec(
-				[]string{"curl", "-f", fmt.Sprintf("http://%s:%s/minio/health/live", s3IP, "9000")},
+				[]string{"curl", "-f", fmt.Sprintf("http://%s:%s/minio/health/live", s3IP, apiPort)},
 				dockertest.ExecOptions{},
 			); err != nil {
 				return err
