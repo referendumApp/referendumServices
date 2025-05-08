@@ -75,14 +75,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-build-
 
-      - name: Go Mod Cache
-        uses: actions/cache@v3
-        with:
-          path: ${{ steps.go-cache-paths.outputs.go-mod }}
-          key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-mod-
-      
       - name: Pre-build Test Binary
         working-directory: user_service
         run: go test -c -tags=init,integration ./cmd/api/... ./internal/...
