@@ -84,7 +84,7 @@ jobs:
         push: false
         load: true
         tags: user-test:latest
-        add-hosts: host.docker.internal:host-gateway
+        add-hosts: host.docker.internal=host-gateway
         build-args: |
           GOMODCACHE=${{ env.GOMODCACHE }}
           GOCACHE=${{ env.GOCACHE }}
