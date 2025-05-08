@@ -110,10 +110,39 @@ jobs:
     - name: Cleanup before starting
       run: |
         docker container prune -f
-        # Kill any processes using the required ports
-        sudo kill -9 $(sudo lsof -t -i:9000) || true
-        sudo kill -9 $(sudo lsof -t -i:9001) || true
-        sudo kill -9 $(sudo lsof -t -i:9002) || true
+        # Try several methods to find and kill processes on the ports
+        for port in 9000 9001 9002; do
+          echo "Checking port $port"
+          
+          # Method 1: Using lsof (if available)
+          if command -v lsof >/dev/null; then
+            pids=$(sudo lsof -i:$port -t 2>/dev/null || true)
+            if [ -n "$pids" ]; then
+              echo "Found processes using port $port: $pids"
+              sudo kill -9 $pids || true
+            fi
+          fi
+          
+          # Method 2: Using netstat (more widely available)
+          if command -v netstat >/dev/null; then
+            pids=$(sudo netstat -tulpn 2>/dev/null | grep ":$port " | awk '{print $7}' | cut -d'/' -f1 || true)
+            if [ -n "$pids" ]; then
+              echo "Found processes using port $port via netstat: $pids"
+              sudo kill -9 $pids || true
+            fi
+          fi
+          
+          # Method 3: Using ss (on newer systems)
+          if command -v ss >/dev/null; then
+            pids=$(sudo ss -tlpn 2>/dev/null | grep ":$port " | awk '{print $6}' | cut -d',' -f2 | cut -d'=' -f2 || true)
+            if [ -n "$pids" ]; then
+              echo "Found processes using port $port via ss: $pids"
+              sudo kill -9 $pids || true
+            fi
+          fi
+          
+          echo "Port $port should now be available"
+        done
 
     # TODO: Bug with `--add-host host.docker.internal:host-gateway`
     # https://github.com/docker/buildx/issues/1832
@@ -127,7 +156,6 @@ jobs:
           --env MINIO_CONSOLE_PORT=${{ env.MINIO_CONSOLE_PORT }} \
           --env KMS_PORT=${{ env.KMS_PORT }} \
           --env-file .env \
-          --volume /var/run/docker.sock:/var/run/docker.sock \
           --add-host host.docker.internal:host-gateway \
           user-test
 
