@@ -67,7 +67,7 @@ jobs:
         file: ./data_service/Dockerfile
         push: false
         load: true
-        tags: migrations
+        tags: migrations:latest
         cache-from: type=local,src=/tmp/.buildx-cache
         cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
 

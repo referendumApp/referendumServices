@@ -65,7 +65,7 @@ func (d *Docker) CleanupDocker() {
 }
 
 func (d *Docker) getLocalDockerHost() string {
-	if os.Getenv("CI") == "true" {
+	if _, err := os.Stat("/.dockerenv"); err == nil {
 		hostIP, err := d.getHostGatewayIP()
 		if err == nil && hostIP != "" {
 			log.Printf("Host IP found: %s", hostIP)
@@ -77,9 +77,7 @@ func (d *Docker) getLocalDockerHost() string {
 			log.Printf("Default IP found: %s", defaultIP)
 			return defaultIP
 		}
-	}
 
-	if _, err := os.Stat("/.dockerenv"); err == nil {
 		return "host.docker.internal"
 	}
 
