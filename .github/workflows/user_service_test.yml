@@ -107,8 +107,8 @@ jobs:
         cache-from: type=local,src=/tmp/.buildx-cache-user-tests
         cache-to: type=local,dest=/tmp/.buildx-cache-user-tests-new,mode=max
 
-    - name: Check Containers
-      run: docker ps
+    - name: Check Cache Directory
+      run: ls -la /tmp/.buildx-cache-user-tests/
 
     # TODO: Bug with `--add-host host.docker.internal:host-gateway`
     # https://github.com/docker/buildx/issues/1832
