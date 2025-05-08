@@ -53,105 +53,105 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    # - uses: actions/setup-go@v5
-    #   with:
-    #     go-version: "1.24"
-    #     cache: true
-    #     cache-dependency-path: user_service/go.sum
-    - name: Set Go Cache Paths
-      id: go-cache-paths
-      run: |
-        echo "::set-output name=go-build::$(go env GOCACHE)"
-        echo "::set-output name=go-mod::$(go env GOMODCACHE)"
+      # - uses: actions/setup-go@v5
+      #   with:
+      #     go-version: "1.24"
+      #     cache: true
+      #     cache-dependency-path: user_service/go.sum
+      - name: Set Go Cache Paths
+        id: go-cache-paths
+        run: |
+          echo "::set-output name=go-build::$(go env GOCACHE)"
+          echo "::set-output name=go-mod::$(go env GOMODCACHE)"
 
-    - name: Go Build Cache
-      uses: actions/cache@v2
-      with:
-        path: ${{ steps.go-cache-paths.outputs.go-build }}
-        key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+      - name: Go Build Cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.go-cache-paths.outputs.go-build }}
+          key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
 
-    - name: Go Mod Cache
-      uses: actions/cache@v2
-      with:
-        path: ${{ steps.go-cache-paths.outputs.go-mod }}
-        key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
+      - name: Go Mod Cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.go-cache-paths.outputs.go-mod }}
+          key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-    - name: Cache Migration Docker Layers
-      uses: actions/cache@v3
-      with:
-        path: /tmp/.buildx-cache-migrations
-        key: ${{ runner.os }}-buildx-migrations-${{ github.sha }}
-        restore-keys: |
-          ${{ runner.os }}-buildx-migrations-
+      - name: Cache Migration Docker Layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache-migrations
+          key: ${{ runner.os }}-buildx-migrations-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-migrations-
 
-    - name: Cache User Test Docker Layers
-      uses: actions/cache@v3
-      with:
-        path: /tmp/.buildx-cache-user-tests
-        key: ${{ runner.os }}-buildx-user-tests-${{ github.sha }}
-        restore-keys: |
-          ${{ runner.os }}-buildx-user-tests-
+      - name: Cache User Test Docker Layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache-user-tests
+          key: ${{ runner.os }}-buildx-user-tests-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-user-tests-
 
-    - name: Build Migrations Image
-      uses: docker/build-push-action@v6
-      with:
-        context: ./data_service
-        file: ./data_service/Dockerfile
-        target: migrations
-        push: false
-        load: true
-        tags: migrations
-        cache-from: type=local,src=/tmp/.buildx-cache-migrations
-        cache-to: type=local,dest=/tmp/.buildx-cache-migrations-new,mode=max
+      - name: Build Migrations Image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./data_service
+          file: ./data_service/Dockerfile
+          target: migrations
+          push: false
+          load: true
+          tags: migrations
+          cache-from: type=local,src=/tmp/.buildx-cache-migrations
+          cache-to: type=local,dest=/tmp/.buildx-cache-migrations-new,mode=max
 
-    - name: Build Test Image
-      uses: docker/build-push-action@v6
-      with:
-        context: ./user_service
-        file: ./user_service/Dockerfile
-        target: test
-        push: false
-        load: true
-        tags: user-test
-        build-args: |
-          GOMODCACHE=${{ steps.go-cache-paths.outputs.go-build }}
-          GOCACHE=${{ steps.go-cache-paths.outputs.go-mod }}
-        cache-from: type=local,src=/tmp/.buildx-cache-user-tests
-        cache-to: type=local,dest=/tmp/.buildx-cache-user-tests-new,mode=max
+      - name: Build Test Image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./user_service
+          file: ./user_service/Dockerfile
+          target: test
+          push: false
+          load: true
+          tags: user-test
+          build-args: |
+            GOMODCACHE=${{ steps.go-cache-paths.outputs.go-build }}
+            GOCACHE=${{ steps.go-cache-paths.outputs.go-mod }}
+          cache-from: type=local,src=/tmp/.buildx-cache-user-tests
+          cache-to: type=local,dest=/tmp/.buildx-cache-user-tests-new,mode=max
 
-    # TODO: Bug with `--add-host host.docker.internal:host-gateway`
-    # https://github.com/docker/buildx/issues/1832
-    - name: Run Tests
-      run: |
-        docker run \
-          --name user-test \
-          --env CI=true \
-          --env AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID }} \
-          --env AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY }} \
-          --env MINIO_CONSOLE_PORT=${{ env.MINIO_CONSOLE_PORT }} \
-          --env KMS_PORT=${{ env.KMS_PORT }} \
-          --env-file .env \
-          --volume /var/run/docker.sock:/var/run/docker.sock \
-          --rm \
-          user-test
+      # TODO: Bug with `--add-host host.docker.internal:host-gateway`
+      # https://github.com/docker/buildx/issues/1832
+      - name: Run Tests
+        run: |
+          docker run \
+            --name user-test \
+            --env CI=true \
+            --env AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID }} \
+            --env AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY }} \
+            --env MINIO_CONSOLE_PORT=${{ env.MINIO_CONSOLE_PORT }} \
+            --env KMS_PORT=${{ env.KMS_PORT }} \
+            --env-file .env \
+            --volume /var/run/docker.sock:/var/run/docker.sock \
+            --rm \
+            user-test
 
-    - name: Update Cache
-      run: |
-        echo "Removing old cache directory if it exists..."
-        rm -rf /tmp/.buildx-cache-migrations || true
-        rm -rf /tmp/.buildx-cache-user-tests || true
-        
-        echo "Creating new merged cache directory..."
-        mv /tmp/.buildx-cache-migrations-new /tmp/.buildx-cache-migrations
-        mv /tmp/.buildx-cache-user-tests-new /tmp/.buildx-cache-user-tests
+      - name: Update Cache
+        run: |
+          echo "Removing old cache directory if it exists..."
+          rm -rf /tmp/.buildx-cache-migrations || true
+          rm -rf /tmp/.buildx-cache-user-tests || true
+          
+          echo "Creating new merged cache directory..."
+          mv /tmp/.buildx-cache-migrations-new /tmp/.buildx-cache-migrations
+          mv /tmp/.buildx-cache-user-tests-new /tmp/.buildx-cache-user-tests
 
-    - name: Clean Tests
-      if: always()
-      run: |
-        docker container prune -f
-        docker volume prune -f
+      - name: Clean Tests
+        if: always()
+        run: |
+          docker container prune -f
+          docker volume prune -f
