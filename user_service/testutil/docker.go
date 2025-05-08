@@ -58,13 +58,15 @@ func SetupDocker() (*Docker, error) {
 
 // CleanupDocker cleans up test docker network
 func (d *Docker) CleanupDocker() {
+	var networkName string
 	if d.network != nil {
+		networkName = d.network.Name
 		if err := d.pool.Client.RemoveNetwork(d.network.ID); err != nil {
 			log.Printf("Could not delete test network: %s", err)
 		}
 	}
 
-	log.Println("Docker test network removed")
+	log.Printf("Docker test network removed: %s\n", networkName)
 }
 
 func getLocalDockerHost(c *docker.Client) string {
