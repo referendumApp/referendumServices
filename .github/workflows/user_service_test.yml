@@ -85,7 +85,7 @@ jobs:
         target: test
         push: false
         load: true
-        tags: user-test::${{ github.sha }}-${{ github.run_number }}
+        tags: user-test:${{ github.sha }}-${{ github.run_number }}
         build-args: |
           GOMODCACHE=${{ env.GOMODCACHE }}
           GOCACHE=${{ env.GOCACHE }}
