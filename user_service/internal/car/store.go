@@ -29,20 +29,20 @@ const bigShardThreshold = 2 << 20
 // Store interface for interacting with the CAR store
 type Store interface {
 	// TODO: not really part of general interface
-	CompactUserShards(ctx context.Context, user atp.Aid, skipBigShards bool) (*CompactionStats, error)
+	CompactUserShards(ctx context.Context, actor atp.Aid, skipBigShards bool) (*CompactionStats, error)
 	// TODO: not really part of general interface
 	GetCompactionTargets(ctx context.Context, shardCount int) ([]*CompactionTarget, error)
 	// TODO: not really part of general interface
 	PingStore(ctx context.Context) error
 
-	GetUserRepoHead(ctx context.Context, user atp.Aid) (cid.Cid, error)
-	GetUserRepoRev(ctx context.Context, user atp.Aid) (string, error)
-	ImportSlice(ctx context.Context, uid atp.Aid, since *string, carslice []byte) (cid.Cid, *DeltaSession, error)
-	NewDeltaSession(ctx context.Context, user atp.Aid, since *string) (*DeltaSession, error)
-	ReadOnlySession(user atp.Aid) (*DeltaSession, error)
-	ReadUserCar(ctx context.Context, user atp.Aid, sinceRev string, w io.Writer) error
-	Stat(ctx context.Context, usr atp.Aid) ([]UserStat, error)
-	WipeUserData(ctx context.Context, user atp.Aid) error
+	GetUserRepoHead(ctx context.Context, actor atp.Aid) (cid.Cid, error)
+	GetUserRepoRev(ctx context.Context, actor atp.Aid) (string, error)
+	ImportSlice(ctx context.Context, aid atp.Aid, since *string, carslice []byte) (cid.Cid, *DeltaSession, error)
+	NewDeltaSession(ctx context.Context, actor atp.Aid, since *string) (*DeltaSession, error)
+	ReadOnlySession(actor atp.Aid) (*DeltaSession, error)
+	ReadActorCar(ctx context.Context, actor atp.Aid, sinceRev string, w io.Writer) error
+	Stat(ctx context.Context, actor atp.Aid) ([]UserStat, error)
+	WipeUserData(ctx context.Context, actor atp.Aid) error
 }
 
 // S3CarStore contains all the dependencies for interacting with the CAR store in S3
@@ -98,16 +98,16 @@ func NewCarStore(
 // 	return cs.lastShardCache.check(user)
 // }
 
-func (cs *S3CarStore) removeLastShardCache(user atp.Aid) {
-	cs.lastShardCache.remove(user)
+func (cs *S3CarStore) removeLastShardCache(actor atp.Aid) {
+	cs.lastShardCache.remove(actor)
 }
 
 func (cs *S3CarStore) putLastShardCache(ls *Shard) {
 	cs.lastShardCache.put(ls)
 }
 
-func (cs *S3CarStore) getLastShard(ctx context.Context, user atp.Aid) (*Shard, error) {
-	return cs.lastShardCache.get(ctx, user)
+func (cs *S3CarStore) getLastShard(ctx context.Context, actor atp.Aid) (*Shard, error) {
+	return cs.lastShardCache.get(ctx, actor)
 }
 
 // PingStore checks that the S3 car store bucket exists
@@ -123,13 +123,13 @@ func (cs *S3CarStore) PingStore(ctx context.Context) error {
 var ErrRepoBaseMismatch = fmt.Errorf("attempted a delta session on top of the wrong previous head")
 
 // NewDeltaSession initializes a 'DeltaSession' struct
-func (cs *S3CarStore) NewDeltaSession(ctx context.Context, user atp.Aid, since *string) (*DeltaSession, error) {
+func (cs *S3CarStore) NewDeltaSession(ctx context.Context, actor atp.Aid, since *string) (*DeltaSession, error) {
 	ctx, span := otel.Tracer("carstore").Start(ctx, "NewSession")
 	defer span.End()
 
 	// TODO: ensure that we don't write updates on top of the wrong head
 	// this needs to be a compare and swap type operation
-	lastShard, err := cs.getLastShard(ctx, user)
+	lastShard, err := cs.getLastShard(ctx, actor)
 	if err != nil {
 		return nil, err
 	}
@@ -140,14 +140,14 @@ func (cs *S3CarStore) NewDeltaSession(ctx context.Context, user atp.Aid, since *
 
 	return &DeltaSession{
 		blks: make(map[cid.Cid]blocks.Block),
-		base: &userView{
-			user:     user,
+		base: &actorView{
+			actor:    actor,
 			cs:       cs.meta,
 			client:   cs.client,
 			prefetch: true,
 			cache:    make(map[cid.Cid]blocks.Block),
 		},
-		user:    user,
+		actor:   actor,
 		baseCid: lastShard.Root.CID,
 		cs:      cs,
 		seq:     lastShard.Seq + 1,
@@ -156,47 +156,47 @@ func (cs *S3CarStore) NewDeltaSession(ctx context.Context, user atp.Aid, since *
 }
 
 // ReadOnlySession initializes a 'DeltaSession' struct with read only capabilities
-func (cs *S3CarStore) ReadOnlySession(user atp.Aid) (*DeltaSession, error) {
+func (cs *S3CarStore) ReadOnlySession(actor atp.Aid) (*DeltaSession, error) {
 	return &DeltaSession{
-		base: &userView{
-			user:     user,
+		base: &actorView{
+			actor:    actor,
 			cs:       cs.meta,
 			client:   cs.client,
 			prefetch: false,
 			cache:    make(map[cid.Cid]blocks.Block),
 		},
 		readonly: true,
-		user:     user,
+		actor:    actor,
 		cs:       cs,
 	}, nil
 }
 
-// ReadUserCar reads an entire CAR file for a specific revision into a data stream
-func (cs *S3CarStore) ReadUserCar(
+// ReadActorCar reads an entire CAR file for a specific revision into a data stream
+func (cs *S3CarStore) ReadActorCar(
 	ctx context.Context,
-	user atp.Aid,
+	actor atp.Aid,
 	sinceRev string,
 	shardOut io.Writer,
 ) error {
-	ctx, span := otel.Tracer("carstore").Start(ctx, "ReadUserCar")
+	ctx, span := otel.Tracer("carstore").Start(ctx, "ReadActorCar")
 	defer span.End()
 
 	var earlySeq int
 	if sinceRev != "" {
 		var err error
-		earlySeq, err = cs.meta.SeqForRev(ctx, user, sinceRev)
+		earlySeq, err = cs.meta.SeqForRev(ctx, actor, sinceRev)
 		if err != nil {
 			return err
 		}
 	}
 
-	shards, err := cs.meta.GetUserShardsDesc(ctx, user, earlySeq)
+	shards, err := cs.meta.GetActorShardsDesc(ctx, actor, earlySeq)
 	if err != nil {
 		return err
 	}
 
 	if len(shards) == 0 {
-		return fmt.Errorf("no data found for user %d", user)
+		return fmt.Errorf("no data found for actor %d", actor)
 	}
 
 	// fast path!
@@ -216,7 +216,7 @@ func (cs *S3CarStore) ReadUserCar(
 	return nil
 }
 
-// inner loop part of ReadUserCar
+// inner loop part of ReadActorCar
 // copy shard blocks from disk to Writer
 func (cs *S3CarStore) writeShardBlocks(ctx context.Context, sh *Shard, shardOut io.Writer) error {
 	_, span := otel.Tracer("carstore").Start(ctx, "writeShardBlocks")
@@ -439,18 +439,18 @@ func (cs *S3CarStore) GetUserRepoRev(ctx context.Context, user atp.Aid) (string,
 	return lastShard.Rev, nil
 }
 
-// WipeUserData deletes a users CAR files and DB metadata
-func (cs *S3CarStore) WipeUserData(ctx context.Context, user atp.Aid) error {
-	shards, err := cs.meta.GetUserShards(ctx, user)
+// WipeUserData deletes an actor's CAR files and DB metadata
+func (cs *S3CarStore) WipeUserData(ctx context.Context, actor atp.Aid) error {
+	shards, err := cs.meta.GetActorShards(ctx, actor)
 	if err != nil {
 		return err
 	}
 
-	if err := cs.deleteShards(ctx, user, shards); err != nil {
+	if err := cs.deleteShards(ctx, actor, shards); err != nil {
 		return err
 	}
 
-	cs.removeLastShardCache(user)
+	cs.removeLastShardCache(actor)
 
 	return nil
 }
@@ -503,8 +503,8 @@ type UserStat struct {
 }
 
 // Stat returns a slice of root CIDs
-func (cs *S3CarStore) Stat(ctx context.Context, usr atp.Aid) ([]UserStat, error) {
-	shards, err := cs.meta.GetUserShards(ctx, usr)
+func (cs *S3CarStore) Stat(ctx context.Context, aid atp.Aid) ([]UserStat, error) {
+	shards, err := cs.meta.GetActorShards(ctx, aid)
 	if err != nil {
 		return nil, err
 	}
@@ -667,15 +667,15 @@ type CompactionStats struct {
 // CompactUserShards compacts user CAR shards
 func (cs *S3CarStore) CompactUserShards(
 	ctx context.Context,
-	user atp.Aid,
+	actor atp.Aid,
 	skipBigShards bool,
 ) (*CompactionStats, error) {
 	ctx, span := otel.Tracer("carstore").Start(ctx, "CompactUserShards")
 	defer span.End()
 
-	span.SetAttributes(attribute.Int64("user", int64(uint64(user)))) //nolint:gosec
+	span.SetAttributes(attribute.Int64("actor", int64(uint64(actor)))) //nolint:gosec
 
-	shards, err := cs.meta.GetUserShards(ctx, user)
+	shards, err := cs.meta.GetActorShards(ctx, actor)
 	if err != nil {
 		return nil, err
 	}
@@ -783,7 +783,7 @@ func (cs *S3CarStore) CompactUserShards(
 			continue
 		}
 
-		if err := cs.compactBucket(ctx, user, b, shardsById); err != nil {
+		if err := cs.compactBucket(ctx, actor, b, shardsById); err != nil {
 			return nil, fmt.Errorf("compact bucket: %w", err)
 		}
 
@@ -801,7 +801,7 @@ func (cs *S3CarStore) CompactUserShards(
 		}
 
 		stats.ShardsDeleted += len(todelete)
-		if err := cs.deleteShards(ctx, user, todelete); err != nil {
+		if err := cs.deleteShards(ctx, actor, todelete); err != nil {
 			return nil, fmt.Errorf("deleting shards: %w", err)
 		}
 	}

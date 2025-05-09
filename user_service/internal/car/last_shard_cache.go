@@ -24,11 +24,11 @@ func (lsc *lastShardCache) init() {
 	lsc.lastShardCache = make(map[atp.Aid]*Shard)
 }
 
-func (lsc *lastShardCache) check(user atp.Aid) *Shard {
+func (lsc *lastShardCache) check(actor atp.Aid) *Shard {
 	lsc.lscLk.Lock()
 	defer lsc.lscLk.Unlock()
 
-	ls, ok := lsc.lastShardCache[user]
+	ls, ok := lsc.lastShardCache[actor]
 	if ok {
 		return ls
 	}
@@ -36,11 +36,11 @@ func (lsc *lastShardCache) check(user atp.Aid) *Shard {
 	return nil
 }
 
-func (lsc *lastShardCache) remove(user atp.Aid) {
+func (lsc *lastShardCache) remove(actor atp.Aid) {
 	lsc.lscLk.Lock()
 	defer lsc.lscLk.Unlock()
 
-	delete(lsc.lastShardCache, user)
+	delete(lsc.lastShardCache, actor)
 }
 
 func (lsc *lastShardCache) put(ls *Shard) {
@@ -53,16 +53,16 @@ func (lsc *lastShardCache) put(ls *Shard) {
 	lsc.lastShardCache[ls.Uid] = ls
 }
 
-func (lsc *lastShardCache) get(ctx context.Context, user atp.Aid) (*Shard, error) {
+func (lsc *lastShardCache) get(ctx context.Context, actor atp.Aid) (*Shard, error) {
 	ctx, span := otel.Tracer("carstore").Start(ctx, "getLastShard")
 	defer span.End()
 
-	maybeLs := lsc.check(user)
+	maybeLs := lsc.check(actor)
 	if maybeLs != nil {
 		return maybeLs, nil
 	}
 
-	lastShard, err := lsc.source.GetLastShard(ctx, user)
+	lastShard, err := lsc.source.GetLastShard(ctx, actor)
 	if err != nil {
 		return nil, err
 	}

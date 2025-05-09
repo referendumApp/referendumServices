@@ -116,8 +116,8 @@ func (vm *ViewMeta) lookupUserQuery(ctx context.Context, filter sq.Sqlizer) (*at
 }
 
 // LookupUserByID queries user record by user ID
-func (vm *ViewMeta) LookupUserByID(ctx context.Context, uid atp.Aid) (*atp.User, error) {
-	filter := sq.Eq{"id": uid}
+func (vm *ViewMeta) LookupUserByID(ctx context.Context, aid atp.Aid) (*atp.User, error) {
+	filter := sq.Eq{"id": aid}
 	return vm.lookupUserQuery(ctx, filter)
 }
 
@@ -140,14 +140,14 @@ func (vm *ViewMeta) LookupUserByEmail(ctx context.Context, email string) (*atp.U
 }
 
 // LookupGraphFollowers queries user records with a join to user_follow_record filtered by 'target'
-func (vm *ViewMeta) LookupGraphFollowers(ctx context.Context, uid atp.Aid) ([]*atp.PersonBasic, error) {
-	filter := sq.Eq{"target": uid}
+func (vm *ViewMeta) LookupGraphFollowers(ctx context.Context, aid atp.Aid) ([]*atp.PersonBasic, error) {
+	filter := sq.Eq{"target": aid}
 	var leftTbl atp.PersonBasic
 	var rightTbl atp.UserFollowRecord
 
-	followers, err := database.SelectLeft(ctx, vm.DB, leftTbl, "uid", rightTbl, "follower", filter)
+	followers, err := database.SelectLeft(ctx, vm.DB, leftTbl, "aid", rightTbl, "follower", filter)
 	if err != nil {
-		vm.Log.ErrorContext(ctx, "Failed to lookup followers", "uid", uid)
+		vm.Log.ErrorContext(ctx, "Failed to lookup followers", "aid", aid)
 		return nil, err
 	}
 
@@ -155,14 +155,14 @@ func (vm *ViewMeta) LookupGraphFollowers(ctx context.Context, uid atp.Aid) ([]*a
 }
 
 // LookupGraphFollowing queries user records with a join to user_follow_record filtered by 'follower'
-func (vm *ViewMeta) LookupGraphFollowing(ctx context.Context, uid atp.Aid) ([]*atp.PersonBasic, error) {
-	filter := sq.Eq{"follower": uid}
+func (vm *ViewMeta) LookupGraphFollowing(ctx context.Context, aid atp.Aid) ([]*atp.PersonBasic, error) {
+	filter := sq.Eq{"follower": aid}
 	var leftTbl atp.PersonBasic
 	var rightTbl atp.UserFollowRecord
 
-	following, err := database.SelectLeft(ctx, vm.DB, leftTbl, "uid", rightTbl, "target", filter)
+	following, err := database.SelectLeft(ctx, vm.DB, leftTbl, "aid", rightTbl, "target", filter)
 	if err != nil {
-		vm.Log.ErrorContext(ctx, "Failed to lookup followers", "uid", uid)
+		vm.Log.ErrorContext(ctx, "Failed to lookup followers", "aid", aid)
 		return nil, err
 	}
 
@@ -170,8 +170,8 @@ func (vm *ViewMeta) LookupGraphFollowing(ctx context.Context, uid atp.Aid) ([]*a
 }
 
 // GetPersonBasicProfile queries person record for the basic profile
-func (vm *ViewMeta) GetPersonBasicProfile(ctx context.Context, uid atp.Aid) (*atp.PersonBasic, error) {
-	query, err := database.BuildSelect(&atp.PersonBasic{}, vm.Schema, sq.Eq{"uid": uid})
+func (vm *ViewMeta) GetPersonBasicProfile(ctx context.Context, aid atp.Aid) (*atp.PersonBasic, error) {
+	query, err := database.BuildSelect(&atp.PersonBasic{}, vm.Schema, sq.Eq{"aid": aid})
 	if err != nil {
 		vm.Log.ErrorContext(ctx, "Error building profile select query", "error", err)
 		return nil, err
@@ -185,7 +185,7 @@ func (vm *ViewMeta) GetPersonBasicProfile(ctx context.Context, uid atp.Aid) (*at
 
 	profile, err := database.Get[atp.PersonBasic](ctx, vm.DB, sql, args...)
 	if err != nil {
-		vm.Log.ErrorContext(ctx, "Failed getting profile", "sql", sql, "uid", uid)
+		vm.Log.ErrorContext(ctx, "Failed getting profile", "sql", sql, "aid", aid)
 		return nil, err
 	}
 

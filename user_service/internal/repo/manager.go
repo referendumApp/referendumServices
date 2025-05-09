@@ -429,7 +429,7 @@ func (rm *Manager) GetRepoRev(ctx context.Context, user atp.Aid) (string, error)
 // ReadRepo reads a CAR file for a given revision
 // TODO: might be worth having a type alias for revisions
 func (rm *Manager) ReadRepo(ctx context.Context, user atp.Aid, since string, w io.Writer) error {
-	return rm.cs.ReadUserCar(ctx, user, since, w)
+	return rm.cs.ReadActorCar(ctx, user, since, w)
 }
 
 // GetRecord reads a record into the 'rev' interface

@@ -107,32 +107,32 @@ func (v *View) AuthenticateUser(ctx context.Context, username string, pw string)
 }
 
 // AuthenticateSession validates a session based on the user ID and DID
-func (v *View) AuthenticateSession(ctx context.Context, uid atp.Aid, did string) *refErr.APIError {
-	filter := sq.Eq{"id": uid, "did": did}
+func (v *View) AuthenticateSession(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
+	filter := sq.Eq{"id": aid, "did": did}
 	exists, err := v.meta.userExists(ctx, filter)
 	if err != nil {
 		v.log.ErrorContext(ctx, "Failed to lookup user", "error", err)
 		return refErr.BadRequest("Failed to find user with refresh token")
 	} else if !exists {
-		v.log.ErrorContext(ctx, "User does not exist", "uid", uid, "did", did)
-		return refErr.NotFound(uid, "user ID")
+		v.log.ErrorContext(ctx, "User does not exist", "uid", aid, "did", did)
+		return refErr.NotFound(aid, "user ID")
 	}
 
 	return nil
 }
 
 // DeleteAccount deletes a user and person record from the DB
-func (v *View) DeleteAccount(ctx context.Context, uid atp.Aid, did string) *refErr.APIError {
+func (v *View) DeleteAccount(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		deletedAt := sql.NullTime{Time: time.Now(), Valid: true}
 
-		if err := v.meta.UpdateWithTx(ctx, tx, atp.User{DeletedAt: deletedAt}, sq.Eq{"id": uid}); err != nil {
+		if err := v.meta.UpdateWithTx(ctx, tx, atp.User{DeletedAt: deletedAt}, sq.Eq{"id": aid}); err != nil {
 			v.log.ErrorContext(ctx, "Failed to delete user", "error", err)
 			return err
 		}
 
 		person := atp.Person{Handle: sql.NullString{Valid: false}, Base: atp.Base{DeletedAt: deletedAt}}
-		if err := v.meta.UpdateWithTx(ctx, tx, person, sq.Eq{"uid": uid}); err != nil {
+		if err := v.meta.UpdateWithTx(ctx, tx, person, sq.Eq{"aid": aid}); err != nil {
 			v.log.ErrorContext(ctx, "Failed to delete person", "error", err)
 			return err
 		}
@@ -146,7 +146,7 @@ func (v *View) DeleteAccount(ctx context.Context, uid atp.Aid, did string) *refE
 }
 
 // UpdateProfile updates a user profile with a new handle, email, or display name
-func (v *View) UpdateProfile(ctx context.Context, uid atp.Aid, req *refApp.PersonUpdateProfile_Input) *refErr.APIError {
+func (v *View) UpdateProfile(ctx context.Context, aid atp.Aid, req *refApp.PersonUpdateProfile_Input) *refErr.APIError {
 	var newUser atp.User
 	if req.Handle != nil {
 		handle := *req.Handle
@@ -171,7 +171,7 @@ func (v *View) UpdateProfile(ctx context.Context, uid atp.Aid, req *refApp.Perso
 	}
 
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		if err := v.meta.UpdateWithTx(ctx, tx, &newUser, sq.Eq{"id": uid}); err != nil && !errors.Is(err, database.ErrNoFields) {
+		if err := v.meta.UpdateWithTx(ctx, tx, &newUser, sq.Eq{"id": aid}); err != nil && !errors.Is(err, database.ErrNoFields) {
 			v.log.ErrorContext(ctx, "Failed to update user", "error", err)
 			return err
 		}
@@ -181,7 +181,7 @@ func (v *View) UpdateProfile(ctx context.Context, uid atp.Aid, req *refApp.Perso
 			Handle:      newUser.Handle,
 		}
 
-		if err := v.meta.UpdateWithTx(ctx, tx, actor, sq.Eq{"uid": uid}); err != nil && !errors.Is(err, database.ErrNoFields) {
+		if err := v.meta.UpdateWithTx(ctx, tx, actor, sq.Eq{"aid": aid}); err != nil && !errors.Is(err, database.ErrNoFields) {
 			v.log.ErrorContext(ctx, "Failed to update person profile", "error", err)
 			return err
 		}

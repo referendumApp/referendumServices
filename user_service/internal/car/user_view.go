@@ -33,32 +33,32 @@ var blockGetTotalCounterNormal = blockGetTotalCounter.WithLabelValues("false", "
 // userView needs these things to get into the underlying block store
 // implemented by StoreMeta
 type userViewSource interface {
-	HasUidCid(ctx context.Context, user atp.Aid, k cid.Cid) (bool, error)
+	HasAidCid(ctx context.Context, user atp.Aid, k cid.Cid) (bool, error)
 	LookupBlockRef(ctx context.Context, k cid.Cid) (path string, offset int64, user atp.Aid, err error)
 }
 
-// wrapper into a block store that keeps track of which user we are working on behalf of
-type userView struct {
+// wrapper into a block store that keeps track of which actor we are working on behalf of
+type actorView struct {
 	client *s3Client
 	cs     userViewSource
-	user   atp.Aid
+	actor  atp.Aid
 
 	cache    map[cid.Cid]blocks.Block
 	prefetch bool
 }
 
-var _ blockstore.Blockstore = (*userView)(nil)
+var _ blockstore.Blockstore = (*actorView)(nil)
 
 // HashOnRead noop
-func (uv *userView) HashOnRead(hor bool) {}
+func (av *actorView) HashOnRead(hor bool) {}
 
 // Has checks cache and DB for a CID
-func (uv *userView) Has(ctx context.Context, k cid.Cid) (bool, error) {
-	_, have := uv.cache[k]
+func (av *actorView) Has(ctx context.Context, k cid.Cid) (bool, error) {
+	_, have := av.cache[k]
 	if have {
 		return have, nil
 	}
-	return uv.cs.HasUidCid(ctx, uv.user, k)
+	return av.cs.HasAidCid(ctx, av.actor, k)
 }
 
 // CacheHits counter for user view cache hits
@@ -68,12 +68,12 @@ var CacheHits int64
 var CacheMiss int64
 
 // Get the blocks for a given CID
-func (uv *userView) Get(ctx context.Context, k cid.Cid) (blocks.Block, error) {
+func (av *actorView) Get(ctx context.Context, k cid.Cid) (blocks.Block, error) {
 	if !k.Defined() {
 		return nil, fmt.Errorf("attempted to 'get' undefined cid")
 	}
-	if uv.cache != nil {
-		blk, ok := uv.cache[k]
+	if av.cache != nil {
+		blk, ok := av.cache[k]
 		if ok {
 			blockGetTotalCounterCached.Add(1)
 			atomic.AddInt64(&CacheHits, 1)
@@ -83,7 +83,7 @@ func (uv *userView) Get(ctx context.Context, k cid.Cid) (blocks.Block, error) {
 	}
 	atomic.AddInt64(&CacheMiss, 1)
 
-	path, offset, user, err := uv.cs.LookupBlockRef(ctx, k)
+	path, offset, actor, err := av.cs.LookupBlockRef(ctx, k)
 	if err != nil {
 		return nil, err
 	}
@@ -91,8 +91,8 @@ func (uv *userView) Get(ctx context.Context, k cid.Cid) (blocks.Block, error) {
 		return nil, ipld.ErrNotFound{Cid: k}
 	}
 
-	prefetch := uv.prefetch
-	if user != uv.user {
+	prefetch := av.prefetch
+	if actor != av.actor {
 		blockGetTotalCounterUsrskip.Add(1)
 		prefetch = false
 	} else {
@@ -100,9 +100,9 @@ func (uv *userView) Get(ctx context.Context, k cid.Cid) (blocks.Block, error) {
 	}
 
 	if prefetch {
-		return uv.prefetchRead(ctx, k, path, offset)
+		return av.prefetchRead(ctx, k, path, offset)
 	} else {
-		return uv.singleRead(ctx, k, path, offset)
+		return av.singleRead(ctx, k, path, offset)
 	}
 }
 
@@ -146,7 +146,7 @@ func offsetBytes(r io.ReadCloser, offset int64) error {
 
 const prefetchThreshold = 512 << 10
 
-func (uv *userView) prefetchRead(
+func (av *actorView) prefetchRead(
 	ctx context.Context,
 	k cid.Cid,
 	path string,
@@ -155,7 +155,7 @@ func (uv *userView) prefetchRead(
 	_, span := otel.Tracer("carstore").Start(ctx, "getLastShard")
 	defer span.End()
 
-	obj, err := uv.client.readFile(ctx, path, nil)
+	obj, err := av.client.readFile(ctx, path, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -188,10 +188,10 @@ func (uv *userView) prefetchRead(
 			return nil, err
 		}
 
-		uv.cache[blk.Cid()] = blk
+		av.cache[blk.Cid()] = blk
 	}
 
-	outblk, ok := uv.cache[k]
+	outblk, ok := av.cache[k]
 	if !ok {
 		return nil, fmt.Errorf("requested block was not found in car slice")
 	}
@@ -199,13 +199,13 @@ func (uv *userView) prefetchRead(
 	return outblk, nil
 }
 
-func (uv *userView) singleRead(
+func (av *actorView) singleRead(
 	ctx context.Context,
 	k cid.Cid,
 	path string,
 	offset int64,
 ) (blocks.Block, error) {
-	obj, err := uv.client.readFile(ctx, path, &offset)
+	obj, err := av.client.readFile(ctx, path, &offset)
 	if err != nil {
 		return nil, err
 	}
@@ -217,29 +217,29 @@ func (uv *userView) singleRead(
 }
 
 // AllKeysChan not implemented
-func (uv *userView) AllKeysChan(ctx context.Context) (<-chan cid.Cid, error) {
+func (av *actorView) AllKeysChan(ctx context.Context) (<-chan cid.Cid, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
 // Put userView is readonly
-func (uv *userView) Put(ctx context.Context, blk blocks.Block) error {
+func (av *actorView) Put(ctx context.Context, blk blocks.Block) error {
 	return fmt.Errorf("puts not supported to car view blockstores")
 }
 
 // PutMany userView is readonly
-func (uv *userView) PutMany(ctx context.Context, blks []blocks.Block) error {
+func (av *actorView) PutMany(ctx context.Context, blks []blocks.Block) error {
 	return fmt.Errorf("puts not supported to car view blockstores")
 }
 
 // DeleteBlock userView is readonly
-func (uv *userView) DeleteBlock(ctx context.Context, k cid.Cid) error {
+func (av *actorView) DeleteBlock(ctx context.Context, k cid.Cid) error {
 	return fmt.Errorf("deletes not supported to car view blockstore")
 }
 
 // GetSize returns block size
-func (uv *userView) GetSize(ctx context.Context, k cid.Cid) (int, error) {
+func (av *actorView) GetSize(ctx context.Context, k cid.Cid) (int, error) {
 	// TODO: maybe block size should be in the database record...
-	blk, err := uv.Get(ctx, k)
+	blk, err := av.Get(ctx, k)
 	if err != nil {
 		return 0, err
 	}
