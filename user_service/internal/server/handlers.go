@@ -72,33 +72,30 @@ func (s *Server) handleCreateLegislator(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// pw, err := s.av.ResolveHandle(ctx, &req)
-	//
-	//	if err != nil {
-	//		err.WriteResponse(w)
-	//		return
-	//	}
-	//
-	// user, err := s.pds.CreateUser(ctx, req, pw)
-	//
-	//	if err != nil {
-	//		err.WriteResponse(w)
-	//		return
-	//	}
-	//
-	//	if cerr := s.av.CreateUserAndPerson(ctx, user, req.Handle, req.DisplayName); cerr != nil {
-	//		cerr.WriteResponse(w)
-	//		return
-	//	}
-	//
-	// resp, err := s.pds.CreateNewRepo(ctx, user, req.DisplayName)
-	//
-	//	if err != nil {
-	//		err.WriteResponse(w)
-	//		return
-	//	}
-	//
-	// s.encode(ctx, w, http.StatusCreated, resp)
+	handle, err := s.av.ResolveLegislatorHandle(ctx, &req)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	legislator, err := s.pds.CreateLegislator(ctx, req, *handle)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	if cerr := s.av.CreateLegislatorAndPerson(ctx, legislator, *handle); cerr != nil {
+		cerr.WriteResponse(w)
+		return
+	}
+
+	resp, err := s.pds.CreateNewLegislatorRepo(ctx, legislator)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	s.encode(ctx, w, http.StatusCreated, resp)
 }
 
 func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {

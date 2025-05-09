@@ -10,9 +10,9 @@
           "schema": {
             "needsType": true,
             "type": "object",
-            "required": ["legiscanId", "name", "district", "party", "role", "state", "legislature"],
+            "required": ["legislatorId", "name", "district", "party", "role", "state", "legislature"],
             "properties": {
-              "legiscanId": {
+              "legislatorId": {
                 "type": "integer"
               },
               "name": {
@@ -68,12 +68,15 @@
           "schema": {
             "type": "object",
             "description": "Confirmation returned on successful legislator creation.",
-            "required": ["did"],
+            "required": ["did", "handle"],
             "properties": {
               "did": {
                 "type": "string",
-                "format": "did",
-                "description": "The DID of the new account."
+                "format": "did"
+              },
+              "handle": {
+                "type": "string",
+                "format": "handle"
               }
             }
           }

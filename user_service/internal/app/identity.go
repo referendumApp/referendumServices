@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -28,6 +29,24 @@ func (v *View) validateHandle(ctx context.Context, handle string) *refErr.APIErr
 		return refErr.InternalServer()
 	} else if exists {
 		fieldErr := refErr.FieldError{Field: "handle", Message: "Handle already exists"}
+		return fieldErr.Conflict()
+	}
+
+	return nil
+}
+
+func (v *View) validateLegislatorId(ctx context.Context, legislatorId int64) *refErr.APIError {
+	if legislatorId <= 0 {
+		fieldErr := refErr.FieldError{Field: "legislatorId", Message: "LegislatorId must be a positive integer"}
+		return fieldErr.Invalid()
+	}
+
+	filter := sq.Eq{"legislatorId": legislatorId}
+	if exists, err := v.meta.legislatorExists(ctx, filter); err != nil {
+		v.log.ErrorContext(ctx, "Error checking database for legislatorId", "error", err)
+		return refErr.InternalServer()
+	} else if exists {
+		fieldErr := refErr.FieldError{Field: "legislatorId", Message: "LegislatorId already exists"}
 		return fieldErr.Conflict()
 	}
 
@@ -81,6 +100,43 @@ func (v *View) CreateUserAndPerson(ctx context.Context, user *atp.User, handle s
 		return refErr.Database()
 	}
 	return nil
+}
+
+// CreateLegislatorAndPerson inserts a user and person record to the DB
+func (v *View) CreateLegislatorAndPerson(
+	ctx context.Context,
+	legislator *atp.Legislator,
+	handle string,
+) *refErr.APIError {
+	if err := v.meta.createLegislatorAndPerson(ctx, legislator, handle); err != nil {
+		return refErr.Database()
+	}
+	return nil
+}
+
+// ResolveLegislatorHandle validates legislatorId for create legislator request
+func (v *View) ResolveLegislatorHandle(
+	ctx context.Context,
+	req *refApp.ServerCreateLegislator_Input,
+) (*string, *refErr.APIError) {
+	if err := v.validateLegislatorId(ctx, req.LegislatorId); err != nil {
+		v.log.ErrorContext(ctx, "Error validating legislatorId", "error", err)
+		return nil, err
+	}
+
+	filter := sq.Eq{"legislatorId": req.LegislatorId}
+	if exists, err := v.meta.legislatorExists(ctx, filter); err != nil {
+		v.log.ErrorContext(ctx, "Error checking database for legislatorId", "error", err)
+		return nil, refErr.InternalServer()
+	} else if exists {
+		nerr := errors.New("legislator already exists")
+		v.log.ErrorContext(ctx, nerr.Error(), "legislator", req.LegislatorId)
+		fieldErr := refErr.FieldError{Field: "legislatorId", Message: nerr.Error()}
+		return nil, fieldErr.Conflict()
+	}
+
+	handle := fmt.Sprintf("refLegislator%d", req.LegislatorId)
+	return &handle, nil
 }
 
 // AuthenticateUser validates username and password for a create session request

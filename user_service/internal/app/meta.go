@@ -71,6 +71,34 @@ func (vm *ViewMeta) createUserAndPerson(ctx context.Context, user *atp.User, han
 	})
 }
 
+func (vm *ViewMeta) createLegislatorAndPerson(ctx context.Context, legislator *atp.Legislator, handle string) error {
+	return vm.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		row, err := database.CreateReturningWithTx(ctx, vm.DB, tx, legislator, "id")
+		if err != nil {
+			vm.Log.ErrorContext(ctx, "Failed to create legislator", "error", err)
+			return err
+		}
+
+		if serr := row.Scan(&legislator.ID); serr != nil {
+			vm.Log.ErrorContext(ctx, "Failed to scan new Legislator ID", "error", serr)
+			return serr
+		}
+
+		actor := &atp.Person{
+			Uid:    legislator.ID,
+			Did:    legislator.Did,
+			Handle: sql.NullString{String: handle, Valid: true},
+		}
+
+		if err := vm.CreateWithTx(ctx, tx, actor); err != nil {
+			vm.Log.ErrorContext(ctx, "Failed to create person", "error", err)
+			return err
+		}
+
+		return nil
+	})
+}
+
 func (vm *ViewMeta) authenticateUser(ctx context.Context, uname string) (*atp.User, error) {
 	var user atp.User
 	sql := fmt.Sprintf(
@@ -95,6 +123,24 @@ func (vm *ViewMeta) userExists(ctx context.Context, filter sq.Eq) (bool, error) 
 
 	if err != nil {
 		vm.Log.InfoContext(ctx, "Error building user exists query", "error", err)
+		return false, err
+	}
+
+	sql := fmt.Sprintf("SELECT EXISTS(%s)", innerSql)
+
+	err = vm.DB.GetRow(ctx, sql, args...).Scan(&exists)
+	return exists, err
+}
+
+func (vm *ViewMeta) legislatorExists(ctx context.Context, filter sq.Eq) (bool, error) {
+	var exists bool
+	innerSql, args, err := sq.Select("id").
+		From(vm.Schema + ".legislator").
+		Where(filter).
+		PlaceholderFormat(sq.Dollar).ToSql()
+
+	if err != nil {
+		vm.Log.InfoContext(ctx, "Error building legislator exists query", "error", err)
 		return false, err
 	}
 

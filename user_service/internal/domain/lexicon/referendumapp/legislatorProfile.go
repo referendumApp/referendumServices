@@ -22,7 +22,7 @@ type LegislatorProfile struct {
 	Image             *util.LexBlob `json:"image,omitempty" cborgen:"image,omitempty" validate:"omitempty"`
 	ImageUrl          *string       `json:"imageUrl,omitempty" cborgen:"imageUrl,omitempty" validate:"omitempty"`
 	Instagram         *string       `json:"instagram,omitempty" cborgen:"instagram,omitempty" validate:"omitempty"`
-	LegiscanId        int64         `json:"legiscanId" cborgen:"legiscanId" validate:"required"`
+	LegislatorId      int64         `json:"legislatorId" cborgen:"legislatorId" validate:"required"`
 	Legislature       string        `json:"legislature" cborgen:"legislature" validate:"required"`
 	Name              string        `json:"name" cborgen:"name" validate:"required,name,max=60"`
 	Party             string        `json:"party" cborgen:"party" validate:"required"`

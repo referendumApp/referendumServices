@@ -17,7 +17,7 @@ type ServerCreateLegislator_Input struct {
 	Image             *util.LexBlob `json:"image,omitempty" cborgen:"image,omitempty" validate:"omitempty"`
 	ImageUrl          *string       `json:"imageUrl,omitempty" cborgen:"imageUrl,omitempty" validate:"omitempty"`
 	Instagram         *string       `json:"instagram,omitempty" cborgen:"instagram,omitempty" validate:"omitempty"`
-	LegiscanId        int64         `json:"legiscanId" cborgen:"legiscanId" validate:"required"`
+	LegislatorId      int64         `json:"legislatorId" cborgen:"legislatorId" validate:"required"`
 	Legislature       string        `json:"legislature" cborgen:"legislature" validate:"required"`
 	Name              string        `json:"name" cborgen:"name" validate:"required"`
 	Party             string        `json:"party" cborgen:"party" validate:"required"`
@@ -31,6 +31,6 @@ type ServerCreateLegislator_Input struct {
 //
 // Confirmation returned on successful legislator creation.
 type ServerCreateLegislator_Output struct {
-	// did: The DID of the new account.
-	Did string `json:"did" cborgen:"did" validate:"required,did"`
+	Did    string `json:"did" cborgen:"did" validate:"required,did"`
+	Handle string `json:"handle" cborgen:"handle" validate:"required,handle"`
 }

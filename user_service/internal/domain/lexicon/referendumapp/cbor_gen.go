@@ -2045,28 +2045,6 @@ func (t *LegislatorProfile) MarshalCBOR(w io.Writer) error {
 		}
 	}
 
-	// t.LegiscanId (int64) (int64)
-	if len("legiscanId") > 1000000 {
-		return xerrors.Errorf("Value in field \"legiscanId\" was too long")
-	}
-
-	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len("legiscanId"))); err != nil {
-		return err
-	}
-	if _, err := cw.WriteString(string("legiscanId")); err != nil {
-		return err
-	}
-
-	if t.LegiscanId >= 0 {
-		if err := cw.WriteMajorTypeHeader(cbg.MajUnsignedInt, uint64(t.LegiscanId)); err != nil {
-			return err
-		}
-	} else {
-		if err := cw.WriteMajorTypeHeader(cbg.MajNegativeInt, uint64(-t.LegiscanId-1)); err != nil {
-			return err
-		}
-	}
-
 	// t.Legislature (string) (string)
 	if len("legislature") > 1000000 {
 		return xerrors.Errorf("Value in field \"legislature\" was too long")
@@ -2088,6 +2066,28 @@ func (t *LegislatorProfile) MarshalCBOR(w io.Writer) error {
 	}
 	if _, err := cw.WriteString(string(t.Legislature)); err != nil {
 		return err
+	}
+
+	// t.LegislatorId (int64) (int64)
+	if len("legislatorId") > 1000000 {
+		return xerrors.Errorf("Value in field \"legislatorId\" was too long")
+	}
+
+	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len("legislatorId"))); err != nil {
+		return err
+	}
+	if _, err := cw.WriteString(string("legislatorId")); err != nil {
+		return err
+	}
+
+	if t.LegislatorId >= 0 {
+		if err := cw.WriteMajorTypeHeader(cbg.MajUnsignedInt, uint64(t.LegislatorId)); err != nil {
+			return err
+		}
+	} else {
+		if err := cw.WriteMajorTypeHeader(cbg.MajNegativeInt, uint64(-t.LegislatorId-1)); err != nil {
+			return err
+		}
 	}
 
 	// t.FollowthemoneyEid (string) (string)
@@ -2377,8 +2377,19 @@ func (t *LegislatorProfile) UnmarshalCBOR(r io.Reader) (err error) {
 					t.Instagram = (*string)(&sval)
 				}
 			}
-			// t.LegiscanId (int64) (int64)
-		case "legiscanId":
+			// t.Legislature (string) (string)
+		case "legislature":
+
+			{
+				sval, err := cbg.ReadStringWithMax(cr, 1000000)
+				if err != nil {
+					return err
+				}
+
+				t.Legislature = string(sval)
+			}
+			// t.LegislatorId (int64) (int64)
+		case "legislatorId":
 			{
 				maj, extra, err := cr.ReadHeader()
 				if err != nil {
@@ -2401,18 +2412,7 @@ func (t *LegislatorProfile) UnmarshalCBOR(r io.Reader) (err error) {
 					return fmt.Errorf("wrong type for int64 field: %d", maj)
 				}
 
-				t.LegiscanId = int64(extraI)
-			}
-			// t.Legislature (string) (string)
-		case "legislature":
-
-			{
-				sval, err := cbg.ReadStringWithMax(cr, 1000000)
-				if err != nil {
-					return err
-				}
-
-				t.Legislature = string(sval)
+				t.LegislatorId = int64(extraI)
 			}
 			// t.FollowthemoneyEid (string) (string)
 		case "followthemoneyEid":

@@ -349,24 +349,24 @@ func (rm *Manager) DeleteRecord(ctx context.Context, user atp.Uid, nsid string, 
 // InitNewRepo initializes a new repository, writes the first record, and broadcasts the event
 func (rm *Manager) InitNewRepo(
 	ctx context.Context,
-	user atp.Uid,
+	uid atp.Uid,
 	did string,
 	nsid string,
 	key string,
 	prof cbg.CBORMarshaler,
 ) error {
-	unlock := rm.lockUser(ctx, user)
+	unlock := rm.lockUser(ctx, uid)
 	defer unlock()
 
 	if did == "" {
 		return fmt.Errorf("must specify DID for new actor")
 	}
 
-	if user == 0 {
+	if uid == 0 {
 		return fmt.Errorf("must specify user for new actor")
 	}
 
-	ds, err := rm.cs.NewDeltaSession(ctx, user, nil)
+	ds, err := rm.cs.NewDeltaSession(ctx, uid, nil)
 	if err != nil {
 		return fmt.Errorf("creating new delta session: %w", err)
 	}
@@ -399,7 +399,7 @@ func (rm *Manager) InitNewRepo(
 		}
 
 		rm.events(ctx, &Event{
-			User:      user,
+			User:      uid,
 			NewRoot:   root,
 			Rev:       nrev,
 			Ops:       []Op{op},

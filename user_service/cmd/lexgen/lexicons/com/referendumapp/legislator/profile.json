@@ -9,7 +9,7 @@
       "record": {
         "type": "object",
         "required": [
-          "legiscanId",
+          "legislatorId",
           "name",
           "district",
           "party",
@@ -18,7 +18,7 @@
           "legislature"
         ],
         "properties": {
-          "legiscanId": { "type": "integer" },
+          "legislatorId": { "type": "integer" },
           "name": { "type": "string", "format": "name", "maxLength": 60 },
           "district": { "type": "string" },
           "party": { "type": "string" },

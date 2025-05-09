@@ -52,6 +52,40 @@ func (p *PDS) CreateUser(
 	return user, nil
 }
 
+// CreateLegislator create DID in the PLC directory and initialize a 'Legislator' struct
+func (p *PDS) CreateLegislator(
+	ctx context.Context,
+	req refApp.ServerCreateLegislator_Input,
+	handle string,
+) (*atp.Legislator, *refErr.APIError) {
+	// Legislator recovery keys are all the same
+	var recoveryKey = p.km.RecoveryKey()
+
+	sigkey, err := p.km.CreateSigningKey(ctx)
+	if err != nil {
+		return nil, refErr.InternalServer()
+	}
+
+	did, err := p.plc.CreateDID(ctx, sigkey, []string{recoveryKey, p.km.RotationKey()}, handle, p.serviceUrl)
+	if err != nil {
+		p.log.ErrorContext(ctx, "Failed to create DID", "error", err)
+		return nil, refErr.PLCServer()
+	}
+
+	if err := p.km.CreateEncryptedKey(ctx, did, sigkey); err != nil {
+		p.log.ErrorContext(ctx, "Failed to create encrypted signing key", "error", err)
+		return nil, refErr.InternalServer()
+	}
+
+	legislator := &atp.Legislator{
+		Handle:      sql.NullString{String: handle, Valid: true},
+		RecoveryKey: recoveryKey,
+		Did:         did,
+	}
+
+	return legislator, nil
+}
+
 // CreateNewRepo initialize a new repo and write the first record to the CAR store
 func (p *PDS) CreateNewRepo(
 	ctx context.Context,
@@ -78,6 +112,26 @@ func (p *PDS) CreateNewRepo(
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    p.jwt.AuthScheme,
+	}, nil
+}
+
+// CreateNewLegislatorRepo initialize a new repo and write the first record to the CAR store
+func (p *PDS) CreateNewLegislatorRepo(
+	ctx context.Context,
+	legislator *atp.Legislator,
+) (*refApp.ServerCreateLegislator_Output, *refErr.APIError) {
+	profile := &refApp.LegislatorProfile{
+		// TODO - include required values here...
+	}
+
+	if err := p.repoman.InitNewRepo(ctx, legislator.ID, legislator.Did, profile.NSID(), profile.Key(), profile); err != nil {
+		p.log.ErrorContext(ctx, "Error initializing new user repository", "error", err, "did", legislator.Did)
+		return nil, refErr.Repo()
+	}
+
+	return &refApp.ServerCreateLegislator_Output{
+		Did:    legislator.Did,
+		Handle: legislator.Handle.String,
 	}, nil
 }
 

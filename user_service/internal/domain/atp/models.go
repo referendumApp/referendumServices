@@ -35,6 +35,21 @@ func (u User) TableName() string {
 	return "user"
 }
 
+type Legislator struct {
+	Handle      sql.NullString `db:"handle,omitempty"       json:"-"`
+	RecoveryKey string         `db:"recovery_key,omitempty" json:"-"`
+	Did         string         `db:"did,omitempty"          json:"did"`
+	CreatedAt   time.Time      `db:"created_at,omitempty"   json:"-"`
+	UpdatedAt   time.Time      `db:"updated_at,omitempty"   json:"-"`
+	DeletedAt   sql.NullTime   `db:"deleted_at,omitempty"   json:"-"`
+	ID          Uid            `db:"id,omitempty,pk"        json:"id"`
+	PDS         sql.NullInt64  `db:"pds_id,omitempty"       json:"-"`
+}
+
+func (u Legislator) TableName() string {
+	return "legislator"
+}
+
 type Peering struct {
 	Host string
 	Did  string
