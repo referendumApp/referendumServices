@@ -16,7 +16,7 @@ type ViewMeta struct {
 	*database.DB
 }
 
-func (vm *ViewMeta) createUserAndPerson(ctx context.Context, actor *atp.Actor, handle string, dname string) error {
+func (vm *ViewMeta) createActorAndPerson(ctx context.Context, actor *atp.Actor, handle string, dname string) error {
 	return vm.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		row, err := database.CreateReturningWithTx(ctx, vm.DB, tx, actor, "id")
 		if err != nil {
@@ -42,9 +42,9 @@ func (vm *ViewMeta) createUserAndPerson(ctx context.Context, actor *atp.Actor, h
 			return err
 		}
 
-		// if handle != user.Handle {
+		// if handle != person.Handle {
 		// 	if exists, err := s.db.UserExists(ctx, "handle", req.Handle); err != nil {
-		// 		s.log.ErrorContext(ctx, "Handle check failed", "error", err, "user", req.Email)
+		// 		s.log.ErrorContext(ctx, "Handle check failed", "error", err, "person", req.Email)
 		// 		refErr.InternalServer().WriteResponse(w)
 		// 		return
 		// 	} else if exists {
@@ -54,7 +54,7 @@ func (vm *ViewMeta) createUserAndPerson(ctx context.Context, actor *atp.Actor, h
 		// 	}
 		// }
 		//
-		// s.log.InfoContext(ctx, "Reactivating soft deleted user", "user", req.Email)
+		// s.log.InfoContext(ctx, "Reactivating soft deleted person", "person", req.Email)
 		// updateUser := &common.User{
 		// 	Name:           req.Name,
 		// 	Handle:         req.Handle,
@@ -63,7 +63,7 @@ func (vm *ViewMeta) createUserAndPerson(ctx context.Context, actor *atp.Actor, h
 		// }
 		//
 		// if err := s.db.UpdateWithTx(ctx, tx, updateUser, "id"); err != nil {
-		// 	s.log.ErrorContext(ctx, "Failed to reactivate user", "error", err, "user", req.Email)
+		// 	s.log.ErrorContext(ctx, "Failed to reactivate person", "error", err, "person", req.Email)
 		// 	refErr.InternalServer().WriteResponse(w)
 		// 	return
 		// }
@@ -99,8 +99,8 @@ func (vm *ViewMeta) actorExists(ctx context.Context, filter sq.Eq) (bool, error)
 	}
 
 	sql := fmt.Sprintf("SELECT EXISTS(%s)", innerSql)
-
 	err = vm.DB.GetRow(ctx, sql, args...).Scan(&exists)
+
 	return exists, err
 }
 
@@ -143,7 +143,7 @@ func (vm *ViewMeta) LookupUserByEmail(ctx context.Context, email string) (*atp.A
 func (vm *ViewMeta) LookupGraphFollowers(ctx context.Context, aid atp.Aid) ([]*atp.PersonBasic, error) {
 	filter := sq.Eq{"target": aid}
 	var leftTbl atp.PersonBasic
-	var rightTbl atp.UserFollowRecord
+	var rightTbl atp.ActorFollowRecord
 
 	followers, err := database.SelectLeft(ctx, vm.DB, leftTbl, "aid", rightTbl, "follower", filter)
 	if err != nil {
@@ -154,11 +154,11 @@ func (vm *ViewMeta) LookupGraphFollowers(ctx context.Context, aid atp.Aid) ([]*a
 	return followers, nil
 }
 
-// LookupGraphFollowing queries user records with a join to user_follow_record filtered by 'follower'
+// LookupGraphFollowing queries actor records with a join to actor_follow_record filtered by 'follower'
 func (vm *ViewMeta) LookupGraphFollowing(ctx context.Context, aid atp.Aid) ([]*atp.PersonBasic, error) {
 	filter := sq.Eq{"follower": aid}
 	var leftTbl atp.PersonBasic
-	var rightTbl atp.UserFollowRecord
+	var rightTbl atp.ActorFollowRecord
 
 	following, err := database.SelectLeft(ctx, vm.DB, leftTbl, "aid", rightTbl, "target", filter)
 	if err != nil {

@@ -117,7 +117,7 @@ func (v EndorsementRecord) TableName() string {
 	return "endorsement_record"
 }
 
-type UserFollowRecord struct {
+type ActorFollowRecord struct {
 	Rkey string `db:"rkey"     json:"-"`
 	Cid  DbCID  `db:"cid"      json:"-"`
 	Base
@@ -125,7 +125,7 @@ type UserFollowRecord struct {
 	Target   Aid `db:"target"   json:"target"`
 }
 
-func (f UserFollowRecord) TableName() string {
+func (f ActorFollowRecord) TableName() string {
 	return "user_follow_record"
 }
 

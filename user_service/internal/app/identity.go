@@ -82,7 +82,7 @@ func (v *View) CreateActorAndPerson(
 	handle string,
 	dname string,
 ) *refErr.APIError {
-	if err := v.meta.createUserAndPerson(ctx, actor, handle, dname); err != nil {
+	if err := v.meta.createActorAndPerson(ctx, actor, handle, dname); err != nil {
 		return refErr.Database()
 	}
 	return nil

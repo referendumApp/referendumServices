@@ -470,7 +470,7 @@ func (ix *Indexer) handleRecordCreateGraphFollow(
 	}
 
 	// 'follower' followed 'target'
-	fr := &atp.UserFollowRecord{
+	fr := &atp.ActorFollowRecord{
 		Follower: evt.Actor,
 		Target:   subj.Aid,
 		Rkey:     op.Rkey,

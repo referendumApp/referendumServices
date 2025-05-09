@@ -30,7 +30,7 @@ func (v *View) HandleGraphFollow(
 
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		// TODO: Should be able to combine these queries with a CTE to speed things up
-		if err := v.meta.CreateWithTx(ctx, tx, &atp.UserFollowRecord{Rkey: tid, Cid: atp.DbCID{CID: cc}, Follower: aid, Target: target.Aid}); err != nil {
+		if err := v.meta.CreateWithTx(ctx, tx, &atp.ActorFollowRecord{Rkey: tid, Cid: atp.DbCID{CID: cc}, Follower: aid, Target: target.Aid}); err != nil {
 			return err
 		}
 
