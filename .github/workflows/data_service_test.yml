@@ -43,7 +43,7 @@ jobs:
 
     - name: Run API Tests
       run: |
-        docker compose --profile test run --rm test pytest api/ common/
+        docker compose --profile test run --rm data-test pytest api/ common/
 
     - name: Clean up after API tests
       if: always()
@@ -52,7 +52,7 @@ jobs:
     - name: Run Pipeline Tests
       run: |
         docker compose --profile test build
-        docker compose --profile test run --rm test pytest pipeline/
+        docker compose --profile test run --rm data-test pytest pipeline/
 
     - name: Final cleanup
       if: always()
