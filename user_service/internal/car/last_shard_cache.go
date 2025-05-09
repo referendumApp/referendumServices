@@ -50,7 +50,7 @@ func (lsc *lastShardCache) put(ls *Shard) {
 	lsc.lscLk.Lock()
 	defer lsc.lscLk.Unlock()
 
-	lsc.lastShardCache[ls.Uid] = ls
+	lsc.lastShardCache[ls.Aid] = ls
 }
 
 func (lsc *lastShardCache) get(ctx context.Context, actor atp.Aid) (*Shard, error) {

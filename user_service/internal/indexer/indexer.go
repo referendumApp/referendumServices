@@ -86,7 +86,7 @@ func (ix *Indexer) HandleRepoEvent(ctx context.Context, evt *repo.Event) error {
 	ctx, span := otel.Tracer("indexer").Start(ctx, "HandleRepoEvent")
 	defer span.End()
 
-	ix.log.DebugContext(ctx, "Handling Repo Event!", "uid", evt.User)
+	ix.log.DebugContext(ctx, "Handling Repo Event!", "uid", evt.Actor)
 
 	outops := make([]*comatproto.SyncSubscribeRepos_RepoOp, 0, len(evt.Ops))
 	for _, op := range evt.Ops {
@@ -102,7 +102,7 @@ func (ix *Indexer) HandleRepoEvent(ctx context.Context, evt *repo.Event) error {
 		}
 	}
 
-	did, err := ix.db.DidForPerson(ctx, evt.User)
+	did, err := ix.db.DidForPerson(ctx, evt.Actor)
 	if err != nil {
 		return err
 	}
@@ -127,7 +127,7 @@ func (ix *Indexer) HandleRepoEvent(ctx context.Context, evt *repo.Event) error {
 			Ops:    outops,
 			TooBig: toobig,
 		},
-		PrivUid: evt.User,
+		PrivUid: evt.Actor,
 	}); err != nil {
 		return fmt.Errorf("failed to push event: %w", err)
 	}
@@ -339,7 +339,7 @@ func (ix *Indexer) handleRecordDelete(ctx context.Context, evt *repo.Event, op *
 
 	switch op.Collection {
 	case "app.referendum.feed.post":
-		u, err := ix.db.LookupPersonByUid(ctx, evt.User)
+		u, err := ix.db.LookupPersonByUid(ctx, evt.Actor)
 		if err != nil {
 			return err
 		}
@@ -355,7 +355,7 @@ func (ix *Indexer) handleRecordDelete(ctx context.Context, evt *repo.Event, op *
 					ctx,
 					"deleting post weve never seen before. Weird.",
 					"user",
-					evt.User,
+					evt.Actor,
 					"rkey",
 					op.Rkey,
 				)
@@ -368,9 +368,9 @@ func (ix *Indexer) handleRecordDelete(ctx context.Context, evt *repo.Event, op *
 			return err
 		}
 	case "app.referendum.feed.vote":
-		return ix.db.HandleRecordDeleteFeedLike(ctx, evt.User, op.Rkey)
+		return ix.db.HandleRecordDeleteFeedLike(ctx, evt.Actor, op.Rkey)
 	case "app.referendum.graph.follow":
-		return ix.db.HandleRecordDeleteGraphFollow(ctx, evt.User, op.Rkey)
+		return ix.db.HandleRecordDeleteGraphFollow(ctx, evt.Actor, op.Rkey)
 	case "app.referendum.graph.confirmation":
 		return nil
 	default:
@@ -386,7 +386,7 @@ func (ix *Indexer) handleRecordCreate(ctx context.Context, evt *repo.Event, op *
 	var out []uint
 	switch rec := op.Record.(type) {
 	case *bsky.FeedPost:
-		if err := ix.handleRecordCreateActivityPost(ctx, evt.User, op.Rkey, *op.RecCid, rec); err != nil {
+		if err := ix.handleRecordCreateActivityPost(ctx, evt.Actor, op.Rkey, *op.RecCid, rec); err != nil {
 			return nil, err
 		}
 
@@ -429,7 +429,7 @@ func (ix *Indexer) handleRecordCreateFeedLike(
 	}
 
 	vr := &atp.EndorsementRecord{
-		Endorser: evt.User,
+		Endorser: evt.Actor,
 		Post:     post.ID,
 		Created:  rec.CreatedAt,
 		Rkey:     op.Rkey,
@@ -471,7 +471,7 @@ func (ix *Indexer) handleRecordCreateGraphFollow(
 
 	// 'follower' followed 'target'
 	fr := &atp.UserFollowRecord{
-		Follower: evt.User,
+		Follower: evt.Actor,
 		Target:   subj.Uid,
 		Rkey:     op.Rkey,
 		Cid:      atp.DbCID{CID: *op.RecCid},
@@ -488,7 +488,7 @@ func (ix *Indexer) handleRecordUpdate(ctx context.Context, evt *repo.Event, op *
 
 	switch rec := op.Record.(type) {
 	case *bsky.FeedPost:
-		u, err := ix.db.LookupPersonByUid(ctx, evt.User)
+		u, err := ix.db.LookupPersonByUid(ctx, evt.Actor)
 		if err != nil {
 			return err
 		}
@@ -527,7 +527,7 @@ func (ix *Indexer) handleRecordUpdate(ctx context.Context, evt *repo.Event, op *
 		return nil
 
 	case *bsky.FeedLike:
-		vr, err := ix.db.LookupEndorsementRecordByUid(ctx, evt.User, op.Rkey)
+		vr, err := ix.db.LookupEndorsementRecordByUid(ctx, evt.Actor, op.Rkey)
 		if err != nil {
 			return err
 		}
@@ -539,7 +539,7 @@ func (ix *Indexer) handleRecordUpdate(ctx context.Context, evt *repo.Event, op *
 
 		if vr.Post != fp.ID {
 			// vote is on a completely different post, delete old one, create new one
-			if err := ix.db.HandleRecordDeleteFeedLike(ctx, evt.User, op.Rkey); err != nil {
+			if err := ix.db.HandleRecordDeleteFeedLike(ctx, evt.Actor, op.Rkey); err != nil {
 				return err
 			}
 
@@ -548,7 +548,7 @@ func (ix *Indexer) handleRecordUpdate(ctx context.Context, evt *repo.Event, op *
 
 		return ix.handleRecordCreateFeedLike(ctx, rec, evt, op)
 	case *bsky.GraphFollow:
-		if err := ix.db.HandleRecordDeleteGraphFollow(ctx, evt.User, op.Rkey); err != nil {
+		if err := ix.db.HandleRecordDeleteGraphFollow(ctx, evt.Actor, op.Rkey); err != nil {
 			return err
 		}
 

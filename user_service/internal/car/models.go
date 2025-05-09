@@ -15,7 +15,7 @@ type Shard struct {
 	DataStart int64     `db:"data_start" json:"data_start"`
 	Seq       int       `db:"seq"        json:"seq"`
 	Path      string    `db:"path"       json:"path"`
-	Uid       atp.Aid   `db:"uid"        json:"uid"`
+	Aid       atp.Aid   `db:"aid"        json:"aid"`
 	Rev       string    `db:"rev"        json:"rev"`
 }
 
@@ -24,9 +24,9 @@ func (t Shard) TableName() string {
 	return "car_shards"
 }
 
-// CompactionTarget querying the number of shards for each user
+// CompactionTarget querying the number of shards for each actor
 type CompactionTarget struct {
-	Usr       atp.Aid `db:"uid"`
+	Actor     atp.Aid `db:"aid"`
 	NumShards int     `db:"num_shards"`
 }
 
@@ -41,7 +41,7 @@ type BlockRef struct {
 	Cid        atp.DbCID `db:"cid"             json:"cid"`
 	Shard      uint      `db:"shard"           json:"shard"`
 	ByteOffset int64     `db:"byte_offset"     json:"byte_offset"`
-	Uid        atp.Aid   `db:"uid"             json:"uid"`
+	Aid        atp.Aid   `db:"aid"             json:"aid"`
 }
 
 // TableName to implement DB interface

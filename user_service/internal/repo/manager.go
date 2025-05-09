@@ -66,7 +66,7 @@ type Manager struct {
 
 // Event schema for handling and broadcasting events
 type Event struct {
-	User      atp.Aid
+	Actor     atp.Aid
 	OldRoot   *cid.Cid
 	NewRoot   cid.Cid
 	Since     *string
@@ -139,7 +139,7 @@ func (rm *Manager) CarStore() cs.Store {
 // CreateRecord creates a repo record and broadcasts the event
 func (rm *Manager) CreateRecord(
 	ctx context.Context,
-	user atp.Aid,
+	actor atp.Aid,
 	nsid string,
 	key string,
 	rec cbg.CBORMarshaler,
@@ -147,15 +147,15 @@ func (rm *Manager) CreateRecord(
 	ctx, span := otel.Tracer("repoman").Start(ctx, "CreateRecord")
 	defer span.End()
 
-	unlock := rm.lockUser(ctx, user)
+	unlock := rm.lockUser(ctx, actor)
 	defer unlock()
 
-	rev, err := rm.cs.GetUserRepoRev(ctx, user)
+	rev, err := rm.cs.GetUserRepoRev(ctx, actor)
 	if err != nil {
 		return cid.Undef, "", err
 	}
 
-	ds, err := rm.cs.NewDeltaSession(ctx, user, &rev)
+	ds, err := rm.cs.NewDeltaSession(ctx, actor, &rev)
 	if err != nil {
 		return cid.Undef, "", err
 	}
@@ -189,7 +189,7 @@ func (rm *Manager) CreateRecord(
 
 	if rm.events != nil {
 		rm.events(ctx, &Event{
-			User:    user,
+			Actor:   actor,
 			OldRoot: oldroot,
 			NewRoot: nroot,
 			Rev:     nrev,
@@ -211,7 +211,7 @@ func (rm *Manager) CreateRecord(
 // UpdateRecord updates a repo record and broadcasts the event
 func (rm *Manager) UpdateRecord(
 	ctx context.Context,
-	user atp.Aid,
+	actor atp.Aid,
 	nsid string,
 	key string,
 	rec cbg.CBORMarshaler,
@@ -219,15 +219,15 @@ func (rm *Manager) UpdateRecord(
 	ctx, span := otel.Tracer("repoman").Start(ctx, "UpdateRecord")
 	defer span.End()
 
-	unlock := rm.lockUser(ctx, user)
+	unlock := rm.lockUser(ctx, actor)
 	defer unlock()
 
-	rev, err := rm.cs.GetUserRepoRev(ctx, user)
+	rev, err := rm.cs.GetUserRepoRev(ctx, actor)
 	if err != nil {
 		return cid.Undef, err
 	}
 
-	ds, err := rm.cs.NewDeltaSession(ctx, user, &rev)
+	ds, err := rm.cs.NewDeltaSession(ctx, actor, &rev)
 	if err != nil {
 		return cid.Undef, err
 	}
@@ -271,7 +271,7 @@ func (rm *Manager) UpdateRecord(
 		}
 
 		rm.events(ctx, &Event{
-			User:      user,
+			Actor:     actor,
 			OldRoot:   oldroot,
 			NewRoot:   nroot,
 			Rev:       nrev,
@@ -285,19 +285,19 @@ func (rm *Manager) UpdateRecord(
 }
 
 // DeleteRecord deletes a repo record and broadcasts the event
-func (rm *Manager) DeleteRecord(ctx context.Context, user atp.Aid, nsid string, key string) error {
+func (rm *Manager) DeleteRecord(ctx context.Context, actor atp.Aid, nsid string, key string) error {
 	ctx, span := otel.Tracer("repoman").Start(ctx, "DeleteRecord")
 	defer span.End()
 
-	unlock := rm.lockUser(ctx, user)
+	unlock := rm.lockUser(ctx, actor)
 	defer unlock()
 
-	rev, err := rm.cs.GetUserRepoRev(ctx, user)
+	rev, err := rm.cs.GetUserRepoRev(ctx, actor)
 	if err != nil {
 		return err
 	}
 
-	ds, err := rm.cs.NewDeltaSession(ctx, user, &rev)
+	ds, err := rm.cs.NewDeltaSession(ctx, actor, &rev)
 	if err != nil {
 		return err
 	}
@@ -329,7 +329,7 @@ func (rm *Manager) DeleteRecord(ctx context.Context, user atp.Aid, nsid string, 
 
 	if rm.events != nil {
 		rm.events(ctx, &Event{
-			User:    user,
+			Actor:   actor,
 			OldRoot: oldroot,
 			NewRoot: nroot,
 			Rev:     nrev,
@@ -349,24 +349,24 @@ func (rm *Manager) DeleteRecord(ctx context.Context, user atp.Aid, nsid string, 
 // InitNewRepo initializes a new repository, writes the first record, and broadcasts the event
 func (rm *Manager) InitNewRepo(
 	ctx context.Context,
-	user atp.Aid,
+	actor atp.Aid,
 	did string,
 	nsid string,
 	key string,
 	prof cbg.CBORMarshaler,
 ) error {
-	unlock := rm.lockUser(ctx, user)
+	unlock := rm.lockUser(ctx, actor)
 	defer unlock()
 
 	if did == "" {
 		return fmt.Errorf("must specify DID for new actor")
 	}
 
-	if user == 0 {
+	if actor == 0 {
 		return fmt.Errorf("must specify user for new actor")
 	}
 
-	ds, err := rm.cs.NewDeltaSession(ctx, user, nil)
+	ds, err := rm.cs.NewDeltaSession(ctx, actor, nil)
 	if err != nil {
 		return fmt.Errorf("creating new delta session: %w", err)
 	}
@@ -399,7 +399,7 @@ func (rm *Manager) InitNewRepo(
 		}
 
 		rm.events(ctx, &Event{
-			User:      user,
+			Actor:     actor,
 			NewRoot:   root,
 			Rev:       nrev,
 			Ops:       []Op{op},
@@ -411,42 +411,42 @@ func (rm *Manager) InitNewRepo(
 }
 
 // GetRepoRoot gets the root CID for a repo
-func (rm *Manager) GetRepoRoot(ctx context.Context, user atp.Aid) (cid.Cid, error) {
-	unlock := rm.lockUser(ctx, user)
+func (rm *Manager) GetRepoRoot(ctx context.Context, actor atp.Aid) (cid.Cid, error) {
+	unlock := rm.lockUser(ctx, actor)
 	defer unlock()
 
-	return rm.cs.GetUserRepoHead(ctx, user)
+	return rm.cs.GetActorRepoHead(ctx, actor)
 }
 
 // GetRepoRev gets the root revision for a repo
-func (rm *Manager) GetRepoRev(ctx context.Context, user atp.Aid) (string, error) {
-	unlock := rm.lockUser(ctx, user)
+func (rm *Manager) GetRepoRev(ctx context.Context, actor atp.Aid) (string, error) {
+	unlock := rm.lockUser(ctx, actor)
 	defer unlock()
 
-	return rm.cs.GetUserRepoRev(ctx, user)
+	return rm.cs.GetUserRepoRev(ctx, actor)
 }
 
 // ReadRepo reads a CAR file for a given revision
 // TODO: might be worth having a type alias for revisions
-func (rm *Manager) ReadRepo(ctx context.Context, user atp.Aid, since string, w io.Writer) error {
-	return rm.cs.ReadActorCar(ctx, user, since, w)
+func (rm *Manager) ReadRepo(ctx context.Context, actor atp.Aid, since string, w io.Writer) error {
+	return rm.cs.ReadActorCar(ctx, actor, since, w)
 }
 
 // GetRecord reads a record into the 'rev' interface
 func (rm *Manager) GetRecord(
 	ctx context.Context,
-	user atp.Aid,
+	actor atp.Aid,
 	nsid string,
 	key string,
 	rec cbg.CBORMarshaler,
 	maybeCid cid.Cid,
 ) (cid.Cid, error) {
-	bs, err := rm.cs.ReadOnlySession(user)
+	bs, err := rm.cs.ReadOnlySession(actor)
 	if err != nil {
 		return cid.Undef, err
 	}
 
-	head, err := rm.cs.GetUserRepoHead(ctx, user)
+	head, err := rm.cs.GetActorRepoHead(ctx, actor)
 	if err != nil {
 		return cid.Undef, err
 	}
@@ -471,18 +471,18 @@ func (rm *Manager) GetRecord(
 // GetRecordProof gets all the blocks for a repo
 func (rm *Manager) GetRecordProof(
 	ctx context.Context,
-	user atp.Aid,
+	actor atp.Aid,
 	collection string,
 	rkey string,
 ) (cid.Cid, []blocks.Block, error) {
-	robs, err := rm.cs.ReadOnlySession(user)
+	robs, err := rm.cs.ReadOnlySession(actor)
 	if err != nil {
 		return cid.Undef, nil, err
 	}
 
 	bs := util.NewLoggingBstore(robs)
 
-	head, err := rm.cs.GetUserRepoHead(ctx, user)
+	head, err := rm.cs.GetActorRepoHead(ctx, actor)
 	if err != nil {
 		return cid.Undef, nil, err
 	}
@@ -528,7 +528,7 @@ func (rm *Manager) CheckRepoSig(ctx context.Context, r *Repo, expdid string) err
 func (rm *Manager) HandleExternalUserEvent(
 	ctx context.Context,
 	pdsid uint,
-	uid atp.Aid,
+	aid atp.Aid,
 	did string,
 	since *string,
 	nrev string,
@@ -538,22 +538,22 @@ func (rm *Manager) HandleExternalUserEvent(
 	ctx, span := otel.Tracer("repoman").Start(ctx, "HandleExternalUserEvent")
 	defer span.End()
 
-	span.SetAttributes(attribute.Int64("user", int64(uint64(uid)))) //nolint:gosec
+	span.SetAttributes(attribute.Int64("user", int64(uint64(aid)))) //nolint:gosec
 
-	rm.log.DebugContext(ctx, "HandleExternalUserEvent", "pds", pdsid, "uid", uid, "since", since, "nrev", nrev)
+	rm.log.DebugContext(ctx, "HandleExternalUserEvent", "pds", pdsid, "aid", aid, "since", since, "nrev", nrev)
 
-	unlock := rm.lockUser(ctx, uid)
+	unlock := rm.lockUser(ctx, aid)
 	defer unlock()
 
 	start := time.Now()
-	root, ds, err := rm.cs.ImportSlice(ctx, uid, since, carslice)
+	root, ds, err := rm.cs.ImportSlice(ctx, aid, since, carslice)
 	if err != nil {
 		return fmt.Errorf("importing external carslice: %w", err)
 	}
 
 	r, err := OpenRepo(ctx, ds, root)
 	if err != nil {
-		return fmt.Errorf("opening external user repo (%d, root=%s): %w", uid, root, err)
+		return fmt.Errorf("opening external user repo (%d, root=%s): %w", aid, root, err)
 	}
 
 	if rerr := rm.CheckRepoSig(ctx, r, did); rerr != nil {
@@ -631,7 +631,7 @@ func (rm *Manager) HandleExternalUserEvent(
 
 	if rm.events != nil {
 		rm.events(ctx, &Event{
-			User: uid,
+			Actor: aid,
 			//OldRoot:   prev,
 			NewRoot:   root,
 			Rev:       nrev,
@@ -648,21 +648,21 @@ func (rm *Manager) HandleExternalUserEvent(
 // BatchWrite writes a slice of operations as a single commit
 func (rm *Manager) BatchWrite(
 	ctx context.Context,
-	user atp.Aid,
+	actor atp.Aid,
 	writes []*atproto.RepoApplyWrites_Input_Writes_Elem,
 ) error {
 	ctx, span := otel.Tracer("repoman").Start(ctx, "BatchWrite")
 	defer span.End()
 
-	unlock := rm.lockUser(ctx, user)
+	unlock := rm.lockUser(ctx, actor)
 	defer unlock()
 
-	rev, err := rm.cs.GetUserRepoRev(ctx, user)
+	rev, err := rm.cs.GetUserRepoRev(ctx, actor)
 	if err != nil {
 		return err
 	}
 
-	ds, err := rm.cs.NewDeltaSession(ctx, user, &rev)
+	ds, err := rm.cs.NewDeltaSession(ctx, actor, &rev)
 	if err != nil {
 		return err
 	}
@@ -757,7 +757,7 @@ func (rm *Manager) BatchWrite(
 
 	if rm.events != nil {
 		rm.events(ctx, &Event{
-			User:      user,
+			Actor:     actor,
 			OldRoot:   oldroot,
 			NewRoot:   nroot,
 			RepoSlice: rslice,
@@ -771,19 +771,19 @@ func (rm *Manager) BatchWrite(
 }
 
 // ImportNewRepo initializes a new repo from an external source
-func (rm *Manager) ImportNewRepo(ctx context.Context, user atp.Aid, repoDid string, r io.Reader, rev *string) error {
+func (rm *Manager) ImportNewRepo(ctx context.Context, actor atp.Aid, repoDid string, r io.Reader, rev *string) error {
 	ctx, span := otel.Tracer("repoman").Start(ctx, "ImportNewRepo")
 	defer span.End()
 
-	unlock := rm.lockUser(ctx, user)
+	unlock := rm.lockUser(ctx, actor)
 	defer unlock()
 
-	currev, err := rm.cs.GetUserRepoRev(ctx, user)
+	currev, err := rm.cs.GetUserRepoRev(ctx, actor)
 	if err != nil {
 		return err
 	}
 
-	curhead, err := rm.cs.GetUserRepoHead(ctx, user)
+	curhead, err := rm.cs.GetActorRepoHead(ctx, actor)
 	if err != nil {
 		return err
 	}
@@ -804,7 +804,7 @@ func (rm *Manager) ImportNewRepo(ctx context.Context, user atp.Aid, repoDid stri
 
 	err = rm.processNewRepo(
 		ctx,
-		user,
+		actor,
 		r,
 		rev,
 		func(ctx context.Context, root cid.Cid, finish func(context.Context, string) ([]byte, error), bs blockstore.Blockstore) error {
@@ -858,7 +858,7 @@ func (rm *Manager) ImportNewRepo(ctx context.Context, user atp.Aid, repoDid stri
 
 			if rm.events != nil {
 				rm.events(ctx, &Event{
-					User: user,
+					Actor: actor,
 					//OldRoot:   oldroot,
 					NewRoot:   root,
 					Rev:       scom.Rev,
