@@ -34,7 +34,7 @@ type Indexer struct {
 	log     *slog.Logger
 
 	SendRemoteFollow       func(context.Context, string, uint) error
-	CreateExternalUser     func(context.Context, string) (*atp.Person, error)
+	CreateExternalPerson   func(context.Context, string) (*atp.Person, error)
 	ApplyPDSClientSettings func(*xrpc.Client)
 
 	didr did.Resolver
@@ -102,7 +102,7 @@ func (ix *Indexer) HandleRepoEvent(ctx context.Context, evt *repo.Event) error {
 		}
 	}
 
-	did, err := ix.db.DidForPerson(ctx, evt.Actor)
+	did, err := ix.db.LookupDidByAid(ctx, evt.Actor)
 	if err != nil {
 		return err
 	}
@@ -193,7 +193,7 @@ func (ix *Indexer) crawlRecordReferences(ctx context.Context, op *repo.Op) error
 			if e.Type == "mention" {
 				_, err := ix.GetPersonOrMissing(ctx, e.Value)
 				if err != nil {
-					ix.log.InfoContext(ctx, "failed to parse user mention", "ref", e.Value, "err", err)
+					ix.log.InfoContext(ctx, "failed to parse person mention", "ref", e.Value, "err", err)
 				}
 			}
 		}
@@ -268,30 +268,30 @@ func (ix *Indexer) GetPersonOrMissing(ctx context.Context, did string) (*atp.Per
 		return nil, err
 	}
 
-	// unknown user... create it and send it off to the crawler
-	return ix.createMissingUserRecord(ctx, did)
+	// unknown person... create it and send it off to the crawler
+	return ix.createMissingPersonRecord(ctx, did)
 }
 
-func (ix *Indexer) createMissingUserRecord(ctx context.Context, did string) (*atp.Person, error) {
-	ctx, span := otel.Tracer("indexer").Start(ctx, "createMissingUserRecord")
+func (ix *Indexer) createMissingPersonRecord(ctx context.Context, did string) (*atp.Person, error) {
+	ctx, span := otel.Tracer("indexer").Start(ctx, "createMissingPersonRecord")
 	defer span.End()
 
 	externalUserCreationAttempts.Inc()
 
-	ai, err := ix.CreateExternalUser(ctx, did)
+	person, err := ix.CreateExternalPerson(ctx, did)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := ix.addUserToCrawler(ctx, ai); err != nil {
-		return nil, fmt.Errorf("failed to add unknown user to crawler: %w", err)
+	if err := ix.addPersonToCrawler(ctx, person); err != nil {
+		return nil, fmt.Errorf("failed to add unknown person to crawler: %w", err)
 	}
 
-	return ai, nil
+	return person, nil
 }
 
-func (ix *Indexer) addUserToCrawler(ctx context.Context, ai *atp.Person) error {
-	ix.log.DebugContext(ctx, "Sending user to crawler: ", "did", ai.Did)
+func (ix *Indexer) addPersonToCrawler(ctx context.Context, ai *atp.Person) error {
+	ix.log.DebugContext(ctx, "Sending person to crawler: ", "did", ai.Did)
 	if ix.Crawler == nil {
 		return nil
 	}
@@ -339,7 +339,7 @@ func (ix *Indexer) handleRecordDelete(ctx context.Context, evt *repo.Event, op *
 
 	switch op.Collection {
 	case "app.referendum.feed.post":
-		u, err := ix.db.LookupPersonByUid(ctx, evt.Actor)
+		u, err := ix.db.LookupPersonByAid(ctx, evt.Actor)
 		if err != nil {
 			return err
 		}
@@ -354,7 +354,7 @@ func (ix *Indexer) handleRecordDelete(ctx context.Context, evt *repo.Event, op *
 				ix.log.WarnContext(
 					ctx,
 					"deleting post weve never seen before. Weird.",
-					"user",
+					"actor",
 					evt.Actor,
 					"rkey",
 					op.Rkey,
@@ -423,7 +423,7 @@ func (ix *Indexer) handleRecordCreateFeedLike(
 		return err
 	}
 
-	act, err := ix.db.LookupPersonByUid(ctx, post.Author)
+	act, err := ix.db.LookupPersonByAid(ctx, post.Author)
 	if err != nil {
 		return err
 	}
@@ -458,12 +458,12 @@ func (ix *Indexer) handleRecordCreateGraphFollow(
 	subj, err := ix.db.LookupPersonByDid(ctx, rec.Subject)
 	if err != nil {
 		if !errors.Is(err, pgx.ErrNoRows) {
-			return fmt.Errorf("failed to lookup user: %w", err)
+			return fmt.Errorf("failed to lookup person: %w", err)
 		}
 
-		nu, err := ix.createMissingUserRecord(ctx, rec.Subject)
+		nu, err := ix.createMissingPersonRecord(ctx, rec.Subject)
 		if err != nil {
-			return fmt.Errorf("create external user: %w", err)
+			return fmt.Errorf("create external person: %w", err)
 		}
 
 		subj = nu
@@ -488,7 +488,7 @@ func (ix *Indexer) handleRecordUpdate(ctx context.Context, evt *repo.Event, op *
 
 	switch rec := op.Record.(type) {
 	case *bsky.FeedPost:
-		u, err := ix.db.LookupPersonByUid(ctx, evt.Actor)
+		u, err := ix.db.LookupPersonByAid(ctx, evt.Actor)
 		if err != nil {
 			return err
 		}

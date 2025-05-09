@@ -31,10 +31,10 @@ import (
 // NewRepoManager initializes 'Manager' struct
 func NewRepoManager(cs cs.Store, kmgr KeyManager, logger *slog.Logger) *Manager {
 	return &Manager{
-		cs:        cs,
-		userLocks: make(map[atp.Aid]*userLock),
-		kmgr:      kmgr,
-		log:       logger.With("service", "repomgr"),
+		cs:         cs,
+		actorLocks: make(map[atp.Aid]*actorLock),
+		kmgr:       kmgr,
+		log:        logger.With("service", "repomgr"),
 	}
 }
 
@@ -55,8 +55,8 @@ type Manager struct {
 	cs   cs.Store
 	kmgr KeyManager
 
-	lklk      sync.Mutex
-	userLocks map[atp.Aid]*userLock
+	lklk       sync.Mutex
+	actorLocks map[atp.Aid]*actorLock
 
 	events         func(context.Context, *Event)
 	hydrateRecords bool
@@ -95,21 +95,21 @@ const (
 	EvtKindDeleteRecord = EventKind("delete")
 )
 
-type userLock struct {
+type actorLock struct {
 	lk    sync.Mutex
 	count int
 }
 
 func (rm *Manager) lockUser(ctx context.Context, user atp.Aid) func() {
-	_, span := otel.Tracer("repoman").Start(ctx, "userLock")
+	_, span := otel.Tracer("repoman").Start(ctx, "actorLock")
 	defer span.End()
 
 	rm.lklk.Lock()
 
-	ulk, ok := rm.userLocks[user]
+	ulk, ok := rm.actorLocks[user]
 	if !ok {
-		ulk = &userLock{}
-		rm.userLocks[user] = ulk
+		ulk = &actorLock{}
+		rm.actorLocks[user] = ulk
 	}
 
 	ulk.count++
@@ -125,7 +125,7 @@ func (rm *Manager) lockUser(ctx context.Context, user atp.Aid) func() {
 		ulk.count--
 
 		if ulk.count == 0 {
-			delete(rm.userLocks, user)
+			delete(rm.actorLocks, user)
 		}
 		rm.lklk.Unlock()
 	}

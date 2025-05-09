@@ -30,17 +30,17 @@ var blockGetTotalCounterUsrskip = blockGetTotalCounter.WithLabelValues("true", "
 var blockGetTotalCounterCached = blockGetTotalCounter.WithLabelValues("false", "hit")
 var blockGetTotalCounterNormal = blockGetTotalCounter.WithLabelValues("false", "miss")
 
-// userView needs these things to get into the underlying block store
+// actorView needs these things to get into the underlying block store
 // implemented by StoreMeta
-type userViewSource interface {
-	HasAidCid(ctx context.Context, user atp.Aid, k cid.Cid) (bool, error)
-	LookupBlockRef(ctx context.Context, k cid.Cid) (path string, offset int64, user atp.Aid, err error)
+type actorViewSource interface {
+	HasAidCid(ctx context.Context, actor atp.Aid, k cid.Cid) (bool, error)
+	LookupBlockRef(ctx context.Context, k cid.Cid) (path string, offset int64, actor atp.Aid, err error)
 }
 
 // wrapper into a block store that keeps track of which actor we are working on behalf of
 type actorView struct {
 	client *s3Client
-	cs     userViewSource
+	cs     actorViewSource
 	actor  atp.Aid
 
 	cache    map[cid.Cid]blocks.Block
@@ -61,10 +61,10 @@ func (av *actorView) Has(ctx context.Context, k cid.Cid) (bool, error) {
 	return av.cs.HasAidCid(ctx, av.actor, k)
 }
 
-// CacheHits counter for user view cache hits
+// CacheHits counter for actor view cache hits
 var CacheHits int64
 
-// CacheMiss counter for user view cache misses
+// CacheMiss counter for actor view cache misses
 var CacheMiss int64
 
 // Get the blocks for a given CID
@@ -221,17 +221,17 @@ func (av *actorView) AllKeysChan(ctx context.Context) (<-chan cid.Cid, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
-// Put userView is readonly
+// Put actorView is readonly
 func (av *actorView) Put(ctx context.Context, blk blocks.Block) error {
 	return fmt.Errorf("puts not supported to car view blockstores")
 }
 
-// PutMany userView is readonly
+// PutMany actorView is readonly
 func (av *actorView) PutMany(ctx context.Context, blks []blocks.Block) error {
 	return fmt.Errorf("puts not supported to car view blockstores")
 }
 
-// DeleteBlock userView is readonly
+// DeleteBlock actorView is readonly
 func (av *actorView) DeleteBlock(ctx context.Context, k cid.Cid) error {
 	return fmt.Errorf("deletes not supported to car view blockstore")
 }

@@ -42,7 +42,7 @@ func (p *PDS) CreateUser(
 		return nil, refErr.InternalServer()
 	}
 
-	user := &atp.Actor{
+	actor := &atp.Actor{
 		Handle:         sql.NullString{String: req.Handle, Valid: true},
 		Email:          sql.NullString{String: req.Email, Valid: true},
 		HashedPassword: sql.NullString{String: pw, Valid: true},
@@ -50,33 +50,33 @@ func (p *PDS) CreateUser(
 		Did:            did,
 	}
 
-	return user, nil
+	return actor, nil
 }
 
 // CreateNewRepo initialize a new repo and write the first record to the CAR store
 func (p *PDS) CreateNewRepo(
 	ctx context.Context,
-	user *atp.Actor,
+	actor *atp.Actor,
 	dname string,
 ) (*refApp.ServerCreateAccount_Output, *refErr.APIError) {
 	profile := &refApp.PersonProfile{
 		DisplayName: &dname,
 	}
 
-	if err := p.repoman.InitNewRepo(ctx, user.ID, user.Did, profile.NSID(), profile.Key(), profile); err != nil {
-		p.log.ErrorContext(ctx, "Error initializing new user repository", "error", err, "did", user.Did)
+	if err := p.repoman.InitNewRepo(ctx, actor.ID, actor.Did, profile.NSID(), profile.Key(), profile); err != nil {
+		p.log.ErrorContext(ctx, "Error initializing new actor repository", "error", err, "did", actor.Did)
 		return nil, refErr.Repo()
 	}
 
-	accessToken, refreshToken, err := p.CreateTokens(ctx, user.ID, user.Did)
+	accessToken, refreshToken, err := p.CreateTokens(ctx, actor.ID, actor.Did)
 	if err != nil {
 		return nil, refErr.InternalServer()
 	}
 
 	return &refApp.ServerCreateAccount_Output{
-		Did:          user.Did,
+		Did:          actor.Did,
 		DisplayName:  dname,
-		Handle:       user.Handle.String,
+		Handle:       actor.Handle.String,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    p.jwt.AuthScheme,
@@ -102,20 +102,20 @@ func (p *PDS) CreateTokens(ctx context.Context, uid atp.Aid, did string) (string
 // CreateSession completes a login request and returns the access and refresh tokens
 func (p *PDS) CreateSession(
 	ctx context.Context,
-	user *atp.Actor,
+	actor *atp.Actor,
 ) (*refApp.ServerCreateSession_Output, *refErr.APIError) {
-	accessToken, refreshToken, err := p.CreateTokens(ctx, user.ID, user.Did)
+	accessToken, refreshToken, err := p.CreateTokens(ctx, actor.ID, actor.Did)
 	if err != nil {
 		return nil, refErr.InternalServer()
 	}
 
-	if err := p.km.UpdateKeyCache(ctx, user.Did); err != nil {
+	if err := p.km.UpdateKeyCache(ctx, actor.Did); err != nil {
 		return nil, refErr.InternalServer()
 	}
 
 	return &refApp.ServerCreateSession_Output{
-		Did:          user.Did,
-		Handle:       user.Handle.String,
+		Did:          actor.Did,
+		Handle:       actor.Handle.String,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    p.jwt.AuthScheme,

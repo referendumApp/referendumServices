@@ -569,6 +569,6 @@ func (em *EventManager) addSubscriber(sub *Subscriber) {
 	em.subs = append(em.subs, sub)
 }
 
-func (em *EventManager) TakeDownRepo(ctx context.Context, user atp.Aid) error {
-	return em.persister.TakeDownRepo(ctx, user)
+func (em *EventManager) TakeDownRepo(ctx context.Context, actor atp.Aid) error {
+	return em.persister.TakeDownRepo(ctx, actor)
 }

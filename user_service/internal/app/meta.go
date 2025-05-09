@@ -94,7 +94,7 @@ func (vm *ViewMeta) actorExists(ctx context.Context, filter sq.Eq) (bool, error)
 		PlaceholderFormat(sq.Dollar).ToSql()
 
 	if err != nil {
-		vm.Log.InfoContext(ctx, "Error building user exists query", "error", err)
+		vm.Log.InfoContext(ctx, "Error building actor exists query", "error", err)
 		return false, err
 	}
 

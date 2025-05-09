@@ -19,7 +19,7 @@ type StoreMeta struct {
 	*database.DB
 }
 
-// HasAidCid checks that a user has block references
+// HasAidCid checks that an actor has block references
 func (cs *StoreMeta) HasAidCid(ctx context.Context, actor atp.Aid, k cid.Cid) (bool, error) {
 	var count int64
 	leftTbl := cs.Schema + "." + BlockRef{}.TableName()
@@ -45,7 +45,7 @@ func (cs *StoreMeta) HasAidCid(ctx context.Context, actor atp.Aid, k cid.Cid) (b
 }
 
 // LookupBlockRef for some Cid, lookup the block ref
-// Return the path of the file written, the offset within the file, and the user associated with the Cid
+// Return the path of the file written, the offset within the file, and the actor associated with the Cid
 func (cs *StoreMeta) LookupBlockRef(ctx context.Context, k cid.Cid) (string, int64, atp.Aid, error) {
 	var path string
 	var offset int64
@@ -160,7 +160,7 @@ func (cs *StoreMeta) SeqForRev(ctx context.Context, actor atp.Aid, sinceRev stri
 	return seq, nil
 }
 
-// GetCompactionTargets return the number of CAR shards for each user
+// GetCompactionTargets return the number of CAR shards for each actor
 func (cs *StoreMeta) GetCompactionTargets(ctx context.Context, minShardCount int) ([]*CompactionTarget, error) {
 	sql := fmt.Sprintf(
 		"SELECT usr, count(*) as num_shards FROM %s.%s GROUP BY usr HAVING count(*) > $1 ORDER BY num_shards DESC",

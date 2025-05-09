@@ -73,9 +73,9 @@ func (c *CrawlDispatcher) Shutdown() {
 }
 
 type catchupJob struct {
-	evt  *comatproto.SyncSubscribeRepos_Commit
-	host *atp.PDS
-	user *atp.Person
+	evt    *comatproto.SyncSubscribeRepos_Commit
+	host   *atp.PDS
+	person *atp.Person
 }
 
 type crawlWork struct {
@@ -196,7 +196,7 @@ func (c *CrawlDispatcher) addToCatchupQueue(catchup *catchupJob) *crawlWork {
 	defer c.maplk.Unlock()
 
 	// If the actor crawl is enqueued, we can append to the catchup queue which gets emptied during the crawl
-	job, ok := c.todo[catchup.user.Aid]
+	job, ok := c.todo[catchup.person.Aid]
 	if ok {
 		catchupEventsEnqueued.WithLabelValues("todo").Inc()
 		job.catchup = append(job.catchup, catchup)
@@ -204,7 +204,7 @@ func (c *CrawlDispatcher) addToCatchupQueue(catchup *catchupJob) *crawlWork {
 	}
 
 	// If the actor crawl is in progress, we can append to the nextr queue which gets emptied after the crawl
-	job, ok = c.inProgress[catchup.user.Aid]
+	job, ok = c.inProgress[catchup.person.Aid]
 	if ok {
 		catchupEventsEnqueued.WithLabelValues("prog").Inc()
 		job.next = append(job.next, catchup)
@@ -214,10 +214,10 @@ func (c *CrawlDispatcher) addToCatchupQueue(catchup *catchupJob) *crawlWork {
 	catchupEventsEnqueued.WithLabelValues("new").Inc()
 	// Otherwise, we need to create a new crawl job for this actor and enqueue it
 	cw := &crawlWork{
-		act:     catchup.user,
+		act:     catchup.person,
 		catchup: []*catchupJob{catchup},
 	}
-	c.todo[catchup.user.Aid] = cw
+	c.todo[catchup.person.Aid] = cw
 	return cw
 }
 
@@ -233,10 +233,10 @@ func (c *CrawlDispatcher) fetchWorker() {
 
 func (c *CrawlDispatcher) Crawl(ctx context.Context, ai *atp.Person) error {
 	if !ai.PDS.Valid {
-		panic("must have pds for user in queue")
+		panic("must have pds for person in queue")
 	}
 
-	userCrawlsEnqueued.Inc()
+	personCrawlsEnqueued.Inc()
 
 	ctx, span := otel.Tracer("crawler").Start(ctx, "addToCrawler")
 	defer span.End()
@@ -252,17 +252,17 @@ func (c *CrawlDispatcher) Crawl(ctx context.Context, ai *atp.Person) error {
 func (c *CrawlDispatcher) AddToCatchupQueue(
 	ctx context.Context,
 	host *atp.PDS,
-	u *atp.Person,
+	p *atp.Person,
 	evt *comatproto.SyncSubscribeRepos_Commit,
 ) error {
-	if !u.PDS.Valid {
-		panic("must have pds for user in queue")
+	if !p.PDS.Valid {
+		panic("must have pds for person in queue")
 	}
 
 	catchup := &catchupJob{
-		evt:  evt,
-		host: host,
-		user: u,
+		evt:    evt,
+		host:   host,
+		person: p,
 	}
 
 	cw := c.addToCatchupQueue(catchup)

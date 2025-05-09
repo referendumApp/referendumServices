@@ -425,9 +425,9 @@ func (cs *S3CarStore) GetActorRepoHead(ctx context.Context, actor atp.Aid) (cid.
 	return lastShard.Root.CID, nil
 }
 
-// GetUserRepoRev get the head revision for a user
-func (cs *S3CarStore) GetUserRepoRev(ctx context.Context, user atp.Aid) (string, error) {
-	lastShard, err := cs.getLastShard(ctx, user)
+// GetUserRepoRev get the head revision for an actor
+func (cs *S3CarStore) GetUserRepoRev(ctx context.Context, actor atp.Aid) (string, error) {
+	lastShard, err := cs.getLastShard(ctx, actor)
 	if err != nil {
 		return "", err
 	}
@@ -455,7 +455,7 @@ func (cs *S3CarStore) WipeUserData(ctx context.Context, actor atp.Aid) error {
 	return nil
 }
 
-func (cs *S3CarStore) deleteShards(ctx context.Context, user atp.Aid, shs []*Shard) error {
+func (cs *S3CarStore) deleteShards(ctx context.Context, actor atp.Aid, shs []*Shard) error {
 	ctx, span := otel.Tracer("carstore").Start(ctx, "deleteShards")
 	defer span.End()
 
@@ -472,7 +472,7 @@ func (cs *S3CarStore) deleteShards(ctx context.Context, user atp.Aid, shs []*Sha
 			return err
 		}
 
-		if err := cs.client.deleteShardFiles(ctx, user, seqs); err != nil {
+		if err := cs.client.deleteShardFiles(ctx, actor, seqs); err != nil {
 			cs.log.ErrorContext(ctx, "Error deleting CAR files from store", "error", err)
 			return err
 		}

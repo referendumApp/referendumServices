@@ -132,11 +132,11 @@ func (p *PDS) EventsHandler(w http.ResponseWriter, r *http.Request) {
 // 		ip = ip[:idx]
 // 	}
 //
-// 	// Get the user agent
-// 	userAgent := r.UserAgent()
+// 	// Get the actor agent
+// 	actorAgent := r.actorAgent()
 //
 // 	// Combine them into an identifier
-// 	ident := ip + "-" + userAgent
+// 	ident := ip + "-" + actorAgent
 //
 // 	return ident
 // }

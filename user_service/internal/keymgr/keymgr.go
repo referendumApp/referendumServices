@@ -77,7 +77,7 @@ func NewKeyManager(
 	}, nil
 }
 
-// CreateSigningKey generates the signing key for a user
+// CreateSigningKey generates the signing key for an actor
 func (km *KeyManager) CreateSigningKey(ctx context.Context) (*did.PrivKey, error) {
 	privkey, err := did.GeneratePrivKey(rand.Reader, did.KeyTypeSecp256k1)
 	if err != nil {

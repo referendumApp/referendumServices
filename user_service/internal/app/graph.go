@@ -46,14 +46,14 @@ func (v *View) HandleGraphFollow(
 
 		return nil
 	}); err != nil {
-		v.log.ErrorContext(ctx, "Failed to update user follow record", "error", err)
+		v.log.ErrorContext(ctx, "Failed to update actor follow record", "error", err)
 		return refErr.Database()
 	}
 
 	return nil
 }
 
-// HandleGraphFollowers queries the actor_follow_record table for user followers
+// HandleGraphFollowers queries the actor_follow_record table for person followers
 func (v *View) HandleGraphFollowers(ctx context.Context, aid atp.Aid) ([]*atp.PersonBasic, *refErr.APIError) {
 	followers, err := v.meta.LookupGraphFollowers(ctx, aid)
 	if err != nil {
@@ -63,7 +63,7 @@ func (v *View) HandleGraphFollowers(ctx context.Context, aid atp.Aid) ([]*atp.Pe
 	return followers, nil
 }
 
-// HandleGraphFollowing queries the actor_follow_record table for user follows
+// HandleGraphFollowing queries the actor_follow_record table for person follows
 func (v *View) HandleGraphFollowing(ctx context.Context, aid atp.Aid) ([]*atp.PersonBasic, *refErr.APIError) {
 	following, err := v.meta.LookupGraphFollowing(ctx, aid)
 	if err != nil {
