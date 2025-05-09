@@ -10,21 +10,21 @@ import (
 
 // LastShardSource interface for CAR shard metadata
 type LastShardSource interface {
-	GetLastShard(context.Context, atp.Uid) (*Shard, error)
+	GetLastShard(context.Context, atp.Aid) (*Shard, error)
 }
 
 type lastShardCache struct {
 	source LastShardSource
 
 	lscLk          sync.Mutex
-	lastShardCache map[atp.Uid]*Shard
+	lastShardCache map[atp.Aid]*Shard
 }
 
 func (lsc *lastShardCache) init() {
-	lsc.lastShardCache = make(map[atp.Uid]*Shard)
+	lsc.lastShardCache = make(map[atp.Aid]*Shard)
 }
 
-func (lsc *lastShardCache) check(user atp.Uid) *Shard {
+func (lsc *lastShardCache) check(user atp.Aid) *Shard {
 	lsc.lscLk.Lock()
 	defer lsc.lscLk.Unlock()
 
@@ -36,7 +36,7 @@ func (lsc *lastShardCache) check(user atp.Uid) *Shard {
 	return nil
 }
 
-func (lsc *lastShardCache) remove(user atp.Uid) {
+func (lsc *lastShardCache) remove(user atp.Aid) {
 	lsc.lscLk.Lock()
 	defer lsc.lscLk.Unlock()
 
@@ -53,7 +53,7 @@ func (lsc *lastShardCache) put(ls *Shard) {
 	lsc.lastShardCache[ls.Uid] = ls
 }
 
-func (lsc *lastShardCache) get(ctx context.Context, user atp.Uid) (*Shard, error) {
+func (lsc *lastShardCache) get(ctx context.Context, user atp.Aid) (*Shard, error) {
 	ctx, span := otel.Tracer("carstore").Start(ctx, "getLastShard")
 	defer span.End()
 

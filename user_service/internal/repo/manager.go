@@ -32,7 +32,7 @@ import (
 func NewRepoManager(cs cs.Store, kmgr KeyManager, logger *slog.Logger) *Manager {
 	return &Manager{
 		cs:        cs,
-		userLocks: make(map[atp.Uid]*userLock),
+		userLocks: make(map[atp.Aid]*userLock),
 		kmgr:      kmgr,
 		log:       logger.With("service", "repomgr"),
 	}
@@ -56,7 +56,7 @@ type Manager struct {
 	kmgr KeyManager
 
 	lklk      sync.Mutex
-	userLocks map[atp.Uid]*userLock
+	userLocks map[atp.Aid]*userLock
 
 	events         func(context.Context, *Event)
 	hydrateRecords bool
@@ -66,7 +66,7 @@ type Manager struct {
 
 // Event schema for handling and broadcasting events
 type Event struct {
-	User      atp.Uid
+	User      atp.Aid
 	OldRoot   *cid.Cid
 	NewRoot   cid.Cid
 	Since     *string
@@ -100,7 +100,7 @@ type userLock struct {
 	count int
 }
 
-func (rm *Manager) lockUser(ctx context.Context, user atp.Uid) func() {
+func (rm *Manager) lockUser(ctx context.Context, user atp.Aid) func() {
 	_, span := otel.Tracer("repoman").Start(ctx, "userLock")
 	defer span.End()
 
@@ -139,7 +139,7 @@ func (rm *Manager) CarStore() cs.Store {
 // CreateRecord creates a repo record and broadcasts the event
 func (rm *Manager) CreateRecord(
 	ctx context.Context,
-	user atp.Uid,
+	user atp.Aid,
 	nsid string,
 	key string,
 	rec cbg.CBORMarshaler,
@@ -211,7 +211,7 @@ func (rm *Manager) CreateRecord(
 // UpdateRecord updates a repo record and broadcasts the event
 func (rm *Manager) UpdateRecord(
 	ctx context.Context,
-	user atp.Uid,
+	user atp.Aid,
 	nsid string,
 	key string,
 	rec cbg.CBORMarshaler,
@@ -285,7 +285,7 @@ func (rm *Manager) UpdateRecord(
 }
 
 // DeleteRecord deletes a repo record and broadcasts the event
-func (rm *Manager) DeleteRecord(ctx context.Context, user atp.Uid, nsid string, key string) error {
+func (rm *Manager) DeleteRecord(ctx context.Context, user atp.Aid, nsid string, key string) error {
 	ctx, span := otel.Tracer("repoman").Start(ctx, "DeleteRecord")
 	defer span.End()
 
@@ -349,7 +349,7 @@ func (rm *Manager) DeleteRecord(ctx context.Context, user atp.Uid, nsid string, 
 // InitNewRepo initializes a new repository, writes the first record, and broadcasts the event
 func (rm *Manager) InitNewRepo(
 	ctx context.Context,
-	user atp.Uid,
+	user atp.Aid,
 	did string,
 	nsid string,
 	key string,
@@ -411,7 +411,7 @@ func (rm *Manager) InitNewRepo(
 }
 
 // GetRepoRoot gets the root CID for a repo
-func (rm *Manager) GetRepoRoot(ctx context.Context, user atp.Uid) (cid.Cid, error) {
+func (rm *Manager) GetRepoRoot(ctx context.Context, user atp.Aid) (cid.Cid, error) {
 	unlock := rm.lockUser(ctx, user)
 	defer unlock()
 
@@ -419,7 +419,7 @@ func (rm *Manager) GetRepoRoot(ctx context.Context, user atp.Uid) (cid.Cid, erro
 }
 
 // GetRepoRev gets the root revision for a repo
-func (rm *Manager) GetRepoRev(ctx context.Context, user atp.Uid) (string, error) {
+func (rm *Manager) GetRepoRev(ctx context.Context, user atp.Aid) (string, error) {
 	unlock := rm.lockUser(ctx, user)
 	defer unlock()
 
@@ -428,14 +428,14 @@ func (rm *Manager) GetRepoRev(ctx context.Context, user atp.Uid) (string, error)
 
 // ReadRepo reads a CAR file for a given revision
 // TODO: might be worth having a type alias for revisions
-func (rm *Manager) ReadRepo(ctx context.Context, user atp.Uid, since string, w io.Writer) error {
+func (rm *Manager) ReadRepo(ctx context.Context, user atp.Aid, since string, w io.Writer) error {
 	return rm.cs.ReadUserCar(ctx, user, since, w)
 }
 
 // GetRecord reads a record into the 'rev' interface
 func (rm *Manager) GetRecord(
 	ctx context.Context,
-	user atp.Uid,
+	user atp.Aid,
 	nsid string,
 	key string,
 	rec cbg.CBORMarshaler,
@@ -471,7 +471,7 @@ func (rm *Manager) GetRecord(
 // GetRecordProof gets all the blocks for a repo
 func (rm *Manager) GetRecordProof(
 	ctx context.Context,
-	user atp.Uid,
+	user atp.Aid,
 	collection string,
 	rkey string,
 ) (cid.Cid, []blocks.Block, error) {
@@ -528,7 +528,7 @@ func (rm *Manager) CheckRepoSig(ctx context.Context, r *Repo, expdid string) err
 func (rm *Manager) HandleExternalUserEvent(
 	ctx context.Context,
 	pdsid uint,
-	uid atp.Uid,
+	uid atp.Aid,
 	did string,
 	since *string,
 	nrev string,
@@ -648,7 +648,7 @@ func (rm *Manager) HandleExternalUserEvent(
 // BatchWrite writes a slice of operations as a single commit
 func (rm *Manager) BatchWrite(
 	ctx context.Context,
-	user atp.Uid,
+	user atp.Aid,
 	writes []*atproto.RepoApplyWrites_Input_Writes_Elem,
 ) error {
 	ctx, span := otel.Tracer("repoman").Start(ctx, "BatchWrite")
@@ -771,7 +771,7 @@ func (rm *Manager) BatchWrite(
 }
 
 // ImportNewRepo initializes a new repo from an external source
-func (rm *Manager) ImportNewRepo(ctx context.Context, user atp.Uid, repoDid string, r io.Reader, rev *string) error {
+func (rm *Manager) ImportNewRepo(ctx context.Context, user atp.Aid, repoDid string, r io.Reader, rev *string) error {
 	ctx, span := otel.Tracer("repoman").Start(ctx, "ImportNewRepo")
 	defer span.End()
 
@@ -940,7 +940,7 @@ func (rm *Manager) processOp(
 
 func (rm *Manager) processNewRepo(
 	ctx context.Context,
-	user atp.Uid,
+	user atp.Aid,
 	r io.Reader,
 	rev *string,
 	cb func(ctx context.Context, root cid.Cid, finish func(context.Context, string) ([]byte, error), bs blockstore.Blockstore) error,
@@ -1073,7 +1073,7 @@ func (rm *Manager) walkTree(
 }
 
 // TakeDownRepo deletes all CAR files and blocks
-func (rm *Manager) TakeDownRepo(ctx context.Context, uid atp.Uid) error {
+func (rm *Manager) TakeDownRepo(ctx context.Context, uid atp.Aid) error {
 	unlock := rm.lockUser(ctx, uid)
 	defer unlock()
 
@@ -1081,7 +1081,7 @@ func (rm *Manager) TakeDownRepo(ctx context.Context, uid atp.Uid) error {
 }
 
 // ResetRepo technically identical to TakeDownRepo, for now
-func (rm *Manager) ResetRepo(ctx context.Context, uid atp.Uid) error {
+func (rm *Manager) ResetRepo(ctx context.Context, uid atp.Aid) error {
 	unlock := rm.lockUser(ctx, uid)
 	defer unlock()
 
@@ -1089,7 +1089,7 @@ func (rm *Manager) ResetRepo(ctx context.Context, uid atp.Uid) error {
 }
 
 // VerifyRepo checks that all records in the repository are readable
-func (rm *Manager) VerifyRepo(ctx context.Context, uid atp.Uid) error {
+func (rm *Manager) VerifyRepo(ctx context.Context, uid atp.Aid) error {
 	ses, err := rm.cs.ReadOnlySession(uid)
 	if err != nil {
 		return err

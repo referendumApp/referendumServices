@@ -107,7 +107,7 @@ func (v *View) AuthenticateUser(ctx context.Context, username string, pw string)
 }
 
 // AuthenticateSession validates a session based on the user ID and DID
-func (v *View) AuthenticateSession(ctx context.Context, uid atp.Uid, did string) *refErr.APIError {
+func (v *View) AuthenticateSession(ctx context.Context, uid atp.Aid, did string) *refErr.APIError {
 	filter := sq.Eq{"id": uid, "did": did}
 	exists, err := v.meta.userExists(ctx, filter)
 	if err != nil {
@@ -122,7 +122,7 @@ func (v *View) AuthenticateSession(ctx context.Context, uid atp.Uid, did string)
 }
 
 // DeleteAccount deletes a user and person record from the DB
-func (v *View) DeleteAccount(ctx context.Context, uid atp.Uid, did string) *refErr.APIError {
+func (v *View) DeleteAccount(ctx context.Context, uid atp.Aid, did string) *refErr.APIError {
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		deletedAt := sql.NullTime{Time: time.Now(), Valid: true}
 
@@ -146,7 +146,7 @@ func (v *View) DeleteAccount(ctx context.Context, uid atp.Uid, did string) *refE
 }
 
 // UpdateProfile updates a user profile with a new handle, email, or display name
-func (v *View) UpdateProfile(ctx context.Context, uid atp.Uid, req *refApp.PersonUpdateProfile_Input) *refErr.APIError {
+func (v *View) UpdateProfile(ctx context.Context, uid atp.Aid, req *refApp.PersonUpdateProfile_Input) *refErr.APIError {
 	var newUser atp.User
 	if req.Handle != nil {
 		handle := *req.Handle

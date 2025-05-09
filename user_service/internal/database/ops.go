@@ -28,7 +28,7 @@ func (d *DB) LookupPDSById(ctx context.Context, id int64) (*atp.PDS, error) {
 }
 
 // DidForPerson returns a DID based on a user ID
-func (d *DB) DidForPerson(ctx context.Context, uid atp.Uid) (string, error) {
+func (d *DB) DidForPerson(ctx context.Context, uid atp.Aid) (string, error) {
 	var person atp.Person
 	sql := fmt.Sprintf("SELECT did FROM %s.%s WHERE uid = $1", d.Schema, person.TableName())
 
@@ -52,7 +52,7 @@ func (d *DB) lookupPersonQuery(ctx context.Context, filter sq.Sqlizer) (*atp.Per
 }
 
 // LookupPersonByUid returns a person record by user ID
-func (d *DB) LookupPersonByUid(ctx context.Context, uid atp.Uid) (*atp.Person, error) {
+func (d *DB) LookupPersonByUid(ctx context.Context, uid atp.Aid) (*atp.Person, error) {
 	filter := sq.Eq{"uid": uid}
 	return d.lookupPersonQuery(ctx, filter)
 }
@@ -81,7 +81,7 @@ func (d *DB) lookupActivityPostQuery(ctx context.Context, filter ...sq.Sqlizer) 
 }
 
 // LookupActivityPostByUid returns a activity_post record by user ID
-func (d *DB) LookupActivityPostByUid(ctx context.Context, rkey string, uid atp.Uid) (*atp.ActivityPost, error) {
+func (d *DB) LookupActivityPostByUid(ctx context.Context, rkey string, uid atp.Aid) (*atp.ActivityPost, error) {
 	// Create the subquery for author ID
 	filters := sq.Eq{"rkey": rkey, "author": uid}
 	return d.lookupActivityPostQuery(ctx, filters)
@@ -136,7 +136,7 @@ func (d *DB) lookupEndorsementRecordQuery(ctx context.Context, filter sq.Sqlizer
 // LookupEndorsementRecordByUid returns endorsement_record by user ID
 func (d *DB) LookupEndorsementRecordByUid(
 	ctx context.Context,
-	voter atp.Uid,
+	voter atp.Aid,
 	rkey string,
 ) (*atp.EndorsementRecord, error) {
 	filter := sq.Eq{"voter": voter}
@@ -144,7 +144,7 @@ func (d *DB) LookupEndorsementRecordByUid(
 }
 
 // HandleRecordDeleteFeedLike delete feed like
-func (d *DB) HandleRecordDeleteFeedLike(ctx context.Context, uid atp.Uid, rkey string) error {
+func (d *DB) HandleRecordDeleteFeedLike(ctx context.Context, uid atp.Aid, rkey string) error {
 	var entity atp.EndorsementRecord
 	filter := sq.Eq{"voter": uid, "rkey": rkey}
 	er, err := GetAll(ctx, d, entity, filter)
@@ -164,7 +164,7 @@ func (d *DB) HandleRecordDeleteFeedLike(ctx context.Context, uid atp.Uid, rkey s
 }
 
 // HandleRecordDeleteGraphFollow delete user follow
-func (d *DB) HandleRecordDeleteGraphFollow(ctx context.Context, uid atp.Uid, rkey string) error {
+func (d *DB) HandleRecordDeleteGraphFollow(ctx context.Context, uid atp.Aid, rkey string) error {
 	filter := sq.Eq{"follower": uid, "rkey": rkey}
 	if err := d.Delete(ctx, atp.UserFollowRecord{}, filter); err != nil {
 		if errors.Is(err, ErrNoRowsAffected) {

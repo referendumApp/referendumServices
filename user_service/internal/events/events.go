@@ -224,7 +224,7 @@ type XRPCStreamEvent struct {
 	LabelInfo     *comatproto.LabelSubscribeLabels_Info
 
 	// some private fields for internal routing perf
-	PrivUid         atp.Uid `json:"-" cborgen:"-"`
+	PrivUid         atp.Aid `json:"-" cborgen:"-"`
 	PrivPdsId       uint    `json:"-" cborgen:"-"`
 	PrivRelevantPds []uint  `json:"-" cborgen:"-"`
 	Preserialized   []byte  `json:"-" cborgen:"-"`
@@ -569,6 +569,6 @@ func (em *EventManager) addSubscriber(sub *Subscriber) {
 	em.subs = append(em.subs, sub)
 }
 
-func (em *EventManager) TakeDownRepo(ctx context.Context, user atp.Uid) error {
+func (em *EventManager) TakeDownRepo(ctx context.Context, user atp.Aid) error {
 	return em.persister.TakeDownRepo(ctx, user)
 }

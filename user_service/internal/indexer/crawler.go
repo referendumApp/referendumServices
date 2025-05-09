@@ -22,9 +22,9 @@ type CrawlDispatcher struct {
 	repoSync chan *crawlWork
 
 	done       chan struct{}
-	complete   chan atp.Uid
-	todo       map[atp.Uid]*crawlWork
-	inProgress map[atp.Uid]*crawlWork
+	complete   chan atp.Aid
+	todo       map[atp.Aid]*crawlWork
+	inProgress map[atp.Aid]*crawlWork
 
 	log         *slog.Logger
 	repoFetcher CrawlRepoFetcher
@@ -46,12 +46,12 @@ func NewCrawlDispatcher(repoFetcher CrawlRepoFetcher, concurrency int, log *slog
 	out := &CrawlDispatcher{
 		ingest:      make(chan *atp.Person),
 		repoSync:    make(chan *crawlWork),
-		complete:    make(chan atp.Uid),
+		complete:    make(chan atp.Aid),
 		catchup:     make(chan *crawlWork),
 		repoFetcher: repoFetcher,
 		concurrency: concurrency,
-		todo:        make(map[atp.Uid]*crawlWork),
-		inProgress:  make(map[atp.Uid]*crawlWork),
+		todo:        make(map[atp.Aid]*crawlWork),
+		inProgress:  make(map[atp.Aid]*crawlWork),
 		log:         log,
 		done:        make(chan struct{}),
 	}
@@ -278,7 +278,7 @@ func (c *CrawlDispatcher) AddToCatchupQueue(
 	}
 }
 
-func (c *CrawlDispatcher) RepoInSlowPath(ctx context.Context, uid atp.Uid) bool {
+func (c *CrawlDispatcher) RepoInSlowPath(ctx context.Context, uid atp.Aid) bool {
 	c.maplk.Lock()
 	defer c.maplk.Unlock()
 	if _, ok := c.todo[uid]; ok {

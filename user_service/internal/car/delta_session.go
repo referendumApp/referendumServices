@@ -24,7 +24,7 @@ type DeltaSession struct {
 	blks     map[cid.Cid]blocks.Block
 	rmcids   map[cid.Cid]bool
 	base     minBlockstore
-	user     atp.Uid
+	user     atp.Aid
 	baseCid  cid.Cid
 	seq      int
 	readonly bool

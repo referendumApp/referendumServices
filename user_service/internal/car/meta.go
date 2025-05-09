@@ -20,7 +20,7 @@ type StoreMeta struct {
 }
 
 // HasUidCid checks that a user has block references
-func (cs *StoreMeta) HasUidCid(ctx context.Context, user atp.Uid, k cid.Cid) (bool, error) {
+func (cs *StoreMeta) HasUidCid(ctx context.Context, user atp.Aid, k cid.Cid) (bool, error) {
 	var count int64
 	leftTbl := cs.Schema + "." + BlockRef{}.TableName()
 	rightTbl := cs.Schema + "." + Shard{}.TableName()
@@ -46,14 +46,14 @@ func (cs *StoreMeta) HasUidCid(ctx context.Context, user atp.Uid, k cid.Cid) (bo
 
 // LookupBlockRef for some Cid, lookup the block ref
 // Return the path of the file written, the offset within the file, and the user associated with the Cid
-func (cs *StoreMeta) LookupBlockRef(ctx context.Context, k cid.Cid) (string, int64, atp.Uid, error) {
+func (cs *StoreMeta) LookupBlockRef(ctx context.Context, k cid.Cid) (string, int64, atp.Aid, error) {
 	var path string
 	var offset int64
-	var uid atp.Uid
+	var uid atp.Aid
 	sql := "SELECT (SELECT path FROM carstore.car_shards WHERE id = block_refs.shard) AS path, block_refs.byte_offset, block_refs.uid FROM carstore.block_refs WHERE block_refs.cid = $1"
 	if err := cs.GetRow(ctx, sql, atp.DbCID{CID: k}).Scan(&path, &offset, &uid); err != nil {
 		cs.Log.ErrorContext(ctx, "Error scanning row", "error", err, "sql", sql, "cid", k)
-		var defaultUser atp.Uid
+		var defaultUser atp.Aid
 		return "", -1, defaultUser, err
 	}
 
@@ -61,7 +61,7 @@ func (cs *StoreMeta) LookupBlockRef(ctx context.Context, k cid.Cid) (string, int
 }
 
 // GetLastShard queries the car_shards table for the most recent shard written to the store
-func (cs *StoreMeta) GetLastShard(ctx context.Context, user atp.Uid) (*Shard, error) {
+func (cs *StoreMeta) GetLastShard(ctx context.Context, user atp.Aid) (*Shard, error) {
 	filter := sq.Eq{"uid": user}
 
 	query, err := database.BuildSelectAll(&Shard{}, cs.Schema, filter)
@@ -90,7 +90,7 @@ func (cs *StoreMeta) GetLastShard(ctx context.Context, user atp.Uid) (*Shard, er
 }
 
 // GetUserShards return all of a users's shards, ascending by Seq
-func (cs *StoreMeta) GetUserShards(ctx context.Context, user atp.Uid) ([]*Shard, error) {
+func (cs *StoreMeta) GetUserShards(ctx context.Context, user atp.Aid) ([]*Shard, error) {
 	filter := sq.Eq{"uid": user}
 
 	query, err := database.BuildSelectAll(&Shard{}, cs.Schema, filter)
@@ -115,7 +115,7 @@ func (cs *StoreMeta) GetUserShards(ctx context.Context, user atp.Uid) ([]*Shard,
 }
 
 // GetUserShardsDesc return all of a users's shards, descending by Seq
-func (cs *StoreMeta) GetUserShardsDesc(ctx context.Context, user atp.Uid, minSeq int) ([]*Shard, error) {
+func (cs *StoreMeta) GetUserShardsDesc(ctx context.Context, user atp.Aid, minSeq int) ([]*Shard, error) {
 	filter := sq.And{sq.Eq{"uid": user}, sq.GtOrEq{"seq": minSeq}}
 
 	query, err := database.BuildSelectAll(&Shard{}, cs.Schema, filter)
@@ -140,7 +140,7 @@ func (cs *StoreMeta) GetUserShardsDesc(ctx context.Context, user atp.Uid, minSeq
 }
 
 // SeqForRev return the CAR shard sequence number for a revision
-func (cs *StoreMeta) SeqForRev(ctx context.Context, user atp.Uid, sinceRev string) (int, error) {
+func (cs *StoreMeta) SeqForRev(ctx context.Context, user atp.Aid, sinceRev string) (int, error) {
 	var seq int
 
 	filter := sq.And{sq.Eq{"uid": user}, sq.GtOrEq{"rev": sinceRev}}

@@ -14,7 +14,7 @@ import (
 // HandleGraphFollow proccesses a follow request for another user
 func (v *View) HandleGraphFollow(
 	ctx context.Context,
-	uid atp.Uid,
+	uid atp.Aid,
 	did string,
 	cc cid.Cid,
 	tid string,
@@ -54,7 +54,7 @@ func (v *View) HandleGraphFollow(
 }
 
 // HandleGraphFollowers queries the user_follow_record table for user followers
-func (v *View) HandleGraphFollowers(ctx context.Context, uid atp.Uid) ([]*atp.PersonBasic, *refErr.APIError) {
+func (v *View) HandleGraphFollowers(ctx context.Context, uid atp.Aid) ([]*atp.PersonBasic, *refErr.APIError) {
 	followers, err := v.meta.LookupGraphFollowers(ctx, uid)
 	if err != nil {
 		return nil, refErr.Database()
@@ -64,7 +64,7 @@ func (v *View) HandleGraphFollowers(ctx context.Context, uid atp.Uid) ([]*atp.Pe
 }
 
 // HandleGraphFollowing queries the user_follow_record table for user follows
-func (v *View) HandleGraphFollowing(ctx context.Context, uid atp.Uid) ([]*atp.PersonBasic, *refErr.APIError) {
+func (v *View) HandleGraphFollowing(ctx context.Context, uid atp.Aid) ([]*atp.PersonBasic, *refErr.APIError) {
 	following, err := v.meta.LookupGraphFollowing(ctx, uid)
 	if err != nil {
 		return nil, refErr.Database()

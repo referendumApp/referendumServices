@@ -105,7 +105,7 @@ func NewConfig(sk []byte, iss string, method *jwt.SigningMethodHMAC) *JWTConfig 
 }
 
 // CreateToken create the JWT token with all the necessary map claims
-func (j *JWTConfig) CreateToken(sub atp.Uid, did string, tokenType TokenType) (string, error) {
+func (j *JWTConfig) CreateToken(sub atp.Aid, did string, tokenType TokenType) (string, error) {
 	// Current time
 	now := time.Now()
 
@@ -186,7 +186,7 @@ func (j *JWTConfig) DecodeJWT(tokenString string) (*jwt.Token, error) {
 }
 
 // ValidateToken check the map claims
-func ValidateToken(token *jwt.Token, tokenType TokenType) (atp.Uid, string, error) {
+func ValidateToken(token *jwt.Token, tokenType TokenType) (atp.Aid, string, error) {
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
 		return 0, "", fmt.Errorf("invalid token claims map")
@@ -251,7 +251,7 @@ func ValidateToken(token *jwt.Token, tokenType TokenType) (atp.Uid, string, erro
 		return 0, "", fmt.Errorf("failed to convert subject to integer: %w", err)
 	}
 
-	uid := atp.Uid(uint(subInt))
+	uid := atp.Aid(uint(subInt))
 
 	return uid, didStr, nil
 }

@@ -583,7 +583,7 @@ func (ix *Indexer) GetPostOrMissing(ctx context.Context, uri string) (*atp.Activ
 
 func (ix *Indexer) handleRecordCreateActivityPost(
 	ctx context.Context,
-	user atp.Uid,
+	user atp.Aid,
 	rkey string,
 	rcid cid.Cid,
 	rec *bsky.FeedPost,
@@ -693,6 +693,6 @@ func (ix *Indexer) addNewPostNotification(
 	return nil
 }
 
-func (ix *Indexer) addNewVoteNotification(ctx context.Context, postauthor atp.Uid, vr *atp.EndorsementRecord) error {
+func (ix *Indexer) addNewVoteNotification(ctx context.Context, postauthor atp.Aid, vr *atp.EndorsementRecord) error {
 	return nil
 }

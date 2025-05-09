@@ -15,8 +15,8 @@ import (
 
 var ErrUnauthorized = errors.New("unauthorized user request")
 
-func (s *Service) getAndValidatePerson(ctx context.Context) (atp.Uid, string, *refErr.APIError) {
-	uid, ok := ctx.Value(util.SubjectKey).(atp.Uid)
+func (s *Service) getAndValidatePerson(ctx context.Context) (atp.Aid, string, *refErr.APIError) {
+	uid, ok := ctx.Value(util.SubjectKey).(atp.Aid)
 	if !ok {
 		s.log.ErrorContext(ctx, "Invalid user ID", "uid", uid)
 		return 0, "", refErr.Unauthorized(ErrUnauthorized.Error())

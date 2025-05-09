@@ -84,7 +84,7 @@ func (p *PDS) CreateNewRepo(
 }
 
 // CreateTokens method to create the access and refresh tokens and update the signing key cache for a session
-func (p *PDS) CreateTokens(ctx context.Context, uid atp.Uid, did string) (string, string, error) {
+func (p *PDS) CreateTokens(ctx context.Context, uid atp.Aid, did string) (string, string, error) {
 	accessToken, err := p.jwt.CreateToken(uid, did, util.Access)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Failed to create access token", "error", err)
@@ -127,7 +127,7 @@ func (p *PDS) CreateSession(
 func (p *PDS) RefreshSession(
 	ctx context.Context,
 	refreshToken string,
-) (*refApp.ServerRefreshSession_Output, atp.Uid, string, *refErr.APIError) {
+) (*refApp.ServerRefreshSession_Output, atp.Aid, string, *refErr.APIError) {
 	token, err := p.jwt.DecodeJWT(refreshToken)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Failed to decode refresh token", "error", err)
@@ -166,7 +166,7 @@ func (p *PDS) DeleteSession(ctx context.Context, did string) *refErr.APIError {
 }
 
 // DeleteAccount tombstones the DID in the PLC, deletes DB metadata, and deletes CAR files
-func (p *PDS) DeleteAccount(ctx context.Context, uid atp.Uid, did string) *refErr.APIError {
+func (p *PDS) DeleteAccount(ctx context.Context, uid atp.Aid, did string) *refErr.APIError {
 	op, err := p.plc.GetLatestOp(ctx, did)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Error searching for latest operation in PLC log", "error", err)

@@ -116,7 +116,7 @@ func (vm *ViewMeta) lookupUserQuery(ctx context.Context, filter sq.Sqlizer) (*at
 }
 
 // LookupUserByID queries user record by user ID
-func (vm *ViewMeta) LookupUserByID(ctx context.Context, uid atp.Uid) (*atp.User, error) {
+func (vm *ViewMeta) LookupUserByID(ctx context.Context, uid atp.Aid) (*atp.User, error) {
 	filter := sq.Eq{"id": uid}
 	return vm.lookupUserQuery(ctx, filter)
 }
@@ -140,7 +140,7 @@ func (vm *ViewMeta) LookupUserByEmail(ctx context.Context, email string) (*atp.U
 }
 
 // LookupGraphFollowers queries user records with a join to user_follow_record filtered by 'target'
-func (vm *ViewMeta) LookupGraphFollowers(ctx context.Context, uid atp.Uid) ([]*atp.PersonBasic, error) {
+func (vm *ViewMeta) LookupGraphFollowers(ctx context.Context, uid atp.Aid) ([]*atp.PersonBasic, error) {
 	filter := sq.Eq{"target": uid}
 	var leftTbl atp.PersonBasic
 	var rightTbl atp.UserFollowRecord
@@ -155,7 +155,7 @@ func (vm *ViewMeta) LookupGraphFollowers(ctx context.Context, uid atp.Uid) ([]*a
 }
 
 // LookupGraphFollowing queries user records with a join to user_follow_record filtered by 'follower'
-func (vm *ViewMeta) LookupGraphFollowing(ctx context.Context, uid atp.Uid) ([]*atp.PersonBasic, error) {
+func (vm *ViewMeta) LookupGraphFollowing(ctx context.Context, uid atp.Aid) ([]*atp.PersonBasic, error) {
 	filter := sq.Eq{"follower": uid}
 	var leftTbl atp.PersonBasic
 	var rightTbl atp.UserFollowRecord
@@ -170,7 +170,7 @@ func (vm *ViewMeta) LookupGraphFollowing(ctx context.Context, uid atp.Uid) ([]*a
 }
 
 // GetPersonBasicProfile queries person record for the basic profile
-func (vm *ViewMeta) GetPersonBasicProfile(ctx context.Context, uid atp.Uid) (*atp.PersonBasic, error) {
+func (vm *ViewMeta) GetPersonBasicProfile(ctx context.Context, uid atp.Aid) (*atp.PersonBasic, error) {
 	query, err := database.BuildSelect(&atp.PersonBasic{}, vm.Schema, sq.Eq{"uid": uid})
 	if err != nil {
 		vm.Log.ErrorContext(ctx, "Error building profile select query", "error", err)

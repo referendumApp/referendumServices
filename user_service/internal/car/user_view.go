@@ -33,15 +33,15 @@ var blockGetTotalCounterNormal = blockGetTotalCounter.WithLabelValues("false", "
 // userView needs these things to get into the underlying block store
 // implemented by StoreMeta
 type userViewSource interface {
-	HasUidCid(ctx context.Context, user atp.Uid, k cid.Cid) (bool, error)
-	LookupBlockRef(ctx context.Context, k cid.Cid) (path string, offset int64, user atp.Uid, err error)
+	HasUidCid(ctx context.Context, user atp.Aid, k cid.Cid) (bool, error)
+	LookupBlockRef(ctx context.Context, k cid.Cid) (path string, offset int64, user atp.Aid, err error)
 }
 
 // wrapper into a block store that keeps track of which user we are working on behalf of
 type userView struct {
 	client *s3Client
 	cs     userViewSource
-	user   atp.Uid
+	user   atp.Aid
 
 	cache    map[cid.Cid]blocks.Block
 	prefetch bool

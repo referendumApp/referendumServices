@@ -9,7 +9,7 @@ import (
 	"github.com/bluesky-social/indigo/xrpc"
 )
 
-type Uid uint64
+type Aid uint64
 
 type Base struct {
 	CreatedAt time.Time    `db:"created_at,omitempty" json:"-"`
@@ -27,7 +27,7 @@ type User struct {
 	CreatedAt      time.Time      `db:"created_at,omitempty"      json:"-"`
 	UpdatedAt      time.Time      `db:"updated_at,omitempty"      json:"-"`
 	DeletedAt      sql.NullTime   `db:"deleted_at,omitempty"      json:"-"`
-	ID             Uid            `db:"id,omitempty,pk"           json:"id"`
+	ID             Aid            `db:"id,omitempty,pk"           json:"id"`
 	PDS            sql.NullInt64  `db:"pds_id,omitempty"          json:"-"`
 }
 
@@ -50,7 +50,7 @@ type ActivityPost struct {
 	Rkey string `db:"rkey"         json:"-"`
 	Cid  DbCID  `db:"cid"          json:"-"`
 	Base
-	Author       Uid   `db:"author"       json:"author"`
+	Author       Aid   `db:"author"       json:"author"`
 	Endorsements int64 `db:"endorsements" json:"endorsements"`
 	ReplyCount   int64 `db:"reply_count"  json:"reply_count"`
 	ReplyTo      uint  `db:"reply_to"     json:"reply_to"`
@@ -81,7 +81,7 @@ type Person struct {
 	Did         string         `db:"did,omitempty"          json:"did"`
 	Type        sql.NullString `db:"type,omitempty"         json:"type"`
 	Base
-	Uid         Uid           `db:"uid,omitempty"          json:"-"`
+	Uid         Aid           `db:"uid,omitempty"          json:"-"`
 	Following   int64         `db:"following,omitempty"    json:"following"`
 	Followers   int64         `db:"followers,omitempty"    json:"followers"`
 	Posts       int64         `db:"posts,omitempty"        json:"posts"`
@@ -108,7 +108,7 @@ type EndorsementRecord struct {
 	Created  string `db:"created"         json:"-"`
 	Rkey     string `db:"rkey"            json:"-"`
 	Cid      DbCID  `db:"cid"             json:"-"`
-	Endorser Uid    `db:"endorser"        json:"endorser"`
+	Endorser Aid    `db:"endorser"        json:"endorser"`
 	ID       uint   `db:"id,omitempty,pk" json:"id"`
 	Post     uint   `db:"post_id"         json:"post"`
 }
@@ -121,8 +121,8 @@ type UserFollowRecord struct {
 	Rkey string `db:"rkey"     json:"-"`
 	Cid  DbCID  `db:"cid"      json:"-"`
 	Base
-	Follower Uid `db:"follower" json:"follower"`
-	Target   Uid `db:"target"   json:"target"`
+	Follower Aid `db:"follower" json:"follower"`
+	Target   Aid `db:"target"   json:"target"`
 }
 
 func (f UserFollowRecord) TableName() string {

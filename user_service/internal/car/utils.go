@@ -55,10 +55,10 @@ func writeCarHeader(w io.Writer, root cid.Cid) (int64, error) {
 	return hnw, nil
 }
 
-func fnameForShard(user atp.Uid, seq int) string {
+func fnameForShard(user atp.Aid, seq int) string {
 	return fmt.Sprintf("sh-%d-%d", user, seq)
 }
 
-func keyForShard(user atp.Uid, seq int) string {
+func keyForShard(user atp.Aid, seq int) string {
 	return fmt.Sprintf("sh-%d/seq-%d", user, seq)
 }

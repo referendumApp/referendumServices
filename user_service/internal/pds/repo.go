@@ -18,7 +18,7 @@ type Record interface {
 }
 
 // CreateRecord 'Record' interface handler for creating a repo record
-func (p *PDS) CreateRecord(ctx context.Context, uid atp.Uid, rec Record) (cid.Cid, string, *refErr.APIError) {
+func (p *PDS) CreateRecord(ctx context.Context, uid atp.Aid, rec Record) (cid.Cid, string, *refErr.APIError) {
 	cc, key, err := p.repoman.CreateRecord(ctx, uid, rec.NSID(), rec.Key(), rec)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Error creating repo record", "error", err, "uid", uid, "record", rec)
@@ -29,7 +29,7 @@ func (p *PDS) CreateRecord(ctx context.Context, uid atp.Uid, rec Record) (cid.Ci
 }
 
 // UpdateRecord 'Record' interface handler for updating a repo record
-func (p *PDS) UpdateRecord(ctx context.Context, uid atp.Uid, rec Record) (cid.Cid, *refErr.APIError) {
+func (p *PDS) UpdateRecord(ctx context.Context, uid atp.Aid, rec Record) (cid.Cid, *refErr.APIError) {
 	cc, err := p.repoman.UpdateRecord(ctx, uid, rec.NSID(), rec.Key(), rec)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Error updating repo record", "error", err, "uid", uid, "record", rec)
@@ -40,7 +40,7 @@ func (p *PDS) UpdateRecord(ctx context.Context, uid atp.Uid, rec Record) (cid.Ci
 }
 
 // GetRecord 'Record' interface handler for getting a repo record
-func (p *PDS) GetRecord(ctx context.Context, uid atp.Uid, rec Record) (cid.Cid, *refErr.APIError) {
+func (p *PDS) GetRecord(ctx context.Context, uid atp.Aid, rec Record) (cid.Cid, *refErr.APIError) {
 	cc, err := p.repoman.GetRecord(ctx, uid, rec.NSID(), rec.Key(), rec, cid.Undef)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Error getting repo record", "error", err, "uid", uid, "record", rec)

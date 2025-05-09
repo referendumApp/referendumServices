@@ -30,7 +30,7 @@ func (s *Service) handleDescribeServer(w http.ResponseWriter, r *http.Request) {
 	s.encode(r.Context(), w, http.StatusOK, resp)
 }
 
-func (s *Service) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var req refApp.ServerCreateAccount_Input
@@ -137,7 +137,7 @@ func (s *Service) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Service) handleDeleteAccount(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	uid, did, err := s.getAndValidatePerson(ctx)
@@ -157,7 +157,7 @@ func (s *Service) handleDeleteAccount(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Service) handleProfileUpdate(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleUserProfileUpdate(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var req refApp.PersonUpdateProfile_Input
@@ -188,7 +188,7 @@ func (s *Service) handleProfileUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Service) handleGetProfile(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleGetUserProfile(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	uid, _, err := s.getAndValidatePerson(ctx)

@@ -24,7 +24,7 @@ func (c *s3Client) checkConnection(ctx context.Context) error {
 	return nil
 }
 
-func (c *s3Client) writeNewShardFile(ctx context.Context, user atp.Uid, seq int, data []byte) (string, error) {
+func (c *s3Client) writeNewShardFile(ctx context.Context, user atp.Aid, seq int, data []byte) (string, error) {
 	_, span := otel.Tracer("carstore").Start(ctx, "writeNewShardFile")
 	defer span.End()
 
@@ -57,7 +57,7 @@ func (c *s3Client) readFile(ctx context.Context, key string, offset *int64) (*s3
 	return obj, nil
 }
 
-func (c *s3Client) deleteShardFiles(ctx context.Context, user atp.Uid, seqs []int) error {
+func (c *s3Client) deleteShardFiles(ctx context.Context, user atp.Aid, seqs []int) error {
 	delObjs := make([]types.ObjectIdentifier, len(seqs))
 	for i, seq := range seqs {
 		key := keyForShard(user, seq)

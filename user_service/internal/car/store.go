@@ -29,20 +29,20 @@ const bigShardThreshold = 2 << 20
 // Store interface for interacting with the CAR store
 type Store interface {
 	// TODO: not really part of general interface
-	CompactUserShards(ctx context.Context, user atp.Uid, skipBigShards bool) (*CompactionStats, error)
+	CompactUserShards(ctx context.Context, user atp.Aid, skipBigShards bool) (*CompactionStats, error)
 	// TODO: not really part of general interface
 	GetCompactionTargets(ctx context.Context, shardCount int) ([]*CompactionTarget, error)
 	// TODO: not really part of general interface
 	PingStore(ctx context.Context) error
 
-	GetUserRepoHead(ctx context.Context, user atp.Uid) (cid.Cid, error)
-	GetUserRepoRev(ctx context.Context, user atp.Uid) (string, error)
-	ImportSlice(ctx context.Context, uid atp.Uid, since *string, carslice []byte) (cid.Cid, *DeltaSession, error)
-	NewDeltaSession(ctx context.Context, user atp.Uid, since *string) (*DeltaSession, error)
-	ReadOnlySession(user atp.Uid) (*DeltaSession, error)
-	ReadUserCar(ctx context.Context, user atp.Uid, sinceRev string, w io.Writer) error
-	Stat(ctx context.Context, usr atp.Uid) ([]UserStat, error)
-	WipeUserData(ctx context.Context, user atp.Uid) error
+	GetUserRepoHead(ctx context.Context, user atp.Aid) (cid.Cid, error)
+	GetUserRepoRev(ctx context.Context, user atp.Aid) (string, error)
+	ImportSlice(ctx context.Context, uid atp.Aid, since *string, carslice []byte) (cid.Cid, *DeltaSession, error)
+	NewDeltaSession(ctx context.Context, user atp.Aid, since *string) (*DeltaSession, error)
+	ReadOnlySession(user atp.Aid) (*DeltaSession, error)
+	ReadUserCar(ctx context.Context, user atp.Aid, sinceRev string, w io.Writer) error
+	Stat(ctx context.Context, usr atp.Aid) ([]UserStat, error)
+	WipeUserData(ctx context.Context, user atp.Aid) error
 }
 
 // S3CarStore contains all the dependencies for interacting with the CAR store in S3
@@ -98,7 +98,7 @@ func NewCarStore(
 // 	return cs.lastShardCache.check(user)
 // }
 
-func (cs *S3CarStore) removeLastShardCache(user atp.Uid) {
+func (cs *S3CarStore) removeLastShardCache(user atp.Aid) {
 	cs.lastShardCache.remove(user)
 }
 
@@ -106,7 +106,7 @@ func (cs *S3CarStore) putLastShardCache(ls *Shard) {
 	cs.lastShardCache.put(ls)
 }
 
-func (cs *S3CarStore) getLastShard(ctx context.Context, user atp.Uid) (*Shard, error) {
+func (cs *S3CarStore) getLastShard(ctx context.Context, user atp.Aid) (*Shard, error) {
 	return cs.lastShardCache.get(ctx, user)
 }
 
@@ -123,7 +123,7 @@ func (cs *S3CarStore) PingStore(ctx context.Context) error {
 var ErrRepoBaseMismatch = fmt.Errorf("attempted a delta session on top of the wrong previous head")
 
 // NewDeltaSession initializes a 'DeltaSession' struct
-func (cs *S3CarStore) NewDeltaSession(ctx context.Context, user atp.Uid, since *string) (*DeltaSession, error) {
+func (cs *S3CarStore) NewDeltaSession(ctx context.Context, user atp.Aid, since *string) (*DeltaSession, error) {
 	ctx, span := otel.Tracer("carstore").Start(ctx, "NewSession")
 	defer span.End()
 
@@ -156,7 +156,7 @@ func (cs *S3CarStore) NewDeltaSession(ctx context.Context, user atp.Uid, since *
 }
 
 // ReadOnlySession initializes a 'DeltaSession' struct with read only capabilities
-func (cs *S3CarStore) ReadOnlySession(user atp.Uid) (*DeltaSession, error) {
+func (cs *S3CarStore) ReadOnlySession(user atp.Aid) (*DeltaSession, error) {
 	return &DeltaSession{
 		base: &userView{
 			user:     user,
@@ -174,7 +174,7 @@ func (cs *S3CarStore) ReadOnlySession(user atp.Uid) (*DeltaSession, error) {
 // ReadUserCar reads an entire CAR file for a specific revision into a data stream
 func (cs *S3CarStore) ReadUserCar(
 	ctx context.Context,
-	user atp.Uid,
+	user atp.Aid,
 	sinceRev string,
 	shardOut io.Writer,
 ) error {
@@ -371,7 +371,7 @@ func (ds *DeltaSession) CalcDiff(ctx context.Context) error {
 // ImportSlice reads a slice of bytes and writes it as a CAR file
 func (cs *S3CarStore) ImportSlice(
 	ctx context.Context,
-	uid atp.Uid,
+	uid atp.Aid,
 	since *string,
 	carslice []byte,
 ) (cid.Cid, *DeltaSession, error) {
@@ -413,7 +413,7 @@ func (cs *S3CarStore) ImportSlice(
 }
 
 // GetUserRepoHead get the head CID for a user
-func (cs *S3CarStore) GetUserRepoHead(ctx context.Context, user atp.Uid) (cid.Cid, error) {
+func (cs *S3CarStore) GetUserRepoHead(ctx context.Context, user atp.Aid) (cid.Cid, error) {
 	lastShard, err := cs.getLastShard(ctx, user)
 	if err != nil {
 		return cid.Undef, err
@@ -426,7 +426,7 @@ func (cs *S3CarStore) GetUserRepoHead(ctx context.Context, user atp.Uid) (cid.Ci
 }
 
 // GetUserRepoRev get the head revision for a user
-func (cs *S3CarStore) GetUserRepoRev(ctx context.Context, user atp.Uid) (string, error) {
+func (cs *S3CarStore) GetUserRepoRev(ctx context.Context, user atp.Aid) (string, error) {
 	lastShard, err := cs.getLastShard(ctx, user)
 	if err != nil {
 		return "", err
@@ -440,7 +440,7 @@ func (cs *S3CarStore) GetUserRepoRev(ctx context.Context, user atp.Uid) (string,
 }
 
 // WipeUserData deletes a users CAR files and DB metadata
-func (cs *S3CarStore) WipeUserData(ctx context.Context, user atp.Uid) error {
+func (cs *S3CarStore) WipeUserData(ctx context.Context, user atp.Aid) error {
 	shards, err := cs.meta.GetUserShards(ctx, user)
 	if err != nil {
 		return err
@@ -455,7 +455,7 @@ func (cs *S3CarStore) WipeUserData(ctx context.Context, user atp.Uid) error {
 	return nil
 }
 
-func (cs *S3CarStore) deleteShards(ctx context.Context, user atp.Uid, shs []*Shard) error {
+func (cs *S3CarStore) deleteShards(ctx context.Context, user atp.Aid, shs []*Shard) error {
 	ctx, span := otel.Tracer("carstore").Start(ctx, "deleteShards")
 	defer span.End()
 
@@ -503,7 +503,7 @@ type UserStat struct {
 }
 
 // Stat returns a slice of root CIDs
-func (cs *S3CarStore) Stat(ctx context.Context, usr atp.Uid) ([]UserStat, error) {
+func (cs *S3CarStore) Stat(ctx context.Context, usr atp.Aid) ([]UserStat, error) {
 	shards, err := cs.meta.GetUserShards(ctx, usr)
 	if err != nil {
 		return nil, err
@@ -602,7 +602,7 @@ func (cb *compBucket) isEmpty() bool {
 	return len(cb.shards) == 0
 }
 
-func (cs *S3CarStore) openNewCompactedShardFile(user atp.Uid, seq int) (*os.File, string, error) {
+func (cs *S3CarStore) openNewCompactedShardFile(user atp.Aid, seq int) (*os.File, string, error) {
 	// TODO: some overwrite protections
 	// NOTE CreateTemp is used for creating a non-colliding file, but we keep it and don't delete it so don't think of it as "temporary".
 	// This creates "sh-%d-%d%s" with some random stuff in the last position
@@ -667,7 +667,7 @@ type CompactionStats struct {
 // CompactUserShards compacts user CAR shards
 func (cs *S3CarStore) CompactUserShards(
 	ctx context.Context,
-	user atp.Uid,
+	user atp.Aid,
 	skipBigShards bool,
 ) (*CompactionStats, error) {
 	ctx, span := otel.Tracer("carstore").Start(ctx, "CompactUserShards")
@@ -819,7 +819,7 @@ func (cs *S3CarStore) GetCompactionTargets(ctx context.Context, shardCount int) 
 
 func (cs *S3CarStore) compactBucket(
 	ctx context.Context,
-	user atp.Uid,
+	user atp.Aid,
 	b *compBucket,
 	shardsById map[uint]*Shard,
 ) error {
@@ -914,7 +914,7 @@ type shardWriter interface {
 		ctx context.Context,
 		root cid.Cid,
 		rev string,
-		user atp.Uid,
+		user atp.Aid,
 		seq int,
 		blks map[cid.Cid]blocks.Block,
 		rmcids map[cid.Cid]bool,
@@ -925,7 +925,7 @@ func (cs *S3CarStore) writeNewShard(
 	ctx context.Context,
 	root cid.Cid,
 	rev string,
-	user atp.Uid,
+	user atp.Aid,
 	seq int,
 	blks map[cid.Cid]blocks.Block,
 	rmcids map[cid.Cid]bool,
