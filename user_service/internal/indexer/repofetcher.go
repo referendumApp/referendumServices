@@ -142,7 +142,7 @@ func (rf *RepoFetcher) FetchAndIndexRepo(ctx context.Context, job *crawlWork) er
 		if first.evt.Since == nil || rev == *first.evt.Since {
 			for i, j := range job.catchup {
 				catchupEventsProcessed.Inc()
-				if eventErr := rf.repoman.HandleExternalUserEvent(ctx, pds.ID, ai.Aid, ai.Did, j.evt.Since, j.evt.Rev, j.evt.Blocks, j.evt.Ops); eventErr != nil {
+				if eventErr := rf.repoman.HandleExternalActorEvent(ctx, pds.ID, ai.Aid, ai.Did, j.evt.Since, j.evt.Rev, j.evt.Blocks, j.evt.Ops); eventErr != nil {
 					rf.log.ErrorContext(
 						ctx,
 						"buffered event catchup failed",

@@ -44,18 +44,18 @@ func (s *Service) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := s.pds.CreateUser(ctx, req, pw)
+	actor, err := s.pds.CreateActor(ctx, req, pw)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	if cerr := s.av.CreateActorAndPerson(ctx, user, req.Handle, req.DisplayName); cerr != nil {
+	if cerr := s.av.CreateActorAndPerson(ctx, actor, req.Handle, req.DisplayName); cerr != nil {
 		cerr.WriteResponse(w)
 		return
 	}
 
-	resp, err := s.pds.CreateNewRepo(ctx, user, req.DisplayName)
+	resp, err := s.pds.CreateNewRepo(ctx, actor, req.DisplayName)
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -85,13 +85,13 @@ func (s *Service) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := s.av.AuthenticateUser(ctx, login.Username, login.Password)
+	actor, err := s.av.AuthenticateUser(ctx, login.Username, login.Password)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	resp, err := s.pds.CreateSession(ctx, user)
+	resp, err := s.pds.CreateSession(ctx, actor)
 	if err != nil {
 		err.WriteResponse(w)
 		return

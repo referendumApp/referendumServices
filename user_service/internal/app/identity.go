@@ -91,16 +91,16 @@ func (v *View) CreateActorAndPerson(
 // AuthenticateUser validates username and password for a create session request
 func (v *View) AuthenticateUser(ctx context.Context, username string, pw string) (*atp.Actor, *refErr.APIError) {
 	defaultErr := refErr.FieldError{Message: "Email or password not found"}
-	user, err := v.meta.authenticateActor(ctx, username)
+	actor, err := v.meta.authenticateActor(ctx, username)
 	if err != nil {
-		v.log.ErrorContext(ctx, "Failed to authenticate user", "error", err, "username", username)
+		v.log.ErrorContext(ctx, "Failed to authenticate actor", "error", err, "username", username)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, defaultErr.NotFound()
 		}
 		return nil, refErr.InternalServer()
 	}
 
-	if ok, verr := util.VerifyPassword(pw, user.HashedPassword.String); verr != nil {
+	if ok, verr := util.VerifyPassword(pw, actor.HashedPassword.String); verr != nil {
 		v.log.ErrorContext(ctx, "Error verifying password", "error", verr, "username", username)
 		return nil, refErr.InternalServer()
 	} else if !ok {
@@ -108,7 +108,7 @@ func (v *View) AuthenticateUser(ctx context.Context, username string, pw string)
 		return nil, defaultErr.NotFound()
 	}
 
-	return user, nil
+	return actor, nil
 }
 
 // AuthenticateSession validates a session based on the user ID and DID

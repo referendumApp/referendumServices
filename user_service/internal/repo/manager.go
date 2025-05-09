@@ -40,8 +40,8 @@ func NewRepoManager(cs cs.Store, kmgr KeyManager, logger *slog.Logger) *Manager 
 
 // KeyManager method signatures for handling the signing key
 type KeyManager interface {
-	VerifyUserSignature(context.Context, string, []byte, []byte) error
-	SignForUser(context.Context, string, []byte) ([]byte, error)
+	VerifyActorSignature(context.Context, string, []byte, []byte) error
+	SignForActor(context.Context, string, []byte) ([]byte, error)
 }
 
 // SetEventHandler sets the event callback function
@@ -100,16 +100,16 @@ type actorLock struct {
 	count int
 }
 
-func (rm *Manager) lockUser(ctx context.Context, user atp.Aid) func() {
+func (rm *Manager) lockUser(ctx context.Context, actor atp.Aid) func() {
 	_, span := otel.Tracer("repoman").Start(ctx, "actorLock")
 	defer span.End()
 
 	rm.lklk.Lock()
 
-	ulk, ok := rm.actorLocks[user]
+	ulk, ok := rm.actorLocks[actor]
 	if !ok {
 		ulk = &actorLock{}
-		rm.actorLocks[user] = ulk
+		rm.actorLocks[actor] = ulk
 	}
 
 	ulk.count++
@@ -125,7 +125,7 @@ func (rm *Manager) lockUser(ctx context.Context, user atp.Aid) func() {
 		ulk.count--
 
 		if ulk.count == 0 {
-			delete(rm.actorLocks, user)
+			delete(rm.actorLocks, actor)
 		}
 		rm.lklk.Unlock()
 	}
@@ -172,7 +172,7 @@ func (rm *Manager) CreateRecord(
 		return cid.Undef, "", err
 	}
 
-	nroot, nrev, err := r.Commit(ctx, rm.kmgr.SignForUser)
+	nroot, nrev, err := r.Commit(ctx, rm.kmgr.SignForActor)
 	if err != nil {
 		return cid.Undef, "", err
 	}
@@ -243,7 +243,7 @@ func (rm *Manager) UpdateRecord(
 		return cid.Undef, err
 	}
 
-	nroot, nrev, err := r.Commit(ctx, rm.kmgr.SignForUser)
+	nroot, nrev, err := r.Commit(ctx, rm.kmgr.SignForActor)
 	if err != nil {
 		return cid.Undef, err
 	}
@@ -312,7 +312,7 @@ func (rm *Manager) DeleteRecord(ctx context.Context, actor atp.Aid, nsid string,
 		return derr
 	}
 
-	nroot, nrev, err := r.Commit(ctx, rm.kmgr.SignForUser)
+	nroot, nrev, err := r.Commit(ctx, rm.kmgr.SignForActor)
 	if err != nil {
 		return err
 	}
@@ -359,11 +359,11 @@ func (rm *Manager) InitNewRepo(
 	defer unlock()
 
 	if did == "" {
-		return fmt.Errorf("must specify DID for new actor")
+		return fmt.Errorf("must specify DID for new repo")
 	}
 
 	if actor == 0 {
-		return fmt.Errorf("must specify user for new actor")
+		return fmt.Errorf("must specify actor for new repo")
 	}
 
 	ds, err := rm.cs.NewDeltaSession(ctx, actor, nil)
@@ -377,7 +377,7 @@ func (rm *Manager) InitNewRepo(
 		return fmt.Errorf("setting initial profile: %w", cerr)
 	}
 
-	root, nrev, err := r.Commit(ctx, rm.kmgr.SignForUser)
+	root, nrev, err := r.Commit(ctx, rm.kmgr.SignForActor)
 	if err != nil {
 		return fmt.Errorf("committing repo for init: %w", err)
 	}
@@ -517,15 +517,15 @@ func (rm *Manager) CheckRepoSig(ctx context.Context, r *Repo, expdid string) err
 	if err != nil {
 		return fmt.Errorf("commit serialization failed: %w", err)
 	}
-	if err := rm.kmgr.VerifyUserSignature(ctx, repoDid, scom.Sig, sb); err != nil {
+	if err := rm.kmgr.VerifyActorSignature(ctx, repoDid, scom.Sig, sb); err != nil {
 		return fmt.Errorf("signature check failed (sig: %x) (sb: %x) : %w", scom.Sig, sb, err)
 	}
 
 	return nil
 }
 
-// HandleExternalUserEvent event handler for users that do not exist in the current PDS
-func (rm *Manager) HandleExternalUserEvent(
+// HandleExternalActorEvent event handler for actors that do not exist in the current PDS
+func (rm *Manager) HandleExternalActorEvent(
 	ctx context.Context,
 	pdsid uint,
 	aid atp.Aid,
@@ -535,12 +535,12 @@ func (rm *Manager) HandleExternalUserEvent(
 	carslice []byte,
 	ops []*atproto.SyncSubscribeRepos_RepoOp,
 ) error {
-	ctx, span := otel.Tracer("repoman").Start(ctx, "HandleExternalUserEvent")
+	ctx, span := otel.Tracer("repoman").Start(ctx, "HandleExternalActorEvent")
 	defer span.End()
 
-	span.SetAttributes(attribute.Int64("user", int64(uint64(aid)))) //nolint:gosec
+	span.SetAttributes(attribute.Int64("actor", int64(uint64(aid)))) //nolint:gosec
 
-	rm.log.DebugContext(ctx, "HandleExternalUserEvent", "pds", pdsid, "aid", aid, "since", since, "nrev", nrev)
+	rm.log.DebugContext(ctx, "HandleExternalActorEvent", "pds", pdsid, "aid", aid, "since", since, "nrev", nrev)
 
 	unlock := rm.lockUser(ctx, aid)
 	defer unlock()
@@ -553,7 +553,7 @@ func (rm *Manager) HandleExternalUserEvent(
 
 	r, err := OpenRepo(ctx, ds, root)
 	if err != nil {
-		return fmt.Errorf("opening external user repo (%d, root=%s): %w", aid, root, err)
+		return fmt.Errorf("opening external actor repo (%d, root=%s): %w", aid, root, err)
 	}
 
 	if rerr := rm.CheckRepoSig(ctx, r, did); rerr != nil {
@@ -618,7 +618,7 @@ func (rm *Manager) HandleExternalUserEvent(
 				Rkey:       parts[1],
 			})
 		default:
-			return fmt.Errorf("unrecognized external user event kind: %q", op.Action)
+			return fmt.Errorf("unrecognized external actor event kind: %q", op.Action)
 		}
 	}
 
@@ -740,7 +740,7 @@ func (rm *Manager) BatchWrite(
 		}
 	}
 
-	nroot, nrev, err := r.Commit(ctx, rm.kmgr.SignForUser)
+	nroot, nrev, err := r.Commit(ctx, rm.kmgr.SignForActor)
 	if err != nil {
 		return err
 	}
@@ -820,8 +820,8 @@ func (rm *Manager) ImportNewRepo(ctx context.Context, actor atp.Aid, repoDid str
 			if berr != nil {
 				return fmt.Errorf("commit serialization failed: %w", berr)
 			}
-			if verr := rm.kmgr.VerifyUserSignature(ctx, repoDid, scom.Sig, sb); verr != nil {
-				return fmt.Errorf("new user signature check failed: %w", verr)
+			if verr := rm.kmgr.VerifyActorSignature(ctx, repoDid, scom.Sig, sb); verr != nil {
+				return fmt.Errorf("new actor signature check failed: %w", verr)
 			}
 
 			diffops, derr := r.DiffSince(ctx, curhead)
@@ -940,7 +940,7 @@ func (rm *Manager) processOp(
 
 func (rm *Manager) processNewRepo(
 	ctx context.Context,
-	user atp.Aid,
+	actor atp.Aid,
 	r io.Reader,
 	rev *string,
 	cb func(ctx context.Context, root cid.Cid, finish func(context.Context, string) ([]byte, error), bs blockstore.Blockstore) error,
@@ -985,7 +985,7 @@ func (rm *Manager) processNewRepo(
 		return fmt.Errorf("walkTree: %w", err)
 	}
 
-	ds, err := rm.cs.NewDeltaSession(ctx, user, rev)
+	ds, err := rm.cs.NewDeltaSession(ctx, actor, rev)
 	if err != nil {
 		return fmt.Errorf("opening delta session: %w", err)
 	}

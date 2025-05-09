@@ -12,8 +12,8 @@ import (
 	"github.com/referendumApp/referendumServices/internal/util"
 )
 
-// CreateUser create DID in the PLC directory and initialize a 'User' struct
-func (p *PDS) CreateUser(
+// CreateActor create DID in the PLC directory and initialize an 'Actor' struct
+func (p *PDS) CreateActor(
 	ctx context.Context,
 	req refApp.ServerCreateAccount_Input,
 	pw string,
@@ -177,8 +177,8 @@ func (p *PDS) DeleteAccount(ctx context.Context, uid atp.Aid, did string) *refEr
 		p.log.ErrorContext(ctx, "Latest operation in PLC audit log is invalid", "did", did)
 		return refErr.BadRequest("Invalid operation in PLC directory audit log")
 	} else if operation.Type == "plc_tombstone" {
-		p.log.ErrorContext(ctx, "User has already been tombstoned in the PLC directory", "did", did)
-		return refErr.BadRequest("User has already been deleted")
+		p.log.ErrorContext(ctx, "Actor has already been tombstoned in the PLC directory", "did", did)
+		return refErr.BadRequest("Actor has already been deleted")
 	}
 
 	if err := p.plc.TombstoneDID(ctx, did, op.CID); err != nil {

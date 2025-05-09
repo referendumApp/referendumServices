@@ -44,7 +44,7 @@ type UnsignedCommit struct {
 	Rev     string   `cborgen:"rev,omitempty"`
 }
 
-// Repo represents a user repository and contains all the dependencies repo CRUD operations
+// Repo represents an actor repository and contains all the dependencies repo CRUD operations
 type Repo struct {
 	sc  SignedCommit
 	cst cbor.IpldStore
