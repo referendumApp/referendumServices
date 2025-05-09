@@ -25,6 +25,15 @@ func (s *Server) setupRoutes() {
 		r.Get("/following", s.handleGraphFollowing)
 	})
 
+	s.mux.Route("/legislator", func(r chi.Router) {
+		// 		r.Use(s.pds.AuthorizeUser)
+
+		r.Post("/", s.handleCreateLegislator)
+		// 		r.Get("/", s.handleGetLegislator)
+		// 		r.Put("/", s.handleLegislatorUpdate)
+		// 		r.Delete("/", s.handleDeleteLegislator)
+	})
+
 	s.mux.Route("/server", func(r chi.Router) {
 		r.Get("/describeServer", s.handleDescribeServer)
 		// r.Get("/com.atproto.sync.subscribeRepos", s.pds.EventsHandler)

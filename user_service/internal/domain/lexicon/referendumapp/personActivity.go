@@ -18,8 +18,8 @@ import (
 )
 
 func init() {
-	util.RegisterType("com.referendumapp.person.activity#replyRef", &PersonActivity_ReplyRef{})
 	util.RegisterType("com.referendumapp.person.activity", &PersonActivity{})
+	util.RegisterType("com.referendumapp.person.activity#replyRef", &PersonActivity_ReplyRef{})
 }
 
 // RECORDTYPE: PersonActivity
