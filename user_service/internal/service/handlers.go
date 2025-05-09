@@ -50,7 +50,7 @@ func (s *Service) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if cerr := s.av.CreateUserAndPerson(ctx, user, req.Handle, req.DisplayName); cerr != nil {
+	if cerr := s.av.CreateActorAndPerson(ctx, user, req.Handle, req.DisplayName); cerr != nil {
 		cerr.WriteResponse(w)
 		return
 	}

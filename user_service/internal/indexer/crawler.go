@@ -165,12 +165,12 @@ func (c *CrawlDispatcher) mainLoop() {
 func (c *CrawlDispatcher) enqueueJobForActor(ai *atp.Person) *crawlWork {
 	c.maplk.Lock()
 	defer c.maplk.Unlock()
-	_, ok := c.inProgress[ai.Uid]
+	_, ok := c.inProgress[ai.Aid]
 	if ok {
 		return nil
 	}
 
-	_, has := c.todo[ai.Uid]
+	_, has := c.todo[ai.Aid]
 	if has {
 		return nil
 	}
@@ -179,7 +179,7 @@ func (c *CrawlDispatcher) enqueueJobForActor(ai *atp.Person) *crawlWork {
 		act:        ai,
 		initScrape: true,
 	}
-	c.todo[ai.Uid] = crawlJob
+	c.todo[ai.Aid] = crawlJob
 	return crawlJob
 }
 
@@ -187,8 +187,8 @@ func (c *CrawlDispatcher) enqueueJobForActor(ai *atp.Person) *crawlWork {
 func (c *CrawlDispatcher) dequeueJob(job *crawlWork) {
 	c.maplk.Lock()
 	defer c.maplk.Unlock()
-	delete(c.todo, job.act.Uid)
-	c.inProgress[job.act.Uid] = job
+	delete(c.todo, job.act.Aid)
+	c.inProgress[job.act.Aid] = job
 }
 
 func (c *CrawlDispatcher) addToCatchupQueue(catchup *catchupJob) *crawlWork {
@@ -196,7 +196,7 @@ func (c *CrawlDispatcher) addToCatchupQueue(catchup *catchupJob) *crawlWork {
 	defer c.maplk.Unlock()
 
 	// If the actor crawl is enqueued, we can append to the catchup queue which gets emptied during the crawl
-	job, ok := c.todo[catchup.user.Uid]
+	job, ok := c.todo[catchup.user.Aid]
 	if ok {
 		catchupEventsEnqueued.WithLabelValues("todo").Inc()
 		job.catchup = append(job.catchup, catchup)
@@ -204,7 +204,7 @@ func (c *CrawlDispatcher) addToCatchupQueue(catchup *catchupJob) *crawlWork {
 	}
 
 	// If the actor crawl is in progress, we can append to the nextr queue which gets emptied after the crawl
-	job, ok = c.inProgress[catchup.user.Uid]
+	job, ok = c.inProgress[catchup.user.Aid]
 	if ok {
 		catchupEventsEnqueued.WithLabelValues("prog").Inc()
 		job.next = append(job.next, catchup)
@@ -217,7 +217,7 @@ func (c *CrawlDispatcher) addToCatchupQueue(catchup *catchupJob) *crawlWork {
 		act:     catchup.user,
 		catchup: []*catchupJob{catchup},
 	}
-	c.todo[catchup.user.Uid] = cw
+	c.todo[catchup.user.Aid] = cw
 	return cw
 }
 
@@ -227,7 +227,7 @@ func (c *CrawlDispatcher) fetchWorker() {
 			c.log.Error("failed to perform repo crawl", "did", job.act.Did, "err", err)
 		}
 		// TODO: do we still just do this if it errors?
-		c.complete <- job.act.Uid
+		c.complete <- job.act.Aid
 	}
 }
 

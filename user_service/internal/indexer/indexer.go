@@ -176,7 +176,7 @@ func (ix *Indexer) crawlAtUriRef(ctx context.Context, uri string) error {
 
 	referencesCrawled.Inc()
 
-	_, err = ix.GetUserOrMissing(ctx, puri.Did)
+	_, err = ix.GetPersonOrMissing(ctx, puri.Did)
 	if err != nil {
 		return err
 	}
@@ -191,7 +191,7 @@ func (ix *Indexer) crawlRecordReferences(ctx context.Context, op *repo.Op) error
 	case *bsky.FeedPost:
 		for _, e := range rec.Entities {
 			if e.Type == "mention" {
-				_, err := ix.GetUserOrMissing(ctx, e.Value)
+				_, err := ix.GetPersonOrMissing(ctx, e.Value)
 				if err != nil {
 					ix.log.InfoContext(ctx, "failed to parse user mention", "ref", e.Value, "err", err)
 				}
@@ -230,13 +230,13 @@ func (ix *Indexer) crawlRecordReferences(ctx context.Context, op *repo.Op) error
 		}
 		return nil
 	case *bsky.GraphFollow:
-		_, err := ix.GetUserOrMissing(ctx, rec.Subject)
+		_, err := ix.GetPersonOrMissing(ctx, rec.Subject)
 		if err != nil {
 			ix.log.InfoContext(ctx, "failed to crawl follow subject", "cid", op.RecCid, "subjectdid", rec.Subject, "err", err)
 		}
 		return nil
 	case *bsky.GraphBlock:
-		_, err := ix.GetUserOrMissing(ctx, rec.Subject)
+		_, err := ix.GetPersonOrMissing(ctx, rec.Subject)
 		if err != nil {
 			ix.log.InfoContext(ctx, "failed to crawl follow subject", "cid", op.RecCid, "subjectdid", rec.Subject, "err", err)
 		}
@@ -255,8 +255,8 @@ func (ix *Indexer) crawlRecordReferences(ctx context.Context, op *repo.Op) error
 	}
 }
 
-func (ix *Indexer) GetUserOrMissing(ctx context.Context, did string) (*atp.Person, error) {
-	ctx, span := otel.Tracer("indexer").Start(ctx, "getUserOrMissing")
+func (ix *Indexer) GetPersonOrMissing(ctx context.Context, did string) (*atp.Person, error) {
+	ctx, span := otel.Tracer("indexer").Start(ctx, "GetPersonOrMissing")
 	defer span.End()
 
 	ai, err := ix.db.LookupPersonByDid(ctx, did)
@@ -442,7 +442,7 @@ func (ix *Indexer) handleRecordCreateFeedLike(
 	if err := ix.db.UpdateActivityPostUpCount(ctx, post.ID); err != nil {
 		return err
 	}
-	if err := ix.addNewVoteNotification(ctx, act.Uid, vr); err != nil {
+	if err := ix.addNewVoteNotification(ctx, act.Aid, vr); err != nil {
 		return err
 	}
 
@@ -472,7 +472,7 @@ func (ix *Indexer) handleRecordCreateGraphFollow(
 	// 'follower' followed 'target'
 	fr := &atp.UserFollowRecord{
 		Follower: evt.Actor,
-		Target:   subj.Uid,
+		Target:   subj.Aid,
 		Rkey:     op.Rkey,
 		Cid:      atp.DbCID{CID: *op.RecCid},
 	}
@@ -583,7 +583,7 @@ func (ix *Indexer) GetPostOrMissing(ctx context.Context, uri string) (*atp.Activ
 
 func (ix *Indexer) handleRecordCreateActivityPost(
 	ctx context.Context,
-	user atp.Aid,
+	actor atp.Aid,
 	rkey string,
 	rcid cid.Cid,
 	rec *bsky.FeedPost,
@@ -609,7 +609,7 @@ func (ix *Indexer) handleRecordCreateActivityPost(
 	var mentions []*atp.Person
 	for _, e := range rec.Entities {
 		if e.Type == "mention" {
-			ai, err := ix.GetUserOrMissing(ctx, e.Value)
+			ai, err := ix.GetPersonOrMissing(ctx, e.Value)
 			if err != nil {
 				return err
 			}
@@ -619,7 +619,7 @@ func (ix *Indexer) handleRecordCreateActivityPost(
 	}
 
 	// var maybe atp.ActivityPost
-	maybe, err := ix.db.LookupActivityPostByUid(ctx, rkey, user)
+	maybe, err := ix.db.LookupActivityPostByUid(ctx, rkey, actor)
 	if err != nil {
 		return err
 	}
@@ -627,7 +627,7 @@ func (ix *Indexer) handleRecordCreateActivityPost(
 	fp := &atp.ActivityPost{
 		Rkey:    rkey,
 		Cid:     atp.DbCID{CID: rcid},
-		Author:  user,
+		Author:  actor,
 		ReplyTo: replyid,
 	}
 
@@ -635,7 +635,7 @@ func (ix *Indexer) handleRecordCreateActivityPost(
 		// we're likely filling in a missing reference
 		if !maybe.Missing {
 			// TODO: we've already processed this record creation
-			ix.log.WarnContext(ctx, "potentially erroneous event, duplicate create", "rkey", rkey, "user", user)
+			ix.log.WarnContext(ctx, "potentially erroneous event, duplicate create", "rkey", rkey, "actor", actor)
 		}
 
 		if err := ix.db.CreateConflict(ctx, fp, "rkey", "author"); err != nil {
@@ -656,17 +656,17 @@ func (ix *Indexer) handleRecordCreateActivityPost(
 
 func (ix *Indexer) createMissingPostRecord(ctx context.Context, puri *util.ParsedUri) (*atp.ActivityPost, error) {
 	ix.log.WarnContext(ctx, "creating missing post record")
-	ai, err := ix.GetUserOrMissing(ctx, puri.Did)
+	ai, err := ix.GetPersonOrMissing(ctx, puri.Did)
 	if err != nil {
 		return nil, err
 	}
 
-	fp, err := ix.db.LookupActivityPostByUid(ctx, puri.Rkey, ai.Uid)
+	fp, err := ix.db.LookupActivityPostByUid(ctx, puri.Rkey, ai.Aid)
 	if err != nil {
 		if !errors.Is(err, pgx.ErrNoRows) {
 			return nil, err
 		}
-		newFp := &atp.ActivityPost{Author: ai.Uid, Rkey: puri.Rkey, Missing: true}
+		newFp := &atp.ActivityPost{Author: ai.Aid, Rkey: puri.Rkey, Missing: true}
 		if err := ix.db.Create(ctx, newFp); err != nil {
 			return nil, err
 		}

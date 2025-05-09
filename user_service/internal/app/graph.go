@@ -14,7 +14,7 @@ import (
 // HandleGraphFollow proccesses a follow request for another user
 func (v *View) HandleGraphFollow(
 	ctx context.Context,
-	uid atp.Aid,
+	aid atp.Aid,
 	did string,
 	cc cid.Cid,
 	tid string,
@@ -30,11 +30,11 @@ func (v *View) HandleGraphFollow(
 
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		// TODO: Should be able to combine these queries with a CTE to speed things up
-		if err := v.meta.CreateWithTx(ctx, tx, &atp.UserFollowRecord{Rkey: tid, Cid: atp.DbCID{CID: cc}, Follower: uid, Target: target.Uid}); err != nil {
+		if err := v.meta.CreateWithTx(ctx, tx, &atp.UserFollowRecord{Rkey: tid, Cid: atp.DbCID{CID: cc}, Follower: aid, Target: target.Aid}); err != nil {
 			return err
 		}
 
-		followerFilter := sq.Eq{"uid": uid}
+		followerFilter := sq.Eq{"aid": aid}
 		if err := v.meta.UpdateCountWithTx(ctx, tx, &atp.Person{}, "following", followerFilter); err != nil {
 			return err
 		}
@@ -54,8 +54,8 @@ func (v *View) HandleGraphFollow(
 }
 
 // HandleGraphFollowers queries the user_follow_record table for user followers
-func (v *View) HandleGraphFollowers(ctx context.Context, uid atp.Aid) ([]*atp.PersonBasic, *refErr.APIError) {
-	followers, err := v.meta.LookupGraphFollowers(ctx, uid)
+func (v *View) HandleGraphFollowers(ctx context.Context, aid atp.Aid) ([]*atp.PersonBasic, *refErr.APIError) {
+	followers, err := v.meta.LookupGraphFollowers(ctx, aid)
 	if err != nil {
 		return nil, refErr.Database()
 	}
@@ -64,8 +64,8 @@ func (v *View) HandleGraphFollowers(ctx context.Context, uid atp.Aid) ([]*atp.Pe
 }
 
 // HandleGraphFollowing queries the user_follow_record table for user follows
-func (v *View) HandleGraphFollowing(ctx context.Context, uid atp.Aid) ([]*atp.PersonBasic, *refErr.APIError) {
-	following, err := v.meta.LookupGraphFollowing(ctx, uid)
+func (v *View) HandleGraphFollowing(ctx context.Context, aid atp.Aid) ([]*atp.PersonBasic, *refErr.APIError) {
+	following, err := v.meta.LookupGraphFollowing(ctx, aid)
 	if err != nil {
 		return nil, refErr.Database()
 	}

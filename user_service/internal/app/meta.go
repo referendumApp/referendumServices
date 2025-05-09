@@ -16,28 +16,28 @@ type ViewMeta struct {
 	*database.DB
 }
 
-func (vm *ViewMeta) createUserAndPerson(ctx context.Context, user *atp.User, handle string, dname string) error {
+func (vm *ViewMeta) createUserAndPerson(ctx context.Context, actor *atp.Actor, handle string, dname string) error {
 	return vm.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		row, err := database.CreateReturningWithTx(ctx, vm.DB, tx, user, "id")
+		row, err := database.CreateReturningWithTx(ctx, vm.DB, tx, actor, "id")
 		if err != nil {
-			vm.Log.ErrorContext(ctx, "Failed to create user", "error", err)
+			vm.Log.ErrorContext(ctx, "Failed to create actor", "error", err)
 			return err
 		}
 
-		if serr := row.Scan(&user.ID); serr != nil {
-			vm.Log.ErrorContext(ctx, "Failed to scan new User ID", "error", serr)
+		if serr := row.Scan(&actor.ID); serr != nil {
+			vm.Log.ErrorContext(ctx, "Failed to scan new Actor ID", "error", serr)
 			return serr
 		}
 
-		actor := &atp.Person{
-			Uid:         user.ID,
-			Did:         user.Did,
+		person := &atp.Person{
+			Aid:         actor.ID,
+			Did:         actor.Did,
 			Handle:      sql.NullString{String: handle, Valid: true},
 			DisplayName: dname,
 			Settings:    &atp.Settings{Deleted: false},
 		}
 
-		if err := vm.CreateWithTx(ctx, tx, actor); err != nil {
+		if err := vm.CreateWithTx(ctx, tx, person); err != nil {
 			vm.Log.ErrorContext(ctx, "Failed to create person", "error", err)
 			return err
 		}
@@ -71,25 +71,25 @@ func (vm *ViewMeta) createUserAndPerson(ctx context.Context, user *atp.User, han
 	})
 }
 
-func (vm *ViewMeta) authenticateUser(ctx context.Context, uname string) (*atp.User, error) {
-	var user atp.User
+func (vm *ViewMeta) authenticateActor(ctx context.Context, aname string) (*atp.Actor, error) {
+	var actor atp.Actor
 	sql := fmt.Sprintf(
 		"SELECT id, did, handle, hashed_password FROM %s.%s WHERE deleted_at IS NULL AND (email = $1 OR handle = $1)",
 		vm.Schema,
-		user.TableName(),
+		actor.TableName(),
 	)
 
-	if err := vm.GetRow(ctx, sql, uname).Scan(&user.ID, &user.Did, &user.Handle, &user.HashedPassword); err != nil {
+	if err := vm.GetRow(ctx, sql, aname).Scan(&actor.ID, &actor.Did, &actor.Handle, &actor.HashedPassword); err != nil {
 		return nil, err
 	}
 
-	return &user, nil
+	return &actor, nil
 }
 
-func (vm *ViewMeta) userExists(ctx context.Context, filter sq.Eq) (bool, error) {
+func (vm *ViewMeta) actorExists(ctx context.Context, filter sq.Eq) (bool, error) {
 	var exists bool
 	innerSql, args, err := sq.Select("id").
-		From(vm.Schema + ".user").
+		From(vm.Schema + ".actor").
 		Where(filter).
 		PlaceholderFormat(sq.Dollar).ToSql()
 
@@ -104,42 +104,42 @@ func (vm *ViewMeta) userExists(ctx context.Context, filter sq.Eq) (bool, error) 
 	return exists, err
 }
 
-func (vm *ViewMeta) lookupUserQuery(ctx context.Context, filter sq.Sqlizer) (*atp.User, error) {
-	var entity atp.User
-	user, err := database.GetAll(ctx, vm.DB, entity, filter)
+func (vm *ViewMeta) lookupActorQuery(ctx context.Context, filter sq.Sqlizer) (*atp.Actor, error) {
+	var entity atp.Actor
+	actor, err := database.GetAll(ctx, vm.DB, entity, filter)
 	if err != nil {
-		vm.Log.ErrorContext(ctx, "Failed to lookup user", "filter", filter)
+		vm.Log.ErrorContext(ctx, "Failed to lookup actor", "filter", filter)
 		return nil, err
 	}
 
-	return user, nil
+	return actor, nil
 }
 
-// LookupUserByID queries user record by user ID
-func (vm *ViewMeta) LookupUserByID(ctx context.Context, aid atp.Aid) (*atp.User, error) {
+// LookupActorByID queries actor record by actor ID
+func (vm *ViewMeta) LookupActorByID(ctx context.Context, aid atp.Aid) (*atp.Actor, error) {
 	filter := sq.Eq{"id": aid}
-	return vm.lookupUserQuery(ctx, filter)
+	return vm.lookupActorQuery(ctx, filter)
 }
 
-// LookupUserByDid queries user record by user DID
-func (vm *ViewMeta) LookupUserByDid(ctx context.Context, did string) (*atp.User, error) {
+// LookupActorByDid queries actor record by actor DID
+func (vm *ViewMeta) LookupActorByDid(ctx context.Context, did string) (*atp.Actor, error) {
 	filter := sq.Eq{"did": did}
-	return vm.lookupUserQuery(ctx, filter)
+	return vm.lookupActorQuery(ctx, filter)
 }
 
-// LookupUserByHandle queries user record by user handle
-func (vm *ViewMeta) LookupUserByHandle(ctx context.Context, handle string) (*atp.User, error) {
+// LookupActorByHandle queries actor record by actor handle
+func (vm *ViewMeta) LookupActorByHandle(ctx context.Context, handle string) (*atp.Actor, error) {
 	filter := sq.Eq{"handle": handle}
-	return vm.lookupUserQuery(ctx, filter)
+	return vm.lookupActorQuery(ctx, filter)
 }
 
-// LookupUserByEmail queries user record by user email
-func (vm *ViewMeta) LookupUserByEmail(ctx context.Context, email string) (*atp.User, error) {
+// LookupUserByEmail queries actor record by actor email
+func (vm *ViewMeta) LookupUserByEmail(ctx context.Context, email string) (*atp.Actor, error) {
 	filter := sq.Eq{"email": email}
-	return vm.lookupUserQuery(ctx, filter)
+	return vm.lookupActorQuery(ctx, filter)
 }
 
-// LookupGraphFollowers queries user records with a join to user_follow_record filtered by 'target'
+// LookupGraphFollowers queries person records with a join to person_follow_record filtered by 'target'
 func (vm *ViewMeta) LookupGraphFollowers(ctx context.Context, aid atp.Aid) ([]*atp.PersonBasic, error) {
 	filter := sq.Eq{"target": aid}
 	var leftTbl atp.PersonBasic

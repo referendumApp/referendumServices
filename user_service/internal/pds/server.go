@@ -17,7 +17,7 @@ func (p *PDS) CreateUser(
 	ctx context.Context,
 	req refApp.ServerCreateAccount_Input,
 	pw string,
-) (*atp.User, *refErr.APIError) {
+) (*atp.Actor, *refErr.APIError) {
 	var recoveryKey string
 	if req.RecoveryKey != nil {
 		recoveryKey = *req.RecoveryKey
@@ -42,7 +42,7 @@ func (p *PDS) CreateUser(
 		return nil, refErr.InternalServer()
 	}
 
-	user := &atp.User{
+	user := &atp.Actor{
 		Handle:         sql.NullString{String: req.Handle, Valid: true},
 		Email:          sql.NullString{String: req.Email, Valid: true},
 		HashedPassword: sql.NullString{String: pw, Valid: true},
@@ -56,7 +56,7 @@ func (p *PDS) CreateUser(
 // CreateNewRepo initialize a new repo and write the first record to the CAR store
 func (p *PDS) CreateNewRepo(
 	ctx context.Context,
-	user *atp.User,
+	user *atp.Actor,
 	dname string,
 ) (*refApp.ServerCreateAccount_Output, *refErr.APIError) {
 	profile := &refApp.PersonProfile{
@@ -102,7 +102,7 @@ func (p *PDS) CreateTokens(ctx context.Context, uid atp.Aid, did string) (string
 // CreateSession completes a login request and returns the access and refresh tokens
 func (p *PDS) CreateSession(
 	ctx context.Context,
-	user *atp.User,
+	user *atp.Actor,
 ) (*refApp.ServerCreateSession_Output, *refErr.APIError) {
 	accessToken, refreshToken, err := p.CreateTokens(ctx, user.ID, user.Did)
 	if err != nil {

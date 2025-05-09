@@ -18,7 +18,7 @@ type Base struct {
 	ID        uint         `db:"id,omitempty,pk"      json:"id"`
 }
 
-type User struct {
+type Actor struct {
 	Email          sql.NullString `db:"email,omitempty"           json:"email"`
 	HashedPassword sql.NullString `db:"hashed_password,omitempty" json:"-"`
 	Handle         sql.NullString `db:"handle,omitempty"          json:"-"`
@@ -31,8 +31,8 @@ type User struct {
 	PDS            sql.NullInt64  `db:"pds_id,omitempty"          json:"-"`
 }
 
-func (u User) TableName() string {
-	return "user"
+func (u Actor) TableName() string {
+	return "actor"
 }
 
 type Peering struct {
@@ -81,7 +81,7 @@ type Person struct {
 	Did         string         `db:"did,omitempty"          json:"did"`
 	Type        sql.NullString `db:"type,omitempty"         json:"type"`
 	Base
-	Uid         Aid           `db:"uid,omitempty"          json:"-"`
+	Aid         Aid           `db:"uid,omitempty"          json:"-"`
 	Following   int64         `db:"following,omitempty"    json:"following"`
 	Followers   int64         `db:"followers,omitempty"    json:"followers"`
 	Posts       int64         `db:"posts,omitempty"        json:"posts"`
