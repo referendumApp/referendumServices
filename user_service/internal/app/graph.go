@@ -11,7 +11,7 @@ import (
 	refErr "github.com/referendumApp/referendumServices/internal/error"
 )
 
-// HandleGraphFollow proccesses a follow request for another user
+// HandleGraphFollow proccesses a follow request for another actor
 func (v *View) HandleGraphFollow(
 	ctx context.Context,
 	aid atp.Aid,
@@ -53,7 +53,7 @@ func (v *View) HandleGraphFollow(
 	return nil
 }
 
-// HandleGraphFollowers queries the user_follow_record table for user followers
+// HandleGraphFollowers queries the actor_follow_record table for user followers
 func (v *View) HandleGraphFollowers(ctx context.Context, aid atp.Aid) ([]*atp.PersonBasic, *refErr.APIError) {
 	followers, err := v.meta.LookupGraphFollowers(ctx, aid)
 	if err != nil {
@@ -63,7 +63,7 @@ func (v *View) HandleGraphFollowers(ctx context.Context, aid atp.Aid) ([]*atp.Pe
 	return followers, nil
 }
 
-// HandleGraphFollowing queries the user_follow_record table for user follows
+// HandleGraphFollowing queries the actor_follow_record table for user follows
 func (v *View) HandleGraphFollowing(ctx context.Context, aid atp.Aid) ([]*atp.PersonBasic, *refErr.APIError) {
 	following, err := v.meta.LookupGraphFollowing(ctx, aid)
 	if err != nil {

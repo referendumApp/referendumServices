@@ -126,7 +126,7 @@ type ActorFollowRecord struct {
 }
 
 func (f ActorFollowRecord) TableName() string {
-	return "user_follow_record"
+	return "actor_follow_record"
 }
 
 type PDS struct {
