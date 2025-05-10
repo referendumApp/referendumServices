@@ -20,8 +20,18 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    pass
+    op.rename_table("user", "actor")
+    op.rename_table("user_follow_record", "actor_follow_record")
+
+    op.alter_column("person", "uid", new_column_name="aid")
+    op.alter_column("block_refs", "uid", new_column_name="aid")
+    op.alter_column("car_shards", "uid", new_column_name="aid")
 
 
 def downgrade() -> None:
-    pass
+    op.alter_column("car_shards", "aid", new_column_name="uid")
+    op.alter_column("block_refs", "aid", new_column_name="uid")
+    op.alter_column("person", "aid", new_column_name="uid")
+
+    op.rename_table("actor_follow_record", "user_follow_record")
+    op.rename_table("actor", "user")
