@@ -24,13 +24,13 @@ def upgrade() -> None:
     op.rename_table("user_follow_record", "actor_follow_record", schema="atproto")
 
     op.alter_column("person", "uid", new_column_name="aid", schema="atproto")
-    op.alter_column("block_refs", "uid", new_column_name="aid", schema="atproto")
-    op.alter_column("car_shards", "uid", new_column_name="aid", schema="atproto")
+    op.alter_column("block_refs", "uid", new_column_name="aid", schema="carstore")
+    op.alter_column("car_shards", "uid", new_column_name="aid", schema="carstore")
 
 
 def downgrade() -> None:
-    op.alter_column("car_shards", "aid", new_column_name="uid", schema="atproto")
-    op.alter_column("block_refs", "aid", new_column_name="uid", schema="atproto")
+    op.alter_column("car_shards", "aid", new_column_name="uid", schema="carstore")
+    op.alter_column("block_refs", "aid", new_column_name="uid", schema="carstore")
     op.alter_column("person", "aid", new_column_name="uid", schema="atproto")
 
     op.rename_table("actor_follow_record", "user_follow_record", schema="atproto")
