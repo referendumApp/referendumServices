@@ -10,7 +10,7 @@ var referencesCrawled = promauto.NewCounter(prometheus.CounterOpts{
 	Help: "Number of references crawled",
 })
 
-var externalUserCreationAttempts = promauto.NewCounter(prometheus.CounterOpts{
+var externalPersonCreationAttempts = promauto.NewCounter(prometheus.CounterOpts{
 	Name: "indexer_external_person_creation_attempts",
 	Help: "Number of external person creation attempts",
 })

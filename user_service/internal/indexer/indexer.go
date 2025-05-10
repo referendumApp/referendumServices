@@ -276,7 +276,7 @@ func (ix *Indexer) createMissingPersonRecord(ctx context.Context, did string) (*
 	ctx, span := otel.Tracer("indexer").Start(ctx, "createMissingPersonRecord")
 	defer span.End()
 
-	externalUserCreationAttempts.Inc()
+	externalPersonCreationAttempts.Inc()
 
 	person, err := ix.CreateExternalPerson(ctx, did)
 	if err != nil {

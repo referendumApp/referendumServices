@@ -100,7 +100,7 @@ type actorLock struct {
 	count int
 }
 
-func (rm *Manager) lockUser(ctx context.Context, actor atp.Aid) func() {
+func (rm *Manager) lockActor(ctx context.Context, actor atp.Aid) func() {
 	_, span := otel.Tracer("repoman").Start(ctx, "actorLock")
 	defer span.End()
 
@@ -147,10 +147,10 @@ func (rm *Manager) CreateRecord(
 	ctx, span := otel.Tracer("repoman").Start(ctx, "CreateRecord")
 	defer span.End()
 
-	unlock := rm.lockUser(ctx, actor)
+	unlock := rm.lockActor(ctx, actor)
 	defer unlock()
 
-	rev, err := rm.cs.GetUserRepoRev(ctx, actor)
+	rev, err := rm.cs.GetActorRepoRev(ctx, actor)
 	if err != nil {
 		return cid.Undef, "", err
 	}
@@ -219,10 +219,10 @@ func (rm *Manager) UpdateRecord(
 	ctx, span := otel.Tracer("repoman").Start(ctx, "UpdateRecord")
 	defer span.End()
 
-	unlock := rm.lockUser(ctx, actor)
+	unlock := rm.lockActor(ctx, actor)
 	defer unlock()
 
-	rev, err := rm.cs.GetUserRepoRev(ctx, actor)
+	rev, err := rm.cs.GetActorRepoRev(ctx, actor)
 	if err != nil {
 		return cid.Undef, err
 	}
@@ -289,10 +289,10 @@ func (rm *Manager) DeleteRecord(ctx context.Context, actor atp.Aid, nsid string,
 	ctx, span := otel.Tracer("repoman").Start(ctx, "DeleteRecord")
 	defer span.End()
 
-	unlock := rm.lockUser(ctx, actor)
+	unlock := rm.lockActor(ctx, actor)
 	defer unlock()
 
-	rev, err := rm.cs.GetUserRepoRev(ctx, actor)
+	rev, err := rm.cs.GetActorRepoRev(ctx, actor)
 	if err != nil {
 		return err
 	}
@@ -355,7 +355,7 @@ func (rm *Manager) InitNewRepo(
 	key string,
 	prof cbg.CBORMarshaler,
 ) error {
-	unlock := rm.lockUser(ctx, actor)
+	unlock := rm.lockActor(ctx, actor)
 	defer unlock()
 
 	if did == "" {
@@ -412,7 +412,7 @@ func (rm *Manager) InitNewRepo(
 
 // GetRepoRoot gets the root CID for a repo
 func (rm *Manager) GetRepoRoot(ctx context.Context, actor atp.Aid) (cid.Cid, error) {
-	unlock := rm.lockUser(ctx, actor)
+	unlock := rm.lockActor(ctx, actor)
 	defer unlock()
 
 	return rm.cs.GetActorRepoHead(ctx, actor)
@@ -420,10 +420,10 @@ func (rm *Manager) GetRepoRoot(ctx context.Context, actor atp.Aid) (cid.Cid, err
 
 // GetRepoRev gets the root revision for a repo
 func (rm *Manager) GetRepoRev(ctx context.Context, actor atp.Aid) (string, error) {
-	unlock := rm.lockUser(ctx, actor)
+	unlock := rm.lockActor(ctx, actor)
 	defer unlock()
 
-	return rm.cs.GetUserRepoRev(ctx, actor)
+	return rm.cs.GetActorRepoRev(ctx, actor)
 }
 
 // ReadRepo reads a CAR file for a given revision
@@ -542,7 +542,7 @@ func (rm *Manager) HandleExternalActorEvent(
 
 	rm.log.DebugContext(ctx, "HandleExternalActorEvent", "pds", pdsid, "aid", aid, "since", since, "nrev", nrev)
 
-	unlock := rm.lockUser(ctx, aid)
+	unlock := rm.lockActor(ctx, aid)
 	defer unlock()
 
 	start := time.Now()
@@ -654,10 +654,10 @@ func (rm *Manager) BatchWrite(
 	ctx, span := otel.Tracer("repoman").Start(ctx, "BatchWrite")
 	defer span.End()
 
-	unlock := rm.lockUser(ctx, actor)
+	unlock := rm.lockActor(ctx, actor)
 	defer unlock()
 
-	rev, err := rm.cs.GetUserRepoRev(ctx, actor)
+	rev, err := rm.cs.GetActorRepoRev(ctx, actor)
 	if err != nil {
 		return err
 	}
@@ -775,10 +775,10 @@ func (rm *Manager) ImportNewRepo(ctx context.Context, actor atp.Aid, repoDid str
 	ctx, span := otel.Tracer("repoman").Start(ctx, "ImportNewRepo")
 	defer span.End()
 
-	unlock := rm.lockUser(ctx, actor)
+	unlock := rm.lockActor(ctx, actor)
 	defer unlock()
 
-	currev, err := rm.cs.GetUserRepoRev(ctx, actor)
+	currev, err := rm.cs.GetActorRepoRev(ctx, actor)
 	if err != nil {
 		return err
 	}
@@ -1074,18 +1074,18 @@ func (rm *Manager) walkTree(
 
 // TakeDownRepo deletes all CAR files and blocks
 func (rm *Manager) TakeDownRepo(ctx context.Context, aid atp.Aid) error {
-	unlock := rm.lockUser(ctx, aid)
+	unlock := rm.lockActor(ctx, aid)
 	defer unlock()
 
-	return rm.cs.WipeUserData(ctx, aid)
+	return rm.cs.WipeActorData(ctx, aid)
 }
 
 // ResetRepo technically identical to TakeDownRepo, for now
 func (rm *Manager) ResetRepo(ctx context.Context, aid atp.Aid) error {
-	unlock := rm.lockUser(ctx, aid)
+	unlock := rm.lockActor(ctx, aid)
 	defer unlock()
 
-	return rm.cs.WipeUserData(ctx, aid)
+	return rm.cs.WipeActorData(ctx, aid)
 }
 
 // VerifyRepo checks that all records in the repository are readable

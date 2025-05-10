@@ -133,8 +133,8 @@ func (vm *ViewMeta) LookupActorByHandle(ctx context.Context, handle string) (*at
 	return vm.lookupActorQuery(ctx, filter)
 }
 
-// LookupUserByEmail queries actor record by actor email
-func (vm *ViewMeta) LookupUserByEmail(ctx context.Context, email string) (*atp.Actor, error) {
+// LookupActorByEmail queries actor record by actor email
+func (vm *ViewMeta) LookupActorByEmail(ctx context.Context, email string) (*atp.Actor, error) {
 	filter := sq.Eq{"email": email}
 	return vm.lookupActorQuery(ctx, filter)
 }

@@ -36,13 +36,13 @@ type Store interface {
 	PingStore(ctx context.Context) error
 
 	GetActorRepoHead(ctx context.Context, actor atp.Aid) (cid.Cid, error)
-	GetUserRepoRev(ctx context.Context, actor atp.Aid) (string, error)
+	GetActorRepoRev(ctx context.Context, actor atp.Aid) (string, error)
 	ImportSlice(ctx context.Context, aid atp.Aid, since *string, carslice []byte) (cid.Cid, *DeltaSession, error)
 	NewDeltaSession(ctx context.Context, actor atp.Aid, since *string) (*DeltaSession, error)
 	ReadOnlySession(actor atp.Aid) (*DeltaSession, error)
 	ReadActorCar(ctx context.Context, actor atp.Aid, sinceRev string, w io.Writer) error
-	Stat(ctx context.Context, actor atp.Aid) ([]UserStat, error)
-	WipeUserData(ctx context.Context, actor atp.Aid) error
+	Stat(ctx context.Context, actor atp.Aid) ([]ActorStat, error)
+	WipeActorData(ctx context.Context, actor atp.Aid) error
 }
 
 // S3CarStore contains all the dependencies for interacting with the CAR store in S3
@@ -425,8 +425,8 @@ func (cs *S3CarStore) GetActorRepoHead(ctx context.Context, actor atp.Aid) (cid.
 	return lastShard.Root.CID, nil
 }
 
-// GetUserRepoRev get the head revision for an actor
-func (cs *S3CarStore) GetUserRepoRev(ctx context.Context, actor atp.Aid) (string, error) {
+// GetActorRepoRev get the head revision for an actor
+func (cs *S3CarStore) GetActorRepoRev(ctx context.Context, actor atp.Aid) (string, error) {
 	lastShard, err := cs.getLastShard(ctx, actor)
 	if err != nil {
 		return "", err
@@ -439,8 +439,8 @@ func (cs *S3CarStore) GetUserRepoRev(ctx context.Context, actor atp.Aid) (string
 	return lastShard.Rev, nil
 }
 
-// WipeUserData deletes an actor's CAR files and DB metadata
-func (cs *S3CarStore) WipeUserData(ctx context.Context, actor atp.Aid) error {
+// WipeActorData deletes an actor's CAR files and DB metadata
+func (cs *S3CarStore) WipeActorData(ctx context.Context, actor atp.Aid) error {
 	shards, err := cs.meta.GetActorShards(ctx, actor)
 	if err != nil {
 		return err
@@ -495,23 +495,23 @@ func (cs *S3CarStore) deleteShards(ctx context.Context, actor atp.Aid, shs []*Sh
 	return nil
 }
 
-// UserStat struct contains all the root CID for a CAR file
-type UserStat struct {
+// ActorStat struct contains all the root CID for a CAR file
+type ActorStat struct {
 	Seq     int
 	Root    string
 	Created time.Time
 }
 
 // Stat returns a slice of root CIDs
-func (cs *S3CarStore) Stat(ctx context.Context, aid atp.Aid) ([]UserStat, error) {
+func (cs *S3CarStore) Stat(ctx context.Context, aid atp.Aid) ([]ActorStat, error) {
 	shards, err := cs.meta.GetActorShards(ctx, aid)
 	if err != nil {
 		return nil, err
 	}
 
-	var out []UserStat
+	var out []ActorStat
 	for _, s := range shards {
-		out = append(out, UserStat{
+		out = append(out, ActorStat{
 			Seq:     s.Seq,
 			Root:    s.Root.CID.String(),
 			Created: s.CreatedAt,
