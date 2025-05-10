@@ -33,7 +33,7 @@ func (p *PDS) AuthorizeUser(next http.Handler) http.Handler {
 			return
 		}
 
-		uid, did, err := util.ValidateToken(token, util.Access)
+		aid, did, err := util.ValidateToken(token, util.Access)
 		if err != nil {
 			p.log.ErrorContext(requestCtx, "Failed validate access token", "error", err)
 			refErr.BadRequest("Invalid token type for access token").WriteResponse(w)
@@ -41,7 +41,7 @@ func (p *PDS) AuthorizeUser(next http.Handler) http.Handler {
 		}
 
 		didCtx := context.WithValue(requestCtx, p.jwt.DidKey, did)
-		ctx := context.WithValue(didCtx, p.jwt.SubjectKey, uid)
+		ctx := context.WithValue(didCtx, p.jwt.SubjectKey, aid)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

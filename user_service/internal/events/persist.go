@@ -14,7 +14,7 @@ type EventPersistence interface {
 	// Persist may mutate contents of *XRPCStreamEvent and what it points to
 	Persist(ctx context.Context, e *XRPCStreamEvent) error
 	Playback(ctx context.Context, since int64, cb func(*XRPCStreamEvent) error) error
-	TakeDownRepo(ctx context.Context, usr atp.Uid) error
+	TakeDownRepo(ctx context.Context, usr atp.Aid) error
 	Flush(context.Context) error
 	Shutdown(context.Context) error
 
@@ -84,7 +84,7 @@ func (mp *MemPersister) Playback(ctx context.Context, since int64, cb func(*XRPC
 	return nil
 }
 
-func (mp *MemPersister) TakeDownRepo(ctx context.Context, uid atp.Uid) error {
+func (mp *MemPersister) TakeDownRepo(ctx context.Context, aid atp.Aid) error {
 	return fmt.Errorf("repo takedowns not currently supported by memory persister, test usage only")
 }
 

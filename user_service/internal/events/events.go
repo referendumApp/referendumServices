@@ -131,7 +131,7 @@ func (em *EventManager) broadcastEvent(ctx context.Context, evt *XRPCStreamEvent
 
 func (em *EventManager) persistAndSendEvent(ctx context.Context, evt *XRPCStreamEvent) {
 	// TODO: can cut 5-10% off of disk persister benchmarks by making this function
-	// accept a uid. The lookup inside the persister is notably expensive (despite
+	// accept a aid. The lookup inside the persister is notably expensive (despite
 	// being an lru cache?)
 	if err := em.persister.Persist(ctx, evt); err != nil {
 		em.log.ErrorContext(ctx, "failed to persist outbound event", "err", err)
@@ -224,7 +224,7 @@ type XRPCStreamEvent struct {
 	LabelInfo     *comatproto.LabelSubscribeLabels_Info
 
 	// some private fields for internal routing perf
-	PrivUid         atp.Uid `json:"-" cborgen:"-"`
+	PrivUid         atp.Aid `json:"-" cborgen:"-"`
 	PrivPdsId       uint    `json:"-" cborgen:"-"`
 	PrivRelevantPds []uint  `json:"-" cborgen:"-"`
 	Preserialized   []byte  `json:"-" cborgen:"-"`
@@ -569,6 +569,6 @@ func (em *EventManager) addSubscriber(sub *Subscriber) {
 	em.subs = append(em.subs, sub)
 }
 
-func (em *EventManager) TakeDownRepo(ctx context.Context, user atp.Uid) error {
-	return em.persister.TakeDownRepo(ctx, user)
+func (em *EventManager) TakeDownRepo(ctx context.Context, actor atp.Aid) error {
+	return em.persister.TakeDownRepo(ctx, actor)
 }

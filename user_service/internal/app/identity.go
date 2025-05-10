@@ -23,7 +23,7 @@ func (v *View) validateHandle(ctx context.Context, handle string) *refErr.APIErr
 	}
 
 	filter := sq.Eq{"handle": handle}
-	if exists, err := v.meta.userExists(ctx, filter); err != nil {
+	if exists, err := v.meta.actorExists(ctx, filter); err != nil {
 		v.log.ErrorContext(ctx, "Error checking database for user handle", "error", err)
 		return refErr.InternalServer()
 	} else if exists {
@@ -42,7 +42,7 @@ func (v *View) ResolveHandle(ctx context.Context, req *refApp.ServerCreateAccoun
 	}
 
 	filter := sq.Eq{"email": req.Email}
-	if exists, err := v.meta.userExists(ctx, filter); err != nil {
+	if exists, err := v.meta.actorExists(ctx, filter); err != nil {
 		v.log.ErrorContext(ctx, "Error checking database for user email", "error", err)
 		return "", refErr.InternalServer()
 	} else if exists {
@@ -75,27 +75,32 @@ func (v *View) ResolveHandle(ctx context.Context, req *refApp.ServerCreateAccoun
 	return hashedPassword, nil
 }
 
-// CreateUserAndPerson inserts a user and person record to the DB
-func (v *View) CreateUserAndPerson(ctx context.Context, user *atp.User, handle string, dname string) *refErr.APIError {
-	if err := v.meta.createUserAndPerson(ctx, user, handle, dname); err != nil {
+// CreateActorAndPerson inserts a actor and person record to the DB
+func (v *View) CreateActorAndPerson(
+	ctx context.Context,
+	actor *atp.Actor,
+	handle string,
+	dname string,
+) *refErr.APIError {
+	if err := v.meta.createActorAndPerson(ctx, actor, handle, dname); err != nil {
 		return refErr.Database()
 	}
 	return nil
 }
 
 // AuthenticateUser validates username and password for a create session request
-func (v *View) AuthenticateUser(ctx context.Context, username string, pw string) (*atp.User, *refErr.APIError) {
+func (v *View) AuthenticateUser(ctx context.Context, username string, pw string) (*atp.Actor, *refErr.APIError) {
 	defaultErr := refErr.FieldError{Message: "Email or password not found"}
-	user, err := v.meta.authenticateUser(ctx, username)
+	actor, err := v.meta.authenticateActor(ctx, username)
 	if err != nil {
-		v.log.ErrorContext(ctx, "Failed to authenticate user", "error", err, "username", username)
+		v.log.ErrorContext(ctx, "Failed to authenticate actor", "error", err, "username", username)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, defaultErr.NotFound()
 		}
 		return nil, refErr.InternalServer()
 	}
 
-	if ok, verr := util.VerifyPassword(pw, user.HashedPassword.String); verr != nil {
+	if ok, verr := util.VerifyPassword(pw, actor.HashedPassword.String); verr != nil {
 		v.log.ErrorContext(ctx, "Error verifying password", "error", verr, "username", username)
 		return nil, refErr.InternalServer()
 	} else if !ok {
@@ -103,36 +108,36 @@ func (v *View) AuthenticateUser(ctx context.Context, username string, pw string)
 		return nil, defaultErr.NotFound()
 	}
 
-	return user, nil
+	return actor, nil
 }
 
 // AuthenticateSession validates a session based on the user ID and DID
-func (v *View) AuthenticateSession(ctx context.Context, uid atp.Uid, did string) *refErr.APIError {
-	filter := sq.Eq{"id": uid, "did": did}
-	exists, err := v.meta.userExists(ctx, filter)
+func (v *View) AuthenticateSession(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
+	filter := sq.Eq{"id": aid, "did": did}
+	exists, err := v.meta.actorExists(ctx, filter)
 	if err != nil {
 		v.log.ErrorContext(ctx, "Failed to lookup user", "error", err)
 		return refErr.BadRequest("Failed to find user with refresh token")
 	} else if !exists {
-		v.log.ErrorContext(ctx, "User does not exist", "uid", uid, "did", did)
-		return refErr.NotFound(uid, "user ID")
+		v.log.ErrorContext(ctx, "User does not exist", "aid", aid, "did", did)
+		return refErr.NotFound(aid, "user ID")
 	}
 
 	return nil
 }
 
 // DeleteAccount deletes a user and person record from the DB
-func (v *View) DeleteAccount(ctx context.Context, uid atp.Uid, did string) *refErr.APIError {
+func (v *View) DeleteAccount(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		deletedAt := sql.NullTime{Time: time.Now(), Valid: true}
 
-		if err := v.meta.UpdateWithTx(ctx, tx, atp.User{DeletedAt: deletedAt}, sq.Eq{"id": uid}); err != nil {
+		if err := v.meta.UpdateWithTx(ctx, tx, atp.Actor{DeletedAt: deletedAt}, sq.Eq{"id": aid}); err != nil {
 			v.log.ErrorContext(ctx, "Failed to delete user", "error", err)
 			return err
 		}
 
 		person := atp.Person{Handle: sql.NullString{Valid: false}, Base: atp.Base{DeletedAt: deletedAt}}
-		if err := v.meta.UpdateWithTx(ctx, tx, person, sq.Eq{"uid": uid}); err != nil {
+		if err := v.meta.UpdateWithTx(ctx, tx, person, sq.Eq{"aid": aid}); err != nil {
 			v.log.ErrorContext(ctx, "Failed to delete person", "error", err)
 			return err
 		}
@@ -146,8 +151,8 @@ func (v *View) DeleteAccount(ctx context.Context, uid atp.Uid, did string) *refE
 }
 
 // UpdateProfile updates a user profile with a new handle, email, or display name
-func (v *View) UpdateProfile(ctx context.Context, uid atp.Uid, req *refApp.PersonUpdateProfile_Input) *refErr.APIError {
-	var newUser atp.User
+func (v *View) UpdateProfile(ctx context.Context, aid atp.Aid, req *refApp.PersonUpdateProfile_Input) *refErr.APIError {
+	var newUser atp.Actor
 	if req.Handle != nil {
 		handle := *req.Handle
 		if err := v.validateHandle(ctx, handle); err != nil {
@@ -159,7 +164,7 @@ func (v *View) UpdateProfile(ctx context.Context, uid atp.Uid, req *refApp.Perso
 
 	if req.Email != nil {
 		email := *req.Email
-		if exists, err := v.meta.userExists(ctx, sq.Eq{"email": email}); err != nil {
+		if exists, err := v.meta.actorExists(ctx, sq.Eq{"email": email}); err != nil {
 			v.log.ErrorContext(ctx, "Error checking database for user email", "error", err)
 			return refErr.Database()
 		} else if exists {
@@ -171,7 +176,7 @@ func (v *View) UpdateProfile(ctx context.Context, uid atp.Uid, req *refApp.Perso
 	}
 
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		if err := v.meta.UpdateWithTx(ctx, tx, &newUser, sq.Eq{"id": uid}); err != nil && !errors.Is(err, database.ErrNoFields) {
+		if err := v.meta.UpdateWithTx(ctx, tx, &newUser, sq.Eq{"id": aid}); err != nil && !errors.Is(err, database.ErrNoFields) {
 			v.log.ErrorContext(ctx, "Failed to update user", "error", err)
 			return err
 		}
@@ -181,7 +186,7 @@ func (v *View) UpdateProfile(ctx context.Context, uid atp.Uid, req *refApp.Perso
 			Handle:      newUser.Handle,
 		}
 
-		if err := v.meta.UpdateWithTx(ctx, tx, actor, sq.Eq{"uid": uid}); err != nil && !errors.Is(err, database.ErrNoFields) {
+		if err := v.meta.UpdateWithTx(ctx, tx, actor, sq.Eq{"aid": aid}); err != nil && !errors.Is(err, database.ErrNoFields) {
 			v.log.ErrorContext(ctx, "Failed to update person profile", "error", err)
 			return err
 		}

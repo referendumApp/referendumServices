@@ -24,7 +24,7 @@ type DeltaSession struct {
 	blks     map[cid.Cid]blocks.Block
 	rmcids   map[cid.Cid]bool
 	base     minBlockstore
-	user     atp.Uid
+	actor    atp.Aid
 	baseCid  cid.Cid
 	seq      int
 	readonly bool
@@ -122,5 +122,5 @@ func (ds *DeltaSession) CloseWithRoot(ctx context.Context, root cid.Cid, rev str
 		return nil, fmt.Errorf("cannot write to readonly deltaSession")
 	}
 
-	return ds.cs.writeNewShard(ctx, root, rev, ds.user, ds.seq, ds.blks, ds.rmcids)
+	return ds.cs.writeNewShard(ctx, root, rev, ds.actor, ds.seq, ds.blks, ds.rmcids)
 }

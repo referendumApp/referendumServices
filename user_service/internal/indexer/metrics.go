@@ -10,14 +10,14 @@ var referencesCrawled = promauto.NewCounter(prometheus.CounterOpts{
 	Help: "Number of references crawled",
 })
 
-var externalUserCreationAttempts = promauto.NewCounter(prometheus.CounterOpts{
-	Name: "indexer_external_user_creation_attempts",
-	Help: "Number of external user creation attempts",
+var externalPersonCreationAttempts = promauto.NewCounter(prometheus.CounterOpts{
+	Name: "indexer_external_person_creation_attempts",
+	Help: "Number of external person creation attempts",
 })
 
-var userCrawlsEnqueued = promauto.NewCounter(prometheus.CounterOpts{
-	Name: "indexer_user_crawls_enqueued",
-	Help: "Number of user crawls enqueued",
+var personCrawlsEnqueued = promauto.NewCounter(prometheus.CounterOpts{
+	Name: "indexer_person_crawls_enqueued",
+	Help: "Number of person crawls enqueued",
 })
 
 var reposFetched = promauto.NewCounterVec(prometheus.CounterOpts{

@@ -11,10 +11,10 @@ import (
 	refErr "github.com/referendumApp/referendumServices/internal/error"
 )
 
-// HandleGraphFollow proccesses a follow request for another user
+// HandleGraphFollow proccesses a follow request for another actor
 func (v *View) HandleGraphFollow(
 	ctx context.Context,
-	uid atp.Uid,
+	aid atp.Aid,
 	did string,
 	cc cid.Cid,
 	tid string,
@@ -30,11 +30,11 @@ func (v *View) HandleGraphFollow(
 
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		// TODO: Should be able to combine these queries with a CTE to speed things up
-		if err := v.meta.CreateWithTx(ctx, tx, &atp.UserFollowRecord{Rkey: tid, Cid: atp.DbCID{CID: cc}, Follower: uid, Target: target.Uid}); err != nil {
+		if err := v.meta.CreateWithTx(ctx, tx, &atp.ActorFollowRecord{Rkey: tid, Cid: atp.DbCID{CID: cc}, Follower: aid, Target: target.Aid}); err != nil {
 			return err
 		}
 
-		followerFilter := sq.Eq{"uid": uid}
+		followerFilter := sq.Eq{"aid": aid}
 		if err := v.meta.UpdateCountWithTx(ctx, tx, &atp.Person{}, "following", followerFilter); err != nil {
 			return err
 		}
@@ -46,16 +46,16 @@ func (v *View) HandleGraphFollow(
 
 		return nil
 	}); err != nil {
-		v.log.ErrorContext(ctx, "Failed to update user follow record", "error", err)
+		v.log.ErrorContext(ctx, "Failed to update actor follow record", "error", err)
 		return refErr.Database()
 	}
 
 	return nil
 }
 
-// HandleGraphFollowers queries the user_follow_record table for user followers
-func (v *View) HandleGraphFollowers(ctx context.Context, uid atp.Uid) ([]*atp.PersonBasic, *refErr.APIError) {
-	followers, err := v.meta.LookupGraphFollowers(ctx, uid)
+// HandleGraphFollowers queries the actor_follow_record table for person followers
+func (v *View) HandleGraphFollowers(ctx context.Context, aid atp.Aid) ([]*atp.PersonBasic, *refErr.APIError) {
+	followers, err := v.meta.LookupGraphFollowers(ctx, aid)
 	if err != nil {
 		return nil, refErr.Database()
 	}
@@ -63,9 +63,9 @@ func (v *View) HandleGraphFollowers(ctx context.Context, uid atp.Uid) ([]*atp.Pe
 	return followers, nil
 }
 
-// HandleGraphFollowing queries the user_follow_record table for user follows
-func (v *View) HandleGraphFollowing(ctx context.Context, uid atp.Uid) ([]*atp.PersonBasic, *refErr.APIError) {
-	following, err := v.meta.LookupGraphFollowing(ctx, uid)
+// HandleGraphFollowing queries the actor_follow_record table for person follows
+func (v *View) HandleGraphFollowing(ctx context.Context, aid atp.Aid) ([]*atp.PersonBasic, *refErr.APIError) {
+	following, err := v.meta.LookupGraphFollowing(ctx, aid)
 	if err != nil {
 		return nil, refErr.Database()
 	}

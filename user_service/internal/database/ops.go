@@ -27,13 +27,13 @@ func (d *DB) LookupPDSById(ctx context.Context, id int64) (*atp.PDS, error) {
 	return d.lookupPDSQuery(ctx, filter)
 }
 
-// DidForPerson returns a DID based on a user ID
-func (d *DB) DidForPerson(ctx context.Context, uid atp.Uid) (string, error) {
+// LookupDidByAid returns a DID based on an actor ID
+func (d *DB) LookupDidByAid(ctx context.Context, aid atp.Aid) (string, error) {
 	var person atp.Person
-	sql := fmt.Sprintf("SELECT did FROM %s.%s WHERE uid = $1", d.Schema, person.TableName())
+	sql := fmt.Sprintf("SELECT did FROM %s.%s WHERE aid = $1", d.Schema, person.TableName())
 
-	if err := d.pool.QueryRow(ctx, sql, uid).Scan(&person.Did); err != nil {
-		d.Log.ErrorContext(ctx, "Failed to get DID for person", "uid", uid)
+	if err := d.pool.QueryRow(ctx, sql, aid).Scan(&person.Did); err != nil {
+		d.Log.ErrorContext(ctx, "Failed to get DID for person", "aid", aid)
 		return "", err
 	}
 
@@ -51,9 +51,9 @@ func (d *DB) lookupPersonQuery(ctx context.Context, filter sq.Sqlizer) (*atp.Per
 	return person, nil
 }
 
-// LookupPersonByUid returns a person record by user ID
-func (d *DB) LookupPersonByUid(ctx context.Context, uid atp.Uid) (*atp.Person, error) {
-	filter := sq.Eq{"uid": uid}
+// LookupPersonByAid returns a person record by actor ID
+func (d *DB) LookupPersonByAid(ctx context.Context, aid atp.Aid) (*atp.Person, error) {
+	filter := sq.Eq{"aid": aid}
 	return d.lookupPersonQuery(ctx, filter)
 }
 
@@ -80,10 +80,10 @@ func (d *DB) lookupActivityPostQuery(ctx context.Context, filter ...sq.Sqlizer) 
 	return post, nil
 }
 
-// LookupActivityPostByUid returns a activity_post record by user ID
-func (d *DB) LookupActivityPostByUid(ctx context.Context, rkey string, uid atp.Uid) (*atp.ActivityPost, error) {
+// LookupActivityPostByUid returns a activity_post record by actor ID
+func (d *DB) LookupActivityPostByUid(ctx context.Context, rkey string, aid atp.Aid) (*atp.ActivityPost, error) {
 	// Create the subquery for author ID
-	filters := sq.Eq{"rkey": rkey, "author": uid}
+	filters := sq.Eq{"rkey": rkey, "author": aid}
 	return d.lookupActivityPostQuery(ctx, filters)
 }
 
@@ -133,10 +133,10 @@ func (d *DB) lookupEndorsementRecordQuery(ctx context.Context, filter sq.Sqlizer
 	return vote, nil
 }
 
-// LookupEndorsementRecordByUid returns endorsement_record by user ID
+// LookupEndorsementRecordByUid returns endorsement_record by actor ID
 func (d *DB) LookupEndorsementRecordByUid(
 	ctx context.Context,
-	voter atp.Uid,
+	voter atp.Aid,
 	rkey string,
 ) (*atp.EndorsementRecord, error) {
 	filter := sq.Eq{"voter": voter}
@@ -144,9 +144,9 @@ func (d *DB) LookupEndorsementRecordByUid(
 }
 
 // HandleRecordDeleteFeedLike delete feed like
-func (d *DB) HandleRecordDeleteFeedLike(ctx context.Context, uid atp.Uid, rkey string) error {
+func (d *DB) HandleRecordDeleteFeedLike(ctx context.Context, aid atp.Aid, rkey string) error {
 	var entity atp.EndorsementRecord
-	filter := sq.Eq{"voter": uid, "rkey": rkey}
+	filter := sq.Eq{"voter": aid, "rkey": rkey}
 	er, err := GetAll(ctx, d, entity, filter)
 	if err != nil {
 		return err
@@ -163,12 +163,19 @@ func (d *DB) HandleRecordDeleteFeedLike(ctx context.Context, uid atp.Uid, rkey s
 	})
 }
 
-// HandleRecordDeleteGraphFollow delete user follow
-func (d *DB) HandleRecordDeleteGraphFollow(ctx context.Context, uid atp.Uid, rkey string) error {
-	filter := sq.Eq{"follower": uid, "rkey": rkey}
-	if err := d.Delete(ctx, atp.UserFollowRecord{}, filter); err != nil {
+// HandleRecordDeleteGraphFollow delete actor follow
+func (d *DB) HandleRecordDeleteGraphFollow(ctx context.Context, aid atp.Aid, rkey string) error {
+	filter := sq.Eq{"follower": aid, "rkey": rkey}
+	if err := d.Delete(ctx, atp.ActorFollowRecord{}, filter); err != nil {
 		if errors.Is(err, ErrNoRowsAffected) {
-			d.Log.WarnContext(ctx, "Attempted to delete follow we did not have a record for", "user", uid, "rkey", rkey)
+			d.Log.WarnContext(
+				ctx,
+				"Attempted to delete follow we did not have a record for",
+				"actor",
+				aid,
+				"rkey",
+				rkey,
+			)
 			return nil
 		}
 		return err

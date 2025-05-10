@@ -15,10 +15,10 @@ import (
 
 var ErrUnauthorized = errors.New("unauthorized user request")
 
-func (s *Service) getAndValidatePerson(ctx context.Context) (atp.Uid, string, *refErr.APIError) {
-	uid, ok := ctx.Value(util.SubjectKey).(atp.Uid)
+func (s *Service) getAndValidatePerson(ctx context.Context) (atp.Aid, string, *refErr.APIError) {
+	aid, ok := ctx.Value(util.SubjectKey).(atp.Aid)
 	if !ok {
-		s.log.ErrorContext(ctx, "Invalid user ID", "uid", uid)
+		s.log.ErrorContext(ctx, "Invalid user ID", "aid", aid)
 		return 0, "", refErr.Unauthorized(ErrUnauthorized.Error())
 	}
 	did, ok := ctx.Value(util.DidKey).(string)
@@ -26,7 +26,7 @@ func (s *Service) getAndValidatePerson(ctx context.Context) (atp.Uid, string, *r
 		s.log.ErrorContext(ctx, "Invalid DID")
 		return 0, "", refErr.Unauthorized(ErrUnauthorized.Error())
 	}
-	return uid, did, nil
+	return aid, did, nil
 }
 
 func (s *Service) handleValidationErrors(ctx context.Context, err error) *refErr.APIError {
