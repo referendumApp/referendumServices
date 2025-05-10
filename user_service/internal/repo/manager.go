@@ -1073,24 +1073,24 @@ func (rm *Manager) walkTree(
 }
 
 // TakeDownRepo deletes all CAR files and blocks
-func (rm *Manager) TakeDownRepo(ctx context.Context, uid atp.Aid) error {
-	unlock := rm.lockUser(ctx, uid)
+func (rm *Manager) TakeDownRepo(ctx context.Context, aid atp.Aid) error {
+	unlock := rm.lockUser(ctx, aid)
 	defer unlock()
 
-	return rm.cs.WipeUserData(ctx, uid)
+	return rm.cs.WipeUserData(ctx, aid)
 }
 
 // ResetRepo technically identical to TakeDownRepo, for now
-func (rm *Manager) ResetRepo(ctx context.Context, uid atp.Aid) error {
-	unlock := rm.lockUser(ctx, uid)
+func (rm *Manager) ResetRepo(ctx context.Context, aid atp.Aid) error {
+	unlock := rm.lockUser(ctx, aid)
 	defer unlock()
 
-	return rm.cs.WipeUserData(ctx, uid)
+	return rm.cs.WipeUserData(ctx, aid)
 }
 
 // VerifyRepo checks that all records in the repository are readable
-func (rm *Manager) VerifyRepo(ctx context.Context, uid atp.Aid) error {
-	ses, err := rm.cs.ReadOnlySession(uid)
+func (rm *Manager) VerifyRepo(ctx context.Context, aid atp.Aid) error {
+	ses, err := rm.cs.ReadOnlySession(aid)
 	if err != nil {
 		return err
 	}

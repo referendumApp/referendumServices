@@ -108,13 +108,13 @@ func (s *Service) handleRefreshSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, uid, did, err := s.pds.RefreshSession(ctx, req.RefreshToken)
+	resp, aid, did, err := s.pds.RefreshSession(ctx, req.RefreshToken)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	if err := s.av.AuthenticateSession(ctx, uid, did); err != nil {
+	if err := s.av.AuthenticateSession(ctx, aid, did); err != nil {
 		err.WriteResponse(w)
 		return
 	}
@@ -140,18 +140,18 @@ func (s *Service) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 func (s *Service) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	uid, did, err := s.getAndValidatePerson(ctx)
+	aid, did, err := s.getAndValidatePerson(ctx)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	if err := s.pds.DeleteAccount(ctx, uid, did); err != nil {
+	if err := s.pds.DeleteAccount(ctx, aid, did); err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	if err := s.av.DeleteAccount(ctx, uid, did); err != nil {
+	if err := s.av.DeleteAccount(ctx, aid, did); err != nil {
 		err.WriteResponse(w)
 		return
 	}
@@ -165,7 +165,7 @@ func (s *Service) handleUserProfileUpdate(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	uid, _, err := s.getAndValidatePerson(ctx)
+	aid, _, err := s.getAndValidatePerson(ctx)
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -176,13 +176,13 @@ func (s *Service) handleUserProfileUpdate(w http.ResponseWriter, r *http.Request
 			DisplayName: req.DisplayName,
 		}
 
-		if _, err := s.pds.UpdateRecord(ctx, uid, profile); err != nil {
+		if _, err := s.pds.UpdateRecord(ctx, aid, profile); err != nil {
 			err.WriteResponse(w)
 			return
 		}
 	}
 
-	if err := s.av.UpdateProfile(ctx, uid, &req); err != nil {
+	if err := s.av.UpdateProfile(ctx, aid, &req); err != nil {
 		err.WriteResponse(w)
 		return
 	}
@@ -191,18 +191,18 @@ func (s *Service) handleUserProfileUpdate(w http.ResponseWriter, r *http.Request
 func (s *Service) handleGetUserProfile(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	uid, _, err := s.getAndValidatePerson(ctx)
+	aid, _, err := s.getAndValidatePerson(ctx)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
 	var profile refApp.PersonProfile
-	if _, err := s.pds.GetRecord(ctx, uid, &profile); err != nil {
+	if _, err := s.pds.GetRecord(ctx, aid, &profile); err != nil {
 		err.WriteResponse(w)
 		return
 	}
-	// profile, err := s.av.GetProfile(ctx, uid)
+	// profile, err := s.av.GetProfile(ctx, aid)
 	// if err != nil {
 	// 	err.WriteResponse(w)
 	// 	return
@@ -219,20 +219,20 @@ func (s *Service) handleGraphFollow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uid, _, err := s.getAndValidatePerson(ctx)
+	aid, _, err := s.getAndValidatePerson(ctx)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
 	rec := &refApp.GraphFollow{Subject: req.Did, CreatedAt: time.Now().UTC().Format(util.ISO8601)}
-	cc, tid, err := s.pds.CreateRecord(ctx, uid, rec)
+	cc, tid, err := s.pds.CreateRecord(ctx, aid, rec)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	if err := s.av.HandleGraphFollow(ctx, uid, req.Did, cc, tid); err != nil {
+	if err := s.av.HandleGraphFollow(ctx, aid, req.Did, cc, tid); err != nil {
 		err.WriteResponse(w)
 		return
 	}
@@ -241,13 +241,13 @@ func (s *Service) handleGraphFollow(w http.ResponseWriter, r *http.Request) {
 func (s *Service) handleGraphFollowers(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	uid, _, err := s.getAndValidatePerson(ctx)
+	aid, _, err := s.getAndValidatePerson(ctx)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	followers, err := s.av.HandleGraphFollowers(ctx, uid)
+	followers, err := s.av.HandleGraphFollowers(ctx, aid)
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -259,13 +259,13 @@ func (s *Service) handleGraphFollowers(w http.ResponseWriter, r *http.Request) {
 func (s *Service) handleGraphFollowing(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	uid, _, err := s.getAndValidatePerson(ctx)
+	aid, _, err := s.getAndValidatePerson(ctx)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	following, err := s.av.HandleGraphFollowing(ctx, uid)
+	following, err := s.av.HandleGraphFollowing(ctx, aid)
 	if err != nil {
 		err.WriteResponse(w)
 		return

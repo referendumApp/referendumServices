@@ -18,7 +18,7 @@ type ContextKeyType string
 
 // map claim keys types
 const (
-	SubjectKey ContextKeyType = "uid"
+	SubjectKey ContextKeyType = "aid"
 	DidKey     ContextKeyType = "did"
 )
 
@@ -251,7 +251,7 @@ func ValidateToken(token *jwt.Token, tokenType TokenType) (atp.Aid, string, erro
 		return 0, "", fmt.Errorf("failed to convert subject to integer: %w", err)
 	}
 
-	uid := atp.Aid(uint(subInt))
+	aid := atp.Aid(uint(subInt))
 
-	return uid, didStr, nil
+	return aid, didStr, nil
 }

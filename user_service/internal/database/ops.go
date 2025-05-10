@@ -30,7 +30,7 @@ func (d *DB) LookupPDSById(ctx context.Context, id int64) (*atp.PDS, error) {
 // LookupDidByAid returns a DID based on an actor ID
 func (d *DB) LookupDidByAid(ctx context.Context, aid atp.Aid) (string, error) {
 	var person atp.Person
-	sql := fmt.Sprintf("SELECT did FROM %s.%s WHERE uid = $1", d.Schema, person.TableName())
+	sql := fmt.Sprintf("SELECT did FROM %s.%s WHERE aid = $1", d.Schema, person.TableName())
 
 	if err := d.pool.QueryRow(ctx, sql, aid).Scan(&person.Did); err != nil {
 		d.Log.ErrorContext(ctx, "Failed to get DID for person", "aid", aid)
@@ -144,9 +144,9 @@ func (d *DB) LookupEndorsementRecordByUid(
 }
 
 // HandleRecordDeleteFeedLike delete feed like
-func (d *DB) HandleRecordDeleteFeedLike(ctx context.Context, uid atp.Aid, rkey string) error {
+func (d *DB) HandleRecordDeleteFeedLike(ctx context.Context, aid atp.Aid, rkey string) error {
 	var entity atp.EndorsementRecord
-	filter := sq.Eq{"voter": uid, "rkey": rkey}
+	filter := sq.Eq{"voter": aid, "rkey": rkey}
 	er, err := GetAll(ctx, d, entity, filter)
 	if err != nil {
 		return err
@@ -164,15 +164,15 @@ func (d *DB) HandleRecordDeleteFeedLike(ctx context.Context, uid atp.Aid, rkey s
 }
 
 // HandleRecordDeleteGraphFollow delete actor follow
-func (d *DB) HandleRecordDeleteGraphFollow(ctx context.Context, uid atp.Aid, rkey string) error {
-	filter := sq.Eq{"follower": uid, "rkey": rkey}
+func (d *DB) HandleRecordDeleteGraphFollow(ctx context.Context, aid atp.Aid, rkey string) error {
+	filter := sq.Eq{"follower": aid, "rkey": rkey}
 	if err := d.Delete(ctx, atp.ActorFollowRecord{}, filter); err != nil {
 		if errors.Is(err, ErrNoRowsAffected) {
 			d.Log.WarnContext(
 				ctx,
 				"Attempted to delete follow we did not have a record for",
 				"actor",
-				uid,
+				aid,
 				"rkey",
 				rkey,
 			)

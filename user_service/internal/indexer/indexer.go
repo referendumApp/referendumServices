@@ -86,7 +86,7 @@ func (ix *Indexer) HandleRepoEvent(ctx context.Context, evt *repo.Event) error {
 	ctx, span := otel.Tracer("indexer").Start(ctx, "HandleRepoEvent")
 	defer span.End()
 
-	ix.log.DebugContext(ctx, "Handling Repo Event!", "uid", evt.Actor)
+	ix.log.DebugContext(ctx, "Handling Repo Event!", "aid", evt.Actor)
 
 	outops := make([]*comatproto.SyncSubscribeRepos_RepoOp, 0, len(evt.Ops))
 	for _, op := range evt.Ops {
@@ -303,13 +303,13 @@ func (ix *Indexer) addPersonToCrawler(ctx context.Context, ai *atp.Person) error
 // 	ai := op.ActorInfo
 //
 // 	if err := ix.db.CreateWithConflict(ctx, &atp.Person{
-// 		Uid:         evt.User,
+// 		Aid:         evt.Actor,
 // 		Handle:      sql.NullString{String: ai.Handle, Valid: true},
 // 		Did:         ai.Did,
 // 		DisplayName: ai.DisplayName,
 // 		Type:        ai.Type,
 // 		PDS:         evt.PDS,
-// 	}, "uid"); err != nil {
+// 	}, "aid"); err != nil {
 // 		return fmt.Errorf("initializing new actor info: %w", err)
 // 	}
 //

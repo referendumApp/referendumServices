@@ -371,7 +371,7 @@ func (ds *DeltaSession) CalcDiff(ctx context.Context) error {
 // ImportSlice reads a slice of bytes and writes it as a CAR file
 func (cs *S3CarStore) ImportSlice(
 	ctx context.Context,
-	uid atp.Aid,
+	aid atp.Aid,
 	since *string,
 	carslice []byte,
 ) (cid.Cid, *DeltaSession, error) {
@@ -390,7 +390,7 @@ func (cs *S3CarStore) ImportSlice(
 		)
 	}
 
-	ds, err := cs.NewDeltaSession(ctx, uid, since)
+	ds, err := cs.NewDeltaSession(ctx, aid, since)
 	if err != nil {
 		return cid.Undef, nil, fmt.Errorf("new delta session failed: %w", err)
 	}

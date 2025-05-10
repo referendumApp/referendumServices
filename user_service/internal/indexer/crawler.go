@@ -133,19 +133,19 @@ func (c *CrawlDispatcher) mainLoop() {
 			} else {
 				jobsAwaitingDispatch = append(jobsAwaitingDispatch, catchupJob)
 			}
-		case uid := <-c.complete:
+		case aid := <-c.complete:
 			c.maplk.Lock()
 
-			job, ok := c.inProgress[uid]
+			job, ok := c.inProgress[aid]
 			if !ok {
 				panic("should not be possible to not have a job in progress we receive a completion signal for")
 			}
-			delete(c.inProgress, uid)
+			delete(c.inProgress, aid)
 
 			// If there are any subsequent jobs for this UID, add it back to the todo list or buffer.
 			// We're basically pumping the `next` queue into the `catchup` queue and will do this over and over until the `next` queue is empty.
 			if len(job.next) > 0 {
-				c.todo[uid] = job
+				c.todo[aid] = job
 				job.initScrape = false
 				job.catchup = job.next
 				job.next = nil
@@ -278,14 +278,14 @@ func (c *CrawlDispatcher) AddToCatchupQueue(
 	}
 }
 
-func (c *CrawlDispatcher) RepoInSlowPath(ctx context.Context, uid atp.Aid) bool {
+func (c *CrawlDispatcher) RepoInSlowPath(ctx context.Context, aid atp.Aid) bool {
 	c.maplk.Lock()
 	defer c.maplk.Unlock()
-	if _, ok := c.todo[uid]; ok {
+	if _, ok := c.todo[aid]; ok {
 		return true
 	}
 
-	if _, ok := c.inProgress[uid]; ok {
+	if _, ok := c.inProgress[aid]; ok {
 		return true
 	}
 

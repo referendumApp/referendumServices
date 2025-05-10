@@ -84,13 +84,13 @@ func (p *PDS) CreateNewRepo(
 }
 
 // CreateTokens method to create the access and refresh tokens and update the signing key cache for a session
-func (p *PDS) CreateTokens(ctx context.Context, uid atp.Aid, did string) (string, string, error) {
-	accessToken, err := p.jwt.CreateToken(uid, did, util.Access)
+func (p *PDS) CreateTokens(ctx context.Context, aid atp.Aid, did string) (string, string, error) {
+	accessToken, err := p.jwt.CreateToken(aid, did, util.Access)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Failed to create access token", "error", err)
 		return "", "", err
 	}
-	refreshToken, err := p.jwt.CreateToken(uid, did, util.Refresh)
+	refreshToken, err := p.jwt.CreateToken(aid, did, util.Refresh)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Failed to create refresh token", "error", err)
 		return "", "", err
@@ -135,13 +135,13 @@ func (p *PDS) RefreshSession(
 	}
 
 	// Parse and validate the token
-	uid, did, err := util.ValidateToken(token, util.Refresh)
+	aid, did, err := util.ValidateToken(token, util.Refresh)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Token validation failed", "error", err)
 		return nil, 0, "", refErr.BadRequest("Failed to validate refresh token")
 	}
 
-	accessToken, refreshToken, err := p.CreateTokens(ctx, uid, did)
+	accessToken, refreshToken, err := p.CreateTokens(ctx, aid, did)
 	if err != nil {
 		return nil, 0, "", refErr.InternalServer()
 	}
@@ -156,7 +156,7 @@ func (p *PDS) RefreshSession(
 		TokenType:    p.jwt.AuthScheme,
 	}
 
-	return resp, uid, did, nil
+	return resp, aid, did, nil
 }
 
 func (p *PDS) DeleteSession(ctx context.Context, did string) *refErr.APIError {
@@ -166,7 +166,7 @@ func (p *PDS) DeleteSession(ctx context.Context, did string) *refErr.APIError {
 }
 
 // DeleteAccount tombstones the DID in the PLC, deletes DB metadata, and deletes CAR files
-func (p *PDS) DeleteAccount(ctx context.Context, uid atp.Aid, did string) *refErr.APIError {
+func (p *PDS) DeleteAccount(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
 	op, err := p.plc.GetLatestOp(ctx, did)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Error searching for latest operation in PLC log", "error", err)
@@ -186,7 +186,7 @@ func (p *PDS) DeleteAccount(ctx context.Context, uid atp.Aid, did string) *refEr
 		return refErr.PLCServer()
 	}
 
-	if err := p.repoman.TakeDownRepo(ctx, uid); err != nil {
+	if err := p.repoman.TakeDownRepo(ctx, aid); err != nil {
 		p.log.ErrorContext(ctx, "Failed to delete take down repo", "error", err)
 		return refErr.Repo()
 	}

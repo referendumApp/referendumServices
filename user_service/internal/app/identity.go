@@ -119,7 +119,7 @@ func (v *View) AuthenticateSession(ctx context.Context, aid atp.Aid, did string)
 		v.log.ErrorContext(ctx, "Failed to lookup user", "error", err)
 		return refErr.BadRequest("Failed to find user with refresh token")
 	} else if !exists {
-		v.log.ErrorContext(ctx, "User does not exist", "uid", aid, "did", did)
+		v.log.ErrorContext(ctx, "User does not exist", "aid", aid, "did", did)
 		return refErr.NotFound(aid, "user ID")
 	}
 

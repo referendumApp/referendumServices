@@ -81,7 +81,7 @@ type Person struct {
 	Did         string         `db:"did,omitempty"          json:"did"`
 	Type        sql.NullString `db:"type,omitempty"         json:"type"`
 	Base
-	Aid         Aid           `db:"uid,omitempty"          json:"-"`
+	Aid         Aid           `db:"aid,omitempty"          json:"-"`
 	Following   int64         `db:"following,omitempty"    json:"following"`
 	Followers   int64         `db:"followers,omitempty"    json:"followers"`
 	Posts       int64         `db:"posts,omitempty"        json:"posts"`

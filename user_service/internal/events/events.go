@@ -131,7 +131,7 @@ func (em *EventManager) broadcastEvent(ctx context.Context, evt *XRPCStreamEvent
 
 func (em *EventManager) persistAndSendEvent(ctx context.Context, evt *XRPCStreamEvent) {
 	// TODO: can cut 5-10% off of disk persister benchmarks by making this function
-	// accept a uid. The lookup inside the persister is notably expensive (despite
+	// accept a aid. The lookup inside the persister is notably expensive (despite
 	// being an lru cache?)
 	if err := em.persister.Persist(ctx, evt); err != nil {
 		em.log.ErrorContext(ctx, "failed to persist outbound event", "err", err)

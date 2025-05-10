@@ -84,7 +84,7 @@ func (mp *MemPersister) Playback(ctx context.Context, since int64, cb func(*XRPC
 	return nil
 }
 
-func (mp *MemPersister) TakeDownRepo(ctx context.Context, uid atp.Aid) error {
+func (mp *MemPersister) TakeDownRepo(ctx context.Context, aid atp.Aid) error {
 	return fmt.Errorf("repo takedowns not currently supported by memory persister, test usage only")
 }
 
