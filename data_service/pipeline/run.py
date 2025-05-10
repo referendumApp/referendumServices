@@ -166,6 +166,7 @@ def run_text_extraction(batch_size=20):
                 failed_urls[url_hash] = {"url": url, "error": "Timeout"}
                 failed += 1
             except Exception as e:
+                logger.error(f"Failed to process URL: {url}, Error: {str(e)}")
                 failed_urls[url_hash] = {"url": url, "error": str(e)}
                 failed += 1
 
