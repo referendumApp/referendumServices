@@ -16,10 +16,10 @@ empty:
 
 # Run tests
 pytest-api:
-	docker compose --profile test run --rm test pytest $(ARGS) api/ common/
+	docker compose --profile test run --rm data-test pytest $(ARGS) api/ common/
 
 pytest-pipeline:
-	docker compose --profile test run --rm test pytest $(ARGS) pipeline/
+	docker compose --profile test run --rm data-test pytest $(ARGS) pipeline/
 
 # Clean up Docker resources
 clean:
