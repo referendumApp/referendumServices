@@ -5,12 +5,12 @@ package referendumapp
 // schema: com.referendumapp.graph.follow
 
 import (
-	"github.com/bluesky-social/indigo/lex/util"
+	// "github.com/bluesky-social/indigo/lex/util"
 	"github.com/referendumApp/referendumServices/internal/repo"
 )
 
 func init() {
-	util.RegisterType("com.referendumapp.graph.follow", &GraphFollow{})
+	// util.RegisterType("com.referendumapp.graph.follow", &GraphFollow{})
 }
 
 // RECORDTYPE: GraphFollow

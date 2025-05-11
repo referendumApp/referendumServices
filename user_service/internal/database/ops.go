@@ -29,44 +29,44 @@ func (d *DB) LookupPDSById(ctx context.Context, id int64) (*atp.PDS, error) {
 
 // LookupDidByAid returns a DID based on an actor ID
 func (d *DB) LookupDidByAid(ctx context.Context, aid atp.Aid) (string, error) {
-	var person atp.Person
-	sql := fmt.Sprintf("SELECT did FROM %s.%s WHERE aid = $1", d.Schema, person.TableName())
+	var user atp.User
+	sql := fmt.Sprintf("SELECT did FROM %s.%s WHERE aid = $1", d.Schema, user.TableName())
 
-	if err := d.pool.QueryRow(ctx, sql, aid).Scan(&person.Did); err != nil {
-		d.Log.ErrorContext(ctx, "Failed to get DID for person", "aid", aid)
+	if err := d.pool.QueryRow(ctx, sql, aid).Scan(&user.Did); err != nil {
+		d.Log.ErrorContext(ctx, "Failed to get DID for user", "aid", aid)
 		return "", err
 	}
 
-	return person.Did, nil
+	return user.Did, nil
 }
 
-func (d *DB) lookupPersonQuery(ctx context.Context, filter sq.Sqlizer) (*atp.Person, error) {
-	var entity atp.Person
-	person, err := GetAll(ctx, d, entity, filter)
+func (d *DB) lookupUserQuery(ctx context.Context, filter sq.Sqlizer) (*atp.User, error) {
+	var entity atp.User
+	user, err := GetAll(ctx, d, entity, filter)
 	if err != nil {
-		d.Log.ErrorContext(ctx, "Failed to lookup person", "filter", filter)
+		d.Log.ErrorContext(ctx, "Failed to lookup user", "filter", filter)
 		return nil, err
 	}
 
-	return person, nil
+	return user, nil
 }
 
-// LookupPersonByAid returns a person record by actor ID
-func (d *DB) LookupPersonByAid(ctx context.Context, aid atp.Aid) (*atp.Person, error) {
+// LookupUserByAid returns a user record by actor ID
+func (d *DB) LookupUserByAid(ctx context.Context, aid atp.Aid) (*atp.User, error) {
 	filter := sq.Eq{"aid": aid}
-	return d.lookupPersonQuery(ctx, filter)
+	return d.lookupUserQuery(ctx, filter)
 }
 
-// LookupPersonByDid returns a person record by DID
-func (d *DB) LookupPersonByDid(ctx context.Context, did string) (*atp.Person, error) {
+// LookupUserByDid returns a user record by DID
+func (d *DB) LookupUserByDid(ctx context.Context, did string) (*atp.User, error) {
 	filter := sq.Eq{"did": did}
-	return d.lookupPersonQuery(ctx, filter)
+	return d.lookupUserQuery(ctx, filter)
 }
 
-// LookupPersonByHandle returns a person record by handle
-func (d *DB) LookupPersonByHandle(ctx context.Context, handle string) (*atp.Person, error) {
+// LookupUserByHandle returns a user record by handle
+func (d *DB) LookupUserByHandle(ctx context.Context, handle string) (*atp.User, error) {
 	filter := sq.Eq{"handle": handle}
-	return d.lookupPersonQuery(ctx, filter)
+	return d.lookupUserQuery(ctx, filter)
 }
 
 func (d *DB) lookupActivityPostQuery(ctx context.Context, filter ...sq.Sqlizer) (*atp.ActivityPost, error) {
@@ -91,7 +91,7 @@ func (d *DB) LookupActivityPostByUid(ctx context.Context, rkey string, aid atp.A
 func (d *DB) LookupActivityPostByDid(ctx context.Context, rkey string, did string) (*atp.ActivityPost, error) {
 	// Create the subquery for author ID
 	authorSubquery := sq.Select("id").
-		From(atp.Person{}.TableName()).
+		From(atp.User{}.TableName()).
 		Where(sq.Eq{"did": did}).
 		PlaceholderFormat(sq.Dollar)
 

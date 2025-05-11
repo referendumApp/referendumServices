@@ -2,7 +2,7 @@
 
 package referendumapp
 
-// schema: com.referendumapp.person.endorsement
+// schema: com.referendumapp.user.endorsement
 
 import (
 	comatproto "github.com/bluesky-social/indigo/api/atproto"
@@ -11,20 +11,20 @@ import (
 )
 
 func init() {
-	// util.RegisterType("com.referendumapp.person.endorsement", &PersonEndorsement{})
+	// util.RegisterType("com.referendumapp.user.endorsement", &UserEndorsement{})
 }
 
-// RECORDTYPE: PersonEndorsement
-type PersonEndorsement struct {
-	LexiconTypeID string                    `json:"$type" cborgen:"$type,const=com.referendumapp.person.endorsement" validate:"required"`
+// RECORDTYPE: UserEndorsement
+type UserEndorsement struct {
+	LexiconTypeID string                    `json:"$type" cborgen:"$type,const=com.referendumapp.user.endorsement" validate:"required"`
 	CreatedAt     string                    `json:"createdAt" cborgen:"createdAt" validate:"required,datetime"`
 	Subject       *comatproto.RepoStrongRef `json:"subject" cborgen:"subject" validate:"required"`
 }
 
-func (t PersonEndorsement) NSID() string {
-	return "com.referendumapp.person.endorsement"
+func (t UserEndorsement) NSID() string {
+	return "com.referendumapp.user.endorsement"
 }
 
-func (t PersonEndorsement) Key() string {
+func (t UserEndorsement) Key() string {
 	return repo.NextTID()
 }

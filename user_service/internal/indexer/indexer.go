@@ -34,7 +34,7 @@ type Indexer struct {
 	log     *slog.Logger
 
 	SendRemoteFollow       func(context.Context, string, uint) error
-	CreateExternalPerson   func(context.Context, string) (*atp.Person, error)
+	CreateExternalPerson   func(context.Context, string) (*atp.User, error)
 	ApplyPDSClientSettings func(*xrpc.Client)
 
 	didr did.Resolver
@@ -255,11 +255,11 @@ func (ix *Indexer) crawlRecordReferences(ctx context.Context, op *repo.Op) error
 	}
 }
 
-func (ix *Indexer) GetPersonOrMissing(ctx context.Context, did string) (*atp.Person, error) {
+func (ix *Indexer) GetPersonOrMissing(ctx context.Context, did string) (*atp.User, error) {
 	ctx, span := otel.Tracer("indexer").Start(ctx, "GetPersonOrMissing")
 	defer span.End()
 
-	ai, err := ix.db.LookupPersonByDid(ctx, did)
+	ai, err := ix.db.LookupUserByDid(ctx, did)
 	if err == nil {
 		return ai, nil
 	}
@@ -272,7 +272,7 @@ func (ix *Indexer) GetPersonOrMissing(ctx context.Context, did string) (*atp.Per
 	return ix.createMissingPersonRecord(ctx, did)
 }
 
-func (ix *Indexer) createMissingPersonRecord(ctx context.Context, did string) (*atp.Person, error) {
+func (ix *Indexer) createMissingPersonRecord(ctx context.Context, did string) (*atp.User, error) {
 	ctx, span := otel.Tracer("indexer").Start(ctx, "createMissingPersonRecord")
 	defer span.End()
 
@@ -290,7 +290,7 @@ func (ix *Indexer) createMissingPersonRecord(ctx context.Context, did string) (*
 	return person, nil
 }
 
-func (ix *Indexer) addPersonToCrawler(ctx context.Context, ai *atp.Person) error {
+func (ix *Indexer) addPersonToCrawler(ctx context.Context, ai *atp.User) error {
 	ix.log.DebugContext(ctx, "Sending person to crawler: ", "did", ai.Did)
 	if ix.Crawler == nil {
 		return nil
@@ -339,7 +339,7 @@ func (ix *Indexer) handleRecordDelete(ctx context.Context, evt *repo.Event, op *
 
 	switch op.Collection {
 	case "app.referendum.feed.post":
-		u, err := ix.db.LookupPersonByAid(ctx, evt.Actor)
+		u, err := ix.db.LookupUserByAid(ctx, evt.Actor)
 		if err != nil {
 			return err
 		}
@@ -423,7 +423,7 @@ func (ix *Indexer) handleRecordCreateFeedLike(
 		return err
 	}
 
-	act, err := ix.db.LookupPersonByAid(ctx, post.Author)
+	act, err := ix.db.LookupUserByAid(ctx, post.Author)
 	if err != nil {
 		return err
 	}
@@ -455,7 +455,7 @@ func (ix *Indexer) handleRecordCreateGraphFollow(
 	evt *repo.Event,
 	op *repo.Op,
 ) error {
-	subj, err := ix.db.LookupPersonByDid(ctx, rec.Subject)
+	subj, err := ix.db.LookupUserByDid(ctx, rec.Subject)
 	if err != nil {
 		if !errors.Is(err, pgx.ErrNoRows) {
 			return fmt.Errorf("failed to lookup person: %w", err)
@@ -488,7 +488,7 @@ func (ix *Indexer) handleRecordUpdate(ctx context.Context, evt *repo.Event, op *
 
 	switch rec := op.Record.(type) {
 	case *bsky.FeedPost:
-		u, err := ix.db.LookupPersonByAid(ctx, evt.Actor)
+		u, err := ix.db.LookupUserByAid(ctx, evt.Actor)
 		if err != nil {
 			return err
 		}
@@ -606,7 +606,7 @@ func (ix *Indexer) handleRecordCreateActivityPost(
 		_ = rootref
 	}
 
-	var mentions []*atp.Person
+	var mentions []*atp.User
 	for _, e := range rec.Entities {
 		if e.Type == "mention" {
 			ai, err := ix.GetPersonOrMissing(ctx, e.Value)
@@ -680,7 +680,7 @@ func (ix *Indexer) addNewPostNotification(
 	ctx context.Context,
 	post *bsky.FeedPost,
 	fp *atp.ActivityPost,
-	mentions []*atp.Person,
+	mentions []*atp.User,
 ) error {
 	if post.Reply != nil {
 		_, err := ix.GetPost(ctx, post.Reply.Parent.Uri)

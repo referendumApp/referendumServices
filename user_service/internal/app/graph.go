@@ -19,7 +19,7 @@ func (v *View) HandleGraphFollow(
 	cc cid.Cid,
 	tid string,
 ) *refErr.APIError {
-	target, err := v.meta.LookupPersonByDid(ctx, did)
+	target, err := v.meta.LookupUserByDid(ctx, did)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return refErr.NotFound(did, "DID")
@@ -35,12 +35,12 @@ func (v *View) HandleGraphFollow(
 		}
 
 		followerFilter := sq.Eq{"aid": aid}
-		if err := v.meta.UpdateCountWithTx(ctx, tx, &atp.Person{}, "following", followerFilter); err != nil {
+		if err := v.meta.UpdateCountWithTx(ctx, tx, &atp.User{}, "following", followerFilter); err != nil {
 			return err
 		}
 
 		targetFilter := sq.Eq{"id": target.ID}
-		if err := v.meta.UpdateCountWithTx(ctx, tx, &atp.Person{}, "followers", targetFilter); err != nil {
+		if err := v.meta.UpdateCountWithTx(ctx, tx, &atp.User{}, "followers", targetFilter); err != nil {
 			return err
 		}
 
@@ -53,8 +53,8 @@ func (v *View) HandleGraphFollow(
 	return nil
 }
 
-// HandleGraphFollowers queries the actor_follow_record table for person followers
-func (v *View) HandleGraphFollowers(ctx context.Context, aid atp.Aid) ([]*atp.PersonBasic, *refErr.APIError) {
+// HandleGraphFollowers queries the actor_follow_record table for followering users
+func (v *View) HandleGraphFollowers(ctx context.Context, aid atp.Aid) ([]*atp.UserBasic, *refErr.APIError) {
 	followers, err := v.meta.LookupGraphFollowers(ctx, aid)
 	if err != nil {
 		return nil, refErr.Database()
@@ -63,8 +63,8 @@ func (v *View) HandleGraphFollowers(ctx context.Context, aid atp.Aid) ([]*atp.Pe
 	return followers, nil
 }
 
-// HandleGraphFollowing queries the actor_follow_record table for person follows
-func (v *View) HandleGraphFollowing(ctx context.Context, aid atp.Aid) ([]*atp.PersonBasic, *refErr.APIError) {
+// HandleGraphFollowing queries the actor_follow_record table for followed users
+func (v *View) HandleGraphFollowing(ctx context.Context, aid atp.Aid) ([]*atp.UserBasic, *refErr.APIError) {
 	following, err := v.meta.LookupGraphFollowing(ctx, aid)
 	if err != nil {
 		return nil, refErr.Database()

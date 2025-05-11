@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	util.RegisterType("com.referendumapp.legislator.profile", &LegislatorProfile{})
+	// util.RegisterType("com.referendumapp.legislator.profile", &LegislatorProfile{})
 }
 
 // RECORDTYPE: LegislatorProfile

@@ -15,7 +15,7 @@ import (
 
 type CrawlDispatcher struct {
 	// from Crawl()
-	ingest chan *atp.Person
+	ingest chan *atp.User
 	// from AddToCatchupQueue()
 	catchup chan *crawlWork
 	// from main loop to fetchWorker()
@@ -44,7 +44,7 @@ func NewCrawlDispatcher(repoFetcher CrawlRepoFetcher, concurrency int, log *slog
 	}
 
 	out := &CrawlDispatcher{
-		ingest:      make(chan *atp.Person),
+		ingest:      make(chan *atp.User),
 		repoSync:    make(chan *crawlWork),
 		complete:    make(chan atp.Aid),
 		catchup:     make(chan *crawlWork),
@@ -75,11 +75,11 @@ func (c *CrawlDispatcher) Shutdown() {
 type catchupJob struct {
 	evt    *comatproto.SyncSubscribeRepos_Commit
 	host   *atp.PDS
-	person *atp.Person
+	person *atp.User
 }
 
 type crawlWork struct {
-	act *atp.Person
+	act *atp.User
 
 	// for events that come in while this actor's crawl is enqueued
 	// catchup items are processed during the crawl
@@ -162,7 +162,7 @@ func (c *CrawlDispatcher) mainLoop() {
 }
 
 // enqueueJobForActor adds a new crawl job to the todo list if there isn't already a job in progress for this actor
-func (c *CrawlDispatcher) enqueueJobForActor(ai *atp.Person) *crawlWork {
+func (c *CrawlDispatcher) enqueueJobForActor(ai *atp.User) *crawlWork {
 	c.maplk.Lock()
 	defer c.maplk.Unlock()
 	_, ok := c.inProgress[ai.Aid]
@@ -231,7 +231,7 @@ func (c *CrawlDispatcher) fetchWorker() {
 	}
 }
 
-func (c *CrawlDispatcher) Crawl(ctx context.Context, ai *atp.Person) error {
+func (c *CrawlDispatcher) Crawl(ctx context.Context, ai *atp.User) error {
 	if !ai.PDS.Valid {
 		panic("must have pds for person in queue")
 	}
@@ -252,7 +252,7 @@ func (c *CrawlDispatcher) Crawl(ctx context.Context, ai *atp.Person) error {
 func (c *CrawlDispatcher) AddToCatchupQueue(
 	ctx context.Context,
 	host *atp.PDS,
-	p *atp.Person,
+	p *atp.User,
 	evt *comatproto.SyncSubscribeRepos_Commit,
 ) error {
 	if !p.PDS.Valid {

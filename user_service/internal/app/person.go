@@ -8,8 +8,8 @@ import (
 )
 
 // GetProfile handler to querying the basic person profile
-func (v *View) GetProfile(ctx context.Context, aid atp.Aid) (*atp.PersonBasic, *refErr.APIError) {
-	profile, err := v.meta.GetPersonBasicProfile(ctx, aid)
+func (v *View) GetProfile(ctx context.Context, aid atp.Aid) (*atp.UserBasic, *refErr.APIError) {
+	profile, err := v.meta.GetUserBasicProfile(ctx, aid)
 	if err != nil {
 		return nil, refErr.Database()
 	}

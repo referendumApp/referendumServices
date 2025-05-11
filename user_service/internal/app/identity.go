@@ -75,21 +75,21 @@ func (v *View) ResolveHandle(ctx context.Context, req *refApp.ServerCreateAccoun
 	return hashedPassword, nil
 }
 
-// CreateActorAndPerson inserts a actor and person record to the DB
-func (v *View) CreateActorAndPerson(
+// SaveActorAndUser inserts a actor and person record to the DB
+func (v *View) SaveActorAndUser(
 	ctx context.Context,
 	actor *atp.Actor,
 	handle string,
 	dname string,
 ) *refErr.APIError {
-	if err := v.meta.createActorAndPerson(ctx, actor, handle, dname); err != nil {
+	if err := v.meta.insertActorAndUserRecords(ctx, actor, handle, dname); err != nil {
 		return refErr.Database()
 	}
 	return nil
 }
 
-// AuthenticateUser validates username and password for a create session request
-func (v *View) AuthenticateUser(ctx context.Context, username string, pw string) (*atp.Actor, *refErr.APIError) {
+// GetAuthenticatedActor validates username and password for a create session request
+func (v *View) GetAuthenticatedActor(ctx context.Context, username string, pw string) (*atp.Actor, *refErr.APIError) {
 	defaultErr := refErr.FieldError{Message: "Email or password not found"}
 	actor, err := v.meta.authenticateActor(ctx, username)
 	if err != nil {
@@ -136,7 +136,7 @@ func (v *View) DeleteAccount(ctx context.Context, aid atp.Aid, did string) *refE
 			return err
 		}
 
-		person := atp.Person{Handle: sql.NullString{Valid: false}, Base: atp.Base{DeletedAt: deletedAt}}
+		person := atp.User{Handle: sql.NullString{Valid: false}, Base: atp.Base{DeletedAt: deletedAt}}
 		if err := v.meta.UpdateWithTx(ctx, tx, person, sq.Eq{"aid": aid}); err != nil {
 			v.log.ErrorContext(ctx, "Failed to delete person", "error", err)
 			return err
@@ -181,7 +181,7 @@ func (v *View) UpdateProfile(ctx context.Context, aid atp.Aid, req *refApp.Perso
 			return err
 		}
 
-		actor := &atp.Person{
+		actor := &atp.User{
 			DisplayName: *req.DisplayName,
 			Handle:      newUser.Handle,
 		}
