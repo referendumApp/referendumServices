@@ -75,7 +75,7 @@ func (v *View) ResolveHandle(ctx context.Context, req *refApp.ServerCreateAccoun
 	return hashedPassword, nil
 }
 
-// SaveActorAndUser inserts a actor and person record to the DB
+// SaveActorAndUser inserts a actor and user record to the DB
 func (v *View) SaveActorAndUser(
 	ctx context.Context,
 	actor *atp.Actor,
@@ -126,7 +126,7 @@ func (v *View) AuthenticateSession(ctx context.Context, aid atp.Aid, did string)
 	return nil
 }
 
-// DeleteAccount deletes a user and person record from the DB
+// DeleteAccount deletes a user and user record from the DB
 func (v *View) DeleteAccount(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		deletedAt := sql.NullTime{Time: time.Now(), Valid: true}
@@ -136,9 +136,9 @@ func (v *View) DeleteAccount(ctx context.Context, aid atp.Aid, did string) *refE
 			return err
 		}
 
-		person := atp.User{Handle: sql.NullString{Valid: false}, Base: atp.Base{DeletedAt: deletedAt}}
-		if err := v.meta.UpdateWithTx(ctx, tx, person, sq.Eq{"aid": aid}); err != nil {
-			v.log.ErrorContext(ctx, "Failed to delete person", "error", err)
+		user := atp.User{Handle: sql.NullString{Valid: false}, Base: atp.Base{DeletedAt: deletedAt}}
+		if err := v.meta.UpdateWithTx(ctx, tx, user, sq.Eq{"aid": aid}); err != nil {
+			v.log.ErrorContext(ctx, "Failed to delete user", "error", err)
 			return err
 		}
 
@@ -187,7 +187,7 @@ func (v *View) UpdateProfile(ctx context.Context, aid atp.Aid, req *refApp.UserU
 		}
 
 		if err := v.meta.UpdateWithTx(ctx, tx, actor, sq.Eq{"aid": aid}); err != nil && !errors.Is(err, database.ErrNoFields) {
-			v.log.ErrorContext(ctx, "Failed to update person profile", "error", err)
+			v.log.ErrorContext(ctx, "Failed to update user profile", "error", err)
 			return err
 		}
 

@@ -49,7 +49,7 @@ func (c *TestClient) CreateDID(
 ) (string, error) {
 	op := &Op{
 		Type:                "plc_operation",
-		Services:            map[string]Service{"atproto_pds": {Type: "AtprotoPersonalDataClient", Endpoint: service}},
+		Services:            map[string]Service{"atproto_pds": {Type: "AtprotoUseralDataClient", Endpoint: service}},
 		AlsoKnownAs:         []string{handle},
 		RotationKeys:        rotation,
 		VerificationMethods: map[string]string{"atproto": sigkey.Public().DID()},

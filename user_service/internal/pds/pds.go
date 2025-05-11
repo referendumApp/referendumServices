@@ -13,7 +13,7 @@ import (
 	"github.com/referendumApp/referendumServices/internal/util"
 )
 
-// PDS contains all the dependencies to implement a Personal Data Server
+// PDS contains all the dependencies to implement a Useral Data Server
 type PDS struct {
 	repoman        *repo.Manager
 	log            *slog.Logger
@@ -49,12 +49,12 @@ func NewPDS(
 
 	// repoman.SetEventHandler(func(ctx context.Context, evt *repo.Event) {
 	// 	if err := idxr.HandleRepoEvent(ctx, evt); err != nil {
-	// 		log.ErrorContext(ctx, "Handle repo event failed", "person", evt.Person, "err", err)
+	// 		log.ErrorContext(ctx, "Handle repo event failed", "user", evt.User, "err", err)
 	// 	}
 	// }, true)
 
 	// ix.SendRemoteFollow = srv.sendRemoteFollow
-	// ix.CreateExternalPerson = srv.CreateExternalPerson
+	// ix.CreateExternalUser = srv.CreateExternalUser
 
 	jwtConfig := util.NewConfig(secretKey, serviceUrl, jwt.SigningMethodHS256)
 
@@ -108,7 +108,7 @@ func (p *PDS) Shutdown(ctx context.Context) error {
 // 	}
 // }
 //
-// func (p *PDS) createExternalactor(ctx context.Context, did string) (*atp.Person, error) {
+// func (p *PDS) createExternalactor(ctx context.Context, did string) (*atp.User, error) {
 // 	doc, err := s.plc.GetDocument(ctx, did)
 // 	if err != nil {
 // 		return nil, fmt.Errorf("could not locate DID document for followed actor: %s", err)
@@ -173,7 +173,7 @@ func (p *PDS) Shutdown(ctx context.Context) error {
 //
 // 	// okay cool, its a actor on a server we are peered with
 // 	// lets make a local record of that actor for the future
-// 	subj := &atp.Person{
+// 	subj := &atp.User{
 // 		Uid:         u.ID,
 // 		Handle:      sql.NullString{String: handle, Valid: true},
 // 		DisplayName: "missing display name",
@@ -296,7 +296,7 @@ func (p *PDS) Shutdown(ctx context.Context) error {
 // 		return fmt.Errorf("failed to update actors handle on plc: %w", err)
 // 	}
 //
-// 	if err := p.db.Update(ctx, atp.Person{Uid: u.ID}, "actor_id"); err != nil {
+// 	if err := p.db.Update(ctx, atp.User{Uid: u.ID}, "actor_id"); err != nil {
 // 		return fmt.Errorf("failed to update handle: %w", err)
 // 	}
 //

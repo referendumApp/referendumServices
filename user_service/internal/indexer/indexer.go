@@ -34,7 +34,7 @@ type Indexer struct {
 	log     *slog.Logger
 
 	SendRemoteFollow       func(context.Context, string, uint) error
-	CreateExternalPerson   func(context.Context, string) (*atp.User, error)
+	CreateExternalUser     func(context.Context, string) (*atp.User, error)
 	ApplyPDSClientSettings func(*xrpc.Client)
 
 	didr did.Resolver
@@ -176,7 +176,7 @@ func (ix *Indexer) crawlAtUriRef(ctx context.Context, uri string) error {
 
 	referencesCrawled.Inc()
 
-	_, err = ix.GetPersonOrMissing(ctx, puri.Did)
+	_, err = ix.GetUserOrMissing(ctx, puri.Did)
 	if err != nil {
 		return err
 	}
@@ -191,9 +191,9 @@ func (ix *Indexer) crawlRecordReferences(ctx context.Context, op *repo.Op) error
 	case *bsky.FeedPost:
 		for _, e := range rec.Entities {
 			if e.Type == "mention" {
-				_, err := ix.GetPersonOrMissing(ctx, e.Value)
+				_, err := ix.GetUserOrMissing(ctx, e.Value)
 				if err != nil {
-					ix.log.InfoContext(ctx, "failed to parse person mention", "ref", e.Value, "err", err)
+					ix.log.InfoContext(ctx, "failed to parse user mention", "ref", e.Value, "err", err)
 				}
 			}
 		}
@@ -230,13 +230,13 @@ func (ix *Indexer) crawlRecordReferences(ctx context.Context, op *repo.Op) error
 		}
 		return nil
 	case *bsky.GraphFollow:
-		_, err := ix.GetPersonOrMissing(ctx, rec.Subject)
+		_, err := ix.GetUserOrMissing(ctx, rec.Subject)
 		if err != nil {
 			ix.log.InfoContext(ctx, "failed to crawl follow subject", "cid", op.RecCid, "subjectdid", rec.Subject, "err", err)
 		}
 		return nil
 	case *bsky.GraphBlock:
-		_, err := ix.GetPersonOrMissing(ctx, rec.Subject)
+		_, err := ix.GetUserOrMissing(ctx, rec.Subject)
 		if err != nil {
 			ix.log.InfoContext(ctx, "failed to crawl follow subject", "cid", op.RecCid, "subjectdid", rec.Subject, "err", err)
 		}
@@ -255,8 +255,8 @@ func (ix *Indexer) crawlRecordReferences(ctx context.Context, op *repo.Op) error
 	}
 }
 
-func (ix *Indexer) GetPersonOrMissing(ctx context.Context, did string) (*atp.User, error) {
-	ctx, span := otel.Tracer("indexer").Start(ctx, "GetPersonOrMissing")
+func (ix *Indexer) GetUserOrMissing(ctx context.Context, did string) (*atp.User, error) {
+	ctx, span := otel.Tracer("indexer").Start(ctx, "GetUserOrMissing")
 	defer span.End()
 
 	ai, err := ix.db.LookupUserByDid(ctx, did)
@@ -268,30 +268,30 @@ func (ix *Indexer) GetPersonOrMissing(ctx context.Context, did string) (*atp.Use
 		return nil, err
 	}
 
-	// unknown person... create it and send it off to the crawler
-	return ix.createMissingPersonRecord(ctx, did)
+	// unknown user... create it and send it off to the crawler
+	return ix.createMissingUserRecord(ctx, did)
 }
 
-func (ix *Indexer) createMissingPersonRecord(ctx context.Context, did string) (*atp.User, error) {
-	ctx, span := otel.Tracer("indexer").Start(ctx, "createMissingPersonRecord")
+func (ix *Indexer) createMissingUserRecord(ctx context.Context, did string) (*atp.User, error) {
+	ctx, span := otel.Tracer("indexer").Start(ctx, "createMissingUserRecord")
 	defer span.End()
 
-	externalPersonCreationAttempts.Inc()
+	externalUserCreationAttempts.Inc()
 
-	person, err := ix.CreateExternalPerson(ctx, did)
+	user, err := ix.CreateExternalUser(ctx, did)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := ix.addPersonToCrawler(ctx, person); err != nil {
-		return nil, fmt.Errorf("failed to add unknown person to crawler: %w", err)
+	if err := ix.addUserToCrawler(ctx, user); err != nil {
+		return nil, fmt.Errorf("failed to add unknown user to crawler: %w", err)
 	}
 
-	return person, nil
+	return user, nil
 }
 
-func (ix *Indexer) addPersonToCrawler(ctx context.Context, ai *atp.User) error {
-	ix.log.DebugContext(ctx, "Sending person to crawler: ", "did", ai.Did)
+func (ix *Indexer) addUserToCrawler(ctx context.Context, ai *atp.User) error {
+	ix.log.DebugContext(ctx, "Sending user to crawler: ", "did", ai.Did)
 	if ix.Crawler == nil {
 		return nil
 	}
@@ -302,7 +302,7 @@ func (ix *Indexer) addPersonToCrawler(ctx context.Context, ai *atp.User) error {
 // func (ix *Indexer) handleInitActor(ctx context.Context, evt *repo.RepoEvent, op *repo.RepoOp) error {
 // 	ai := op.ActorInfo
 //
-// 	if err := ix.db.CreateWithConflict(ctx, &atp.Person{
+// 	if err := ix.db.CreateWithConflict(ctx, &atp.User{
 // 		Aid:         evt.Actor,
 // 		Handle:      sql.NullString{String: ai.Handle, Valid: true},
 // 		Did:         ai.Did,
@@ -458,12 +458,12 @@ func (ix *Indexer) handleRecordCreateGraphFollow(
 	subj, err := ix.db.LookupUserByDid(ctx, rec.Subject)
 	if err != nil {
 		if !errors.Is(err, pgx.ErrNoRows) {
-			return fmt.Errorf("failed to lookup person: %w", err)
+			return fmt.Errorf("failed to lookup user: %w", err)
 		}
 
-		nu, err := ix.createMissingPersonRecord(ctx, rec.Subject)
+		nu, err := ix.createMissingUserRecord(ctx, rec.Subject)
 		if err != nil {
-			return fmt.Errorf("create external person: %w", err)
+			return fmt.Errorf("create external user: %w", err)
 		}
 
 		subj = nu
@@ -609,7 +609,7 @@ func (ix *Indexer) handleRecordCreateActivityPost(
 	var mentions []*atp.User
 	for _, e := range rec.Entities {
 		if e.Type == "mention" {
-			ai, err := ix.GetPersonOrMissing(ctx, e.Value)
+			ai, err := ix.GetUserOrMissing(ctx, e.Value)
 			if err != nil {
 				return err
 			}
@@ -656,7 +656,7 @@ func (ix *Indexer) handleRecordCreateActivityPost(
 
 func (ix *Indexer) createMissingPostRecord(ctx context.Context, puri *util.ParsedUri) (*atp.ActivityPost, error) {
 	ix.log.WarnContext(ctx, "creating missing post record")
-	ai, err := ix.GetPersonOrMissing(ctx, puri.Did)
+	ai, err := ix.GetUserOrMissing(ctx, puri.Did)
 	if err != nil {
 		return nil, err
 	}
