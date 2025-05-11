@@ -160,7 +160,7 @@ func (s *Service) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 func (s *Service) handleUserProfileUpdate(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var req refApp.PersonUpdateProfile_Input
+	var req refApp.UserUpdateProfile_Input
 	if err := s.decodeAndValidate(ctx, w, r.Body, &req); err != nil {
 		return
 	}
@@ -172,7 +172,7 @@ func (s *Service) handleUserProfileUpdate(w http.ResponseWriter, r *http.Request
 	}
 
 	if req.DisplayName != nil {
-		profile := &refApp.PersonProfile{
+		profile := &refApp.UserProfile{
 			DisplayName: req.DisplayName,
 		}
 
@@ -197,7 +197,7 @@ func (s *Service) handleGetUserProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var profile refApp.PersonProfile
+	var profile refApp.UserProfile
 	if _, err := s.pds.GetRecord(ctx, aid, &profile); err != nil {
 		err.WriteResponse(w)
 		return

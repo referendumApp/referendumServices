@@ -151,7 +151,7 @@ func (v *View) DeleteAccount(ctx context.Context, aid atp.Aid, did string) *refE
 }
 
 // UpdateProfile updates a user profile with a new handle, email, or display name
-func (v *View) UpdateProfile(ctx context.Context, aid atp.Aid, req *refApp.PersonUpdateProfile_Input) *refErr.APIError {
+func (v *View) UpdateProfile(ctx context.Context, aid atp.Aid, req *refApp.UserUpdateProfile_Input) *refErr.APIError {
 	var newUser atp.Actor
 	if req.Handle != nil {
 		handle := *req.Handle
