@@ -5,12 +5,12 @@ package referendumapp
 // schema: com.referendumapp.user.legislatorFollow
 
 import (
-	// "github.com/bluesky-social/indigo/lex/util"
+	"github.com/bluesky-social/indigo/lex/util"
 	"github.com/referendumApp/referendumServices/internal/repo"
 )
 
 func init() {
-	// util.RegisterType("com.referendumapp.user.legislatorFollow", &UserLegislatorFollow{})
+	util.RegisterType("com.referendumapp.user.legislatorFollow", &UserLegislatorFollow{})
 }
 
 // RECORDTYPE: UserLegislatorFollow

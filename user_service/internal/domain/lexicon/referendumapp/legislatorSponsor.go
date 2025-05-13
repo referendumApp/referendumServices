@@ -6,12 +6,12 @@ package referendumapp
 
 import (
 	comatproto "github.com/bluesky-social/indigo/api/atproto"
-	// "github.com/bluesky-social/indigo/lex/util"
+	"github.com/bluesky-social/indigo/lex/util"
 	"github.com/referendumApp/referendumServices/internal/repo"
 )
 
 func init() {
-	// util.RegisterType("com.referendumapp.legislator.sponsor", &LegislatorSponsor{})
+	util.RegisterType("com.referendumapp.legislator.sponsor", &LegislatorSponsor{})
 }
 
 // RECORDTYPE: LegislatorSponsor
