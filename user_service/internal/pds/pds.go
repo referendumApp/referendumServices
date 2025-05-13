@@ -49,12 +49,12 @@ func NewPDS(
 
 	// repoman.SetEventHandler(func(ctx context.Context, evt *repo.Event) {
 	// 	if err := idxr.HandleRepoEvent(ctx, evt); err != nil {
-	// 		log.ErrorContext(ctx, "Handle repo event failed", "user", evt.User, "err", err)
+	// 		log.ErrorContext(ctx, "Handle repo event failed", "person", evt.Person, "err", err)
 	// 	}
 	// }, true)
 
 	// ix.SendRemoteFollow = srv.sendRemoteFollow
-	// ix.CreateExternalUser = srv.createExternalUser
+	// ix.CreateExternalPerson = srv.CreateExternalPerson
 
 	jwtConfig := util.NewConfig(secretKey, serviceUrl, jwt.SigningMethodHS256)
 
@@ -87,35 +87,35 @@ func (p *PDS) Shutdown(ctx context.Context) error {
 // 	switch {
 // 	case env.RepoCommit != nil:
 // 		evt := env.RepoCommit
-// 		u, err := s.db.LookupUser(ctx, evt.Repo)
+// 		u, err := s.db.Lookupactor(ctx, evt.Repo)
 // 		if err != nil {
 // 			if !errors.Is(err, pgx.ErrNoRows) {
-// 				return fmt.Errorf("looking up event user: %w", err)
+// 				return fmt.Errorf("looking up event actor: %w", err)
 // 			}
 //
-// 			subj, err := s.createExternalUser(ctx, evt.Repo)
+// 			subj, err := s.createExternalactor(ctx, evt.Repo)
 // 			if err != nil {
 // 				return err
 // 			}
 //
-// 			u = new(User)
+// 			u = new(actor)
 // 			u.ID = subj.Uid
 // 		}
 //
-// 		return s.repoman.HandleExternalUserEvent(ctx, host.ID, u.ID, u.Did, evt.Since, evt.Rev, evt.Blocks, evt.Ops)
+// 		return s.repoman.HandleExternalactorEvent(ctx, host.ID, u.ID, u.Did, evt.Since, evt.Rev, evt.Blocks, evt.Ops)
 // 	default:
 // 		return fmt.Errorf("invalid fed event")
 // 	}
 // }
 //
-// func (p *PDS) createExternalUser(ctx context.Context, did string) (*atp.Person, error) {
+// func (p *PDS) createExternalactor(ctx context.Context, did string) (*atp.Person, error) {
 // 	doc, err := s.plc.GetDocument(ctx, did)
 // 	if err != nil {
-// 		return nil, fmt.Errorf("could not locate DID document for followed user: %s", err)
+// 		return nil, fmt.Errorf("could not locate DID document for followed actor: %s", err)
 // 	}
 //
 // 	if len(doc.Service) == 0 {
-// 		return nil, fmt.Errorf("external followed user %s had no services in did document", did)
+// 		return nil, fmt.Errorf("external followed actor %s had no services in did document", did)
 // 	}
 //
 // 	svc := doc.Service[0]
@@ -160,19 +160,19 @@ func (p *PDS) Shutdown(ctx context.Context) error {
 // 		handle = hurl.Host
 // 	}
 //
-// 	// TODO: request this users info from their server to fill out our data...
-// 	u := User{
+// 	// TODO: request this actors info from their server to fill out our data...
+// 	u := Actor{
 // 		Handle: handle,
 // 		Did:    did,
 // 		PDS:    peering.ID,
 // 	}
 //
 // 	if err := s.db.Create(&u).Error; err != nil {
-// 		return nil, fmt.Errorf("failed to create other pds user: %w", err)
+// 		return nil, fmt.Errorf("failed to create other pds actor: %w", err)
 // 	}
 //
-// 	// okay cool, its a user on a server we are peered with
-// 	// lets make a local record of that user for the future
+// 	// okay cool, its a actor on a server we are peered with
+// 	// lets make a local record of that actor for the future
 // 	subj := &atp.Person{
 // 		Uid:         u.ID,
 // 		Handle:      sql.NullString{String: handle, Valid: true},
@@ -189,7 +189,7 @@ func (p *PDS) Shutdown(ctx context.Context) error {
 // }
 
 // func (p *PDS) repoEventToFedEvent(ctx context.Context, evt *repo.RepoEvent) (*atproto.SyncSubscribeRepos_Commit, error) {
-// 	did, err := s.db.DidForActor(ctx, evt.User)
+// 	did, err := s.db.DidForActor(ctx, evt.actor)
 // 	if err != nil {
 // 		return nil, err
 // 	}
@@ -198,7 +198,7 @@ func (p *PDS) Shutdown(ctx context.Context) error {
 // 		Blocks: evt.RepoSlice,
 // 		Repo:   did,
 // 		Time:   time.Now().Format(util.ISO8601),
-// 		//PrivUid: evt.User,
+// 		//PrivUid: evt.actor,
 // 	}
 //
 // 	for _, op := range evt.Ops {
@@ -212,8 +212,8 @@ func (p *PDS) Shutdown(ctx context.Context) error {
 // 	return out, nil
 // }
 //
-// func (p *PDS) readRecordFunc(ctx context.Context, user atp.Uid, c cid.Cid) (lexutil.CBOR, error) {
-// 	bs, err := s.cs.ReadOnlySession(user)
+// func (p *PDS) readRecordFunc(ctx context.Context, actor atp.Uid, c cid.Cid) (lexutil.CBOR, error) {
+// 	bs, err := s.cs.ReadOnlySession(actor)
 // 	if err != nil {
 // 		return nil, err
 // 	}
@@ -234,7 +234,7 @@ func (p *PDS) Shutdown(ctx context.Context) error {
 // 		handle = hh
 // 	}
 //
-// 	u, err := s.db.LookupUserByHandle(ctx, handle)
+// 	u, err := s.db.LookupactorByHandle(ctx, handle)
 // 	if err != nil {
 // 		return fmt.Errorf("resolving %q: %w", handle, err)
 // 	}
@@ -270,8 +270,8 @@ func (p *PDS) Shutdown(ctx context.Context) error {
 // 		return fieldErr.Invalid()
 // 	}
 //
-// 	if exists, err := p.db.UserExists(ctx, "handle", handle); err != nil {
-// 		p.log.ErrorContext(ctx, "Error checking database for user handle", "error", err)
+// 	if exists, err := p.db.actorExists(ctx, "handle", handle); err != nil {
+// 		p.log.ErrorContext(ctx, "Error checking database for actor handle", "error", err)
 // 		return refErr.InternalServer()
 // 	} else if exists {
 // 		fieldErr := refErr.FieldError{Field: "handle", Message: "Handle already exists"}
@@ -281,26 +281,26 @@ func (p *PDS) Shutdown(ctx context.Context) error {
 // 	return nil
 // }
 //
-// func (p *PDS) UpdateUserHandle(ctx context.Context, u *atp.User, handle string) error {
+// func (p *PDS) UpdateactorHandle(ctx context.Context, u *atp.actor, handle string) error {
 // 	if u.Handle.String == handle {
 // 		// no change? move on
 // 		p.log.Warn("attempted to change handle to current handle", "did", u.Did, "handle", handle)
 // 		return nil
 // 	}
 //
-// 	if _, err := p.db.LookupUserByHandle(ctx, handle); err == nil {
+// 	if _, err := p.db.LookupactorByHandle(ctx, handle); err == nil {
 // 		return fmt.Errorf("handle %q is already in use", handle)
 // 	}
 //
-// 	if err := p.plc.UpdateUserHandle(ctx, u.Did, handle); err != nil {
-// 		return fmt.Errorf("failed to update users handle on plc: %w", err)
+// 	if err := p.plc.UpdateactorHandle(ctx, u.Did, handle); err != nil {
+// 		return fmt.Errorf("failed to update actors handle on plc: %w", err)
 // 	}
 //
-// 	if err := p.db.Update(ctx, atp.Person{Uid: u.ID}, "user_id"); err != nil {
+// 	if err := p.db.Update(ctx, atp.Person{Uid: u.ID}, "actor_id"); err != nil {
 // 		return fmt.Errorf("failed to update handle: %w", err)
 // 	}
 //
-// 	if err := p.db.Update(ctx, atp.User{Handle: sql.NullString{String: handle, Valid: true}}, "user_id"); err != nil {
+// 	if err := p.db.Update(ctx, atp.actor{Handle: sql.NullString{String: handle, Valid: true}}, "actor_id"); err != nil {
 // 		return fmt.Errorf("failed to update handle: %w", err)
 // 	}
 //

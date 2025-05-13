@@ -10,25 +10,25 @@ import (
 
 // LastShardSource interface for CAR shard metadata
 type LastShardSource interface {
-	GetLastShard(context.Context, atp.Uid) (*Shard, error)
+	GetLastShard(context.Context, atp.Aid) (*Shard, error)
 }
 
 type lastShardCache struct {
 	source LastShardSource
 
 	lscLk          sync.Mutex
-	lastShardCache map[atp.Uid]*Shard
+	lastShardCache map[atp.Aid]*Shard
 }
 
 func (lsc *lastShardCache) init() {
-	lsc.lastShardCache = make(map[atp.Uid]*Shard)
+	lsc.lastShardCache = make(map[atp.Aid]*Shard)
 }
 
-func (lsc *lastShardCache) check(user atp.Uid) *Shard {
+func (lsc *lastShardCache) check(actor atp.Aid) *Shard {
 	lsc.lscLk.Lock()
 	defer lsc.lscLk.Unlock()
 
-	ls, ok := lsc.lastShardCache[user]
+	ls, ok := lsc.lastShardCache[actor]
 	if ok {
 		return ls
 	}
@@ -36,11 +36,11 @@ func (lsc *lastShardCache) check(user atp.Uid) *Shard {
 	return nil
 }
 
-func (lsc *lastShardCache) remove(user atp.Uid) {
+func (lsc *lastShardCache) remove(actor atp.Aid) {
 	lsc.lscLk.Lock()
 	defer lsc.lscLk.Unlock()
 
-	delete(lsc.lastShardCache, user)
+	delete(lsc.lastShardCache, actor)
 }
 
 func (lsc *lastShardCache) put(ls *Shard) {
@@ -50,19 +50,19 @@ func (lsc *lastShardCache) put(ls *Shard) {
 	lsc.lscLk.Lock()
 	defer lsc.lscLk.Unlock()
 
-	lsc.lastShardCache[ls.Uid] = ls
+	lsc.lastShardCache[ls.Aid] = ls
 }
 
-func (lsc *lastShardCache) get(ctx context.Context, user atp.Uid) (*Shard, error) {
+func (lsc *lastShardCache) get(ctx context.Context, actor atp.Aid) (*Shard, error) {
 	ctx, span := otel.Tracer("carstore").Start(ctx, "getLastShard")
 	defer span.End()
 
-	maybeLs := lsc.check(user)
+	maybeLs := lsc.check(actor)
 	if maybeLs != nil {
 		return maybeLs, nil
 	}
 
-	lastShard, err := lsc.source.GetLastShard(ctx, user)
+	lastShard, err := lsc.source.GetLastShard(ctx, actor)
 	if err != nil {
 		return nil, err
 	}

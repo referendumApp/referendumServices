@@ -77,7 +77,7 @@ func NewKeyManager(
 	}, nil
 }
 
-// CreateSigningKey generates the signing key for a user
+// CreateSigningKey generates the signing key for an actor
 func (km *KeyManager) CreateSigningKey(ctx context.Context) (*did.PrivKey, error) {
 	privkey, err := did.GeneratePrivKey(rand.Reader, did.KeyTypeSecp256k1)
 	if err != nil {
@@ -130,8 +130,8 @@ func (km *KeyManager) InvalidateKeys(ctx context.Context, did string) {
 	}
 }
 
-// SignForUser checks for the signing key, refreshes the cache if the key isnt found, and finally signs the commit
-func (km *KeyManager) SignForUser(ctx context.Context, did string, cmt []byte) ([]byte, error) {
+// SignForActor checks for the signing key, refreshes the cache if the key isnt found, and finally signs the commit
+func (km *KeyManager) SignForActor(ctx context.Context, did string, cmt []byte) ([]byte, error) {
 	if err := km.UpdateKeyCache(ctx, did); err != nil {
 		return nil, err
 	}
@@ -166,9 +166,9 @@ func (km *KeyManager) SignForPLC(ctx context.Context, op []byte) ([]byte, error)
 	return sig, nil
 }
 
-// VerifyUserSignature noop
-func (km *KeyManager) VerifyUserSignature(ctx context.Context, did string, sig []byte, msg []byte) error {
-	return fmt.Errorf("VerifyUserSignature not implemented")
+// VerifyActorSignature noop
+func (km *KeyManager) VerifyActorSignature(ctx context.Context, did string, sig []byte, msg []byte) error {
+	return fmt.Errorf("VerifyActorSignature not implemented")
 }
 
 func (km *KeyManager) Flush(ctx context.Context) error {

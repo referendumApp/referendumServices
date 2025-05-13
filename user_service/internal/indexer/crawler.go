@@ -22,9 +22,9 @@ type CrawlDispatcher struct {
 	repoSync chan *crawlWork
 
 	done       chan struct{}
-	complete   chan atp.Uid
-	todo       map[atp.Uid]*crawlWork
-	inProgress map[atp.Uid]*crawlWork
+	complete   chan atp.Aid
+	todo       map[atp.Aid]*crawlWork
+	inProgress map[atp.Aid]*crawlWork
 
 	log         *slog.Logger
 	repoFetcher CrawlRepoFetcher
@@ -46,12 +46,12 @@ func NewCrawlDispatcher(repoFetcher CrawlRepoFetcher, concurrency int, log *slog
 	out := &CrawlDispatcher{
 		ingest:      make(chan *atp.Person),
 		repoSync:    make(chan *crawlWork),
-		complete:    make(chan atp.Uid),
+		complete:    make(chan atp.Aid),
 		catchup:     make(chan *crawlWork),
 		repoFetcher: repoFetcher,
 		concurrency: concurrency,
-		todo:        make(map[atp.Uid]*crawlWork),
-		inProgress:  make(map[atp.Uid]*crawlWork),
+		todo:        make(map[atp.Aid]*crawlWork),
+		inProgress:  make(map[atp.Aid]*crawlWork),
 		log:         log,
 		done:        make(chan struct{}),
 	}
@@ -73,9 +73,9 @@ func (c *CrawlDispatcher) Shutdown() {
 }
 
 type catchupJob struct {
-	evt  *comatproto.SyncSubscribeRepos_Commit
-	host *atp.PDS
-	user *atp.Person
+	evt    *comatproto.SyncSubscribeRepos_Commit
+	host   *atp.PDS
+	person *atp.Person
 }
 
 type crawlWork struct {
@@ -133,19 +133,19 @@ func (c *CrawlDispatcher) mainLoop() {
 			} else {
 				jobsAwaitingDispatch = append(jobsAwaitingDispatch, catchupJob)
 			}
-		case uid := <-c.complete:
+		case aid := <-c.complete:
 			c.maplk.Lock()
 
-			job, ok := c.inProgress[uid]
+			job, ok := c.inProgress[aid]
 			if !ok {
 				panic("should not be possible to not have a job in progress we receive a completion signal for")
 			}
-			delete(c.inProgress, uid)
+			delete(c.inProgress, aid)
 
 			// If there are any subsequent jobs for this UID, add it back to the todo list or buffer.
 			// We're basically pumping the `next` queue into the `catchup` queue and will do this over and over until the `next` queue is empty.
 			if len(job.next) > 0 {
-				c.todo[uid] = job
+				c.todo[aid] = job
 				job.initScrape = false
 				job.catchup = job.next
 				job.next = nil
@@ -165,12 +165,12 @@ func (c *CrawlDispatcher) mainLoop() {
 func (c *CrawlDispatcher) enqueueJobForActor(ai *atp.Person) *crawlWork {
 	c.maplk.Lock()
 	defer c.maplk.Unlock()
-	_, ok := c.inProgress[ai.Uid]
+	_, ok := c.inProgress[ai.Aid]
 	if ok {
 		return nil
 	}
 
-	_, has := c.todo[ai.Uid]
+	_, has := c.todo[ai.Aid]
 	if has {
 		return nil
 	}
@@ -179,7 +179,7 @@ func (c *CrawlDispatcher) enqueueJobForActor(ai *atp.Person) *crawlWork {
 		act:        ai,
 		initScrape: true,
 	}
-	c.todo[ai.Uid] = crawlJob
+	c.todo[ai.Aid] = crawlJob
 	return crawlJob
 }
 
@@ -187,8 +187,8 @@ func (c *CrawlDispatcher) enqueueJobForActor(ai *atp.Person) *crawlWork {
 func (c *CrawlDispatcher) dequeueJob(job *crawlWork) {
 	c.maplk.Lock()
 	defer c.maplk.Unlock()
-	delete(c.todo, job.act.Uid)
-	c.inProgress[job.act.Uid] = job
+	delete(c.todo, job.act.Aid)
+	c.inProgress[job.act.Aid] = job
 }
 
 func (c *CrawlDispatcher) addToCatchupQueue(catchup *catchupJob) *crawlWork {
@@ -196,7 +196,7 @@ func (c *CrawlDispatcher) addToCatchupQueue(catchup *catchupJob) *crawlWork {
 	defer c.maplk.Unlock()
 
 	// If the actor crawl is enqueued, we can append to the catchup queue which gets emptied during the crawl
-	job, ok := c.todo[catchup.user.Uid]
+	job, ok := c.todo[catchup.person.Aid]
 	if ok {
 		catchupEventsEnqueued.WithLabelValues("todo").Inc()
 		job.catchup = append(job.catchup, catchup)
@@ -204,7 +204,7 @@ func (c *CrawlDispatcher) addToCatchupQueue(catchup *catchupJob) *crawlWork {
 	}
 
 	// If the actor crawl is in progress, we can append to the nextr queue which gets emptied after the crawl
-	job, ok = c.inProgress[catchup.user.Uid]
+	job, ok = c.inProgress[catchup.person.Aid]
 	if ok {
 		catchupEventsEnqueued.WithLabelValues("prog").Inc()
 		job.next = append(job.next, catchup)
@@ -214,10 +214,10 @@ func (c *CrawlDispatcher) addToCatchupQueue(catchup *catchupJob) *crawlWork {
 	catchupEventsEnqueued.WithLabelValues("new").Inc()
 	// Otherwise, we need to create a new crawl job for this actor and enqueue it
 	cw := &crawlWork{
-		act:     catchup.user,
+		act:     catchup.person,
 		catchup: []*catchupJob{catchup},
 	}
-	c.todo[catchup.user.Uid] = cw
+	c.todo[catchup.person.Aid] = cw
 	return cw
 }
 
@@ -227,16 +227,16 @@ func (c *CrawlDispatcher) fetchWorker() {
 			c.log.Error("failed to perform repo crawl", "did", job.act.Did, "err", err)
 		}
 		// TODO: do we still just do this if it errors?
-		c.complete <- job.act.Uid
+		c.complete <- job.act.Aid
 	}
 }
 
 func (c *CrawlDispatcher) Crawl(ctx context.Context, ai *atp.Person) error {
 	if !ai.PDS.Valid {
-		panic("must have pds for user in queue")
+		panic("must have pds for person in queue")
 	}
 
-	userCrawlsEnqueued.Inc()
+	personCrawlsEnqueued.Inc()
 
 	ctx, span := otel.Tracer("crawler").Start(ctx, "addToCrawler")
 	defer span.End()
@@ -252,17 +252,17 @@ func (c *CrawlDispatcher) Crawl(ctx context.Context, ai *atp.Person) error {
 func (c *CrawlDispatcher) AddToCatchupQueue(
 	ctx context.Context,
 	host *atp.PDS,
-	u *atp.Person,
+	p *atp.Person,
 	evt *comatproto.SyncSubscribeRepos_Commit,
 ) error {
-	if !u.PDS.Valid {
-		panic("must have pds for user in queue")
+	if !p.PDS.Valid {
+		panic("must have pds for person in queue")
 	}
 
 	catchup := &catchupJob{
-		evt:  evt,
-		host: host,
-		user: u,
+		evt:    evt,
+		host:   host,
+		person: p,
 	}
 
 	cw := c.addToCatchupQueue(catchup)
@@ -278,14 +278,14 @@ func (c *CrawlDispatcher) AddToCatchupQueue(
 	}
 }
 
-func (c *CrawlDispatcher) RepoInSlowPath(ctx context.Context, uid atp.Uid) bool {
+func (c *CrawlDispatcher) RepoInSlowPath(ctx context.Context, aid atp.Aid) bool {
 	c.maplk.Lock()
 	defer c.maplk.Unlock()
-	if _, ok := c.todo[uid]; ok {
+	if _, ok := c.todo[aid]; ok {
 		return true
 	}
 
-	if _, ok := c.inProgress[uid]; ok {
+	if _, ok := c.inProgress[aid]; ok {
 		return true
 	}
 

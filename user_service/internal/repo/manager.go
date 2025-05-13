@@ -31,17 +31,17 @@ import (
 // NewRepoManager initializes 'Manager' struct
 func NewRepoManager(cs cs.Store, kmgr KeyManager, logger *slog.Logger) *Manager {
 	return &Manager{
-		cs:        cs,
-		userLocks: make(map[atp.Uid]*userLock),
-		kmgr:      kmgr,
-		log:       logger.With("service", "repomgr"),
+		cs:         cs,
+		actorLocks: make(map[atp.Aid]*actorLock),
+		kmgr:       kmgr,
+		log:        logger.With("service", "repomgr"),
 	}
 }
 
 // KeyManager method signatures for handling the signing key
 type KeyManager interface {
-	VerifyUserSignature(context.Context, string, []byte, []byte) error
-	SignForUser(context.Context, string, []byte) ([]byte, error)
+	VerifyActorSignature(context.Context, string, []byte, []byte) error
+	SignForActor(context.Context, string, []byte) ([]byte, error)
 }
 
 // SetEventHandler sets the event callback function
@@ -55,8 +55,8 @@ type Manager struct {
 	cs   cs.Store
 	kmgr KeyManager
 
-	lklk      sync.Mutex
-	userLocks map[atp.Uid]*userLock
+	lklk       sync.Mutex
+	actorLocks map[atp.Aid]*actorLock
 
 	events         func(context.Context, *Event)
 	hydrateRecords bool
@@ -66,7 +66,7 @@ type Manager struct {
 
 // Event schema for handling and broadcasting events
 type Event struct {
-	User      atp.Uid
+	Actor     atp.Aid
 	OldRoot   *cid.Cid
 	NewRoot   cid.Cid
 	Since     *string
@@ -95,21 +95,21 @@ const (
 	EvtKindDeleteRecord = EventKind("delete")
 )
 
-type userLock struct {
+type actorLock struct {
 	lk    sync.Mutex
 	count int
 }
 
-func (rm *Manager) lockUser(ctx context.Context, user atp.Uid) func() {
-	_, span := otel.Tracer("repoman").Start(ctx, "userLock")
+func (rm *Manager) lockActor(ctx context.Context, actor atp.Aid) func() {
+	_, span := otel.Tracer("repoman").Start(ctx, "actorLock")
 	defer span.End()
 
 	rm.lklk.Lock()
 
-	ulk, ok := rm.userLocks[user]
+	ulk, ok := rm.actorLocks[actor]
 	if !ok {
-		ulk = &userLock{}
-		rm.userLocks[user] = ulk
+		ulk = &actorLock{}
+		rm.actorLocks[actor] = ulk
 	}
 
 	ulk.count++
@@ -125,7 +125,7 @@ func (rm *Manager) lockUser(ctx context.Context, user atp.Uid) func() {
 		ulk.count--
 
 		if ulk.count == 0 {
-			delete(rm.userLocks, user)
+			delete(rm.actorLocks, actor)
 		}
 		rm.lklk.Unlock()
 	}
@@ -139,7 +139,7 @@ func (rm *Manager) CarStore() cs.Store {
 // CreateRecord creates a repo record and broadcasts the event
 func (rm *Manager) CreateRecord(
 	ctx context.Context,
-	user atp.Uid,
+	actor atp.Aid,
 	nsid string,
 	key string,
 	rec cbg.CBORMarshaler,
@@ -147,15 +147,15 @@ func (rm *Manager) CreateRecord(
 	ctx, span := otel.Tracer("repoman").Start(ctx, "CreateRecord")
 	defer span.End()
 
-	unlock := rm.lockUser(ctx, user)
+	unlock := rm.lockActor(ctx, actor)
 	defer unlock()
 
-	rev, err := rm.cs.GetUserRepoRev(ctx, user)
+	rev, err := rm.cs.GetActorRepoRev(ctx, actor)
 	if err != nil {
 		return cid.Undef, "", err
 	}
 
-	ds, err := rm.cs.NewDeltaSession(ctx, user, &rev)
+	ds, err := rm.cs.NewDeltaSession(ctx, actor, &rev)
 	if err != nil {
 		return cid.Undef, "", err
 	}
@@ -172,7 +172,7 @@ func (rm *Manager) CreateRecord(
 		return cid.Undef, "", err
 	}
 
-	nroot, nrev, err := r.Commit(ctx, rm.kmgr.SignForUser)
+	nroot, nrev, err := r.Commit(ctx, rm.kmgr.SignForActor)
 	if err != nil {
 		return cid.Undef, "", err
 	}
@@ -189,7 +189,7 @@ func (rm *Manager) CreateRecord(
 
 	if rm.events != nil {
 		rm.events(ctx, &Event{
-			User:    user,
+			Actor:   actor,
 			OldRoot: oldroot,
 			NewRoot: nroot,
 			Rev:     nrev,
@@ -211,7 +211,7 @@ func (rm *Manager) CreateRecord(
 // UpdateRecord updates a repo record and broadcasts the event
 func (rm *Manager) UpdateRecord(
 	ctx context.Context,
-	user atp.Uid,
+	actor atp.Aid,
 	nsid string,
 	key string,
 	rec cbg.CBORMarshaler,
@@ -219,15 +219,15 @@ func (rm *Manager) UpdateRecord(
 	ctx, span := otel.Tracer("repoman").Start(ctx, "UpdateRecord")
 	defer span.End()
 
-	unlock := rm.lockUser(ctx, user)
+	unlock := rm.lockActor(ctx, actor)
 	defer unlock()
 
-	rev, err := rm.cs.GetUserRepoRev(ctx, user)
+	rev, err := rm.cs.GetActorRepoRev(ctx, actor)
 	if err != nil {
 		return cid.Undef, err
 	}
 
-	ds, err := rm.cs.NewDeltaSession(ctx, user, &rev)
+	ds, err := rm.cs.NewDeltaSession(ctx, actor, &rev)
 	if err != nil {
 		return cid.Undef, err
 	}
@@ -243,7 +243,7 @@ func (rm *Manager) UpdateRecord(
 		return cid.Undef, err
 	}
 
-	nroot, nrev, err := r.Commit(ctx, rm.kmgr.SignForUser)
+	nroot, nrev, err := r.Commit(ctx, rm.kmgr.SignForActor)
 	if err != nil {
 		return cid.Undef, err
 	}
@@ -271,7 +271,7 @@ func (rm *Manager) UpdateRecord(
 		}
 
 		rm.events(ctx, &Event{
-			User:      user,
+			Actor:     actor,
 			OldRoot:   oldroot,
 			NewRoot:   nroot,
 			Rev:       nrev,
@@ -285,19 +285,19 @@ func (rm *Manager) UpdateRecord(
 }
 
 // DeleteRecord deletes a repo record and broadcasts the event
-func (rm *Manager) DeleteRecord(ctx context.Context, user atp.Uid, nsid string, key string) error {
+func (rm *Manager) DeleteRecord(ctx context.Context, actor atp.Aid, nsid string, key string) error {
 	ctx, span := otel.Tracer("repoman").Start(ctx, "DeleteRecord")
 	defer span.End()
 
-	unlock := rm.lockUser(ctx, user)
+	unlock := rm.lockActor(ctx, actor)
 	defer unlock()
 
-	rev, err := rm.cs.GetUserRepoRev(ctx, user)
+	rev, err := rm.cs.GetActorRepoRev(ctx, actor)
 	if err != nil {
 		return err
 	}
 
-	ds, err := rm.cs.NewDeltaSession(ctx, user, &rev)
+	ds, err := rm.cs.NewDeltaSession(ctx, actor, &rev)
 	if err != nil {
 		return err
 	}
@@ -312,7 +312,7 @@ func (rm *Manager) DeleteRecord(ctx context.Context, user atp.Uid, nsid string, 
 		return derr
 	}
 
-	nroot, nrev, err := r.Commit(ctx, rm.kmgr.SignForUser)
+	nroot, nrev, err := r.Commit(ctx, rm.kmgr.SignForActor)
 	if err != nil {
 		return err
 	}
@@ -329,7 +329,7 @@ func (rm *Manager) DeleteRecord(ctx context.Context, user atp.Uid, nsid string, 
 
 	if rm.events != nil {
 		rm.events(ctx, &Event{
-			User:    user,
+			Actor:   actor,
 			OldRoot: oldroot,
 			NewRoot: nroot,
 			Rev:     nrev,
@@ -349,24 +349,24 @@ func (rm *Manager) DeleteRecord(ctx context.Context, user atp.Uid, nsid string, 
 // InitNewRepo initializes a new repository, writes the first record, and broadcasts the event
 func (rm *Manager) InitNewRepo(
 	ctx context.Context,
-	user atp.Uid,
+	actor atp.Aid,
 	did string,
 	nsid string,
 	key string,
 	prof cbg.CBORMarshaler,
 ) error {
-	unlock := rm.lockUser(ctx, user)
+	unlock := rm.lockActor(ctx, actor)
 	defer unlock()
 
 	if did == "" {
-		return fmt.Errorf("must specify DID for new actor")
+		return fmt.Errorf("must specify DID for new repo")
 	}
 
-	if user == 0 {
-		return fmt.Errorf("must specify user for new actor")
+	if actor == 0 {
+		return fmt.Errorf("must specify actor for new repo")
 	}
 
-	ds, err := rm.cs.NewDeltaSession(ctx, user, nil)
+	ds, err := rm.cs.NewDeltaSession(ctx, actor, nil)
 	if err != nil {
 		return fmt.Errorf("creating new delta session: %w", err)
 	}
@@ -377,7 +377,7 @@ func (rm *Manager) InitNewRepo(
 		return fmt.Errorf("setting initial profile: %w", cerr)
 	}
 
-	root, nrev, err := r.Commit(ctx, rm.kmgr.SignForUser)
+	root, nrev, err := r.Commit(ctx, rm.kmgr.SignForActor)
 	if err != nil {
 		return fmt.Errorf("committing repo for init: %w", err)
 	}
@@ -399,7 +399,7 @@ func (rm *Manager) InitNewRepo(
 		}
 
 		rm.events(ctx, &Event{
-			User:      user,
+			Actor:     actor,
 			NewRoot:   root,
 			Rev:       nrev,
 			Ops:       []Op{op},
@@ -411,42 +411,42 @@ func (rm *Manager) InitNewRepo(
 }
 
 // GetRepoRoot gets the root CID for a repo
-func (rm *Manager) GetRepoRoot(ctx context.Context, user atp.Uid) (cid.Cid, error) {
-	unlock := rm.lockUser(ctx, user)
+func (rm *Manager) GetRepoRoot(ctx context.Context, actor atp.Aid) (cid.Cid, error) {
+	unlock := rm.lockActor(ctx, actor)
 	defer unlock()
 
-	return rm.cs.GetUserRepoHead(ctx, user)
+	return rm.cs.GetActorRepoHead(ctx, actor)
 }
 
 // GetRepoRev gets the root revision for a repo
-func (rm *Manager) GetRepoRev(ctx context.Context, user atp.Uid) (string, error) {
-	unlock := rm.lockUser(ctx, user)
+func (rm *Manager) GetRepoRev(ctx context.Context, actor atp.Aid) (string, error) {
+	unlock := rm.lockActor(ctx, actor)
 	defer unlock()
 
-	return rm.cs.GetUserRepoRev(ctx, user)
+	return rm.cs.GetActorRepoRev(ctx, actor)
 }
 
 // ReadRepo reads a CAR file for a given revision
 // TODO: might be worth having a type alias for revisions
-func (rm *Manager) ReadRepo(ctx context.Context, user atp.Uid, since string, w io.Writer) error {
-	return rm.cs.ReadUserCar(ctx, user, since, w)
+func (rm *Manager) ReadRepo(ctx context.Context, actor atp.Aid, since string, w io.Writer) error {
+	return rm.cs.ReadActorCar(ctx, actor, since, w)
 }
 
 // GetRecord reads a record into the 'rev' interface
 func (rm *Manager) GetRecord(
 	ctx context.Context,
-	user atp.Uid,
+	actor atp.Aid,
 	nsid string,
 	key string,
 	rec cbg.CBORMarshaler,
 	maybeCid cid.Cid,
 ) (cid.Cid, error) {
-	bs, err := rm.cs.ReadOnlySession(user)
+	bs, err := rm.cs.ReadOnlySession(actor)
 	if err != nil {
 		return cid.Undef, err
 	}
 
-	head, err := rm.cs.GetUserRepoHead(ctx, user)
+	head, err := rm.cs.GetActorRepoHead(ctx, actor)
 	if err != nil {
 		return cid.Undef, err
 	}
@@ -471,18 +471,18 @@ func (rm *Manager) GetRecord(
 // GetRecordProof gets all the blocks for a repo
 func (rm *Manager) GetRecordProof(
 	ctx context.Context,
-	user atp.Uid,
+	actor atp.Aid,
 	collection string,
 	rkey string,
 ) (cid.Cid, []blocks.Block, error) {
-	robs, err := rm.cs.ReadOnlySession(user)
+	robs, err := rm.cs.ReadOnlySession(actor)
 	if err != nil {
 		return cid.Undef, nil, err
 	}
 
 	bs := util.NewLoggingBstore(robs)
 
-	head, err := rm.cs.GetUserRepoHead(ctx, user)
+	head, err := rm.cs.GetActorRepoHead(ctx, actor)
 	if err != nil {
 		return cid.Undef, nil, err
 	}
@@ -517,43 +517,43 @@ func (rm *Manager) CheckRepoSig(ctx context.Context, r *Repo, expdid string) err
 	if err != nil {
 		return fmt.Errorf("commit serialization failed: %w", err)
 	}
-	if err := rm.kmgr.VerifyUserSignature(ctx, repoDid, scom.Sig, sb); err != nil {
+	if err := rm.kmgr.VerifyActorSignature(ctx, repoDid, scom.Sig, sb); err != nil {
 		return fmt.Errorf("signature check failed (sig: %x) (sb: %x) : %w", scom.Sig, sb, err)
 	}
 
 	return nil
 }
 
-// HandleExternalUserEvent event handler for users that do not exist in the current PDS
-func (rm *Manager) HandleExternalUserEvent(
+// HandleExternalActorEvent event handler for actors that do not exist in the current PDS
+func (rm *Manager) HandleExternalActorEvent(
 	ctx context.Context,
 	pdsid uint,
-	uid atp.Uid,
+	aid atp.Aid,
 	did string,
 	since *string,
 	nrev string,
 	carslice []byte,
 	ops []*atproto.SyncSubscribeRepos_RepoOp,
 ) error {
-	ctx, span := otel.Tracer("repoman").Start(ctx, "HandleExternalUserEvent")
+	ctx, span := otel.Tracer("repoman").Start(ctx, "HandleExternalActorEvent")
 	defer span.End()
 
-	span.SetAttributes(attribute.Int64("user", int64(uint64(uid)))) //nolint:gosec
+	span.SetAttributes(attribute.Int64("actor", int64(uint64(aid)))) //nolint:gosec
 
-	rm.log.DebugContext(ctx, "HandleExternalUserEvent", "pds", pdsid, "uid", uid, "since", since, "nrev", nrev)
+	rm.log.DebugContext(ctx, "HandleExternalActorEvent", "pds", pdsid, "aid", aid, "since", since, "nrev", nrev)
 
-	unlock := rm.lockUser(ctx, uid)
+	unlock := rm.lockActor(ctx, aid)
 	defer unlock()
 
 	start := time.Now()
-	root, ds, err := rm.cs.ImportSlice(ctx, uid, since, carslice)
+	root, ds, err := rm.cs.ImportSlice(ctx, aid, since, carslice)
 	if err != nil {
 		return fmt.Errorf("importing external carslice: %w", err)
 	}
 
 	r, err := OpenRepo(ctx, ds, root)
 	if err != nil {
-		return fmt.Errorf("opening external user repo (%d, root=%s): %w", uid, root, err)
+		return fmt.Errorf("opening external actor repo (%d, root=%s): %w", aid, root, err)
 	}
 
 	if rerr := rm.CheckRepoSig(ctx, r, did); rerr != nil {
@@ -618,7 +618,7 @@ func (rm *Manager) HandleExternalUserEvent(
 				Rkey:       parts[1],
 			})
 		default:
-			return fmt.Errorf("unrecognized external user event kind: %q", op.Action)
+			return fmt.Errorf("unrecognized external actor event kind: %q", op.Action)
 		}
 	}
 
@@ -631,7 +631,7 @@ func (rm *Manager) HandleExternalUserEvent(
 
 	if rm.events != nil {
 		rm.events(ctx, &Event{
-			User: uid,
+			Actor: aid,
 			//OldRoot:   prev,
 			NewRoot:   root,
 			Rev:       nrev,
@@ -648,21 +648,21 @@ func (rm *Manager) HandleExternalUserEvent(
 // BatchWrite writes a slice of operations as a single commit
 func (rm *Manager) BatchWrite(
 	ctx context.Context,
-	user atp.Uid,
+	actor atp.Aid,
 	writes []*atproto.RepoApplyWrites_Input_Writes_Elem,
 ) error {
 	ctx, span := otel.Tracer("repoman").Start(ctx, "BatchWrite")
 	defer span.End()
 
-	unlock := rm.lockUser(ctx, user)
+	unlock := rm.lockActor(ctx, actor)
 	defer unlock()
 
-	rev, err := rm.cs.GetUserRepoRev(ctx, user)
+	rev, err := rm.cs.GetActorRepoRev(ctx, actor)
 	if err != nil {
 		return err
 	}
 
-	ds, err := rm.cs.NewDeltaSession(ctx, user, &rev)
+	ds, err := rm.cs.NewDeltaSession(ctx, actor, &rev)
 	if err != nil {
 		return err
 	}
@@ -740,7 +740,7 @@ func (rm *Manager) BatchWrite(
 		}
 	}
 
-	nroot, nrev, err := r.Commit(ctx, rm.kmgr.SignForUser)
+	nroot, nrev, err := r.Commit(ctx, rm.kmgr.SignForActor)
 	if err != nil {
 		return err
 	}
@@ -757,7 +757,7 @@ func (rm *Manager) BatchWrite(
 
 	if rm.events != nil {
 		rm.events(ctx, &Event{
-			User:      user,
+			Actor:     actor,
 			OldRoot:   oldroot,
 			NewRoot:   nroot,
 			RepoSlice: rslice,
@@ -771,19 +771,19 @@ func (rm *Manager) BatchWrite(
 }
 
 // ImportNewRepo initializes a new repo from an external source
-func (rm *Manager) ImportNewRepo(ctx context.Context, user atp.Uid, repoDid string, r io.Reader, rev *string) error {
+func (rm *Manager) ImportNewRepo(ctx context.Context, actor atp.Aid, repoDid string, r io.Reader, rev *string) error {
 	ctx, span := otel.Tracer("repoman").Start(ctx, "ImportNewRepo")
 	defer span.End()
 
-	unlock := rm.lockUser(ctx, user)
+	unlock := rm.lockActor(ctx, actor)
 	defer unlock()
 
-	currev, err := rm.cs.GetUserRepoRev(ctx, user)
+	currev, err := rm.cs.GetActorRepoRev(ctx, actor)
 	if err != nil {
 		return err
 	}
 
-	curhead, err := rm.cs.GetUserRepoHead(ctx, user)
+	curhead, err := rm.cs.GetActorRepoHead(ctx, actor)
 	if err != nil {
 		return err
 	}
@@ -804,7 +804,7 @@ func (rm *Manager) ImportNewRepo(ctx context.Context, user atp.Uid, repoDid stri
 
 	err = rm.processNewRepo(
 		ctx,
-		user,
+		actor,
 		r,
 		rev,
 		func(ctx context.Context, root cid.Cid, finish func(context.Context, string) ([]byte, error), bs blockstore.Blockstore) error {
@@ -820,8 +820,8 @@ func (rm *Manager) ImportNewRepo(ctx context.Context, user atp.Uid, repoDid stri
 			if berr != nil {
 				return fmt.Errorf("commit serialization failed: %w", berr)
 			}
-			if verr := rm.kmgr.VerifyUserSignature(ctx, repoDid, scom.Sig, sb); verr != nil {
-				return fmt.Errorf("new user signature check failed: %w", verr)
+			if verr := rm.kmgr.VerifyActorSignature(ctx, repoDid, scom.Sig, sb); verr != nil {
+				return fmt.Errorf("new actor signature check failed: %w", verr)
 			}
 
 			diffops, derr := r.DiffSince(ctx, curhead)
@@ -858,7 +858,7 @@ func (rm *Manager) ImportNewRepo(ctx context.Context, user atp.Uid, repoDid stri
 
 			if rm.events != nil {
 				rm.events(ctx, &Event{
-					User: user,
+					Actor: actor,
 					//OldRoot:   oldroot,
 					NewRoot:   root,
 					Rev:       scom.Rev,
@@ -940,7 +940,7 @@ func (rm *Manager) processOp(
 
 func (rm *Manager) processNewRepo(
 	ctx context.Context,
-	user atp.Uid,
+	actor atp.Aid,
 	r io.Reader,
 	rev *string,
 	cb func(ctx context.Context, root cid.Cid, finish func(context.Context, string) ([]byte, error), bs blockstore.Blockstore) error,
@@ -985,7 +985,7 @@ func (rm *Manager) processNewRepo(
 		return fmt.Errorf("walkTree: %w", err)
 	}
 
-	ds, err := rm.cs.NewDeltaSession(ctx, user, rev)
+	ds, err := rm.cs.NewDeltaSession(ctx, actor, rev)
 	if err != nil {
 		return fmt.Errorf("opening delta session: %w", err)
 	}
@@ -1073,24 +1073,24 @@ func (rm *Manager) walkTree(
 }
 
 // TakeDownRepo deletes all CAR files and blocks
-func (rm *Manager) TakeDownRepo(ctx context.Context, uid atp.Uid) error {
-	unlock := rm.lockUser(ctx, uid)
+func (rm *Manager) TakeDownRepo(ctx context.Context, aid atp.Aid) error {
+	unlock := rm.lockActor(ctx, aid)
 	defer unlock()
 
-	return rm.cs.WipeUserData(ctx, uid)
+	return rm.cs.WipeActorData(ctx, aid)
 }
 
 // ResetRepo technically identical to TakeDownRepo, for now
-func (rm *Manager) ResetRepo(ctx context.Context, uid atp.Uid) error {
-	unlock := rm.lockUser(ctx, uid)
+func (rm *Manager) ResetRepo(ctx context.Context, aid atp.Aid) error {
+	unlock := rm.lockActor(ctx, aid)
 	defer unlock()
 
-	return rm.cs.WipeUserData(ctx, uid)
+	return rm.cs.WipeActorData(ctx, aid)
 }
 
 // VerifyRepo checks that all records in the repository are readable
-func (rm *Manager) VerifyRepo(ctx context.Context, uid atp.Uid) error {
-	ses, err := rm.cs.ReadOnlySession(uid)
+func (rm *Manager) VerifyRepo(ctx context.Context, aid atp.Aid) error {
+	ses, err := rm.cs.ReadOnlySession(aid)
 	if err != nil {
 		return err
 	}

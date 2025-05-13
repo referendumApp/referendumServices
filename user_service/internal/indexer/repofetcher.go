@@ -123,13 +123,13 @@ func (rf *RepoFetcher) FetchAndIndexRepo(ctx context.Context, job *crawlWork) er
 	if err != nil {
 		catchupEventsFailed.WithLabelValues("nopds").Inc()
 		return fmt.Errorf(
-			"expected to find pds record (%d) in db for crawling one of their users: %w",
+			"expected to find pds record (%d) in db for crawling one of their persons: %w",
 			ai.PDS.Int64,
 			err,
 		)
 	}
 
-	rev, err := rf.repoman.GetRepoRev(ctx, ai.Uid)
+	rev, err := rf.repoman.GetRepoRev(ctx, ai.Aid)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		catchupEventsFailed.WithLabelValues("noroot").Inc()
 		return fmt.Errorf("failed to get repo root: %w", err)
@@ -142,7 +142,7 @@ func (rf *RepoFetcher) FetchAndIndexRepo(ctx context.Context, job *crawlWork) er
 		if first.evt.Since == nil || rev == *first.evt.Since {
 			for i, j := range job.catchup {
 				catchupEventsProcessed.Inc()
-				if eventErr := rf.repoman.HandleExternalUserEvent(ctx, pds.ID, ai.Uid, ai.Did, j.evt.Since, j.evt.Rev, j.evt.Blocks, j.evt.Ops); eventErr != nil {
+				if eventErr := rf.repoman.HandleExternalActorEvent(ctx, pds.ID, ai.Aid, ai.Did, j.evt.Since, j.evt.Rev, j.evt.Blocks, j.evt.Ops); eventErr != nil {
 					rf.log.ErrorContext(
 						ctx,
 						"buffered event catchup failed",
@@ -182,7 +182,7 @@ func (rf *RepoFetcher) FetchAndIndexRepo(ctx context.Context, job *crawlWork) er
 		return err
 	}
 
-	if impErr := rf.repoman.ImportNewRepo(ctx, ai.Uid, ai.Did, bytes.NewReader(repo), revp); impErr != nil {
+	if impErr := rf.repoman.ImportNewRepo(ctx, ai.Aid, ai.Did, bytes.NewReader(repo), revp); impErr != nil {
 		span.RecordError(impErr)
 
 		if ipld.IsNotFound(impErr) || errors.Is(impErr, io.EOF) || errors.Is(impErr, fs.ErrNotExist) {
@@ -192,7 +192,7 @@ func (rf *RepoFetcher) FetchAndIndexRepo(ctx context.Context, job *crawlWork) er
 				return fetchErr
 			}
 
-			if newImpErr := rf.repoman.ImportNewRepo(ctx, ai.Uid, ai.Did, bytes.NewReader(repo), nil); newImpErr != nil {
+			if newImpErr := rf.repoman.ImportNewRepo(ctx, ai.Aid, ai.Did, bytes.NewReader(repo), nil); newImpErr != nil {
 				span.RecordError(newImpErr)
 				return fmt.Errorf("failed to import backup repo (%s): %w", ai.Did, newImpErr)
 			}

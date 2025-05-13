@@ -12,12 +12,12 @@ import (
 	"github.com/referendumApp/referendumServices/internal/util"
 )
 
-// CreateUser create DID in the PLC directory and initialize a 'User' struct
-func (p *PDS) CreateUser(
+// CreateActor create DID in the PLC directory and initialize an 'Actor' struct
+func (p *PDS) CreateActor(
 	ctx context.Context,
 	req refApp.ServerCreateAccount_Input,
 	pw string,
-) (*atp.User, *refErr.APIError) {
+) (*atp.Actor, *refErr.APIError) {
 	var recoveryKey string
 	if req.RecoveryKey != nil {
 		recoveryKey = *req.RecoveryKey
@@ -42,7 +42,7 @@ func (p *PDS) CreateUser(
 		return nil, refErr.InternalServer()
 	}
 
-	user := &atp.User{
+	actor := &atp.Actor{
 		Handle:         sql.NullString{String: req.Handle, Valid: true},
 		Email:          sql.NullString{String: req.Email, Valid: true},
 		HashedPassword: sql.NullString{String: pw, Valid: true},
@@ -50,33 +50,33 @@ func (p *PDS) CreateUser(
 		Did:            did,
 	}
 
-	return user, nil
+	return actor, nil
 }
 
 // CreateNewRepo initialize a new repo and write the first record to the CAR store
 func (p *PDS) CreateNewRepo(
 	ctx context.Context,
-	user *atp.User,
+	actor *atp.Actor,
 	dname string,
 ) (*refApp.ServerCreateAccount_Output, *refErr.APIError) {
 	profile := &refApp.PersonProfile{
 		DisplayName: &dname,
 	}
 
-	if err := p.repoman.InitNewRepo(ctx, user.ID, user.Did, profile.NSID(), profile.Key(), profile); err != nil {
-		p.log.ErrorContext(ctx, "Error initializing new user repository", "error", err, "did", user.Did)
+	if err := p.repoman.InitNewRepo(ctx, actor.ID, actor.Did, profile.NSID(), profile.Key(), profile); err != nil {
+		p.log.ErrorContext(ctx, "Error initializing new actor repository", "error", err, "did", actor.Did)
 		return nil, refErr.Repo()
 	}
 
-	accessToken, refreshToken, err := p.CreateTokens(ctx, user.ID, user.Did)
+	accessToken, refreshToken, err := p.CreateTokens(ctx, actor.ID, actor.Did)
 	if err != nil {
 		return nil, refErr.InternalServer()
 	}
 
 	return &refApp.ServerCreateAccount_Output{
-		Did:          user.Did,
+		Did:          actor.Did,
 		DisplayName:  dname,
-		Handle:       user.Handle.String,
+		Handle:       actor.Handle.String,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    p.jwt.AuthScheme,
@@ -84,13 +84,13 @@ func (p *PDS) CreateNewRepo(
 }
 
 // CreateTokens method to create the access and refresh tokens and update the signing key cache for a session
-func (p *PDS) CreateTokens(ctx context.Context, uid atp.Uid, did string) (string, string, error) {
-	accessToken, err := p.jwt.CreateToken(uid, did, util.Access)
+func (p *PDS) CreateTokens(ctx context.Context, aid atp.Aid, did string) (string, string, error) {
+	accessToken, err := p.jwt.CreateToken(aid, did, util.Access)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Failed to create access token", "error", err)
 		return "", "", err
 	}
-	refreshToken, err := p.jwt.CreateToken(uid, did, util.Refresh)
+	refreshToken, err := p.jwt.CreateToken(aid, did, util.Refresh)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Failed to create refresh token", "error", err)
 		return "", "", err
@@ -102,20 +102,20 @@ func (p *PDS) CreateTokens(ctx context.Context, uid atp.Uid, did string) (string
 // CreateSession completes a login request and returns the access and refresh tokens
 func (p *PDS) CreateSession(
 	ctx context.Context,
-	user *atp.User,
+	actor *atp.Actor,
 ) (*refApp.ServerCreateSession_Output, *refErr.APIError) {
-	accessToken, refreshToken, err := p.CreateTokens(ctx, user.ID, user.Did)
+	accessToken, refreshToken, err := p.CreateTokens(ctx, actor.ID, actor.Did)
 	if err != nil {
 		return nil, refErr.InternalServer()
 	}
 
-	if err := p.km.UpdateKeyCache(ctx, user.Did); err != nil {
+	if err := p.km.UpdateKeyCache(ctx, actor.Did); err != nil {
 		return nil, refErr.InternalServer()
 	}
 
 	return &refApp.ServerCreateSession_Output{
-		Did:          user.Did,
-		Handle:       user.Handle.String,
+		Did:          actor.Did,
+		Handle:       actor.Handle.String,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    p.jwt.AuthScheme,
@@ -127,7 +127,7 @@ func (p *PDS) CreateSession(
 func (p *PDS) RefreshSession(
 	ctx context.Context,
 	refreshToken string,
-) (*refApp.ServerRefreshSession_Output, atp.Uid, string, *refErr.APIError) {
+) (*refApp.ServerRefreshSession_Output, atp.Aid, string, *refErr.APIError) {
 	token, err := p.jwt.DecodeJWT(refreshToken)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Failed to decode refresh token", "error", err)
@@ -135,13 +135,13 @@ func (p *PDS) RefreshSession(
 	}
 
 	// Parse and validate the token
-	uid, did, err := util.ValidateToken(token, util.Refresh)
+	aid, did, err := util.ValidateToken(token, util.Refresh)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Token validation failed", "error", err)
 		return nil, 0, "", refErr.BadRequest("Failed to validate refresh token")
 	}
 
-	accessToken, refreshToken, err := p.CreateTokens(ctx, uid, did)
+	accessToken, refreshToken, err := p.CreateTokens(ctx, aid, did)
 	if err != nil {
 		return nil, 0, "", refErr.InternalServer()
 	}
@@ -156,7 +156,7 @@ func (p *PDS) RefreshSession(
 		TokenType:    p.jwt.AuthScheme,
 	}
 
-	return resp, uid, did, nil
+	return resp, aid, did, nil
 }
 
 func (p *PDS) DeleteSession(ctx context.Context, did string) *refErr.APIError {
@@ -166,7 +166,7 @@ func (p *PDS) DeleteSession(ctx context.Context, did string) *refErr.APIError {
 }
 
 // DeleteAccount tombstones the DID in the PLC, deletes DB metadata, and deletes CAR files
-func (p *PDS) DeleteAccount(ctx context.Context, uid atp.Uid, did string) *refErr.APIError {
+func (p *PDS) DeleteAccount(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
 	op, err := p.plc.GetLatestOp(ctx, did)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Error searching for latest operation in PLC log", "error", err)
@@ -177,8 +177,8 @@ func (p *PDS) DeleteAccount(ctx context.Context, uid atp.Uid, did string) *refEr
 		p.log.ErrorContext(ctx, "Latest operation in PLC audit log is invalid", "did", did)
 		return refErr.BadRequest("Invalid operation in PLC directory audit log")
 	} else if operation.Type == "plc_tombstone" {
-		p.log.ErrorContext(ctx, "User has already been tombstoned in the PLC directory", "did", did)
-		return refErr.BadRequest("User has already been deleted")
+		p.log.ErrorContext(ctx, "Actor has already been tombstoned in the PLC directory", "did", did)
+		return refErr.BadRequest("Actor has already been deleted")
 	}
 
 	if err := p.plc.TombstoneDID(ctx, did, op.CID); err != nil {
@@ -186,7 +186,7 @@ func (p *PDS) DeleteAccount(ctx context.Context, uid atp.Uid, did string) *refEr
 		return refErr.PLCServer()
 	}
 
-	if err := p.repoman.TakeDownRepo(ctx, uid); err != nil {
+	if err := p.repoman.TakeDownRepo(ctx, aid); err != nil {
 		p.log.ErrorContext(ctx, "Failed to delete take down repo", "error", err)
 		return refErr.Repo()
 	}

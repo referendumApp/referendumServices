@@ -1,4 +1,4 @@
-.PHONY: build local pipeline test clean shell logs restart
+.PHONY: build local empty pipeline test clean shell logs restart test-api test-pipeline test-user lint build-schema
 
 # Build the Docker images
 build:
@@ -14,12 +14,24 @@ empty:
 	docker compose --profile local-empty build
 	docker compose --profile local-empty up
 
-# Run tests
+# Run data service tests
 pytest-api:
 	docker compose --profile test run --rm data-test pytest $(ARGS) api/ common/
 
 pytest-pipeline:
 	docker compose --profile test run --rm data-test pytest $(ARGS) pipeline/
+
+# Run user service tests
+test-user:
+	docker compose --profile test run --rm user-test
+
+# Run linting for user service
+lint-user:
+	cd user_service && golangci-lint run
+
+# Build lexicon schema for user service
+build-schema:
+	cd user_service && go run ./cmd/lexgen --build-file ./cmd/lexgen/build-config.json "./cmd/lexgen/lexicons/com/referendumapp"
 
 # Clean up Docker resources
 clean:
@@ -38,7 +50,11 @@ logs:
 # Rebuild and restart the app in local development mode
 restart: clean local
 
-# Run tests and cleanup
-test: clean build pytest-api pytest-pipeline clean
+# Run all tests and cleanup
+test: clean build pytest-api pytest-pipeline test-user clean
+
+# Run specific test suites and cleanup
 test-api: clean build pytest-api clean
 test-pipeline: clean build pytest-pipeline clean
+
+test-user-all: clean build lint-user build-schema test-user clean

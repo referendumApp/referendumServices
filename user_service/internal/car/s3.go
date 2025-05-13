@@ -24,18 +24,18 @@ func (c *s3Client) checkConnection(ctx context.Context) error {
 	return nil
 }
 
-func (c *s3Client) writeNewShardFile(ctx context.Context, user atp.Uid, seq int, data []byte) (string, error) {
+func (c *s3Client) writeNewShardFile(ctx context.Context, actor atp.Aid, seq int, data []byte) (string, error) {
 	_, span := otel.Tracer("carstore").Start(ctx, "writeNewShardFile")
 	defer span.End()
 
-	key := keyForShard(user, seq)
+	key := keyForShard(actor, seq)
 	contentType := "application/vnd.ipld.car"
 	seekableReader := bytes.NewReader(data)
 	if _, err := c.client.PutObject(ctx, &s3.PutObjectInput{Bucket: &c.bucket, Key: &key, Body: seekableReader, ContentType: &contentType}); err != nil {
 		return "", err
 	}
 	// TODO: some overwrite protections
-	// fname := filepath.Join(cs.dirForUser(user), fnameForShard(user, seq))
+	// fname := filepath.Join(cs.dirForUser(actor), fnameForShard(actor, seq))
 	// if err := os.WriteFile(fname, data, 0600); err != nil {
 	// 	return "", err
 	// }
@@ -57,10 +57,10 @@ func (c *s3Client) readFile(ctx context.Context, key string, offset *int64) (*s3
 	return obj, nil
 }
 
-func (c *s3Client) deleteShardFiles(ctx context.Context, user atp.Uid, seqs []int) error {
+func (c *s3Client) deleteShardFiles(ctx context.Context, actor atp.Aid, seqs []int) error {
 	delObjs := make([]types.ObjectIdentifier, len(seqs))
 	for i, seq := range seqs {
-		key := keyForShard(user, seq)
+		key := keyForShard(actor, seq)
 		delObjs[i] = types.ObjectIdentifier{Key: &key}
 	}
 
