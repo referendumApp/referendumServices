@@ -21,7 +21,7 @@ var _ = cid.Undef
 var _ = math.E
 var _ = sort.Sort
 
-func (t *PersonProfile) MarshalCBOR(w io.Writer) error {
+func (t *UserProfile) MarshalCBOR(w io.Writer) error {
 	if t == nil {
 		_, err := w.Write(cbg.CborNull)
 		return err
@@ -62,10 +62,10 @@ func (t *PersonProfile) MarshalCBOR(w io.Writer) error {
 		return err
 	}
 
-	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len("com.referendumapp.person.profile"))); err != nil {
+	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len("com.referendumapp.user.profile"))); err != nil {
 		return err
 	}
-	if _, err := cw.WriteString(string("com.referendumapp.person.profile")); err != nil {
+	if _, err := cw.WriteString(string("com.referendumapp.user.profile")); err != nil {
 		return err
 	}
 
@@ -186,8 +186,8 @@ func (t *PersonProfile) MarshalCBOR(w io.Writer) error {
 	return nil
 }
 
-func (t *PersonProfile) UnmarshalCBOR(r io.Reader) (err error) {
-	*t = PersonProfile{}
+func (t *UserProfile) UnmarshalCBOR(r io.Reader) (err error) {
+	*t = UserProfile{}
 
 	cr := cbg.NewCborReader(r)
 
@@ -206,7 +206,7 @@ func (t *PersonProfile) UnmarshalCBOR(r io.Reader) (err error) {
 	}
 
 	if extra > cbg.MaxLength {
-		return fmt.Errorf("PersonProfile: map struct too large (%d)", extra)
+		return fmt.Errorf("UserProfile: map struct too large (%d)", extra)
 	}
 
 	n := extra
@@ -2341,7 +2341,7 @@ func (t *LegislatorProfile) UnmarshalCBOR(r io.Reader) (err error) {
 
 	return nil
 }
-func (t *PersonLegislatorFollow) MarshalCBOR(w io.Writer) error {
+func (t *UserLegislatorFollow) MarshalCBOR(w io.Writer) error {
 	if t == nil {
 		_, err := w.Write(cbg.CborNull)
 		return err
@@ -2365,10 +2365,10 @@ func (t *PersonLegislatorFollow) MarshalCBOR(w io.Writer) error {
 		return err
 	}
 
-	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len("com.referendumapp.person.legislatorFollow"))); err != nil {
+	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len("com.referendumapp.user.legislatorFollow"))); err != nil {
 		return err
 	}
-	if _, err := cw.WriteString(string("com.referendumapp.person.legislatorFollow")); err != nil {
+	if _, err := cw.WriteString(string("com.referendumapp.user.legislatorFollow")); err != nil {
 		return err
 	}
 
@@ -2420,8 +2420,8 @@ func (t *PersonLegislatorFollow) MarshalCBOR(w io.Writer) error {
 	return nil
 }
 
-func (t *PersonLegislatorFollow) UnmarshalCBOR(r io.Reader) (err error) {
-	*t = PersonLegislatorFollow{}
+func (t *UserLegislatorFollow) UnmarshalCBOR(r io.Reader) (err error) {
+	*t = UserLegislatorFollow{}
 
 	cr := cbg.NewCborReader(r)
 
@@ -2440,7 +2440,7 @@ func (t *PersonLegislatorFollow) UnmarshalCBOR(r io.Reader) (err error) {
 	}
 
 	if extra > cbg.MaxLength {
-		return fmt.Errorf("PersonLegislatorFollow: map struct too large (%d)", extra)
+		return fmt.Errorf("UserLegislatorFollow: map struct too large (%d)", extra)
 	}
 
 	n := extra
@@ -2505,7 +2505,7 @@ func (t *PersonLegislatorFollow) UnmarshalCBOR(r io.Reader) (err error) {
 
 	return nil
 }
-func (t *PersonEndorsement) MarshalCBOR(w io.Writer) error {
+func (t *UserEndorsement) MarshalCBOR(w io.Writer) error {
 	if t == nil {
 		_, err := w.Write(cbg.CborNull)
 		return err
@@ -2529,10 +2529,10 @@ func (t *PersonEndorsement) MarshalCBOR(w io.Writer) error {
 		return err
 	}
 
-	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len("com.referendumapp.person.endorsement"))); err != nil {
+	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len("com.referendumapp.user.endorsement"))); err != nil {
 		return err
 	}
-	if _, err := cw.WriteString(string("com.referendumapp.person.endorsement")); err != nil {
+	if _, err := cw.WriteString(string("com.referendumapp.user.endorsement")); err != nil {
 		return err
 	}
 
@@ -2577,8 +2577,8 @@ func (t *PersonEndorsement) MarshalCBOR(w io.Writer) error {
 	return nil
 }
 
-func (t *PersonEndorsement) UnmarshalCBOR(r io.Reader) (err error) {
-	*t = PersonEndorsement{}
+func (t *UserEndorsement) UnmarshalCBOR(r io.Reader) (err error) {
+	*t = UserEndorsement{}
 
 	cr := cbg.NewCborReader(r)
 
@@ -2597,7 +2597,7 @@ func (t *PersonEndorsement) UnmarshalCBOR(r io.Reader) (err error) {
 	}
 
 	if extra > cbg.MaxLength {
-		return fmt.Errorf("PersonEndorsement: map struct too large (%d)", extra)
+		return fmt.Errorf("UserEndorsement: map struct too large (%d)", extra)
 	}
 
 	n := extra
@@ -2671,7 +2671,7 @@ func (t *PersonEndorsement) UnmarshalCBOR(r io.Reader) (err error) {
 
 	return nil
 }
-func (t *PersonActivity) MarshalCBOR(w io.Writer) error {
+func (t *UserActivity) MarshalCBOR(w io.Writer) error {
 	if t == nil {
 		_, err := w.Write(cbg.CborNull)
 		return err
@@ -2739,14 +2739,14 @@ func (t *PersonActivity) MarshalCBOR(w io.Writer) error {
 		return err
 	}
 
-	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len("com.referendumapp.person.activity"))); err != nil {
+	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len("com.referendumapp.user.activity"))); err != nil {
 		return err
 	}
-	if _, err := cw.WriteString(string("com.referendumapp.person.activity")); err != nil {
+	if _, err := cw.WriteString(string("com.referendumapp.user.activity")); err != nil {
 		return err
 	}
 
-	// t.Embed (referendumapp.PersonActivity_Embed) (struct)
+	// t.Embed (referendumapp.UserActivity_Embed) (struct)
 	if t.Embed != nil {
 
 		if len("embed") > 1000000 {
@@ -2801,7 +2801,7 @@ func (t *PersonActivity) MarshalCBOR(w io.Writer) error {
 		}
 	}
 
-	// t.Reply (referendumapp.PersonActivity_ReplyRef) (struct)
+	// t.Reply (referendumapp.UserActivity_ReplyRef) (struct)
 	if t.Reply != nil {
 
 		if len("reply") > 1000000 {
@@ -2849,7 +2849,7 @@ func (t *PersonActivity) MarshalCBOR(w io.Writer) error {
 		}
 	}
 
-	// t.Labels (referendumapp.PersonActivity_Labels) (struct)
+	// t.Labels (referendumapp.UserActivity_Labels) (struct)
 	if t.Labels != nil {
 
 		if len("labels") > 1000000 {
@@ -2893,8 +2893,8 @@ func (t *PersonActivity) MarshalCBOR(w io.Writer) error {
 	return nil
 }
 
-func (t *PersonActivity) UnmarshalCBOR(r io.Reader) (err error) {
-	*t = PersonActivity{}
+func (t *UserActivity) UnmarshalCBOR(r io.Reader) (err error) {
+	*t = UserActivity{}
 
 	cr := cbg.NewCborReader(r)
 
@@ -2913,7 +2913,7 @@ func (t *PersonActivity) UnmarshalCBOR(r io.Reader) (err error) {
 	}
 
 	if extra > cbg.MaxLength {
-		return fmt.Errorf("PersonActivity: map struct too large (%d)", extra)
+		return fmt.Errorf("UserActivity: map struct too large (%d)", extra)
 	}
 
 	n := extra
@@ -2956,7 +2956,7 @@ func (t *PersonActivity) UnmarshalCBOR(r io.Reader) (err error) {
 
 				t.LexiconTypeID = string(sval)
 			}
-			// t.Embed (referendumapp.PersonActivity_Embed) (struct)
+			// t.Embed (referendumapp.UserActivity_Embed) (struct)
 		case "embed":
 
 			{
@@ -2969,7 +2969,7 @@ func (t *PersonActivity) UnmarshalCBOR(r io.Reader) (err error) {
 					if err := cr.UnreadByte(); err != nil {
 						return err
 					}
-					t.Embed = new(PersonActivity_Embed)
+					t.Embed = new(UserActivity_Embed)
 					if err := t.Embed.UnmarshalCBOR(cr); err != nil {
 						return xerrors.Errorf("unmarshaling t.Embed pointer: %w", err)
 					}
@@ -3016,7 +3016,7 @@ func (t *PersonActivity) UnmarshalCBOR(r io.Reader) (err error) {
 
 				}
 			}
-			// t.Reply (referendumapp.PersonActivity_ReplyRef) (struct)
+			// t.Reply (referendumapp.UserActivity_ReplyRef) (struct)
 		case "reply":
 
 			{
@@ -3029,7 +3029,7 @@ func (t *PersonActivity) UnmarshalCBOR(r io.Reader) (err error) {
 					if err := cr.UnreadByte(); err != nil {
 						return err
 					}
-					t.Reply = new(PersonActivity_ReplyRef)
+					t.Reply = new(UserActivity_ReplyRef)
 					if err := t.Reply.UnmarshalCBOR(cr); err != nil {
 						return xerrors.Errorf("unmarshaling t.Reply pointer: %w", err)
 					}
@@ -3085,7 +3085,7 @@ func (t *PersonActivity) UnmarshalCBOR(r io.Reader) (err error) {
 
 				}
 			}
-			// t.Labels (referendumapp.PersonActivity_Labels) (struct)
+			// t.Labels (referendumapp.UserActivity_Labels) (struct)
 		case "labels":
 
 			{
@@ -3098,7 +3098,7 @@ func (t *PersonActivity) UnmarshalCBOR(r io.Reader) (err error) {
 					if err := cr.UnreadByte(); err != nil {
 						return err
 					}
-					t.Labels = new(PersonActivity_Labels)
+					t.Labels = new(UserActivity_Labels)
 					if err := t.Labels.UnmarshalCBOR(cr); err != nil {
 						return xerrors.Errorf("unmarshaling t.Labels pointer: %w", err)
 					}
@@ -3127,7 +3127,7 @@ func (t *PersonActivity) UnmarshalCBOR(r io.Reader) (err error) {
 
 	return nil
 }
-func (t *PersonActivity_ReplyRef) MarshalCBOR(w io.Writer) error {
+func (t *UserActivity_ReplyRef) MarshalCBOR(w io.Writer) error {
 	if t == nil {
 		_, err := w.Write(cbg.CborNull)
 		return err
@@ -3167,10 +3167,10 @@ func (t *PersonActivity_ReplyRef) MarshalCBOR(w io.Writer) error {
 		return err
 	}
 
-	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len("com.referendumapp.person.activity#replyRef"))); err != nil {
+	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len("com.referendumapp.user.activity#replyRef"))); err != nil {
 		return err
 	}
-	if _, err := cw.WriteString(string("com.referendumapp.person.activity#replyRef")); err != nil {
+	if _, err := cw.WriteString(string("com.referendumapp.user.activity#replyRef")); err != nil {
 		return err
 	}
 
@@ -3192,8 +3192,8 @@ func (t *PersonActivity_ReplyRef) MarshalCBOR(w io.Writer) error {
 	return nil
 }
 
-func (t *PersonActivity_ReplyRef) UnmarshalCBOR(r io.Reader) (err error) {
-	*t = PersonActivity_ReplyRef{}
+func (t *UserActivity_ReplyRef) UnmarshalCBOR(r io.Reader) (err error) {
+	*t = UserActivity_ReplyRef{}
 
 	cr := cbg.NewCborReader(r)
 
@@ -3212,7 +3212,7 @@ func (t *PersonActivity_ReplyRef) UnmarshalCBOR(r io.Reader) (err error) {
 	}
 
 	if extra > cbg.MaxLength {
-		return fmt.Errorf("PersonActivity_ReplyRef: map struct too large (%d)", extra)
+		return fmt.Errorf("UserActivity_ReplyRef: map struct too large (%d)", extra)
 	}
 
 	n := extra
@@ -3295,7 +3295,7 @@ func (t *PersonActivity_ReplyRef) UnmarshalCBOR(r io.Reader) (err error) {
 
 	return nil
 }
-func (t *PersonBillFollow) MarshalCBOR(w io.Writer) error {
+func (t *UserBillFollow) MarshalCBOR(w io.Writer) error {
 	if t == nil {
 		_, err := w.Write(cbg.CborNull)
 		return err
@@ -3335,10 +3335,10 @@ func (t *PersonBillFollow) MarshalCBOR(w io.Writer) error {
 		return err
 	}
 
-	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len("com.referendumapp.person.billFollow"))); err != nil {
+	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len("com.referendumapp.user.billFollow"))); err != nil {
 		return err
 	}
-	if _, err := cw.WriteString(string("com.referendumapp.person.billFollow")); err != nil {
+	if _, err := cw.WriteString(string("com.referendumapp.user.billFollow")); err != nil {
 		return err
 	}
 
@@ -3367,8 +3367,8 @@ func (t *PersonBillFollow) MarshalCBOR(w io.Writer) error {
 	return nil
 }
 
-func (t *PersonBillFollow) UnmarshalCBOR(r io.Reader) (err error) {
-	*t = PersonBillFollow{}
+func (t *UserBillFollow) UnmarshalCBOR(r io.Reader) (err error) {
+	*t = UserBillFollow{}
 
 	cr := cbg.NewCborReader(r)
 
@@ -3387,7 +3387,7 @@ func (t *PersonBillFollow) UnmarshalCBOR(r io.Reader) (err error) {
 	}
 
 	if extra > cbg.MaxLength {
-		return fmt.Errorf("PersonBillFollow: map struct too large (%d)", extra)
+		return fmt.Errorf("UserBillFollow: map struct too large (%d)", extra)
 	}
 
 	n := extra

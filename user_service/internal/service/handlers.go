@@ -50,7 +50,7 @@ func (s *Service) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if cerr := s.av.CreateActorAndPerson(ctx, actor, req.Handle, req.DisplayName); cerr != nil {
+	if cerr := s.av.SaveActorAndUser(ctx, actor, req.Handle, req.DisplayName); cerr != nil {
 		cerr.WriteResponse(w)
 		return
 	}
@@ -85,7 +85,7 @@ func (s *Service) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actor, err := s.av.AuthenticateUser(ctx, login.Username, login.Password)
+	actor, err := s.av.GetAuthenticatedActor(ctx, login.Username, login.Password)
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -125,7 +125,7 @@ func (s *Service) handleRefreshSession(w http.ResponseWriter, r *http.Request) {
 func (s *Service) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	_, did, err := s.getAndValidatePerson(ctx)
+	_, did, err := s.getAuthenticatedIds(ctx)
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -140,7 +140,7 @@ func (s *Service) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 func (s *Service) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	aid, did, err := s.getAndValidatePerson(ctx)
+	aid, did, err := s.getAuthenticatedIds(ctx)
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -160,19 +160,19 @@ func (s *Service) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 func (s *Service) handleUserProfileUpdate(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var req refApp.PersonUpdateProfile_Input
+	var req refApp.UserUpdateProfile_Input
 	if err := s.decodeAndValidate(ctx, w, r.Body, &req); err != nil {
 		return
 	}
 
-	aid, _, err := s.getAndValidatePerson(ctx)
+	aid, _, err := s.getAuthenticatedIds(ctx)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
 	if req.DisplayName != nil {
-		profile := &refApp.PersonProfile{
+		profile := &refApp.UserProfile{
 			DisplayName: req.DisplayName,
 		}
 
@@ -191,13 +191,13 @@ func (s *Service) handleUserProfileUpdate(w http.ResponseWriter, r *http.Request
 func (s *Service) handleGetUserProfile(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	aid, _, err := s.getAndValidatePerson(ctx)
+	aid, _, err := s.getAuthenticatedIds(ctx)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	var profile refApp.PersonProfile
+	var profile refApp.UserProfile
 	if _, err := s.pds.GetRecord(ctx, aid, &profile); err != nil {
 		err.WriteResponse(w)
 		return
@@ -219,7 +219,7 @@ func (s *Service) handleGraphFollow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	aid, _, err := s.getAndValidatePerson(ctx)
+	aid, _, err := s.getAuthenticatedIds(ctx)
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -241,7 +241,7 @@ func (s *Service) handleGraphFollow(w http.ResponseWriter, r *http.Request) {
 func (s *Service) handleGraphFollowers(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	aid, _, err := s.getAndValidatePerson(ctx)
+	aid, _, err := s.getAuthenticatedIds(ctx)
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -259,7 +259,7 @@ func (s *Service) handleGraphFollowers(w http.ResponseWriter, r *http.Request) {
 func (s *Service) handleGraphFollowing(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	aid, _, err := s.getAndValidatePerson(ctx)
+	aid, _, err := s.getAuthenticatedIds(ctx)
 	if err != nil {
 		err.WriteResponse(w)
 		return

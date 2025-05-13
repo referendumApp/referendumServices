@@ -2,20 +2,20 @@
 
 package referendumapp
 
-// schema: com.referendumapp.person.updateProfile
+// schema: com.referendumapp.user.updateProfile
 
-// PersonUpdateProfile_Input is the input argument to a com.referendumapp.person.updateProfile call.
-type PersonUpdateProfile_Input struct {
+// UserUpdateProfile_Input is the input argument to a com.referendumapp.user.updateProfile call.
+type UserUpdateProfile_Input struct {
 	DisplayName *string `json:"displayName,omitempty" cborgen:"displayName,omitempty" validate:"omitempty,max=100"`
 	Email       *string `json:"email,omitempty" cborgen:"email,omitempty" validate:"omitempty,email,max=100"`
 	// handle: Requested handle for the account.
 	Handle *string `json:"handle,omitempty" cborgen:"handle,omitempty" validate:"omitempty,handle,min=8,max=100"`
 }
 
-// PersonUpdateProfile_Output is the output of a com.referendumapp.person.updateProfile call.
+// UserUpdateProfile_Output is the output of a com.referendumapp.user.updateProfile call.
 //
 // Account login session returned on successful account creation.
-type PersonUpdateProfile_Output struct {
+type UserUpdateProfile_Output struct {
 	DisplayName *string `json:"displayName,omitempty" cborgen:"displayName,omitempty" validate:"omitempty,min=8,max=100"`
 	Email       *string `json:"email,omitempty" cborgen:"email,omitempty" validate:"omitempty,email,max=100"`
 	Handle      *string `json:"handle,omitempty" cborgen:"handle,omitempty" validate:"omitempty,handle,min=8,max=100"`

@@ -74,7 +74,7 @@ func (u *Settings) Unmarshal(data []byte) error {
 	return json.Unmarshal(data, u)
 }
 
-type Person struct {
+type User struct {
 	Settings    *Settings      `db:"settings,omitempty"     json:"settings"`
 	Handle      sql.NullString `db:"handle,omitempty"       json:"handle"`
 	DisplayName string         `db:"display_name,omitempty" json:"display_name"`
@@ -89,19 +89,19 @@ type Person struct {
 	ValidHandle bool          `db:"valid_handle,omitempty" json:"valid_handle"`
 }
 
-func (a Person) TableName() string {
-	return "person"
+func (a User) TableName() string {
+	return "user"
 }
 
-type PersonBasic struct {
+type UserBasic struct {
 	Handle      *string `db:"handle,omitempty"       json:"handle"`
 	DisplayName string  `db:"display_name,omitempty" json:"display_name"`
 	Did         string  `db:"did,omitempty"          json:"did"`
 	Type        *string `db:"type,omitempty"         json:"type"`
 }
 
-func (a PersonBasic) TableName() string {
-	return "person"
+func (a UserBasic) TableName() string {
+	return "user"
 }
 
 type EndorsementRecord struct {

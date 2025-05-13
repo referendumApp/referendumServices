@@ -1,6 +1,6 @@
 {
   "lexicon": 1,
-  "id": "com.referendumapp.person.updateProfile",
+  "id": "com.referendumapp.user.updateProfile",
   "defs": {
     "main": {
       "type": "string",

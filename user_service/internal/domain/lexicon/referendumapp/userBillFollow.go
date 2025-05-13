@@ -2,7 +2,7 @@
 
 package referendumapp
 
-// schema: com.referendumapp.person.billFollow
+// schema: com.referendumapp.user.billFollow
 
 import (
 	comatproto "github.com/bluesky-social/indigo/api/atproto"
@@ -11,26 +11,26 @@ import (
 )
 
 func init() {
-	util.RegisterType("com.referendumapp.person.billFollow", &PersonBillFollow{})
+	util.RegisterType("com.referendumapp.user.billFollow", &UserBillFollow{})
 }
 
-// RECORDTYPE: PersonBillFollow
-type PersonBillFollow struct {
-	LexiconTypeID string                    `json:"$type" cborgen:"$type,const=com.referendumapp.person.billFollow" validate:"required"`
+// RECORDTYPE: UserBillFollow
+type UserBillFollow struct {
+	LexiconTypeID string                    `json:"$type" cborgen:"$type,const=com.referendumapp.user.billFollow" validate:"required"`
 	Bill          *comatproto.RepoStrongRef `json:"bill" cborgen:"bill" validate:"required"`
 	CreatedAt     string                    `json:"createdAt" cborgen:"createdAt" validate:"required,datetime"`
 }
 
-// PersonBillFollow_Input is the input argument to a com.referendumapp.person.billFollow call.
-type PersonBillFollow_Input struct {
+// UserBillFollow_Input is the input argument to a com.referendumapp.user.billFollow call.
+type UserBillFollow_Input struct {
 	// bid: Referendum bill ID (BID) to follow.
 	Bid string `json:"bid" cborgen:"bid" validate:"required,bid"`
 }
 
-func (t PersonBillFollow) NSID() string {
-	return "com.referendumapp.person.billFollow"
+func (t UserBillFollow) NSID() string {
+	return "com.referendumapp.user.billFollow"
 }
 
-func (t PersonBillFollow) Key() string {
+func (t UserBillFollow) Key() string {
 	return repo.NextTID()
 }

@@ -59,7 +59,7 @@ func (p *PDS) CreateNewRepo(
 	actor *atp.Actor,
 	dname string,
 ) (*refApp.ServerCreateAccount_Output, *refErr.APIError) {
-	profile := &refApp.PersonProfile{
+	profile := &refApp.UserProfile{
 		DisplayName: &dname,
 	}
 

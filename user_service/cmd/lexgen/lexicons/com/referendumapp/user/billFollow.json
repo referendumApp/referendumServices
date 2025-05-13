@@ -1,6 +1,6 @@
 {
   "lexicon": 1,
-  "id": "com.referendumapp.person.billFollow",
+  "id": "com.referendumapp.user.billFollow",
   "defs": {
     "main": {
       "type": "record",

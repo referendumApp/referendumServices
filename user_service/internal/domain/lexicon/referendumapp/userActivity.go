@@ -2,7 +2,7 @@
 
 package referendumapp
 
-// schema: com.referendumapp.person.activity
+// schema: com.referendumapp.user.activity
 
 import (
 	"bytes"
@@ -18,28 +18,28 @@ import (
 )
 
 func init() {
-	util.RegisterType("com.referendumapp.person.activity", &PersonActivity{})
-	util.RegisterType("com.referendumapp.person.activity#replyRef", &PersonActivity_ReplyRef{})
+	util.RegisterType("com.referendumapp.user.activity#replyRef", &UserActivity_ReplyRef{})
+	util.RegisterType("com.referendumapp.user.activity", &UserActivity{})
 }
 
-// RECORDTYPE: PersonActivity
-type PersonActivity struct {
-	LexiconTypeID string `json:"$type" cborgen:"$type,const=com.referendumapp.person.activity" validate:"required"`
+// RECORDTYPE: UserActivity
+type UserActivity struct {
+	LexiconTypeID string `json:"$type" cborgen:"$type,const=com.referendumapp.user.activity" validate:"required"`
 	// createdAt: Client-declared timestamp when this post was originally created.
-	CreatedAt string                `json:"createdAt" cborgen:"createdAt" validate:"required,datetime"`
-	Embed     *PersonActivity_Embed `json:"embed,omitempty" cborgen:"embed,omitempty" validate:"omitempty"`
+	CreatedAt string              `json:"createdAt" cborgen:"createdAt" validate:"required,datetime"`
+	Embed     *UserActivity_Embed `json:"embed,omitempty" cborgen:"embed,omitempty" validate:"omitempty"`
 	// facets: Annotations of text (mentions, URLs, hashtags, etc)
 	Facets []*appbsky.RichtextFacet `json:"facets,omitempty" cborgen:"facets,omitempty" validate:"omitempty"`
 	// labels: Self-label values for this post. Effectively content warnings.
-	Labels *PersonActivity_Labels `json:"labels,omitempty" cborgen:"labels,omitempty" validate:"omitempty"`
+	Labels *UserActivity_Labels `json:"labels,omitempty" cborgen:"labels,omitempty" validate:"omitempty"`
 	// langs: Indicates human language of post primary text content.
-	Langs []string                 `json:"langs,omitempty" cborgen:"langs,omitempty" validate:"omitempty,max=3"`
-	Reply *PersonActivity_ReplyRef `json:"reply,omitempty" cborgen:"reply,omitempty" validate:"omitempty"`
+	Langs []string               `json:"langs,omitempty" cborgen:"langs,omitempty" validate:"omitempty,max=3"`
+	Reply *UserActivity_ReplyRef `json:"reply,omitempty" cborgen:"reply,omitempty" validate:"omitempty"`
 	// text: The primary post content. May be an empty string, if there are embeds.
 	Text string `json:"text" cborgen:"text" validate:"required,max=3000"`
 }
 
-type PersonActivity_Embed struct {
+type UserActivity_Embed struct {
 	EmbedImages          *appbsky.EmbedImages
 	EmbedVideo           *appbsky.EmbedVideo
 	EmbedExternal        *appbsky.EmbedExternal
@@ -47,7 +47,7 @@ type PersonActivity_Embed struct {
 	EmbedRecordWithMedia *appbsky.EmbedRecordWithMedia
 }
 
-func (t *PersonActivity_Embed) MarshalJSON() ([]byte, error) {
+func (t *UserActivity_Embed) MarshalJSON() ([]byte, error) {
 	if t.EmbedImages != nil {
 		t.EmbedImages.LexiconTypeID = "app.bsky.embed.images"
 		return json.Marshal(t.EmbedImages)
@@ -71,7 +71,7 @@ func (t *PersonActivity_Embed) MarshalJSON() ([]byte, error) {
 	return nil, fmt.Errorf("cannot marshal empty enum")
 }
 
-func (t *PersonActivity_Embed) UnmarshalJSON(b []byte) error {
+func (t *UserActivity_Embed) UnmarshalJSON(b []byte) error {
 	typ, err := util.TypeExtract(b)
 	if err != nil {
 		return err
@@ -99,7 +99,7 @@ func (t *PersonActivity_Embed) UnmarshalJSON(b []byte) error {
 	}
 }
 
-func (t *PersonActivity_Embed) MarshalCBOR(w io.Writer) error {
+func (t *UserActivity_Embed) MarshalCBOR(w io.Writer) error {
 
 	if t == nil {
 		_, err := w.Write(cbg.CborNull)
@@ -123,7 +123,7 @@ func (t *PersonActivity_Embed) MarshalCBOR(w io.Writer) error {
 	return fmt.Errorf("cannot cbor marshal empty enum")
 }
 
-func (t *PersonActivity_Embed) UnmarshalCBOR(r io.Reader) error {
+func (t *UserActivity_Embed) UnmarshalCBOR(r io.Reader) error {
 	typ, b, err := util.CborTypeExtractReader(r)
 	if err != nil {
 		return err
@@ -152,11 +152,11 @@ func (t *PersonActivity_Embed) UnmarshalCBOR(r io.Reader) error {
 }
 
 // Self-label values for this post. Effectively content warnings.
-type PersonActivity_Labels struct {
+type UserActivity_Labels struct {
 	LabelDefs_SelfLabels *comatproto.LabelDefs_SelfLabels
 }
 
-func (t *PersonActivity_Labels) MarshalJSON() ([]byte, error) {
+func (t *UserActivity_Labels) MarshalJSON() ([]byte, error) {
 	if t.LabelDefs_SelfLabels != nil {
 		t.LabelDefs_SelfLabels.LexiconTypeID = "com.atproto.label.defs#selfLabels"
 		return json.Marshal(t.LabelDefs_SelfLabels)
@@ -164,7 +164,7 @@ func (t *PersonActivity_Labels) MarshalJSON() ([]byte, error) {
 	return nil, fmt.Errorf("cannot marshal empty enum")
 }
 
-func (t *PersonActivity_Labels) UnmarshalJSON(b []byte) error {
+func (t *UserActivity_Labels) UnmarshalJSON(b []byte) error {
 	typ, err := util.TypeExtract(b)
 	if err != nil {
 		return err
@@ -180,7 +180,7 @@ func (t *PersonActivity_Labels) UnmarshalJSON(b []byte) error {
 	}
 }
 
-func (t *PersonActivity_Labels) MarshalCBOR(w io.Writer) error {
+func (t *UserActivity_Labels) MarshalCBOR(w io.Writer) error {
 
 	if t == nil {
 		_, err := w.Write(cbg.CborNull)
@@ -192,7 +192,7 @@ func (t *PersonActivity_Labels) MarshalCBOR(w io.Writer) error {
 	return fmt.Errorf("cannot cbor marshal empty enum")
 }
 
-func (t *PersonActivity_Labels) UnmarshalCBOR(r io.Reader) error {
+func (t *UserActivity_Labels) UnmarshalCBOR(r io.Reader) error {
 	typ, b, err := util.CborTypeExtractReader(r)
 	if err != nil {
 		return err
@@ -208,19 +208,19 @@ func (t *PersonActivity_Labels) UnmarshalCBOR(r io.Reader) error {
 	}
 }
 
-// PersonActivity_ReplyRef is a "replyRef" in the com.referendumapp.person.activity schema.
+// UserActivity_ReplyRef is a "replyRef" in the com.referendumapp.user.activity schema.
 //
-// RECORDTYPE: PersonActivity_ReplyRef
-type PersonActivity_ReplyRef struct {
-	LexiconTypeID string                    `json:"$type" cborgen:"$type,const=com.referendumapp.person.activity#replyRef" validate:"required"`
+// RECORDTYPE: UserActivity_ReplyRef
+type UserActivity_ReplyRef struct {
+	LexiconTypeID string                    `json:"$type" cborgen:"$type,const=com.referendumapp.user.activity#replyRef" validate:"required"`
 	Parent        *comatproto.RepoStrongRef `json:"parent" cborgen:"parent" validate:"required"`
 	Root          *comatproto.RepoStrongRef `json:"root" cborgen:"root" validate:"required"`
 }
 
-func (t PersonActivity) NSID() string {
-	return "com.referendumapp.person.activity"
+func (t UserActivity) NSID() string {
+	return "com.referendumapp.user.activity"
 }
 
-func (t PersonActivity) Key() string {
+func (t UserActivity) Key() string {
 	return repo.NextTID()
 }

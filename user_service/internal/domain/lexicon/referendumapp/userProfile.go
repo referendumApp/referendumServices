@@ -2,19 +2,19 @@
 
 package referendumapp
 
-// schema: com.referendumapp.person.profile
+// schema: com.referendumapp.user.profile
 
 import (
 	"github.com/bluesky-social/indigo/lex/util"
 )
 
 func init() {
-	util.RegisterType("com.referendumapp.person.profile", &PersonProfile{})
+	util.RegisterType("com.referendumapp.user.profile", &UserProfile{})
 }
 
-// RECORDTYPE: PersonProfile
-type PersonProfile struct {
-	LexiconTypeID string `json:"$type" cborgen:"$type,const=com.referendumapp.person.profile" validate:"required"`
+// RECORDTYPE: UserProfile
+type UserProfile struct {
+	LexiconTypeID string `json:"$type" cborgen:"$type,const=com.referendumapp.user.profile" validate:"required"`
 	// avatar: Small image to be displayed next to posts from account. AKA, 'profile picture'
 	Avatar    *util.LexBlob `json:"avatar,omitempty" cborgen:"avatar,omitempty" validate:"omitempty"`
 	CreatedAt *string       `json:"createdAt,omitempty" cborgen:"createdAt,omitempty" validate:"omitempty,datetime"`
@@ -23,10 +23,10 @@ type PersonProfile struct {
 	DisplayName *string `json:"displayName,omitempty" cborgen:"displayName,omitempty" validate:"omitempty,name,max=60"`
 }
 
-func (t PersonProfile) NSID() string {
-	return "com.referendumapp.person.profile"
+func (t UserProfile) NSID() string {
+	return "com.referendumapp.user.profile"
 }
 
-func (t PersonProfile) Key() string {
+func (t UserProfile) Key() string {
 	return "self"
 }

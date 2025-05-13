@@ -7,9 +7,9 @@ import (
 	refErr "github.com/referendumApp/referendumServices/internal/error"
 )
 
-// GetProfile handler to querying the basic person profile
-func (v *View) GetProfile(ctx context.Context, aid atp.Aid) (*atp.PersonBasic, *refErr.APIError) {
-	profile, err := v.meta.GetPersonBasicProfile(ctx, aid)
+// GetProfile handler to querying the basic user profile
+func (v *View) GetProfile(ctx context.Context, aid atp.Aid) (*atp.UserBasic, *refErr.APIError) {
+	profile, err := v.meta.GetUserBasicProfile(ctx, aid)
 	if err != nil {
 		return nil, refErr.Database()
 	}
