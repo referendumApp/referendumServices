@@ -123,7 +123,7 @@ func (rf *RepoFetcher) FetchAndIndexRepo(ctx context.Context, job *crawlWork) er
 	if err != nil {
 		catchupEventsFailed.WithLabelValues("nopds").Inc()
 		return fmt.Errorf(
-			"expected to find pds record (%d) in db for crawling one of their users: %w",
+			"expected to find pds record (%d) in db for crawling one of their persons: %w",
 			ai.PDS.Int64,
 			err,
 		)

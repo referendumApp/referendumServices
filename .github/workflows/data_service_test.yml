@@ -6,11 +6,13 @@ on:
     paths:
       - "data_service/**"
       - ".github/workflows/data_service_test.yml"
+      - "docker-compose.yml"
   pull_request:
     branches: [ main ]
     paths:
       - "data_service/**"
       - ".github/workflows/data_service_test.yml"
+      - "docker-compose.yml"
 
 jobs:
   lint:

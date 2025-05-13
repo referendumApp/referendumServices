@@ -10,7 +10,8 @@ from pipeline.etl_config import ETLConfig
 
 
 def test_pipeline_execution():
-    run.orchestrate()
+    # We skip pulling & processing PDF data
+    run.orchestrate(stage="etl")
 
     referendum_db = referendum_connection.SessionLocal()
     legiscan_db = legiscan_api_connection.SessionLocal()

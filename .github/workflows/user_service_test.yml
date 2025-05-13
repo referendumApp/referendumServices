@@ -6,11 +6,13 @@ on:
     paths:
       - "user_service/**"
       - ".github/workflows/user_service_test.yml"
+      - "docker-compose.yml"
   pull_request:
     branches: [main]
     paths:
       - "user_service/**"
       - ".github/workflows/user_service_test.yml"
+      - "docker-compose.yml"
 
 env:
   AWS_ACCESS_KEY_ID: minioadmin
