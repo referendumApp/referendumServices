@@ -72,8 +72,7 @@ func (f ActivityPost) TableName() string {
 
 // Settings stores user configuration settings
 type Settings struct {
-	Deleted bool   `db:"deleted" json:"deleted"`
-	Type    string `db:"type"    json:"type"`
+	Type string `db:"type" json:"type"`
 }
 
 // Marshal serializes Settings to JSON
@@ -110,7 +109,6 @@ type UserBasic struct {
 	Handle      *string `db:"handle,omitempty"       json:"handle"`
 	DisplayName string  `db:"display_name,omitempty" json:"display_name"`
 	Did         string  `db:"did,omitempty"          json:"did"`
-	Type        *string `db:"type,omitempty"         json:"type"`
 }
 
 func (a UserBasic) TableName() string {
