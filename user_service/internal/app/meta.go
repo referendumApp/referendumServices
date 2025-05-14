@@ -84,7 +84,7 @@ func (vm *ViewMeta) authenticateActor(ctx context.Context, aname string) (*atp.A
 		actor.TableName(),
 	)
 
-	if err := vm.GetRow(ctx, sql, aname).Scan(&actor.ID, &actor.Handle, &actor.HashedPassword); err != nil {
+	if err := vm.GetRow(ctx, sql, aname).Scan(&actor.ID, &actor.Email, &actor.HashedPassword); err != nil {
 		return nil, err
 	}
 
