@@ -69,7 +69,6 @@ func (v *View) ValidateNewUserRequest(
 	// 	return
 	// }
 
-	// If the user doesn't exist then create them
 	hashedPassword, err := util.HashPassword(req.Password, util.DefaultParams())
 	if err != nil {
 		v.log.ErrorContext(ctx, "Failed to hash password", "error", err)
