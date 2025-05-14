@@ -14,17 +14,18 @@ type ServerCreateLegislator_Input struct {
 	District string  `json:"district" cborgen:"district" validate:"required"`
 	Facebook *string `json:"facebook,omitempty" cborgen:"facebook,omitempty" validate:"omitempty"`
 	// handle: Requested handle for the legislator.
-	Handle      string        `json:"handle" cborgen:"handle" validate:"required,handle"`
-	Image       *util.LexBlob `json:"image,omitempty" cborgen:"image,omitempty" validate:"omitempty"`
-	ImageUrl    *string       `json:"imageUrl,omitempty" cborgen:"imageUrl,omitempty" validate:"omitempty"`
-	Instagram   *string       `json:"instagram,omitempty" cborgen:"instagram,omitempty" validate:"omitempty"`
-	Legislature string        `json:"legislature" cborgen:"legislature" validate:"required"`
-	Name        string        `json:"name" cborgen:"name" validate:"required"`
-	Party       string        `json:"party" cborgen:"party" validate:"required"`
-	Phone       *string       `json:"phone,omitempty" cborgen:"phone,omitempty" validate:"omitempty,e164"`
-	Role        string        `json:"role" cborgen:"role" validate:"required"`
-	State       string        `json:"state" cborgen:"state" validate:"required"`
-	Twitter     *string       `json:"twitter,omitempty" cborgen:"twitter,omitempty" validate:"omitempty"`
+	Handle       *string       `json:"handle,omitempty" cborgen:"handle,omitempty" validate:"omitempty,handle"`
+	Image        *util.LexBlob `json:"image,omitempty" cborgen:"image,omitempty" validate:"omitempty"`
+	ImageUrl     *string       `json:"imageUrl,omitempty" cborgen:"imageUrl,omitempty" validate:"omitempty"`
+	Instagram    *string       `json:"instagram,omitempty" cborgen:"instagram,omitempty" validate:"omitempty"`
+	LegislatorId int64         `json:"legislatorId" cborgen:"legislatorId" validate:"required"`
+	Legislature  string        `json:"legislature" cborgen:"legislature" validate:"required"`
+	Name         string        `json:"name" cborgen:"name" validate:"required"`
+	Party        string        `json:"party" cborgen:"party" validate:"required"`
+	Phone        *string       `json:"phone,omitempty" cborgen:"phone,omitempty" validate:"omitempty,e164"`
+	Role         string        `json:"role" cborgen:"role" validate:"required"`
+	State        string        `json:"state" cborgen:"state" validate:"required"`
+	Twitter      *string       `json:"twitter,omitempty" cborgen:"twitter,omitempty" validate:"omitempty"`
 }
 
 // ServerCreateLegislator_Output is the output of a com.referendumapp.server.createLegislator call.

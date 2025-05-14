@@ -10,8 +10,11 @@
           "schema": {
             "needsType": true,
             "type": "object",
-            "required": ["handle", "name", "district", "party", "role", "state", "legislature"],
+            "required": ["legislatorId", "name", "district", "party", "role", "state", "legislature"],
             "properties": {
+              "legislatorId": {
+                "type": "integer"
+              },
               "handle": {
                 "type": "string",
                 "format": "handle",

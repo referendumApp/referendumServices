@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -82,7 +83,10 @@ func (v *View) ValidateNewLegislatorRequest(
 	ctx context.Context,
 	req *refApp.ServerCreateLegislator_Input,
 ) *refErr.APIError {
-	if err := v.validateHandle(ctx, req.Handle); err != nil {
+	var handle = fmt.Sprintf("refLegislator%d", req.LegislatorId)
+	req.Handle = &handle
+
+	if err := v.validateHandle(ctx, *req.Handle); err != nil {
 		v.log.ErrorContext(ctx, "Error validating handle", "error", err)
 		return err
 	}
