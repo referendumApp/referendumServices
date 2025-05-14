@@ -9,14 +9,16 @@
       "record": {
         "type": "object",
         "required": [
+          "legislatorId",
           "name",
           "district",
           "party",
-          "level",
-          "legislativeBody",
-          "state"
+          "role",
+          "state",
+          "legislature"
         ],
         "properties": {
+          "legislatorId": { "type": "integer" },
           "name": { "type": "string", "format": "name", "maxLength": 60 },
           "district": { "type": "string" },
           "party": { "type": "string" },
@@ -24,10 +26,11 @@
           "facebook": { "type": "string" },
           "instagram": { "type": "string" },
           "twitter": { "type": "string" },
-          "level": { "type": "string", "enum": ["federal", "state", "local"] },
-          "legislativeBody": { "type": "string" },
+          "role": { "type": "string" },
           "state": { "type": "string" },
+          "legislature": { "type": "string" },
           "phone": { "type": "string", "format": "e164" },
+          "followthemoneyEid": { "type": "string" },
           "imageUrl": { "type": "string" },
           "image": {
             "type": "blob",

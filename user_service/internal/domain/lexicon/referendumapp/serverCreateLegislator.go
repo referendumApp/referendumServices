@@ -2,19 +2,14 @@
 
 package referendumapp
 
-// schema: com.referendumapp.legislator.profile
+// schema: com.referendumapp.server.createLegislator
 
 import (
 	"github.com/bluesky-social/indigo/lex/util"
 )
 
-func init() {
-	util.RegisterType("com.referendumapp.legislator.profile", &LegislatorProfile{})
-}
-
-// RECORDTYPE: LegislatorProfile
-type LegislatorProfile struct {
-	LexiconTypeID     string        `json:"$type" cborgen:"$type,const=com.referendumapp.legislator.profile" validate:"required"`
+// ServerCreateLegislator_Input is the input argument to a com.referendumapp.server.createLegislator call.
+type ServerCreateLegislator_Input struct {
 	Address           *string       `json:"address,omitempty" cborgen:"address,omitempty" validate:"omitempty"`
 	District          string        `json:"district" cborgen:"district" validate:"required"`
 	Facebook          *string       `json:"facebook,omitempty" cborgen:"facebook,omitempty" validate:"omitempty"`
@@ -24,7 +19,7 @@ type LegislatorProfile struct {
 	Instagram         *string       `json:"instagram,omitempty" cborgen:"instagram,omitempty" validate:"omitempty"`
 	LegislatorId      int64         `json:"legislatorId" cborgen:"legislatorId" validate:"required"`
 	Legislature       string        `json:"legislature" cborgen:"legislature" validate:"required"`
-	Name              string        `json:"name" cborgen:"name" validate:"required,name,max=60"`
+	Name              string        `json:"name" cborgen:"name" validate:"required"`
 	Party             string        `json:"party" cborgen:"party" validate:"required"`
 	Phone             *string       `json:"phone,omitempty" cborgen:"phone,omitempty" validate:"omitempty,e164"`
 	Role              string        `json:"role" cborgen:"role" validate:"required"`
@@ -32,10 +27,10 @@ type LegislatorProfile struct {
 	Twitter           *string       `json:"twitter,omitempty" cborgen:"twitter,omitempty" validate:"omitempty"`
 }
 
-func (t LegislatorProfile) NSID() string {
-	return "com.referendumapp.legislator.profile"
-}
-
-func (t LegislatorProfile) Key() string {
-	return "self"
+// ServerCreateLegislator_Output is the output of a com.referendumapp.server.createLegislator call.
+//
+// Confirmation returned on successful legislator creation.
+type ServerCreateLegislator_Output struct {
+	Did    string `json:"did" cborgen:"did" validate:"required,did"`
+	Handle string `json:"handle" cborgen:"handle" validate:"required,handle"`
 }

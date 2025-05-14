@@ -11,8 +11,8 @@ import (
 )
 
 func init() {
-	util.RegisterType("com.referendumapp.bill.version", &BillVersion{})
 	util.RegisterType("com.referendumapp.bill.version#versionRef", &BillVersion_VersionRef{})
+	util.RegisterType("com.referendumapp.bill.version", &BillVersion{})
 }
 
 // RECORDTYPE: BillVersion
