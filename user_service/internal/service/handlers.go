@@ -85,13 +85,13 @@ func (s *Service) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actor, err := s.av.GetAuthenticatedActor(ctx, login.Username, login.Password)
+	user, err := s.av.GetAuthenticatedUser(ctx, login.Username, login.Password)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	resp, err := s.pds.CreateSession(ctx, actor)
+	resp, err := s.pds.CreateSession(ctx, user)
 	if err != nil {
 		err.WriteResponse(w)
 		return

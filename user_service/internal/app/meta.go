@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	sq "github.com/Masterminds/squirrel"
@@ -37,7 +36,6 @@ func (vm *ViewMeta) insertActorAndUserRecords(
 		user := &atp.User{
 			Aid:         actor.ID,
 			Did:         actor.Did,
-			Handle:      sql.NullString{String: handle, Valid: true},
 			DisplayName: dname,
 			Settings:    &atp.Settings{Deleted: false},
 		}
@@ -76,19 +74,19 @@ func (vm *ViewMeta) insertActorAndUserRecords(
 	})
 }
 
-func (vm *ViewMeta) authenticateActor(ctx context.Context, aname string) (*atp.Actor, error) {
-	var actor atp.Actor
+func (vm *ViewMeta) getUserForEmail(ctx context.Context, aname string) (*atp.User, error) {
+	var user atp.User
 	sql := fmt.Sprintf(
-		"SELECT id, did, handle, hashed_password FROM %s.%s WHERE deleted_at IS NULL AND (email = $1 OR handle = $1)",
+		"SELECT aid, did, hashed_password FROM %s.%s WHERE deleted_at IS NULL AND (email = $1)",
 		vm.Schema,
-		actor.TableName(),
+		user.TableName(),
 	)
 
-	if err := vm.GetRow(ctx, sql, aname).Scan(&actor.ID, &actor.Did, &actor.Handle, &actor.HashedPassword); err != nil {
+	if err := vm.GetRow(ctx, sql, aname).Scan(&user.ID, &user.Did, &user.HashedPassword); err != nil {
 		return nil, err
 	}
 
-	return &actor, nil
+	return &user, nil
 }
 
 func (vm *ViewMeta) actorExists(ctx context.Context, filter sq.Eq) (bool, error) {

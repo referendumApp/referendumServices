@@ -43,11 +43,9 @@ func (p *PDS) CreateActor(
 	}
 
 	actor := &atp.Actor{
-		Handle:         sql.NullString{String: req.Handle, Valid: true},
-		Email:          sql.NullString{String: req.Email, Valid: true},
-		HashedPassword: sql.NullString{String: pw, Valid: true},
-		RecoveryKey:    recoveryKey,
-		Did:            did,
+		Handle:      sql.NullString{String: req.Handle, Valid: true},
+		RecoveryKey: recoveryKey,
+		Did:         did,
 	}
 
 	return actor, nil
@@ -102,20 +100,19 @@ func (p *PDS) CreateTokens(ctx context.Context, aid atp.Aid, did string) (string
 // CreateSession completes a login request and returns the access and refresh tokens
 func (p *PDS) CreateSession(
 	ctx context.Context,
-	actor *atp.Actor,
+	user *atp.User,
 ) (*refApp.ServerCreateSession_Output, *refErr.APIError) {
-	accessToken, refreshToken, err := p.CreateTokens(ctx, actor.ID, actor.Did)
+	accessToken, refreshToken, err := p.CreateTokens(ctx, user.Aid, user.Did)
 	if err != nil {
 		return nil, refErr.InternalServer()
 	}
 
-	if err := p.km.UpdateKeyCache(ctx, actor.Did); err != nil {
+	if err := p.km.UpdateKeyCache(ctx, user.Did); err != nil {
 		return nil, refErr.InternalServer()
 	}
 
 	return &refApp.ServerCreateSession_Output{
-		Did:          actor.Did,
-		Handle:       actor.Handle.String,
+		Did:          user.Did,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    p.jwt.AuthScheme,

@@ -87,19 +87,19 @@ func (v *View) SaveActorAndUser(
 	return nil
 }
 
-// GetAuthenticatedActor validates username and password for a create session request
-func (v *View) GetAuthenticatedActor(ctx context.Context, username string, pw string) (*atp.Actor, *refErr.APIError) {
+// GetAuthenticatedUser validates username and password for a create session request
+func (v *View) GetAuthenticatedUser(ctx context.Context, username string, pw string) (*atp.User, *refErr.APIError) {
 	defaultErr := refErr.FieldError{Message: "Email or password not found"}
-	actor, err := v.meta.authenticateActor(ctx, username)
+	user, err := v.meta.getUserForEmail(ctx, username)
 	if err != nil {
-		v.log.ErrorContext(ctx, "Failed to authenticate actor", "error", err, "username", username)
+		v.log.ErrorContext(ctx, "Failed to fetch user details", "error", err, "username", username)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, defaultErr.NotFound()
 		}
 		return nil, refErr.InternalServer()
 	}
 
-	if ok, verr := util.VerifyPassword(pw, actor.HashedPassword.String); verr != nil {
+	if ok, verr := util.VerifyPassword(pw, user.HashedPassword.String); verr != nil {
 		v.log.ErrorContext(ctx, "Error verifying password", "error", verr, "username", username)
 		return nil, refErr.InternalServer()
 	} else if !ok {
@@ -107,7 +107,7 @@ func (v *View) GetAuthenticatedActor(ctx context.Context, username string, pw st
 		return nil, defaultErr.NotFound()
 	}
 
-	return actor, nil
+	return user, nil
 }
 
 // AuthenticateSession validates a session based on the user ID and DID
@@ -135,7 +135,7 @@ func (v *View) DeleteAccount(ctx context.Context, aid atp.Aid, did string) *refE
 			return err
 		}
 
-		user := atp.User{Handle: sql.NullString{Valid: false}, Base: atp.Base{DeletedAt: deletedAt}}
+		user := atp.User{Base: atp.Base{DeletedAt: deletedAt}}
 		if err := v.meta.UpdateWithTx(ctx, tx, user, sq.Eq{"aid": aid}); err != nil {
 			v.log.ErrorContext(ctx, "Failed to delete user", "error", err)
 			return err
@@ -151,41 +151,43 @@ func (v *View) DeleteAccount(ctx context.Context, aid atp.Aid, did string) *refE
 
 // UpdateProfile updates a user profile with a new handle, email, or display name
 func (v *View) UpdateProfile(ctx context.Context, aid atp.Aid, req *refApp.UserUpdateProfile_Input) *refErr.APIError {
-	var newUser atp.Actor
+	var newActor atp.Actor
+	var newUser atp.User
+
 	if req.Handle != nil {
 		handle := *req.Handle
 		if err := v.validateHandle(ctx, handle); err != nil {
 			v.log.ErrorContext(ctx, "Error validating handle", "error", err)
 			return err
 		}
-		newUser.Handle = sql.NullString{String: handle, Valid: true}
+		newActor.Handle = sql.NullString{String: handle, Valid: true}
 	}
 
 	if req.Email != nil {
 		email := *req.Email
-		if exists, err := v.meta.actorExists(ctx, sq.Eq{"email": email}); err != nil {
+		exists, err := v.meta.userExists(ctx, sq.Eq{"email": email})
+		if err != nil {
 			v.log.ErrorContext(ctx, "Error checking database for user email", "error", err)
 			return refErr.Database()
 		} else if exists {
-			v.log.ErrorContext(ctx, "Email already registered", "user", email)
-			fieldErr := refErr.FieldError{Field: "username", Message: "Email already exists"}
+			v.log.ErrorContext(ctx, "Email already registered", "email", email)
+			fieldErr := refErr.FieldError{Field: "email", Message: "Email already exists"}
 			return fieldErr.Conflict()
 		}
 		newUser.Email = sql.NullString{String: email, Valid: true}
 	}
 
+	if req.DisplayName != nil {
+		newUser.DisplayName = *req.DisplayName
+	}
+
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		if err := v.meta.UpdateWithTx(ctx, tx, &newUser, sq.Eq{"id": aid}); err != nil && !errors.Is(err, database.ErrNoFields) {
-			v.log.ErrorContext(ctx, "Failed to update user", "error", err)
+		if err := v.meta.UpdateWithTx(ctx, tx, &newActor, sq.Eq{"id": aid}); err != nil && !errors.Is(err, database.ErrNoFields) {
+			v.log.ErrorContext(ctx, "Failed to update actor", "error", err)
 			return err
 		}
 
-		actor := &atp.User{
-			DisplayName: *req.DisplayName,
-			Handle:      newUser.Handle,
-		}
-
-		if err := v.meta.UpdateWithTx(ctx, tx, actor, sq.Eq{"aid": aid}); err != nil && !errors.Is(err, database.ErrNoFields) {
+		if err := v.meta.UpdateWithTx(ctx, tx, &newUser, sq.Eq{"aid": aid}); err != nil && !errors.Is(err, database.ErrNoFields) {
 			v.log.ErrorContext(ctx, "Failed to update user profile", "error", err)
 			return err
 		}
