@@ -37,7 +37,6 @@ func (vm *ViewMeta) insertActorAndUserRecords(
 		user := &atp.User{
 			Aid:            actor.ID,
 			Did:            actor.Did,
-			Settings:       &atp.Settings{Deleted: false},
 			Email:          sql.NullString{String: email, Valid: true},
 			HashedPassword: sql.NullString{String: hashedpassword, Valid: true},
 		}
