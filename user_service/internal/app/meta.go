@@ -75,15 +75,15 @@ func (vm *ViewMeta) insertActorAndUserRecords(
 	})
 }
 
-func (vm *ViewMeta) getUserForEmail(ctx context.Context, aname string) (*atp.User, error) {
+func (vm *ViewMeta) getUserForEmail(ctx context.Context, email string) (*atp.User, error) {
 	var user atp.User
 	sql := fmt.Sprintf(
-		"SELECT aid, did, hashed_password FROM %s.%s WHERE deleted_at IS NULL AND (email = $1)",
+		"SELECT aid, did, email, hashed_password FROM %s.%s WHERE deleted_at IS NULL AND (email = $1)",
 		vm.Schema,
 		user.TableName(),
 	)
 
-	if err := vm.GetRow(ctx, sql, aname).Scan(&user.ID, &user.Did, &user.HashedPassword); err != nil {
+	if err := vm.GetRow(ctx, sql, email).Scan(&user.Aid, &user.Did, &user.Email, &user.HashedPassword); err != nil {
 		return nil, err
 	}
 

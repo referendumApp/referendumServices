@@ -56,4 +56,4 @@ test: clean build pytest-api pytest-pipeline test-user clean
 # Run specific test suites and cleanup
 test-api: clean build pytest-api clean
 test-pipeline: clean build pytest-pipeline clean
-test-user: clean build lint-user build-schema test-user clean
+test-user: clean build lint-user build-schema go-test-user clean
