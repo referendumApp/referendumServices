@@ -80,7 +80,7 @@ async def test_update_user_password(test_manager: TestManager):
 
     old_login_data = {"username": user["email"], "password": "testpassword"}
     response = await test_manager.client.post("/auth/login", data=old_login_data)
-    assert_status_code(response, 403)
+    assert_status_code(response, 401)
 
 
 async def test_admin_update_user_password(test_manager: TestManager):
@@ -111,7 +111,7 @@ async def test_admin_update_user_password(test_manager: TestManager):
 
     old_login_data = {"username": created_user["email"], "password": "testpassword"}
     response = await test_manager.client.post("/auth/login", data=old_login_data)
-    assert_status_code(response, 403)
+    assert_status_code(response, 401)
 
 
 async def test_admin_delete_user(test_manager: TestManager):
