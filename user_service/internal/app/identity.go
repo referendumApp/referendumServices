@@ -155,6 +155,15 @@ func (v *View) DeleteAccount(ctx context.Context, aid atp.Aid, did string) *refE
 			return err
 		}
 
+		nullHandle := sql.NullString{Valid: false}
+		actor := atp.Actor{
+			Handle:    nullHandle,
+			DeletedAt: deletedAt,
+		}
+		if err := v.meta.UpdateWithTx(ctx, tx, actor, sq.Eq{"id": aid}); err != nil {
+			v.log.ErrorContext(ctx, "Failed to delete actor handle", "error", err)
+			return err
+		}
 		return nil
 	}); err != nil {
 		return refErr.Database()
