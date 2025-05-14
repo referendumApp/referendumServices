@@ -102,20 +102,24 @@ func (p *PDS) CreateTokens(ctx context.Context, aid atp.Aid, did string) (string
 // CreateSession completes a login request and returns the access and refresh tokens
 func (p *PDS) CreateSession(
 	ctx context.Context,
-	actor *atp.Actor,
+	profile *atp.UserBasic,
+	aid atp.Aid,
+	email string,
 ) (*refApp.ServerCreateSession_Output, *refErr.APIError) {
-	accessToken, refreshToken, err := p.CreateTokens(ctx, actor.ID, actor.Did)
+	accessToken, refreshToken, err := p.CreateTokens(ctx, aid, profile.Did)
 	if err != nil {
 		return nil, refErr.InternalServer()
 	}
 
-	if err := p.km.UpdateKeyCache(ctx, actor.Did); err != nil {
+	if err := p.km.UpdateKeyCache(ctx, profile.Did); err != nil {
 		return nil, refErr.InternalServer()
 	}
 
 	return &refApp.ServerCreateSession_Output{
-		Did:          actor.Did,
-		Handle:       actor.Handle.String,
+		Did:          profile.Did,
+		Handle:       profile.Handle.String,
+		DisplayName:  profile.DisplayName,
+		Email:        &email,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    p.jwt.AuthScheme,

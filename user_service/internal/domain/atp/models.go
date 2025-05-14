@@ -94,9 +94,9 @@ func (a User) TableName() string {
 }
 
 type UserBasic struct {
-	Handle      *string `db:"handle,omitempty"       json:"handle"`
-	DisplayName string  `db:"display_name,omitempty" json:"display_name"`
-	Did         string  `db:"did,omitempty"          json:"did"`
+	Handle      sql.NullString `db:"handle,omitempty"       json:"handle"`
+	DisplayName string         `db:"display_name,omitempty" json:"display_name"`
+	Did         string         `db:"did,omitempty"          json:"did"`
 }
 
 func (a UserBasic) TableName() string {
