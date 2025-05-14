@@ -38,7 +38,7 @@ func (s *Service) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pw, err := s.av.ResolveUserHandle(ctx, &req)
+	pw, err := s.av.ValidateNewUserRequest(ctx, &req)
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -72,19 +72,20 @@ func (s *Service) handleCreateLegislator(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	handle, err := s.av.ResolveLegislatorHandle(ctx, &req)
+	err := s.av.ValidateNewLegislatorRequest(ctx, &req)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	actor, err := s.pds.CreateLegislatorActor(ctx, req, handle)
+	actor, err := s.pds.CreateLegislatorActor(ctx, req)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	if cerr := s.av.SaveActorAndLegislator(ctx, actor, handle); cerr != nil {
+	// TODO - pass all the profile information here
+	if cerr := s.av.SaveActorAndLegislator(ctx, actor); cerr != nil {
 		cerr.WriteResponse(w)
 		return
 	}

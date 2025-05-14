@@ -79,7 +79,6 @@ func (vm *ViewMeta) insertActorAndUserRecords(
 func (vm *ViewMeta) insertActorAndLegislatorRecords(
 	ctx context.Context,
 	actor *atp.Actor,
-	handle string,
 ) error {
 	return vm.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		row, err := database.CreateReturningWithTx(ctx, vm.DB, tx, actor, "id")
@@ -97,7 +96,7 @@ func (vm *ViewMeta) insertActorAndLegislatorRecords(
 		legislator := &atp.Legislator{
 			Aid:    actor.ID,
 			Did:    actor.Did,
-			Handle: sql.NullString{String: handle, Valid: true},
+			Handle: sql.NullString{String: actor.Handle.String, Valid: true},
 		}
 
 		if err := vm.CreateWithTx(ctx, tx, legislator); err != nil {
@@ -139,24 +138,6 @@ func (vm *ViewMeta) actorExists(ctx context.Context, filter sq.Eq) (bool, error)
 	sql := fmt.Sprintf("SELECT EXISTS(%s)", innerSql)
 	err = vm.DB.GetRow(ctx, sql, args...).Scan(&exists)
 
-	return exists, err
-}
-
-func (vm *ViewMeta) legislatorExists(ctx context.Context, filter sq.Eq) (bool, error) {
-	var exists bool
-	innerSql, args, err := sq.Select("id").
-		From(vm.Schema + ".legislator").
-		Where(filter).
-		PlaceholderFormat(sq.Dollar).ToSql()
-
-	if err != nil {
-		vm.Log.InfoContext(ctx, "Error building legislator exists query", "error", err)
-		return false, err
-	}
-
-	sql := fmt.Sprintf("SELECT EXISTS(%s)", innerSql)
-
-	err = vm.DB.GetRow(ctx, sql, args...).Scan(&exists)
 	return exists, err
 }
 

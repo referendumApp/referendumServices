@@ -1662,7 +1662,7 @@ func (t *LegislatorProfile) MarshalCBOR(w io.Writer) error {
 	}
 
 	cw := cbg.NewCborWriter(w)
-	fieldCount := 16
+	fieldCount := 15
 
 	if t.Address == nil {
 		fieldCount--
@@ -2068,28 +2068,6 @@ func (t *LegislatorProfile) MarshalCBOR(w io.Writer) error {
 		return err
 	}
 
-	// t.LegislatorId (int64) (int64)
-	if len("legislatorId") > 1000000 {
-		return xerrors.Errorf("Value in field \"legislatorId\" was too long")
-	}
-
-	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len("legislatorId"))); err != nil {
-		return err
-	}
-	if _, err := cw.WriteString(string("legislatorId")); err != nil {
-		return err
-	}
-
-	if t.LegislatorId >= 0 {
-		if err := cw.WriteMajorTypeHeader(cbg.MajUnsignedInt, uint64(t.LegislatorId)); err != nil {
-			return err
-		}
-	} else {
-		if err := cw.WriteMajorTypeHeader(cbg.MajNegativeInt, uint64(-t.LegislatorId-1)); err != nil {
-			return err
-		}
-	}
-
 	// t.FollowthemoneyEid (string) (string)
 	if t.FollowthemoneyEid != nil {
 
@@ -2387,32 +2365,6 @@ func (t *LegislatorProfile) UnmarshalCBOR(r io.Reader) (err error) {
 				}
 
 				t.Legislature = string(sval)
-			}
-			// t.LegislatorId (int64) (int64)
-		case "legislatorId":
-			{
-				maj, extra, err := cr.ReadHeader()
-				if err != nil {
-					return err
-				}
-				var extraI int64
-				switch maj {
-				case cbg.MajUnsignedInt:
-					extraI = int64(extra)
-					if extraI < 0 {
-						return fmt.Errorf("int64 positive overflow")
-					}
-				case cbg.MajNegativeInt:
-					extraI = int64(extra)
-					if extraI < 0 {
-						return fmt.Errorf("int64 negative overflow")
-					}
-					extraI = -1 - extraI
-				default:
-					return fmt.Errorf("wrong type for int64 field: %d", maj)
-				}
-
-				t.LegislatorId = int64(extraI)
 			}
 			// t.FollowthemoneyEid (string) (string)
 		case "followthemoneyEid":

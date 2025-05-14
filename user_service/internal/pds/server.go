@@ -57,7 +57,6 @@ func (p *PDS) CreateUserActor(
 func (p *PDS) CreateLegislatorActor(
 	ctx context.Context,
 	req refApp.ServerCreateLegislator_Input,
-	handle string,
 ) (*atp.Actor, *refErr.APIError) {
 	var recoveryKey = p.km.RecoveryKey()
 
@@ -66,7 +65,7 @@ func (p *PDS) CreateLegislatorActor(
 		return nil, refErr.InternalServer()
 	}
 
-	did, err := p.plc.CreateDID(ctx, sigkey, []string{recoveryKey, p.km.RotationKey()}, handle, p.serviceUrl)
+	did, err := p.plc.CreateDID(ctx, sigkey, []string{recoveryKey, p.km.RotationKey()}, req.Handle, p.serviceUrl)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Failed to create DID", "error", err)
 		return nil, refErr.PLCServer()
@@ -78,7 +77,7 @@ func (p *PDS) CreateLegislatorActor(
 	}
 
 	actor := &atp.Actor{
-		Handle:      sql.NullString{String: handle, Valid: true},
+		Handle:      sql.NullString{String: req.Handle, Valid: true},
 		RecoveryKey: recoveryKey,
 		Did:         did,
 	}

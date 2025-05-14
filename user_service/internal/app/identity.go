@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -35,8 +34,8 @@ func (v *View) validateHandle(ctx context.Context, handle string) *refErr.APIErr
 	return nil
 }
 
-// ResolveUserHandle validates handle, email, and password for create account request
-func (v *View) ResolveUserHandle(
+// ValidateNewUserRequest validates handle, email, and password for create account request
+func (v *View) ValidateNewUserRequest(
 	ctx context.Context,
 	req *refApp.ServerCreateAccount_Input,
 ) (string, *refErr.APIError) {
@@ -79,27 +78,18 @@ func (v *View) ResolveUserHandle(
 	return hashedPassword, nil
 }
 
-func (v *View) ResolveLegislatorHandle(
+func (v *View) ValidateNewLegislatorRequest(
 	ctx context.Context,
 	req *refApp.ServerCreateLegislator_Input,
-) (string, *refErr.APIError) {
-	if req.LegislatorId <= 0 {
-		fieldErr := refErr.FieldError{Field: "legislatorId", Message: "LegislatorId must be a positive integer"}
-		return "", fieldErr.Invalid()
+) *refErr.APIError {
+	if err := v.validateHandle(ctx, req.Handle); err != nil {
+		v.log.ErrorContext(ctx, "Error validating handle", "error", err)
+		return err
 	}
 
-	filter := sq.Eq{"legislatorId": req.LegislatorId}
-	if exists, err := v.meta.legislatorExists(ctx, filter); err != nil {
-		v.log.ErrorContext(ctx, "Error checking database for legislatorId", "error", err)
-		return "", refErr.InternalServer()
-	} else if exists {
-		fieldErr := refErr.FieldError{Field: "legislatorId", Message: "LegislatorId already exists"}
-		return "", fieldErr.Conflict()
-	}
+	// TODO - what check to run for uniqueness on the legislator table here?
 
-	handle := fmt.Sprintf("refLegislator%d", req.LegislatorId)
-
-	return handle, nil
+	return nil
 }
 
 // SaveActorAndUser inserts a actor and user record to the DB
@@ -119,9 +109,8 @@ func (v *View) SaveActorAndUser(
 func (v *View) SaveActorAndLegislator(
 	ctx context.Context,
 	actor *atp.Actor,
-	handle string,
 ) *refErr.APIError {
-	if err := v.meta.insertActorAndLegislatorRecords(ctx, actor, handle); err != nil {
+	if err := v.meta.insertActorAndLegislatorRecords(ctx, actor); err != nil {
 		return refErr.Database()
 	}
 	return nil

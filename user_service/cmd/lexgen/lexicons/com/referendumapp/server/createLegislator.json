@@ -10,10 +10,12 @@
           "schema": {
             "needsType": true,
             "type": "object",
-            "required": ["legislatorId", "name", "district", "party", "role", "state", "legislature"],
+            "required": ["handle", "name", "district", "party", "role", "state", "legislature"],
             "properties": {
-              "legislatorId": {
-                "type": "integer"
+              "handle": {
+                "type": "string",
+                "format": "handle",
+                "description": "Requested handle for the legislator."
               },
               "name": {
                 "type": "string"

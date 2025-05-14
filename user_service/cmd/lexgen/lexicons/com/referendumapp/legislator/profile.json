@@ -9,7 +9,6 @@
       "record": {
         "type": "object",
         "required": [
-          "legislatorId",
           "name",
           "district",
           "party",
@@ -18,7 +17,6 @@
           "legislature"
         ],
         "properties": {
-          "legislatorId": { "type": "integer" },
           "name": { "type": "string", "format": "name", "maxLength": 60 },
           "district": { "type": "string" },
           "party": { "type": "string" },
