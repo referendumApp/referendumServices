@@ -43,6 +43,20 @@ class FormException(HTTPException):
 
 class CredentialsException(HTTPException):
     def __init__(self, detail: str):
+        self.status_code = status.HTTP_401_UNAUTHORIZED
+        self.detail = detail
+        self.headers = {"WWW-Authenticate": "Bearer"}
+
+        logger.error(self.detail)
+        super().__init__(
+            status_code=self.status_code,
+            detail=self.detail,
+            headers=self.headers,
+        )
+
+
+class ForbiddenException(HTTPException):
+    def __init__(self, detail: str):
         self.status_code = status.HTTP_403_FORBIDDEN
         self.detail = detail
         self.headers = {"WWW-Authenticate": "Bearer"}
@@ -82,11 +96,11 @@ def authenticate_user(db: Session, email: str, password: str) -> models.User:
         if user is None or user.settings.get("deleted"):
             raise crud.ObjectNotFoundException(f"User with email {email} not found")
         if not verify_password(password, user.hashed_password):
-            raise CredentialsException("Incorrect password")
+            raise ForbiddenException("Incorrect password")
         logger.info(f"Successful login for user: {email}")
         return user
     except crud.DatabaseException as e:
-        raise CredentialsException(f"Database error during authentication: {str(e)}")
+        raise ForbiddenException(f"Database error during authentication: {str(e)}")
 
 
 def create_access_token(data: dict) -> str:
@@ -109,30 +123,30 @@ def create_refresh_token(data: dict) -> str:
 
 async def validate_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     if not token:
-        raise CredentialsException("No token provided")
+        raise ForbiddenException("No token provided")
 
     payload = decode_token(token)
     if not payload:
-        raise CredentialsException("Decoded token returned None")
+        raise ForbiddenException("Decoded token returned None")
 
     if payload.get("type") != "access":
-        raise CredentialsException("Invalid token type for access token")
+        raise ForbiddenException("Invalid token type for access token")
 
     uid = payload.get("sub")
     if not uid:
-        raise CredentialsException("Missing user ID in access token")
+        raise ForbiddenException("Missing user ID in access token")
 
     did = payload.get("did")
     if not did:
-        raise CredentialsException("Missing DID in access token")
+        raise ForbiddenException("Missing DID in access token")
 
     try:
         user = crud.validate_atp_user(db, int(uid), did)
         if not user:
-            raise CredentialsException(f"User not found for ID: {uid}")
+            raise ForbiddenException(f"User not found for ID: {uid}")
         logger.info(f"User authenticated: {uid}")
     except Exception as e:
-        raise CredentialsException(f"Error retrieving user: {str(e)}")
+        raise ForbiddenException(f"Error retrieving user: {str(e)}")
 
 
 async def validate_user_or_verify_system_token(
@@ -145,46 +159,46 @@ async def validate_user_or_verify_system_token(
             logger.info("System token used for authentication")
             return
         else:
-            raise CredentialsException("Invalid API key provided")
+            raise ForbiddenException("Invalid API key provided")
     if token:
         try:
             await validate_user(token, db)
             return
         except crud.ObjectNotFoundException:
-            raise CredentialsException("Could not find user for provided token")
+            raise ForbiddenException("Could not find user for provided token")
         except crud.DatabaseException as e:
             logger.error(f"Database error during user authentication: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Database error: {str(e)}",
             )
-    raise CredentialsException("No valid authentication provided")
+    raise ForbiddenException("No valid authentication provided")
 
 
 async def get_current_user(
     token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
 ) -> models.User:
     if not token:
-        raise CredentialsException("No token provided")
+        raise ForbiddenException("No token provided")
 
     payload = decode_token(token)
     if not payload:
-        raise CredentialsException("Decoded token returned None")
+        raise ForbiddenException("Decoded token returned None")
 
     if payload.get("type") != "access":
-        raise CredentialsException("Invalid token type for access token")
+        raise ForbiddenException("Invalid token type for access token")
 
-    email: str = payload.get("sub")
+    email = payload.get("sub")
     if not email:
-        raise CredentialsException("Missing email in access token")
+        raise ForbiddenException("Missing email in access token")
 
     try:
         user = crud.user.get_user_by_email(db, email)
         if not user:
-            raise CredentialsException(f"User not found for email: {email}")
+            raise ForbiddenException(f"User not found for email: {email}")
         return user
     except Exception as e:
-        raise CredentialsException(f"Error retrieving user: {str(e)}")
+        raise ForbiddenException(f"Error retrieving user: {str(e)}")
 
 
 async def get_current_user_or_verify_system_token(
@@ -197,21 +211,21 @@ async def get_current_user_or_verify_system_token(
             logger.info("System token used for authentication")
             return {"is_system": True}
         else:
-            raise CredentialsException("Invalid API key provided")
+            raise ForbiddenException("Invalid API key provided")
     if token:
         try:
             user = await get_current_user(token, db)
             logger.info(f"User authenticated: {user.email}")
             return {"is_system": False, "user": user}
         except crud.ObjectNotFoundException:
-            raise CredentialsException("Could not find user for provided token")
+            raise ForbiddenException("Could not find user for provided token")
         except crud.DatabaseException as e:
             logger.error(f"Database error during user authentication: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Database error: {str(e)}",
             )
-    raise CredentialsException("No valid authentication provided")
+    raise ForbiddenException("No valid authentication provided")
 
 
 async def verify_system_token(api_key: str = Security(api_key_header)):

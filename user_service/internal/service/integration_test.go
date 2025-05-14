@@ -755,7 +755,7 @@ func TestSession(t *testing.T) {
 			"Delete Session w/ Invalid Token",
 			testRequest{
 				method:  http.MethodDelete,
-				path:    "/auth",
+				path:    "/auth/session",
 				headers: map[string]string{"Authorization": "Bearer " + testAccessToken},
 			},
 			testResponse{
@@ -767,7 +767,7 @@ func TestSession(t *testing.T) {
 			"Delete Session",
 			testRequest{
 				method:  http.MethodDelete,
-				path:    "/auth",
+				path:    "/auth/session",
 				headers: map[string]string{"Authorization": "Bearer " + accessToken},
 			},
 			testResponse{
@@ -789,7 +789,7 @@ func TestSession(t *testing.T) {
 			"Delete Account w/ Invalid Token",
 			testRequest{
 				method:  http.MethodDelete,
-				path:    "/user",
+				path:    "/auth/account",
 				headers: map[string]string{"Authorization": "Bearer " + testAccessToken},
 			},
 			testResponse{
@@ -801,7 +801,7 @@ func TestSession(t *testing.T) {
 			"Delete Account",
 			testRequest{
 				method:  http.MethodDelete,
-				path:    "/user",
+				path:    "/auth/account",
 				headers: map[string]string{"Authorization": "Bearer " + accessToken},
 			},
 			testResponse{
@@ -813,7 +813,7 @@ func TestSession(t *testing.T) {
 			"Delete Account Again",
 			testRequest{
 				method:  http.MethodDelete,
-				path:    "/user",
+				path:    "/auth/account",
 				headers: map[string]string{"Authorization": "Bearer " + accessToken},
 			},
 			testResponse{

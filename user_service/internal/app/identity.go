@@ -43,11 +43,11 @@ func (v *View) ResolveHandle(ctx context.Context, req *refApp.ServerCreateAccoun
 
 	filter := sq.Eq{"email": req.Email}
 	if exists, err := v.meta.actorExists(ctx, filter); err != nil {
-		v.log.ErrorContext(ctx, "Error checking database for user email", "error", err)
+		v.log.ErrorContext(ctx, "Error checking database for actor email", "error", err)
 		return "", refErr.InternalServer()
 	} else if exists {
 		nerr := errors.New("email already exists")
-		v.log.ErrorContext(ctx, nerr.Error(), "user", req.Email)
+		v.log.ErrorContext(ctx, nerr.Error(), "email", req.Email)
 		fieldErr := refErr.FieldError{Field: "email", Message: nerr.Error()}
 		return "", fieldErr.Conflict()
 	}
@@ -89,26 +89,30 @@ func (v *View) SaveActorAndUser(
 }
 
 // GetAuthenticatedActor validates username and password for a create session request
-func (v *View) GetAuthenticatedActor(ctx context.Context, username string, pw string) (*atp.Actor, *refErr.APIError) {
+func (v *View) GetAuthenticatedActor(
+	ctx context.Context,
+	username string,
+	pw string,
+) (atp.Aid, string, *refErr.APIError) {
 	defaultErr := refErr.FieldError{Message: "Email or password not found"}
 	actor, err := v.meta.authenticateActor(ctx, username)
 	if err != nil {
 		v.log.ErrorContext(ctx, "Failed to authenticate actor", "error", err, "username", username)
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, defaultErr.NotFound()
+			return 0, "", defaultErr.NotFound()
 		}
-		return nil, refErr.InternalServer()
+		return 0, "", refErr.InternalServer()
 	}
 
 	if ok, verr := util.VerifyPassword(pw, actor.HashedPassword.String); verr != nil {
 		v.log.ErrorContext(ctx, "Error verifying password", "error", verr, "username", username)
-		return nil, refErr.InternalServer()
+		return 0, "", refErr.InternalServer()
 	} else if !ok {
 		v.log.ErrorContext(ctx, "Invalid login password", "username", username)
-		return nil, defaultErr.NotFound()
+		return 0, "", defaultErr.NotFound()
 	}
 
-	return actor, nil
+	return actor.ID, actor.Email.String, nil
 }
 
 // AuthenticateSession validates a session based on the user ID and DID

@@ -25,6 +25,7 @@ from ..schemas.users import (
 )
 from ..security import (
     CredentialsException,
+    ForbiddenException,
     FormException,
     authenticate_user,
     create_access_token,
@@ -111,7 +112,7 @@ async def login_for_access_token(
             "refresh_token": refresh_token,
             "token_type": "bearer",
         }
-    except (CredentialsException, ObjectNotFoundException) as e:
+    except (CredentialsException, ForbiddenException, ObjectNotFoundException) as e:
         logger.error(f"Login failed with exception '{e}' for user: {form_data.username}")
         raise FormException(
             status_code=status.HTTP_401_UNAUTHORIZED,
