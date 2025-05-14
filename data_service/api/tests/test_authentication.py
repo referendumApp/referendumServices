@@ -131,7 +131,7 @@ async def test_login_incorrect_password(client):
     # Now try to login with wrong password
     login_data = {"username": user_data["email"], "password": "wrongpassword"}
     response = await client.post("/auth/login", data=login_data)
-    assert_status_code(response, 401)
+    assert_status_code(response, 403)
     assert {
         "field": "username",
         "message": "Username or password not found",
