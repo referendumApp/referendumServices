@@ -32,6 +32,7 @@
             "accessToken",
             "refreshToken",
             "handle",
+            "displayName",
             "did",
             "tokenType"
           ],
@@ -44,6 +45,11 @@
               "minLength": 8,
               "maxLength": 100
             },
+            "displayName": {
+              "type": "string",
+              "format": "name",
+              "maxLength": 60
+            },
             "did": { "type": "string", "format": "did" },
             "didDoc": { "type": "unknown" },
             "email": {
@@ -55,11 +61,7 @@
             "tokenType": { "type": "string" }
           }
         }
-      },
-      "errors": [
-        { "name": "AccountTakedown" },
-        { "name": "AuthFactorTokenRequired" }
-      ]
+      }
     }
   }
 }

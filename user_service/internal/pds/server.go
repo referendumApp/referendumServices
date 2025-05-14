@@ -113,6 +113,9 @@ func (p *PDS) CreateSession(
 
 	return &refApp.ServerCreateSession_Output{
 		Did:          user.Did,
+		Handle:       actor.Handle.String,
+		DisplayName:  actor.DisplayName,
+		Email:        &email,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    p.jwt.AuthScheme,

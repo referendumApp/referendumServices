@@ -47,7 +47,7 @@ func (v *View) ResolveHandle(ctx context.Context, req *refApp.ServerCreateAccoun
 		return "", refErr.InternalServer()
 	} else if exists {
 		nerr := errors.New("email already exists")
-		v.log.ErrorContext(ctx, nerr.Error(), "user", req.Email)
+		v.log.ErrorContext(ctx, nerr.Error(), "email", req.Email)
 		fieldErr := refErr.FieldError{Field: "email", Message: nerr.Error()}
 		return "", fieldErr.Conflict()
 	}
@@ -88,26 +88,30 @@ func (v *View) SaveActorAndUser(
 }
 
 // GetAuthenticatedUser validates username and password for a create session request
-func (v *View) GetAuthenticatedUser(ctx context.Context, username string, pw string) (*atp.User, *refErr.APIError) {
+func (v *View) GetAuthenticatedUser(
+	ctx context.Context,
+	username string,
+	pw string,
+) (atp.Aid, string, *refErr.APIError) {
 	defaultErr := refErr.FieldError{Message: "Email or password not found"}
 	user, err := v.meta.getUserForEmail(ctx, username)
 	if err != nil {
 		v.log.ErrorContext(ctx, "Failed to fetch user details", "error", err, "username", username)
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, defaultErr.NotFound()
+			return 0, "", defaultErr.NotFound()
 		}
-		return nil, refErr.InternalServer()
+		return 0, "", refErr.InternalServer()
 	}
 
 	if ok, verr := util.VerifyPassword(pw, user.HashedPassword.String); verr != nil {
 		v.log.ErrorContext(ctx, "Error verifying password", "error", verr, "username", username)
-		return nil, refErr.InternalServer()
+		return 0, "", refErr.InternalServer()
 	} else if !ok {
 		v.log.ErrorContext(ctx, "Invalid login password", "username", username)
-		return nil, defaultErr.NotFound()
+		return 0, "", defaultErr.NotFound()
 	}
 
-	return user, nil
+	return user.Aid, user.Email.String, nil
 }
 
 // AuthenticateSession validates a session based on the user ID and DID

@@ -29,8 +29,8 @@ repos:
     hooks:
       - id: golines
         name: golines
-        entry: golines
-        args: ["-w", "--max-len=120", "."]
+        entry: sh
+        args: ["-c", "cd user_service && golines -w --max-len=120 ."]
         language: system
         types: [go]
         always_run: true
@@ -41,8 +41,8 @@ repos:
     hooks:
       - id: gci
         name: gci
-        entry: gci
-        args: ["write", "."]
+        entry: sh
+        args: ["-c", "cd user_service && gci write ."]
         language: system
         types: [go]
         always_run: true

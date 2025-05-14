@@ -106,6 +106,14 @@ func NewConfig(sk []byte, iss string, method *jwt.SigningMethodHMAC) *JWTConfig 
 
 // CreateToken create the JWT token with all the necessary map claims
 func (j *JWTConfig) CreateToken(sub atp.Aid, did string, tokenType TokenType) (string, error) {
+	if sub == 0 {
+		return "", fmt.Errorf("invalid subject value: %d", sub)
+	}
+
+	if did == "" {
+		return "", fmt.Errorf("missing did claim")
+	}
+
 	// Current time
 	now := time.Now()
 

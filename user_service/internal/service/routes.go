@@ -9,13 +9,13 @@ func (s *Service) setupRoutes() {
 		r.Post("/signup", s.handleCreateUser)
 		r.Post("/login", s.handleCreateSession)
 		r.Post("/refresh", s.handleRefreshSession)
-		r.With(s.pds.AuthorizeUser).Delete("/", s.handleDeleteSession)
+		r.With(s.pds.AuthorizeUser).Delete("/session", s.handleDeleteSession)
+		r.With(s.pds.AuthorizeUser).Delete("/account", s.handleDeleteUser)
 	})
 
 	s.mux.Route("/user", func(r chi.Router) {
 		r.Use(s.pds.AuthorizeUser)
 
-		r.Delete("/", s.handleDeleteUser)
 		r.Put("/profile", s.handleUserProfileUpdate)
 		r.Post("/follow", s.handleGraphFollow)
 

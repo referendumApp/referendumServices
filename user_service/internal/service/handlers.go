@@ -85,13 +85,19 @@ func (s *Service) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := s.av.GetAuthenticatedUser(ctx, login.Username, login.Password)
+	aid, email, err := s.av.GetAuthenticatedUser(ctx, login.Username, login.Password)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	resp, err := s.pds.CreateSession(ctx, user)
+	profile, err := s.av.GetProfile(ctx, aid)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	resp, err := s.pds.CreateSession(ctx, profile, aid, email)
 	if err != nil {
 		err.WriteResponse(w)
 		return
