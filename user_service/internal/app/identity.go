@@ -92,26 +92,26 @@ func (v *View) GetAuthenticatedUser(
 	ctx context.Context,
 	username string,
 	pw string,
-) (atp.Aid, string, *refErr.APIError) {
+) (*atp.User, *refErr.APIError) {
 	defaultErr := refErr.FieldError{Message: "Email or password not found"}
 	user, err := v.meta.getUserForEmail(ctx, username)
 	if err != nil {
 		v.log.ErrorContext(ctx, "Failed to fetch user details", "error", err, "username", username)
 		if errors.Is(err, sql.ErrNoRows) {
-			return 0, "", defaultErr.NotFound()
+			return nil, defaultErr.NotFound()
 		}
-		return 0, "", refErr.InternalServer()
+		return nil, refErr.InternalServer()
 	}
 
 	if ok, verr := util.VerifyPassword(pw, user.HashedPassword.String); verr != nil {
 		v.log.ErrorContext(ctx, "Error verifying password", "error", verr, "username", username)
-		return 0, "", refErr.InternalServer()
+		return nil, refErr.InternalServer()
 	} else if !ok {
 		v.log.ErrorContext(ctx, "Invalid login password", "username", username)
-		return 0, "", defaultErr.NotFound()
+		return nil, defaultErr.NotFound()
 	}
 
-	return user.Aid, user.Email.String, nil
+	return user, nil
 }
 
 // AuthenticateSession validates a session based on the user ID and DID

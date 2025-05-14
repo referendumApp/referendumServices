@@ -101,6 +101,7 @@ func (p *PDS) CreateTokens(ctx context.Context, aid atp.Aid, did string) (string
 func (p *PDS) CreateSession(
 	ctx context.Context,
 	user *atp.User,
+	actor *atp.ActorBasic,
 ) (*refApp.ServerCreateSession_Output, *refErr.APIError) {
 	accessToken, refreshToken, err := p.CreateTokens(ctx, user.Aid, user.Did)
 	if err != nil {
@@ -113,9 +114,9 @@ func (p *PDS) CreateSession(
 
 	return &refApp.ServerCreateSession_Output{
 		Did:          user.Did,
-		Handle:       actor.Handle.String,
+		Handle:       *actor.Handle,
 		DisplayName:  actor.DisplayName,
-		Email:        &email,
+		Email:        &user.Email.String,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    p.jwt.AuthScheme,
