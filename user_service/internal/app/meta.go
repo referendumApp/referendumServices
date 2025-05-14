@@ -79,12 +79,12 @@ func (vm *ViewMeta) insertActorAndUserRecords(
 func (vm *ViewMeta) authenticateActor(ctx context.Context, aname string) (*atp.Actor, error) {
 	var actor atp.Actor
 	sql := fmt.Sprintf(
-		"SELECT id, did, handle, hashed_password FROM %s.%s WHERE deleted_at IS NULL AND (email = $1 OR handle = $1)",
+		"SELECT id, email, hashed_password FROM %s.%s WHERE deleted_at IS NULL AND (email = $1 OR handle = $1)",
 		vm.Schema,
 		actor.TableName(),
 	)
 
-	if err := vm.GetRow(ctx, sql, aname).Scan(&actor.ID, &actor.Did, &actor.Handle, &actor.HashedPassword); err != nil {
+	if err := vm.GetRow(ctx, sql, aname).Scan(&actor.ID, &actor.Handle, &actor.HashedPassword); err != nil {
 		return nil, err
 	}
 

@@ -97,7 +97,6 @@ type UserBasic struct {
 	Handle      *string `db:"handle,omitempty"       json:"handle"`
 	DisplayName string  `db:"display_name,omitempty" json:"display_name"`
 	Did         string  `db:"did,omitempty"          json:"did"`
-	Type        *string `db:"type,omitempty"         json:"type"`
 }
 
 func (a UserBasic) TableName() string {
