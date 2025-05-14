@@ -28,7 +28,6 @@
           "state": { "type": "string" },
           "legislature": { "type": "string" },
           "phone": { "type": "string", "format": "e164" },
-          "followthemoneyEid": { "type": "string" },
           "imageUrl": { "type": "string" },
           "image": {
             "type": "blob",

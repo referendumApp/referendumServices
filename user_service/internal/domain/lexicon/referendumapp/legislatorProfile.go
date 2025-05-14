@@ -14,21 +14,20 @@ func init() {
 
 // RECORDTYPE: LegislatorProfile
 type LegislatorProfile struct {
-	LexiconTypeID     string        `json:"$type" cborgen:"$type,const=com.referendumapp.legislator.profile" validate:"required"`
-	Address           *string       `json:"address,omitempty" cborgen:"address,omitempty" validate:"omitempty"`
-	District          string        `json:"district" cborgen:"district" validate:"required"`
-	Facebook          *string       `json:"facebook,omitempty" cborgen:"facebook,omitempty" validate:"omitempty"`
-	FollowthemoneyEid *string       `json:"followthemoneyEid,omitempty" cborgen:"followthemoneyEid,omitempty" validate:"omitempty"`
-	Image             *util.LexBlob `json:"image,omitempty" cborgen:"image,omitempty" validate:"omitempty"`
-	ImageUrl          *string       `json:"imageUrl,omitempty" cborgen:"imageUrl,omitempty" validate:"omitempty"`
-	Instagram         *string       `json:"instagram,omitempty" cborgen:"instagram,omitempty" validate:"omitempty"`
-	Legislature       string        `json:"legislature" cborgen:"legislature" validate:"required"`
-	Name              string        `json:"name" cborgen:"name" validate:"required,name,max=60"`
-	Party             string        `json:"party" cborgen:"party" validate:"required"`
-	Phone             *string       `json:"phone,omitempty" cborgen:"phone,omitempty" validate:"omitempty,e164"`
-	Role              string        `json:"role" cborgen:"role" validate:"required"`
-	State             string        `json:"state" cborgen:"state" validate:"required"`
-	Twitter           *string       `json:"twitter,omitempty" cborgen:"twitter,omitempty" validate:"omitempty"`
+	LexiconTypeID string        `json:"$type" cborgen:"$type,const=com.referendumapp.legislator.profile" validate:"required"`
+	Address       *string       `json:"address,omitempty" cborgen:"address,omitempty" validate:"omitempty"`
+	District      string        `json:"district" cborgen:"district" validate:"required"`
+	Facebook      *string       `json:"facebook,omitempty" cborgen:"facebook,omitempty" validate:"omitempty"`
+	Image         *util.LexBlob `json:"image,omitempty" cborgen:"image,omitempty" validate:"omitempty"`
+	ImageUrl      *string       `json:"imageUrl,omitempty" cborgen:"imageUrl,omitempty" validate:"omitempty"`
+	Instagram     *string       `json:"instagram,omitempty" cborgen:"instagram,omitempty" validate:"omitempty"`
+	Legislature   string        `json:"legislature" cborgen:"legislature" validate:"required"`
+	Name          string        `json:"name" cborgen:"name" validate:"required,name,max=60"`
+	Party         string        `json:"party" cborgen:"party" validate:"required"`
+	Phone         *string       `json:"phone,omitempty" cborgen:"phone,omitempty" validate:"omitempty,e164"`
+	Role          string        `json:"role" cborgen:"role" validate:"required"`
+	State         string        `json:"state" cborgen:"state" validate:"required"`
+	Twitter       *string       `json:"twitter,omitempty" cborgen:"twitter,omitempty" validate:"omitempty"`
 }
 
 func (t LegislatorProfile) NSID() string {

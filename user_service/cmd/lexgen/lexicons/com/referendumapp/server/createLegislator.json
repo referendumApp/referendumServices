@@ -51,9 +51,6 @@
                 "type": "string",
                 "format": "e164"
               },
-              "followthemoneyEid": {
-                "type": "string"
-              },
               "imageUrl": {
                 "type": "string"
               },

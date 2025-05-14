@@ -1662,17 +1662,13 @@ func (t *LegislatorProfile) MarshalCBOR(w io.Writer) error {
 	}
 
 	cw := cbg.NewCborWriter(w)
-	fieldCount := 15
+	fieldCount := 14
 
 	if t.Address == nil {
 		fieldCount--
 	}
 
 	if t.Facebook == nil {
-		fieldCount--
-	}
-
-	if t.FollowthemoneyEid == nil {
 		fieldCount--
 	}
 
@@ -2067,38 +2063,6 @@ func (t *LegislatorProfile) MarshalCBOR(w io.Writer) error {
 	if _, err := cw.WriteString(string(t.Legislature)); err != nil {
 		return err
 	}
-
-	// t.FollowthemoneyEid (string) (string)
-	if t.FollowthemoneyEid != nil {
-
-		if len("followthemoneyEid") > 1000000 {
-			return xerrors.Errorf("Value in field \"followthemoneyEid\" was too long")
-		}
-
-		if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len("followthemoneyEid"))); err != nil {
-			return err
-		}
-		if _, err := cw.WriteString(string("followthemoneyEid")); err != nil {
-			return err
-		}
-
-		if t.FollowthemoneyEid == nil {
-			if _, err := cw.Write(cbg.CborNull); err != nil {
-				return err
-			}
-		} else {
-			if len(*t.FollowthemoneyEid) > 1000000 {
-				return xerrors.Errorf("Value in field t.FollowthemoneyEid was too long")
-			}
-
-			if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len(*t.FollowthemoneyEid))); err != nil {
-				return err
-			}
-			if _, err := cw.WriteString(string(*t.FollowthemoneyEid)); err != nil {
-				return err
-			}
-		}
-	}
 	return nil
 }
 
@@ -2127,7 +2091,7 @@ func (t *LegislatorProfile) UnmarshalCBOR(r io.Reader) (err error) {
 
 	n := extra
 
-	nameBuf := make([]byte, 17)
+	nameBuf := make([]byte, 11)
 	for i := uint64(0); i < n; i++ {
 		nameLen, ok, err := cbg.ReadFullStringIntoBuf(cr, nameBuf, 1000000)
 		if err != nil {
@@ -2365,27 +2329,6 @@ func (t *LegislatorProfile) UnmarshalCBOR(r io.Reader) (err error) {
 				}
 
 				t.Legislature = string(sval)
-			}
-			// t.FollowthemoneyEid (string) (string)
-		case "followthemoneyEid":
-
-			{
-				b, err := cr.ReadByte()
-				if err != nil {
-					return err
-				}
-				if b != cbg.CborNull[0] {
-					if err := cr.UnreadByte(); err != nil {
-						return err
-					}
-
-					sval, err := cbg.ReadStringWithMax(cr, 1000000)
-					if err != nil {
-						return err
-					}
-
-					t.FollowthemoneyEid = (*string)(&sval)
-				}
 			}
 
 		default:
