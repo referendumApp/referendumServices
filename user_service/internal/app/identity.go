@@ -43,11 +43,11 @@ func (v *View) ResolveHandle(ctx context.Context, req *refApp.ServerCreateAccoun
 
 	filter := sq.Eq{"email": req.Email}
 	if exists, err := v.meta.actorExists(ctx, filter); err != nil {
-		v.log.ErrorContext(ctx, "Error checking database for user email", "error", err)
+		v.log.ErrorContext(ctx, "Error checking database for actor email", "error", err)
 		return "", refErr.InternalServer()
 	} else if exists {
 		nerr := errors.New("email already exists")
-		v.log.ErrorContext(ctx, nerr.Error(), "user", req.Email)
+		v.log.ErrorContext(ctx, nerr.Error(), "email", req.Email)
 		fieldErr := refErr.FieldError{Field: "email", Message: nerr.Error()}
 		return "", fieldErr.Conflict()
 	}

@@ -18,9 +18,19 @@ type TableEntity interface {
 // BuildSelect returns a select query with columns
 func BuildSelect(entity TableEntity, schema string, filters ...sq.Sqlizer) (*sq.SelectBuilder, error) {
 	table := schema + "." + entity.TableName()
-	cols, err := getColumns(entity)
-	if err != nil {
+	var cols []string
+
+	if err := operateOnFields(entity, func(tags []string, field reflect.Value) error {
+		columnName := tags[0]
+
+		cols = append(cols, fmt.Sprintf("%s.%s", table, columnName))
+		return nil
+	}); err != nil {
 		return nil, err
+	}
+
+	if len(cols) == 0 {
+		return nil, ErrNoFields
 	}
 
 	query := sq.Select(cols...).From(table).PlaceholderFormat(sq.Dollar)
@@ -97,26 +107,6 @@ func operateOnFields(entity TableEntity, cb func(tags []string, field reflect.Va
 	}
 
 	return nil
-}
-
-func getColumns(entity TableEntity) ([]string, error) {
-	tblName := entity.TableName()
-	var cols []string
-
-	if err := operateOnFields(entity, func(tags []string, field reflect.Value) error {
-		columnName := tags[0]
-
-		cols = append(cols, fmt.Sprintf("%s.%s", tblName, columnName))
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-
-	if len(cols) == 0 {
-		return nil, ErrNoFields
-	}
-
-	return cols, nil
 }
 
 func getQueryMap(entity TableEntity) (map[string]any, error) {
