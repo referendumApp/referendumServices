@@ -1,4 +1,4 @@
-//revive:disable:exported
+// Package atp implements the AT Protocol data models and client functionality
 package atp
 
 import (
@@ -9,8 +9,10 @@ import (
 	"github.com/bluesky-social/indigo/xrpc"
 )
 
+// Aid represents an Actor ID, used as a primary identifier for actors in the system
 type Aid uint64
 
+// Base provides common fields for database models including timestamps and primary key
 type Base struct {
 	CreatedAt time.Time    `db:"created_at,omitempty" json:"-"`
 	UpdatedAt time.Time    `db:"updated_at,omitempty" json:"-"`
@@ -18,6 +20,7 @@ type Base struct {
 	ID        uint         `db:"id,omitempty,pk"      json:"id"`
 }
 
+// Actor represents an authentication entity in the system and is the core account object that owns a repo
 type Actor struct {
 	Email          sql.NullString `db:"email,omitempty"           json:"email"`
 	HashedPassword sql.NullString `db:"hashed_password,omitempty" json:"-"`
@@ -29,12 +32,14 @@ type Actor struct {
 	DeletedAt      sql.NullTime   `db:"deleted_at,omitempty"      json:"-"`
 	ID             Aid            `db:"id,omitempty,pk"           json:"id"`
 	PDS            sql.NullInt64  `db:"pds_id,omitempty"          json:"-"`
+	Settings       *Settings      `db:"settings,omitempty"        json:"settings"`
 }
 
 func (u Actor) TableName() string {
 	return "actor"
 }
 
+// Peering represents a peering relationship between servers
 type Peering struct {
 	Host string
 	Did  string
@@ -46,6 +51,7 @@ func (p Peering) TableName() string {
 	return "peering"
 }
 
+// ActivityPost represents a post or content item in the activity stream
 type ActivityPost struct {
 	Rkey string `db:"rkey"         json:"-"`
 	Cid  DbCID  `db:"cid"          json:"-"`
@@ -62,24 +68,27 @@ func (f ActivityPost) TableName() string {
 	return "activity_post"
 }
 
+// Settings stores user configuration settings
 type Settings struct {
-	Deleted bool `db:"deleted" json:"deleted"`
+	Type string `db:"type" json:"type"`
 }
 
+// Marshal serializes Settings to JSON
 func (u *Settings) Marshal() ([]byte, error) {
 	return json.Marshal(u)
 }
 
+// Unmarshal deserializes Settings from JSON
 func (u *Settings) Unmarshal(data []byte) error {
 	return json.Unmarshal(data, u)
 }
 
+// User represents the social profile in the system with display information and social metrics.
+// Each User is associated with exactly one Actor via the Aid field.
 type User struct {
-	Settings    *Settings      `db:"settings,omitempty"     json:"settings"`
 	Handle      sql.NullString `db:"handle,omitempty"       json:"handle"`
 	DisplayName string         `db:"display_name,omitempty" json:"display_name"`
 	Did         string         `db:"did,omitempty"          json:"did"`
-	Type        sql.NullString `db:"type,omitempty"         json:"type"`
 	Base
 	Aid         Aid           `db:"aid,omitempty"          json:"-"`
 	Following   int64         `db:"following,omitempty"    json:"following"`
@@ -93,17 +102,18 @@ func (a User) TableName() string {
 	return "user"
 }
 
+// UserBasic provides a simplified representation of a user
 type UserBasic struct {
 	Handle      *string `db:"handle,omitempty"       json:"handle"`
 	DisplayName string  `db:"display_name,omitempty" json:"display_name"`
 	Did         string  `db:"did,omitempty"          json:"did"`
-	Type        *string `db:"type,omitempty"         json:"type"`
 }
 
 func (a UserBasic) TableName() string {
 	return "user"
 }
 
+// EndorsementRecord represents a like or endorsement of a post
 type EndorsementRecord struct {
 	Created  string `db:"created"         json:"-"`
 	Rkey     string `db:"rkey"            json:"-"`
@@ -117,6 +127,7 @@ func (v EndorsementRecord) TableName() string {
 	return "endorsement_record"
 }
 
+// ActorFollowRecord represents a follow relationship between actors
 type ActorFollowRecord struct {
 	Rkey string `db:"rkey"     json:"-"`
 	Cid  DbCID  `db:"cid"      json:"-"`
@@ -129,6 +140,7 @@ func (f ActorFollowRecord) TableName() string {
 	return "actor_follow_record"
 }
 
+// PDS represents a Personal Data Server that hosts user data
 type PDS struct {
 	Host string `db:"host"`
 	Did  string `db:"did"`
@@ -149,6 +161,8 @@ func (p PDS) TableName() string {
 	return "pds"
 }
 
+// ClientForPds creates an xrpc client configured for a specific PDS
+// It handles HTTP/HTTPS protocol selection based on the PDS configuration
 func ClientForPds(pds *PDS) *xrpc.Client {
 	if pds.SSL {
 		return &xrpc.Client{
@@ -169,6 +183,7 @@ func ClientForPds(pds *PDS) *xrpc.Client {
 // 	return "domain_ban"
 // }
 
+// Feed represents a content feed with filtering criteria
 type Feed struct {
 	ID           uint      `db:"id,omitempty,pk"        json:"id"`
 	IndexedAt    time.Time `db:"indexed_at,omitempty"   json:"-"`
