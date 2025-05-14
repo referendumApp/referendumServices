@@ -85,15 +85,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Cache Migration Docker Layers
-        uses: actions/cache@v3
-        with:
-          path: /tmp/.buildx-cache-migrations
-          key: ${{ runner.os }}-buildx-migrations-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-migrations-${{ github.ref }}-
-            ${{ runner.os }}-buildx-migrations-
-
+      # - name: Cache Migration Docker Layers
+      #   uses: actions/cache@v3
+      #   with:
+      #     path: /tmp/.buildx-cache-migrations
+      #     key: ${{ runner.os }}-buildx-migrations-${{ github.sha }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-buildx-migrations-${{ github.ref }}-
+      #       ${{ runner.os }}-buildx-migrations-
+      #
       - name: Cache User Test Docker Layers
         uses: actions/cache@v3
         with:
@@ -103,17 +103,17 @@ jobs:
             ${{ runner.os }}-buildx-user-tests-${{ github.ref }}-
             ${{ runner.os }}-buildx-user-tests-
 
-      # - name: Build Migrations Image
-      #   uses: docker/build-push-action@v6
-      #   with:
-      #     context: ./data_service
-      #     file: ./data_service/Dockerfile
-      #     target: migrations
-      #     push: false
-      #     load: true
-      #     tags: migrations
-      #     cache-from: type=local,src=/tmp/.buildx-cache-migrations
-      #     cache-to: type=local,dest=/tmp/.buildx-cache-migrations-new,mode=max
+      - name: Build Migrations Image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./data_service
+          file: ./data_service/Dockerfile
+          target: migrations
+          push: false
+          load: true
+          tags: migrations
+          # cache-from: type=local,src=/tmp/.buildx-cache-migrations
+          # cache-to: type=local,dest=/tmp/.buildx-cache-migrations-new,mode=max
 
       - name: Build Test Image
         uses: docker/build-push-action@v6
