@@ -39,7 +39,6 @@ func (vm *ViewMeta) insertActorAndUserRecords(
 			Did:         actor.Did,
 			Handle:      sql.NullString{String: handle, Valid: true},
 			DisplayName: dname,
-			Settings:    &atp.Settings{Deleted: false},
 		}
 
 		if err := vm.CreateWithTx(ctx, tx, user); err != nil {
