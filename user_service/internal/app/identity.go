@@ -82,6 +82,7 @@ func (v *View) ValidateNewLegislatorRequest(
 	ctx context.Context,
 	req *refApp.ServerCreateLegislator_Input,
 ) *refErr.APIError {
+	// TODO instead use first-last-state -> if fails use first-last-state-legislatorId
 	var handle = fmt.Sprintf("refLegislator%d", req.LegislatorId)
 	req.Handle = &handle
 
