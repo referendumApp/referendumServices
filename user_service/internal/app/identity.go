@@ -87,22 +87,32 @@ func (v *View) SaveActorAndUser(
 	return nil
 }
 
-// GetAuthenticatedUser validates username and password for a create session request
+// GetAuthenticatedUser validates username (which can be email or handle) and password
 func (v *View) GetAuthenticatedUser(
 	ctx context.Context,
 	username string,
 	pw string,
 ) (*atp.User, *refErr.APIError) {
-	defaultErr := refErr.FieldError{Message: "Email or password not found"}
-	user, err := v.meta.getUserForEmail(ctx, username)
-	if err != nil {
-		v.log.ErrorContext(ctx, "Failed to fetch user details", "error", err, "username", username)
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, defaultErr.NotFound()
-		}
-		return nil, refErr.InternalServer()
+	// TODO - improve this flow by using caching
+
+	defaultErr := refErr.FieldError{Message: "Username or password not found"}
+
+	// First try to fetch the user by email
+	user, err := v.meta.LookupUserByEmail(ctx, username)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		v.log.ErrorContext(ctx, "Failed to fetch user details by email", "error", err, "username", username)
+		return nil, defaultErr.NotFound()
 	}
 
+	// If user not found by email, try to fetch by handle through the Actor table
+	if user == nil || errors.Is(err, sql.ErrNoRows) {
+		user, err = v.meta.LookupUserByHandle(ctx, username)
+		if err != nil {
+			return nil, defaultErr.NotFound()
+		}
+	}
+
+	// Verify the password
 	if ok, verr := util.VerifyPassword(pw, user.HashedPassword.String); verr != nil {
 		v.log.ErrorContext(ctx, "Error verifying password", "error", verr, "username", username)
 		return nil, refErr.InternalServer()

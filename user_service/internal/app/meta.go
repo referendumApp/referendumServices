@@ -75,21 +75,6 @@ func (vm *ViewMeta) insertActorAndUserRecords(
 	})
 }
 
-func (vm *ViewMeta) getUserForEmail(ctx context.Context, email string) (*atp.User, error) {
-	var user atp.User
-	sql := fmt.Sprintf(
-		"SELECT aid, did, email, hashed_password FROM %s.%s WHERE deleted_at IS NULL AND (email = $1)",
-		vm.Schema,
-		user.TableName(),
-	)
-
-	if err := vm.GetRow(ctx, sql, email).Scan(&user.Aid, &user.Did, &user.Email, &user.HashedPassword); err != nil {
-		return nil, err
-	}
-
-	return &user, nil
-}
-
 func (vm *ViewMeta) actorExists(ctx context.Context, filter sq.Eq) (bool, error) {
 	var exists bool
 	innerSql, args, err := sq.Select("id").
@@ -124,6 +109,36 @@ func (vm *ViewMeta) userExists(ctx context.Context, filter sq.Eq) (bool, error) 
 	err = vm.DB.GetRow(ctx, sql, args...).Scan(&exists)
 
 	return exists, err
+}
+
+func (vm *ViewMeta) lookupUserQuery(ctx context.Context, filter sq.Sqlizer) (*atp.User, error) {
+	var entity atp.User
+	user, err := database.GetAll(ctx, vm.DB, entity, filter)
+	if err != nil {
+		vm.Log.ErrorContext(ctx, "Failed to lookup user", "filter", filter)
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (vm *ViewMeta) LookupUserByEmail(ctx context.Context, email string) (*atp.User, error) {
+	filter := sq.Eq{"email": email}
+	return vm.lookupUserQuery(ctx, filter)
+}
+
+func (vm *ViewMeta) LookupUserByHandle(ctx context.Context, handle string) (*atp.User, error) {
+	actor, err := vm.LookupActorByHandle(ctx, handle)
+	if err != nil {
+		return nil, err
+	}
+
+	return vm.LookupUserByAid(ctx, actor.ID)
+}
+
+func (vm *ViewMeta) LookupUserByAid(ctx context.Context, aid atp.Aid) (*atp.User, error) {
+	filter := sq.Eq{"aid": aid}
+	return vm.lookupUserQuery(ctx, filter)
 }
 
 func (vm *ViewMeta) lookupActorQuery(ctx context.Context, filter sq.Sqlizer) (*atp.Actor, error) {
