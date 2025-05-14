@@ -109,6 +109,24 @@ func (vm *ViewMeta) actorExists(ctx context.Context, filter sq.Eq) (bool, error)
 	return exists, err
 }
 
+func (vm *ViewMeta) userExists(ctx context.Context, filter sq.Eq) (bool, error) {
+	var exists bool
+	innerSql, args, err := sq.Select("id").
+		From(vm.Schema + ".user").
+		Where(filter).
+		PlaceholderFormat(sq.Dollar).ToSql()
+
+	if err != nil {
+		vm.Log.InfoContext(ctx, "Error building actor exists query", "error", err)
+		return false, err
+	}
+
+	sql := fmt.Sprintf("SELECT EXISTS(%s)", innerSql)
+	err = vm.DB.GetRow(ctx, sql, args...).Scan(&exists)
+
+	return exists, err
+}
+
 func (vm *ViewMeta) lookupActorQuery(ctx context.Context, filter sq.Sqlizer) (*atp.Actor, error) {
 	var entity atp.Actor
 	actor, err := database.GetAll(ctx, vm.DB, entity, filter)

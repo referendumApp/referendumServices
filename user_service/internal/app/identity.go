@@ -42,7 +42,7 @@ func (v *View) ResolveHandle(ctx context.Context, req *refApp.ServerCreateAccoun
 	}
 
 	filter := sq.Eq{"email": req.Email}
-	if exists, err := v.meta.actorExists(ctx, filter); err != nil {
+	if exists, err := v.meta.userExists(ctx, filter); err != nil {
 		v.log.ErrorContext(ctx, "Error checking database for user email", "error", err)
 		return "", refErr.InternalServer()
 	} else if exists {
@@ -65,7 +65,6 @@ func (v *View) ResolveHandle(ctx context.Context, req *refApp.ServerCreateAccoun
 	// 	return
 	// }
 
-	// If the user doesn't exist then create them
 	hashedPassword, err := util.HashPassword(req.Password, util.DefaultParams())
 	if err != nil {
 		v.log.ErrorContext(ctx, "Failed to hash password", "error", err)
