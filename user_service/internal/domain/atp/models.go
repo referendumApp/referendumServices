@@ -1,6 +1,4 @@
 // Package atp implements the AT Protocol data models and client functionality
-//
-//revive:disable:exported
 package atp
 
 import (
