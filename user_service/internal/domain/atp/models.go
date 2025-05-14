@@ -20,6 +20,7 @@ type Base struct {
 
 type Actor struct {
 	Handle      sql.NullString `db:"handle,omitempty"       json:"-"`
+	DisplayName string         `db:"display_name,omitempty" json:"display_name"`
 	RecoveryKey string         `db:"recovery_key,omitempty" json:"-"`
 	Did         string         `db:"did,omitempty"          json:"did"`
 	CreatedAt   time.Time      `db:"created_at,omitempty"   json:"-"`
@@ -30,6 +31,17 @@ type Actor struct {
 }
 
 func (u Actor) TableName() string {
+	return "actor"
+}
+
+type ActorBasic struct {
+	ID          Aid     `db:"id,omitempty,pk"        json:"id"`
+	Handle      *string `db:"handle,omitempty"       json:"handle"`
+	DisplayName string  `db:"display_name,omitempty" json:"display_name"`
+	Did         string  `db:"did,omitempty"          json:"did"`
+}
+
+func (a ActorBasic) TableName() string {
 	return "actor"
 }
 
@@ -73,11 +85,10 @@ func (u *Settings) Unmarshal(data []byte) error {
 }
 
 type User struct {
-	Settings    *Settings      `db:"settings,omitempty"        json:"settings"`
-	DisplayName string         `db:"display_name,omitempty"    json:"display_name"`
-	Did         string         `db:"did,omitempty"             json:"did"`
-	Type        sql.NullString `db:"type,omitempty"            json:"type"`
 	Base
+	Settings       *Settings      `db:"settings,omitempty"        json:"settings"`
+	Did            string         `db:"did,omitempty"             json:"did"`
+	Type           sql.NullString `db:"type,omitempty"            json:"type"`
 	Aid            Aid            `db:"aid,omitempty"             json:"-"`
 	Following      int64          `db:"following,omitempty"       json:"following"`
 	Followers      int64          `db:"followers,omitempty"       json:"followers"`
@@ -89,17 +100,6 @@ type User struct {
 }
 
 func (a User) TableName() string {
-	return "user"
-}
-
-type UserBasic struct {
-	Handle      *string `db:"handle,omitempty"       json:"handle"`
-	DisplayName string  `db:"display_name,omitempty" json:"display_name"`
-	Did         string  `db:"did,omitempty"          json:"did"`
-	Type        *string `db:"type,omitempty"         json:"type"`
-}
-
-func (a UserBasic) TableName() string {
 	return "user"
 }
 

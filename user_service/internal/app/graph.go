@@ -54,7 +54,7 @@ func (v *View) HandleGraphFollow(
 }
 
 // HandleGraphFollowers queries the actor_follow_record table for followering users
-func (v *View) HandleGraphFollowers(ctx context.Context, aid atp.Aid) ([]*atp.UserBasic, *refErr.APIError) {
+func (v *View) HandleGraphFollowers(ctx context.Context, aid atp.Aid) ([]*atp.ActorBasic, *refErr.APIError) {
 	followers, err := v.meta.LookupGraphFollowers(ctx, aid)
 	if err != nil {
 		return nil, refErr.Database()
@@ -64,7 +64,7 @@ func (v *View) HandleGraphFollowers(ctx context.Context, aid atp.Aid) ([]*atp.Us
 }
 
 // HandleGraphFollowing queries the actor_follow_record table for followed users
-func (v *View) HandleGraphFollowing(ctx context.Context, aid atp.Aid) ([]*atp.UserBasic, *refErr.APIError) {
+func (v *View) HandleGraphFollowing(ctx context.Context, aid atp.Aid) ([]*atp.ActorBasic, *refErr.APIError) {
 	following, err := v.meta.LookupGraphFollowing(ctx, aid)
 	if err != nil {
 		return nil, refErr.Database()

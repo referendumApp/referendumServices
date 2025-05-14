@@ -78,10 +78,10 @@ func (v *View) ResolveHandle(ctx context.Context, req *refApp.ServerCreateAccoun
 func (v *View) SaveActorAndUser(
 	ctx context.Context,
 	actor *atp.Actor,
-	handle string,
-	dname string,
+	email string,
+	hashedpassword string,
 ) *refErr.APIError {
-	if err := v.meta.insertActorAndUserRecords(ctx, actor, handle, dname); err != nil {
+	if err := v.meta.insertActorAndUserRecords(ctx, actor, email, hashedpassword); err != nil {
 		return refErr.Database()
 	}
 	return nil
@@ -178,7 +178,7 @@ func (v *View) UpdateProfile(ctx context.Context, aid atp.Aid, req *refApp.UserU
 	}
 
 	if req.DisplayName != nil {
-		newUser.DisplayName = *req.DisplayName
+		newActor.DisplayName = *req.DisplayName
 	}
 
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {

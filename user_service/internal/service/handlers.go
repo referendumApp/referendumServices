@@ -38,19 +38,19 @@ func (s *Service) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pw, err := s.av.ResolveHandle(ctx, &req)
+	hashed_pw, err := s.av.ResolveHandle(ctx, &req)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	actor, err := s.pds.CreateActor(ctx, req, pw)
+	actor, err := s.pds.CreateActor(ctx, req)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	if cerr := s.av.SaveActorAndUser(ctx, actor, req.Handle, req.DisplayName); cerr != nil {
+	if cerr := s.av.SaveActorAndUser(ctx, actor, req.Email, hashed_pw); cerr != nil {
 		cerr.WriteResponse(w)
 		return
 	}
@@ -202,11 +202,6 @@ func (s *Service) handleGetUserProfile(w http.ResponseWriter, r *http.Request) {
 		err.WriteResponse(w)
 		return
 	}
-	// profile, err := s.av.GetProfile(ctx, aid)
-	// if err != nil {
-	// 	err.WriteResponse(w)
-	// 	return
-	// }
 
 	s.encode(ctx, w, http.StatusOK, profile)
 }

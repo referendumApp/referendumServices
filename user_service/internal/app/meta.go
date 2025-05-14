@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	sq "github.com/Masterminds/squirrel"
@@ -18,8 +19,8 @@ type ViewMeta struct {
 func (vm *ViewMeta) insertActorAndUserRecords(
 	ctx context.Context,
 	actor *atp.Actor,
-	handle string,
-	dname string,
+	email string,
+	hashedpassword string,
 ) error {
 	return vm.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		row, err := database.CreateReturningWithTx(ctx, vm.DB, tx, actor, "id")
@@ -34,10 +35,11 @@ func (vm *ViewMeta) insertActorAndUserRecords(
 		}
 
 		user := &atp.User{
-			Aid:         actor.ID,
-			Did:         actor.Did,
-			DisplayName: dname,
-			Settings:    &atp.Settings{Deleted: false},
+			Aid:            actor.ID,
+			Did:            actor.Did,
+			Settings:       &atp.Settings{Deleted: false},
+			Email:          sql.NullString{String: email, Valid: true},
+			HashedPassword: sql.NullString{String: hashedpassword, Valid: true},
 		}
 
 		if err := vm.CreateWithTx(ctx, tx, user); err != nil {
@@ -161,14 +163,14 @@ func (vm *ViewMeta) LookupActorByEmail(ctx context.Context, email string) (*atp.
 }
 
 // LookupGraphFollowers queries user records with a join to user_follow_record filtered by 'target'
-func (vm *ViewMeta) LookupGraphFollowers(ctx context.Context, aid atp.Aid) ([]*atp.UserBasic, error) {
+func (vm *ViewMeta) LookupGraphFollowers(ctx context.Context, aid atp.Aid) ([]*atp.ActorBasic, error) {
 	filter := sq.Eq{"target": aid}
-	var leftTbl atp.UserBasic
+	var leftTbl atp.ActorBasic
 	var rightTbl atp.ActorFollowRecord
 
-	followers, err := database.SelectLeft(ctx, vm.DB, leftTbl, "aid", rightTbl, "follower", filter)
+	followers, err := database.SelectLeft(ctx, vm.DB, leftTbl, "id", rightTbl, "follower", filter)
 	if err != nil {
-		vm.Log.ErrorContext(ctx, "Failed to lookup followers", "aid", aid)
+		vm.Log.ErrorContext(ctx, "Failed to lookup followers", "id", aid)
 		return nil, err
 	}
 
@@ -176,23 +178,23 @@ func (vm *ViewMeta) LookupGraphFollowers(ctx context.Context, aid atp.Aid) ([]*a
 }
 
 // LookupGraphFollowing queries actor records with a join to actor_follow_record filtered by 'follower'
-func (vm *ViewMeta) LookupGraphFollowing(ctx context.Context, aid atp.Aid) ([]*atp.UserBasic, error) {
+func (vm *ViewMeta) LookupGraphFollowing(ctx context.Context, aid atp.Aid) ([]*atp.ActorBasic, error) {
 	filter := sq.Eq{"follower": aid}
-	var leftTbl atp.UserBasic
+	var leftTbl atp.ActorBasic
 	var rightTbl atp.ActorFollowRecord
 
-	following, err := database.SelectLeft(ctx, vm.DB, leftTbl, "aid", rightTbl, "target", filter)
+	following, err := database.SelectLeft(ctx, vm.DB, leftTbl, "id", rightTbl, "target", filter)
 	if err != nil {
-		vm.Log.ErrorContext(ctx, "Failed to lookup followers", "aid", aid)
+		vm.Log.ErrorContext(ctx, "Failed to lookup followers", "id", aid)
 		return nil, err
 	}
 
 	return following, nil
 }
 
-// GetUserBasicProfile queries user record for the basic profile
-func (vm *ViewMeta) GetUserBasicProfile(ctx context.Context, aid atp.Aid) (*atp.UserBasic, error) {
-	query, err := database.BuildSelect(&atp.UserBasic{}, vm.Schema, sq.Eq{"aid": aid})
+// GetActorBasic queries actor record for the basic information
+func (vm *ViewMeta) GetActorBasic(ctx context.Context, aid atp.Aid) (*atp.ActorBasic, error) {
+	query, err := database.BuildSelect(&atp.ActorBasic{}, vm.Schema, sq.Eq{"id": aid})
 	if err != nil {
 		vm.Log.ErrorContext(ctx, "Error building profile select query", "error", err)
 		return nil, err
@@ -204,7 +206,7 @@ func (vm *ViewMeta) GetUserBasicProfile(ctx context.Context, aid atp.Aid) (*atp.
 		return nil, err
 	}
 
-	profile, err := database.Get[atp.UserBasic](ctx, vm.DB, sql, args...)
+	profile, err := database.Get[atp.ActorBasic](ctx, vm.DB, sql, args...)
 	if err != nil {
 		vm.Log.ErrorContext(ctx, "Failed getting profile", "sql", sql, "aid", aid)
 		return nil, err

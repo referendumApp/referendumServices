@@ -16,7 +16,6 @@ import (
 func (p *PDS) CreateActor(
 	ctx context.Context,
 	req refApp.ServerCreateAccount_Input,
-	pw string,
 ) (*atp.Actor, *refErr.APIError) {
 	var recoveryKey string
 	if req.RecoveryKey != nil {
