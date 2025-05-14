@@ -75,6 +75,7 @@ jobs:
           path: ${{ steps.go-cache-paths.outputs.go-build }}
           key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
           restore-keys: |
+            ${{ runner.os }}-go-build-${{ github.ref }}-
             ${{ runner.os }}-go-build-
 
       - name: Pre-build Test Binary
@@ -90,6 +91,7 @@ jobs:
           path: /tmp/.buildx-cache-migrations
           key: ${{ runner.os }}-buildx-migrations-${{ github.sha }}
           restore-keys: |
+            ${{ runner.os }}-buildx-migrations-${{ github.ref }}-
             ${{ runner.os }}-buildx-migrations-
 
       - name: Cache User Test Docker Layers
@@ -98,19 +100,20 @@ jobs:
           path: /tmp/.buildx-cache-user-tests
           key: ${{ runner.os }}-buildx-user-tests-${{ github.sha }}
           restore-keys: |
+            ${{ runner.os }}-buildx-user-tests-${{ github.ref }}-
             ${{ runner.os }}-buildx-user-tests-
 
-      - name: Build Migrations Image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./data_service
-          file: ./data_service/Dockerfile
-          target: migrations
-          push: false
-          load: true
-          tags: migrations
-          cache-from: type=local,src=/tmp/.buildx-cache-migrations
-          cache-to: type=local,dest=/tmp/.buildx-cache-migrations-new,mode=max
+      # - name: Build Migrations Image
+      #   uses: docker/build-push-action@v6
+      #   with:
+      #     context: ./data_service
+      #     file: ./data_service/Dockerfile
+      #     target: migrations
+      #     push: false
+      #     load: true
+      #     tags: migrations
+      #     cache-from: type=local,src=/tmp/.buildx-cache-migrations
+      #     cache-to: type=local,dest=/tmp/.buildx-cache-migrations-new,mode=max
 
       - name: Build Test Image
         uses: docker/build-push-action@v6
@@ -122,8 +125,8 @@ jobs:
           load: true
           tags: user-test
           build-args: |
-            GOMODCACHE=${{ steps.go-cache-paths.outputs.go-build }}
-            GOCACHE=${{ steps.go-cache-paths.outputs.go-mod }}
+            GOMODCACHE=${{ steps.go-cache-paths.outputs.go-mod }}
+            GOCACHE=${{ steps.go-cache-paths.outputs.go-build }}
           cache-from: type=local,src=/tmp/.buildx-cache-user-tests
           cache-to: type=local,dest=/tmp/.buildx-cache-user-tests-new,mode=max
 
@@ -146,11 +149,11 @@ jobs:
       - name: Update Cache
         run: |
           echo "Removing old cache directory if it exists..."
-          rm -rf /tmp/.buildx-cache-migrations || true
+          # rm -rf /tmp/.buildx-cache-migrations || true
           rm -rf /tmp/.buildx-cache-user-tests || true
           
           echo "Creating new merged cache directory..."
-          mv /tmp/.buildx-cache-migrations-new /tmp/.buildx-cache-migrations
+          # mv /tmp/.buildx-cache-migrations-new /tmp/.buildx-cache-migrations
           mv /tmp/.buildx-cache-user-tests-new /tmp/.buildx-cache-user-tests
 
       - name: Clean Tests
