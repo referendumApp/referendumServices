@@ -42,9 +42,10 @@ func (p *PDS) CreateActor(
 	}
 
 	actor := &atp.Actor{
+		Did:         did,
+		DisplayName: req.DisplayName,
 		Handle:      sql.NullString{String: req.Handle, Valid: true},
 		RecoveryKey: recoveryKey,
-		Did:         did,
 	}
 
 	return actor, nil
