@@ -22,7 +22,7 @@ pytest-pipeline:
 	docker compose --profile test run --rm data-test pytest $(ARGS) pipeline/
 
 # Run user service tests
-test-user:
+go-test-user:
 	docker compose --profile test run --rm user-test
 
 # Run linting for user service
@@ -56,5 +56,4 @@ test: clean build pytest-api pytest-pipeline test-user clean
 # Run specific test suites and cleanup
 test-api: clean build pytest-api clean
 test-pipeline: clean build pytest-pipeline clean
-
-test-user-all: clean build lint-user build-schema test-user clean
+test-user: clean build lint-user build-schema test-user clean
