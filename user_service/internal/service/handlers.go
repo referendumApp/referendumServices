@@ -38,13 +38,13 @@ func (s *Service) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pw, err := s.av.ResolveHandle(ctx, &req)
+	pw, err := s.av.ResolveUserHandle(ctx, &req)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	actor, err := s.pds.CreateActor(ctx, req, pw)
+	actor, err := s.pds.CreateUserActor(ctx, req, pw)
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -55,7 +55,41 @@ func (s *Service) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := s.pds.CreateNewRepo(ctx, actor, req.DisplayName)
+	resp, err := s.pds.CreateNewUserRepo(ctx, actor, req.DisplayName)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	s.encode(ctx, w, http.StatusCreated, resp)
+}
+
+func (s *Service) handleCreateLegislator(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var req refApp.ServerCreateLegislator_Input
+	if err := s.decodeAndValidate(ctx, w, r.Body, &req); err != nil {
+		return
+	}
+
+	handle, err := s.av.ResolveLegislatorHandle(ctx, &req)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	actor, err := s.pds.CreateLegislatorActor(ctx, req, handle)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	if cerr := s.av.SaveActorAndLegislator(ctx, actor, handle); cerr != nil {
+		cerr.WriteResponse(w)
+		return
+	}
+
+	resp, err := s.pds.CreateNewLegislatorRepo(ctx, actor)
 	if err != nil {
 		err.WriteResponse(w)
 		return

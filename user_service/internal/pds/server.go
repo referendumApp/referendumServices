@@ -12,8 +12,8 @@ import (
 	"github.com/referendumApp/referendumServices/internal/util"
 )
 
-// CreateActor create DID in the PLC directory and initialize an 'Actor' struct
-func (p *PDS) CreateActor(
+// CreateUserActor create DID in the PLC directory and initialize an 'Actor' struct
+func (p *PDS) CreateUserActor(
 	ctx context.Context,
 	req refApp.ServerCreateAccount_Input,
 	pw string,
@@ -53,8 +53,41 @@ func (p *PDS) CreateActor(
 	return actor, nil
 }
 
-// CreateNewRepo initialize a new repo and write the first record to the CAR store
-func (p *PDS) CreateNewRepo(
+// CreateLegislatorActor create DID in the PLC directory and initialize an 'Actor' struct
+func (p *PDS) CreateLegislatorActor(
+	ctx context.Context,
+	req refApp.ServerCreateLegislator_Input,
+	handle string,
+) (*atp.Actor, *refErr.APIError) {
+	var recoveryKey = p.km.RecoveryKey()
+
+	sigkey, err := p.km.CreateSigningKey(ctx)
+	if err != nil {
+		return nil, refErr.InternalServer()
+	}
+
+	did, err := p.plc.CreateDID(ctx, sigkey, []string{recoveryKey, p.km.RotationKey()}, handle, p.serviceUrl)
+	if err != nil {
+		p.log.ErrorContext(ctx, "Failed to create DID", "error", err)
+		return nil, refErr.PLCServer()
+	}
+
+	if err := p.km.CreateEncryptedKey(ctx, did, sigkey); err != nil {
+		p.log.ErrorContext(ctx, "Failed to create encrypted signing key", "error", err)
+		return nil, refErr.InternalServer()
+	}
+
+	actor := &atp.Actor{
+		Handle:      sql.NullString{String: handle, Valid: true},
+		RecoveryKey: recoveryKey,
+		Did:         did,
+	}
+
+	return actor, nil
+}
+
+// CreateNewUserRepo initialize a new repo and write the first record to the CAR store
+func (p *PDS) CreateNewUserRepo(
 	ctx context.Context,
 	actor *atp.Actor,
 	dname string,
@@ -80,6 +113,24 @@ func (p *PDS) CreateNewRepo(
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    p.jwt.AuthScheme,
+	}, nil
+}
+
+// CreateNewLegislatorRepo initialize a new repo and write the first record to the CAR store
+func (p *PDS) CreateNewLegislatorRepo(
+	ctx context.Context,
+	actor *atp.Actor,
+) (*refApp.ServerCreateLegislator_Output, *refErr.APIError) {
+	profile := &refApp.LegislatorProfile{}
+
+	if err := p.repoman.InitNewRepo(ctx, actor.ID, actor.Did, profile.NSID(), profile.Key(), profile); err != nil {
+		p.log.ErrorContext(ctx, "Error initializing new actor repository", "error", err, "did", actor.Did)
+		return nil, refErr.Repo()
+	}
+
+	return &refApp.ServerCreateLegislator_Output{
+		Did:    actor.Did,
+		Handle: actor.Handle.String,
 	}, nil
 }
 

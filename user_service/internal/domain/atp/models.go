@@ -190,7 +190,7 @@ type Legislator struct {
 	CreatedAt   time.Time      `db:"created_at,omitempty"   json:"-"`
 	UpdatedAt   time.Time      `db:"updated_at,omitempty"   json:"-"`
 	DeletedAt   sql.NullTime   `db:"deleted_at,omitempty"   json:"-"`
-	ID          Aid            `db:"id,omitempty,pk"        json:"id"`
+	Aid         Aid            `db:"id,omitempty,pk"        json:"id"`
 	PDS         sql.NullInt64  `db:"pds_id,omitempty"       json:"-"`
 }
 

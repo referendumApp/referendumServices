@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -34,8 +35,11 @@ func (v *View) validateHandle(ctx context.Context, handle string) *refErr.APIErr
 	return nil
 }
 
-// ResolveHandle validates handle, email, and password for create account request
-func (v *View) ResolveHandle(ctx context.Context, req *refApp.ServerCreateAccount_Input) (string, *refErr.APIError) {
+// ResolveUserHandle validates handle, email, and password for create account request
+func (v *View) ResolveUserHandle(
+	ctx context.Context,
+	req *refApp.ServerCreateAccount_Input,
+) (string, *refErr.APIError) {
 	if err := v.validateHandle(ctx, req.Handle); err != nil {
 		v.log.ErrorContext(ctx, "Error validating handle", "error", err)
 		return "", err
@@ -75,6 +79,29 @@ func (v *View) ResolveHandle(ctx context.Context, req *refApp.ServerCreateAccoun
 	return hashedPassword, nil
 }
 
+func (v *View) ResolveLegislatorHandle(
+	ctx context.Context,
+	req *refApp.ServerCreateLegislator_Input,
+) (string, *refErr.APIError) {
+	if req.LegislatorId <= 0 {
+		fieldErr := refErr.FieldError{Field: "legislatorId", Message: "LegislatorId must be a positive integer"}
+		return "", fieldErr.Invalid()
+	}
+
+	filter := sq.Eq{"legislatorId": req.LegislatorId}
+	if exists, err := v.meta.legislatorExists(ctx, filter); err != nil {
+		v.log.ErrorContext(ctx, "Error checking database for legislatorId", "error", err)
+		return "", refErr.InternalServer()
+	} else if exists {
+		fieldErr := refErr.FieldError{Field: "legislatorId", Message: "LegislatorId already exists"}
+		return "", fieldErr.Conflict()
+	}
+
+	handle := fmt.Sprintf("refLegislator%d", req.LegislatorId)
+
+	return handle, nil
+}
+
 // SaveActorAndUser inserts a actor and user record to the DB
 func (v *View) SaveActorAndUser(
 	ctx context.Context,
@@ -83,6 +110,18 @@ func (v *View) SaveActorAndUser(
 	dname string,
 ) *refErr.APIError {
 	if err := v.meta.insertActorAndUserRecords(ctx, actor, handle, dname); err != nil {
+		return refErr.Database()
+	}
+	return nil
+}
+
+// SaveActorAndLegislator inserts a actor and legislator record to the DB
+func (v *View) SaveActorAndLegislator(
+	ctx context.Context,
+	actor *atp.Actor,
+	handle string,
+) *refErr.APIError {
+	if err := v.meta.insertActorAndLegislatorRecords(ctx, actor, handle); err != nil {
 		return refErr.Database()
 	}
 	return nil

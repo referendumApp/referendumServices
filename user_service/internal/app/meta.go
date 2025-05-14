@@ -76,6 +76,39 @@ func (vm *ViewMeta) insertActorAndUserRecords(
 	})
 }
 
+func (vm *ViewMeta) insertActorAndLegislatorRecords(
+	ctx context.Context,
+	actor *atp.Actor,
+	handle string,
+) error {
+	return vm.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		row, err := database.CreateReturningWithTx(ctx, vm.DB, tx, actor, "id")
+		if err != nil {
+			vm.Log.ErrorContext(ctx, "Failed to create actor", "error", err)
+			return err
+		}
+
+		if serr := row.Scan(&actor.ID); serr != nil {
+			vm.Log.ErrorContext(ctx, "Failed to scan new Actor ID", "error", serr)
+			return serr
+		}
+
+		// TODO - create a complete record here (what fields are necessary?)
+		legislator := &atp.Legislator{
+			Aid:    actor.ID,
+			Did:    actor.Did,
+			Handle: sql.NullString{String: handle, Valid: true},
+		}
+
+		if err := vm.CreateWithTx(ctx, tx, legislator); err != nil {
+			vm.Log.ErrorContext(ctx, "Failed to create legislator", "error", err)
+			return err
+		}
+
+		return nil
+	})
+}
+
 func (vm *ViewMeta) authenticateActor(ctx context.Context, aname string) (*atp.Actor, error) {
 	var actor atp.Actor
 	sql := fmt.Sprintf(
@@ -106,6 +139,24 @@ func (vm *ViewMeta) actorExists(ctx context.Context, filter sq.Eq) (bool, error)
 	sql := fmt.Sprintf("SELECT EXISTS(%s)", innerSql)
 	err = vm.DB.GetRow(ctx, sql, args...).Scan(&exists)
 
+	return exists, err
+}
+
+func (vm *ViewMeta) legislatorExists(ctx context.Context, filter sq.Eq) (bool, error) {
+	var exists bool
+	innerSql, args, err := sq.Select("id").
+		From(vm.Schema + ".legislator").
+		Where(filter).
+		PlaceholderFormat(sq.Dollar).ToSql()
+
+	if err != nil {
+		vm.Log.InfoContext(ctx, "Error building legislator exists query", "error", err)
+		return false, err
+	}
+
+	sql := fmt.Sprintf("SELECT EXISTS(%s)", innerSql)
+
+	err = vm.DB.GetRow(ctx, sql, args...).Scan(&exists)
 	return exists, err
 }
 
