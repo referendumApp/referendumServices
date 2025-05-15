@@ -69,6 +69,21 @@ func (v *View) ResolveNewUser(ctx context.Context, req *refApp.ServerCreateAccou
 	return hashedPassword, nil
 }
 
+// ResolveNewLegislator validates if the new legislator can be created
+func (v *View) ResolveNewLegislator(ctx context.Context, req *refApp.ServerCreateLegislator_Input) *refErr.APIError {
+	filter := sq.Eq{"legislator_id": req.LegislatorId}
+	if exists, err := v.meta.legislatorExists(ctx, filter); err != nil {
+		v.log.ErrorContext(ctx, "Error checking database for legislator_id", "error", err)
+		return refErr.InternalServer()
+	} else if exists {
+		nerr := errors.New("legislator_id already exists")
+		v.log.ErrorContext(ctx, nerr.Error(), "legislator_id", req.LegislatorId)
+		fieldErr := refErr.FieldError{Field: "legislator_id", Message: nerr.Error()}
+		return fieldErr.Conflict()
+	}
+	return nil
+}
+
 // SaveActorAndUser inserts a actor and user record to the DB
 func (v *View) SaveActorAndUser(
 	ctx context.Context,

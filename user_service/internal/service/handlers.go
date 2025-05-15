@@ -88,6 +88,12 @@ func (s *Service) handleCreateLegislator(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	err = s.av.ResolveNewLegislator(ctx, &req)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
 	actor, err := s.pds.CreateActor(ctx, *req.Handle, req.Name, "")
 	if err != nil {
 		err.WriteResponse(w)
