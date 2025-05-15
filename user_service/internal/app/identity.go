@@ -16,7 +16,7 @@ import (
 	"github.com/referendumApp/referendumServices/internal/util"
 )
 
-func (v *View) validateHandle(ctx context.Context, handle string) *refErr.APIError {
+func (v *View) ValidateHandle(ctx context.Context, handle string) *refErr.APIError {
 	if !strings.HasSuffix(handle, v.handleSuffix) {
 		fieldErr := refErr.FieldError{Field: "handle", Message: "Invalid handle format"}
 		return fieldErr.Invalid()
@@ -34,13 +34,8 @@ func (v *View) validateHandle(ctx context.Context, handle string) *refErr.APIErr
 	return nil
 }
 
-// ResolveHandle validates handle, email, and password for create account request
-func (v *View) ResolveHandle(ctx context.Context, req *refApp.ServerCreateAccount_Input) (string, *refErr.APIError) {
-	if err := v.validateHandle(ctx, req.Handle); err != nil {
-		v.log.ErrorContext(ctx, "Error validating handle", "error", err)
-		return "", err
-	}
-
+// ResolveNewUser validates handle, email, and password for create account request
+func (v *View) ResolveNewUser(ctx context.Context, req *refApp.ServerCreateAccount_Input) (string, *refErr.APIError) {
 	filter := sq.Eq{"email": req.Email}
 	if exists, err := v.meta.userExists(ctx, filter); err != nil {
 		v.log.ErrorContext(ctx, "Error checking database for user email", "error", err)
@@ -82,6 +77,18 @@ func (v *View) SaveActorAndUser(
 	hashedpassword string,
 ) *refErr.APIError {
 	if err := v.meta.insertActorAndUserRecords(ctx, actor, email, hashedpassword); err != nil {
+		return refErr.Database()
+	}
+	return nil
+}
+
+// SaveActorAndLegislator inserts a actor and legislator record to the DB
+func (v *View) SaveActorAndLegislator(
+	ctx context.Context,
+	actor *atp.Actor,
+	legislator_id int64,
+) *refErr.APIError {
+	if err := v.meta.insertActorAndLegislatorRecords(ctx, actor, legislator_id); err != nil {
 		return refErr.Database()
 	}
 	return nil
@@ -179,7 +186,7 @@ func (v *View) UpdateProfile(ctx context.Context, aid atp.Aid, req *refApp.UserU
 
 	if req.Handle != nil {
 		handle := *req.Handle
-		if err := v.validateHandle(ctx, handle); err != nil {
+		if err := v.ValidateHandle(ctx, handle); err != nil {
 			v.log.ErrorContext(ctx, "Error validating handle", "error", err)
 			return err
 		}

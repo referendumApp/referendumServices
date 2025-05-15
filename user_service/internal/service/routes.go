@@ -9,19 +9,28 @@ func (s *Service) setupRoutes() {
 		r.Post("/signup", s.handleCreateUser)
 		r.Post("/login", s.handleCreateSession)
 		r.Post("/refresh", s.handleRefreshSession)
-		r.With(s.pds.AuthorizeUser).Delete("/session", s.handleDeleteSession)
-		r.With(s.pds.AuthorizeUser).Delete("/account", s.handleDeleteUser)
+		r.With(s.pds.AuthorizeUser).Delete("/", s.handleDeleteSession)
 	})
 
 	s.mux.Route("/user", func(r chi.Router) {
 		r.Use(s.pds.AuthorizeUser)
 
+		r.Delete("/", s.handleDeleteUser)
 		r.Put("/profile", s.handleUserProfileUpdate)
 		r.Post("/follow", s.handleGraphFollow)
 
 		r.Get("/profile", s.handleGetUserProfile)
 		r.Get("/followers", s.handleGraphFollowers)
 		r.Get("/following", s.handleGraphFollowing)
+	})
+
+	s.mux.Route("/legislator", func(r chi.Router) {
+		// 		r.Use(s.pds.AuthorizeUser)
+
+		r.Post("/", s.handleCreateLegislator)
+		// 		r.Get("/", s.handleGetLegislator)
+		// 		r.Put("/", s.handleLegislatorUpdate)
+		// 		r.Delete("/", s.handleDeleteLegislator)
 	})
 
 	s.mux.Route("/server", func(r chi.Router) {

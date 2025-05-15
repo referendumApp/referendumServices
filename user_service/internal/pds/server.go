@@ -15,12 +15,10 @@ import (
 // CreateActor create DID in the PLC directory and initialize an 'Actor' struct
 func (p *PDS) CreateActor(
 	ctx context.Context,
-	req refApp.ServerCreateAccount_Input,
+	handle string,
+	displayName string,
+	recoveryKey string,
 ) (*atp.Actor, *refErr.APIError) {
-	var recoveryKey string
-	if req.RecoveryKey != nil {
-		recoveryKey = *req.RecoveryKey
-	}
 	if recoveryKey == "" {
 		recoveryKey = p.km.RecoveryKey()
 	}
@@ -30,7 +28,7 @@ func (p *PDS) CreateActor(
 		return nil, refErr.InternalServer()
 	}
 
-	did, err := p.plc.CreateDID(ctx, sigkey, []string{recoveryKey, p.km.RotationKey()}, req.Handle, p.serviceUrl)
+	did, err := p.plc.CreateDID(ctx, sigkey, []string{recoveryKey, p.km.RotationKey()}, handle, p.serviceUrl)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Failed to create DID", "error", err)
 		return nil, refErr.PLCServer()
@@ -43,8 +41,8 @@ func (p *PDS) CreateActor(
 
 	actor := &atp.Actor{
 		Did:         did,
-		DisplayName: req.DisplayName,
-		Handle:      sql.NullString{String: req.Handle, Valid: true},
+		DisplayName: displayName,
+		Handle:      sql.NullString{String: handle, Valid: true},
 		RecoveryKey: recoveryKey,
 	}
 
@@ -55,10 +53,9 @@ func (p *PDS) CreateActor(
 func (p *PDS) CreateNewRepo(
 	ctx context.Context,
 	actor *atp.Actor,
-	dname string,
 ) (*refApp.ServerCreateAccount_Output, *refErr.APIError) {
 	profile := &refApp.UserProfile{
-		DisplayName: &dname,
+		DisplayName: &actor.DisplayName,
 	}
 
 	if err := p.repoman.InitNewRepo(ctx, actor.ID, actor.Did, profile.NSID(), profile.Key(), profile); err != nil {
@@ -73,7 +70,7 @@ func (p *PDS) CreateNewRepo(
 
 	return &refApp.ServerCreateAccount_Output{
 		Did:          actor.Did,
-		DisplayName:  dname,
+		DisplayName:  actor.DisplayName,
 		Handle:       actor.Handle.String,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,

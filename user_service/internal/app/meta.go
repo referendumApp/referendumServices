@@ -77,6 +77,38 @@ func (vm *ViewMeta) insertActorAndUserRecords(
 	})
 }
 
+func (vm *ViewMeta) insertActorAndLegislatorRecords(
+	ctx context.Context,
+	actor *atp.Actor,
+	legislatorId int64,
+) error {
+	return vm.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		row, err := database.CreateReturningWithTx(ctx, vm.DB, tx, actor, "id")
+		if err != nil {
+			vm.Log.ErrorContext(ctx, "Failed to create actor", "error", err)
+			return err
+		}
+
+		if serr := row.Scan(&actor.ID); serr != nil {
+			vm.Log.ErrorContext(ctx, "Failed to scan new Actor ID", "error", serr)
+			return serr
+		}
+
+		user := &atp.Legislator{
+			Aid:          actor.ID,
+			Did:          actor.Did,
+			LegislatorId: legislatorId,
+		}
+
+		if err := vm.CreateWithTx(ctx, tx, user); err != nil {
+			vm.Log.ErrorContext(ctx, "Failed to create legislator", "error", err)
+			return err
+		}
+
+		return nil
+	})
+}
+
 func (vm *ViewMeta) actorExists(ctx context.Context, filter sq.Eq) (bool, error) {
 	var exists bool
 	innerSql, args, err := sq.Select("id").

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -38,13 +39,19 @@ func (s *Service) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hashed_pw, err := s.av.ResolveHandle(ctx, &req)
+	err := s.av.ValidateHandle(ctx, req.Handle)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	actor, err := s.pds.CreateActor(ctx, req)
+	hashed_pw, err := s.av.ResolveNewUser(ctx, &req)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	actor, err := s.pds.CreateActor(ctx, req.Handle, req.DisplayName, *req.RecoveryKey)
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -55,7 +62,44 @@ func (s *Service) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := s.pds.CreateNewRepo(ctx, actor, req.DisplayName)
+	resp, err := s.pds.CreateNewRepo(ctx, actor)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	s.encode(ctx, w, http.StatusCreated, resp)
+}
+
+func (s *Service) handleCreateLegislator(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var req refApp.ServerCreateLegislator_Input
+	if err := s.decodeAndValidate(ctx, w, r.Body, &req); err != nil {
+		return
+	}
+
+	var handle = fmt.Sprintf("refLegislator%d", req.LegislatorId)
+	req.Handle = &handle
+
+	err := s.av.ValidateHandle(ctx, *req.Handle)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	actor, err := s.pds.CreateActor(ctx, *req.Handle, req.Name, "")
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	if cerr := s.av.SaveActorAndLegislator(ctx, actor, req.LegislatorId); cerr != nil {
+		cerr.WriteResponse(w)
+		return
+	}
+
+	resp, err := s.pds.CreateNewRepo(ctx, actor)
 	if err != nil {
 		err.WriteResponse(w)
 		return
