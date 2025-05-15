@@ -101,9 +101,9 @@ func (v *View) SaveActorAndUser(
 func (v *View) SaveActorAndLegislator(
 	ctx context.Context,
 	actor *atp.Actor,
-	legislator_id int64,
+	legislatorId int64,
 ) *refErr.APIError {
-	if err := v.meta.insertActorAndLegislatorRecords(ctx, actor, legislator_id); err != nil {
+	if err := v.meta.insertActorAndLegislatorRecords(ctx, actor, legislatorId); err != nil {
 		return refErr.Database()
 	}
 	return nil
