@@ -39,10 +39,11 @@ func (u Actor) TableName() string {
 }
 
 type ActorBasic struct {
-	ID          Aid     `db:"id,omitempty,pk"        json:"id"`
-	Handle      *string `db:"handle,omitempty"       json:"handle"`
-	DisplayName string  `db:"display_name,omitempty" json:"display_name"`
-	Did         string  `db:"did,omitempty"          json:"did"`
+	ID          Aid          `db:"id,omitempty,pk"        json:"id"`
+	Handle      *string      `db:"handle,omitempty"       json:"handle"`
+	DisplayName string       `db:"display_name,omitempty" json:"display_name"`
+	Did         string       `db:"did,omitempty"          json:"did"`
+	DeletedAt   sql.NullTime `db:"deleted_at,omitempty"   json:"-"`
 }
 
 func (a ActorBasic) TableName() string {
