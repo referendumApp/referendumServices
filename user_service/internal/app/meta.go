@@ -3,14 +3,12 @@ package app
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
 	"github.com/referendumApp/referendumServices/internal/database"
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
-	refErr "github.com/referendumApp/referendumServices/internal/error"
 )
 
 // ViewMeta embeds the DB specifically for app view related queries
@@ -77,7 +75,6 @@ func (vm *ViewMeta) insertActorAndUserRecords(
 	})
 }
 
-
 func (vm *ViewMeta) insertActorAndLegislatorRecords(
 	ctx context.Context,
 	actor *atp.Actor,
@@ -108,6 +105,7 @@ func (vm *ViewMeta) insertActorAndLegislatorRecords(
 
 		return nil
 	})
+}
 
 func (vm *ViewMeta) actorExists(ctx context.Context, filter sq.Eq) (bool, error) {
 	var exists bool
@@ -125,9 +123,7 @@ func (vm *ViewMeta) actorExists(ctx context.Context, filter sq.Eq) (bool, error)
 	err = vm.DB.GetRow(ctx, sql, args...).Scan(&exists)
 
 	return exists, err
-
 }
-
 
 func (vm *ViewMeta) legislatorExists(ctx context.Context, filter sq.Eq) (bool, error) {
 	var exists bool

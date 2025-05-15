@@ -18,7 +18,6 @@ func (p *PDS) CreateActor(
 	handle string,
 	displayName string,
 	recoveryKey string,
-	req refApp.ServerCreateAccount_Input,
 ) (*atp.Actor, *refErr.APIError) {
 	if recoveryKey == "" {
 		recoveryKey = p.km.RecoveryKey()

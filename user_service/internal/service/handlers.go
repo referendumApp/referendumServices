@@ -51,7 +51,12 @@ func (s *Service) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actor, err := s.pds.CreateActor(ctx, req.Handle, req.DisplayName, *req.RecoveryKey)
+	var recoveryKey string
+	if req.RecoveryKey != nil {
+		recoveryKey = *req.RecoveryKey
+	}
+
+	actor, err := s.pds.CreateActor(ctx, req.Handle, req.DisplayName, recoveryKey)
 	if err != nil {
 		err.WriteResponse(w)
 		return
