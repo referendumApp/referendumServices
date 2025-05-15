@@ -55,10 +55,9 @@ func (p *PDS) CreateActor(
 func (p *PDS) CreateNewRepo(
 	ctx context.Context,
 	actor *atp.Actor,
-	dname string,
 ) (*refApp.ServerCreateAccount_Output, *refErr.APIError) {
 	profile := &refApp.UserProfile{
-		DisplayName: &dname,
+		DisplayName: &actor.DisplayName,
 	}
 
 	if err := p.repoman.InitNewRepo(ctx, actor.ID, actor.Did, profile.NSID(), profile.Key(), profile); err != nil {
@@ -73,7 +72,7 @@ func (p *PDS) CreateNewRepo(
 
 	return &refApp.ServerCreateAccount_Output{
 		Did:          actor.Did,
-		DisplayName:  dname,
+		DisplayName:  actor.DisplayName,
 		Handle:       actor.Handle.String,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,

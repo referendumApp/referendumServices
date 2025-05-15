@@ -55,7 +55,7 @@ func (s *Service) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := s.pds.CreateNewRepo(ctx, actor, req.DisplayName)
+	resp, err := s.pds.CreateNewRepo(ctx, actor)
 	if err != nil {
 		err.WriteResponse(w)
 		return
