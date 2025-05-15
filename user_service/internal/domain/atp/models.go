@@ -113,6 +113,7 @@ func (a User) TableName() string {
 	return "user"
 }
 
+// Legislator represents the legislator profile in the system
 type Legislator struct {
 	Base
 	Did          string        `db:"did,omitempty"           json:"did"`
@@ -208,4 +209,19 @@ type Feed struct {
 
 func (p Feed) TableName() string {
 	return "feed"
+}
+
+type Legislator struct {
+	Handle      sql.NullString `db:"handle,omitempty"       json:"-"`
+	RecoveryKey string         `db:"recovery_key,omitempty" json:"-"`
+	Did         string         `db:"did,omitempty"          json:"did"`
+	CreatedAt   time.Time      `db:"created_at,omitempty"   json:"-"`
+	UpdatedAt   time.Time      `db:"updated_at,omitempty"   json:"-"`
+	DeletedAt   sql.NullTime   `db:"deleted_at,omitempty"   json:"-"`
+	Aid         Aid            `db:"id,omitempty,pk"        json:"id"`
+	PDS         sql.NullInt64  `db:"pds_id,omitempty"       json:"-"`
+}
+
+func (u Legislator) TableName() string {
+	return "legislator"
 }
