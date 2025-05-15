@@ -34,7 +34,7 @@ func (v *View) ValidateHandle(ctx context.Context, handle string) *refErr.APIErr
 	return nil
 }
 
-// ResolveNewUser validates handle, email, and password for create account request
+// ResolveNewUser validates if the new account request can be handled and returns a hashed password
 func (v *View) ResolveNewUser(ctx context.Context, req *refApp.ServerCreateAccount_Input) (string, *refErr.APIError) {
 	filter := sq.Eq{"email": req.Email}
 	if exists, err := v.meta.userExists(ctx, filter); err != nil {
@@ -69,7 +69,7 @@ func (v *View) ResolveNewUser(ctx context.Context, req *refApp.ServerCreateAccou
 	return hashedPassword, nil
 }
 
-// ResolveNewLegislator validates if the new legislator can be created
+// ResolveNewLegislator validates if the new legislator request can be handled
 func (v *View) ResolveNewLegislator(ctx context.Context, req *refApp.ServerCreateLegislator_Input) *refErr.APIError {
 	filter := sq.Eq{"legislator_id": req.LegislatorId}
 	if exists, err := v.meta.legislatorExists(ctx, filter); err != nil {
