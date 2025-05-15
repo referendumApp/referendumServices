@@ -38,24 +38,24 @@ func (s *Service) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pw, err := s.av.ResolveHandle(ctx, &req)
+	hashed_pw, err := s.av.ResolveHandle(ctx, &req)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	actor, err := s.pds.CreateActor(ctx, req, pw)
+	actor, err := s.pds.CreateActor(ctx, req)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	if cerr := s.av.SaveActorAndUser(ctx, actor, req.Handle, req.DisplayName); cerr != nil {
+	if cerr := s.av.SaveActorAndUser(ctx, actor, req.Email, hashed_pw); cerr != nil {
 		cerr.WriteResponse(w)
 		return
 	}
 
-	resp, err := s.pds.CreateNewRepo(ctx, actor, req.DisplayName)
+	resp, err := s.pds.CreateNewRepo(ctx, actor)
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -85,19 +85,19 @@ func (s *Service) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	aid, email, err := s.av.GetAuthenticatedActor(ctx, login.Username, login.Password)
+	user, err := s.av.GetAuthenticatedUser(ctx, login.Username, login.Password)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	profile, err := s.av.GetProfile(ctx, aid)
+	actorBasic, err := s.av.GetBasicActorInformation(ctx, user.Aid)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	resp, err := s.pds.CreateSession(ctx, profile, aid, email)
+	resp, err := s.pds.CreateSession(ctx, user, actorBasic)
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -208,11 +208,6 @@ func (s *Service) handleGetUserProfile(w http.ResponseWriter, r *http.Request) {
 		err.WriteResponse(w)
 		return
 	}
-	// profile, err := s.av.GetProfile(ctx, aid)
-	// if err != nil {
-	// 	err.WriteResponse(w)
-	// 	return
-	// }
 
 	s.encode(ctx, w, http.StatusOK, profile)
 }

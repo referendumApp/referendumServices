@@ -19,8 +19,8 @@ type ViewMeta struct {
 func (vm *ViewMeta) insertActorAndUserRecords(
 	ctx context.Context,
 	actor *atp.Actor,
-	handle string,
-	dname string,
+	email string,
+	hashedpassword string,
 ) error {
 	return vm.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		row, err := database.CreateReturningWithTx(ctx, vm.DB, tx, actor, "id")
@@ -35,10 +35,10 @@ func (vm *ViewMeta) insertActorAndUserRecords(
 		}
 
 		user := &atp.User{
-			Aid:         actor.ID,
-			Did:         actor.Did,
-			Handle:      sql.NullString{String: handle, Valid: true},
-			DisplayName: dname,
+			Aid:            actor.ID,
+			Did:            actor.Did,
+			Email:          sql.NullString{String: email, Valid: true},
+			HashedPassword: sql.NullString{String: hashedpassword, Valid: true},
 		}
 
 		if err := vm.CreateWithTx(ctx, tx, user); err != nil {
@@ -75,21 +75,6 @@ func (vm *ViewMeta) insertActorAndUserRecords(
 	})
 }
 
-func (vm *ViewMeta) authenticateActor(ctx context.Context, aname string) (*atp.Actor, error) {
-	var actor atp.Actor
-	sql := fmt.Sprintf(
-		"SELECT id, email, hashed_password FROM %s.%s WHERE deleted_at IS NULL AND (email = $1 OR handle = $1)",
-		vm.Schema,
-		actor.TableName(),
-	)
-
-	if err := vm.GetRow(ctx, sql, aname).Scan(&actor.ID, &actor.Email, &actor.HashedPassword); err != nil {
-		return nil, err
-	}
-
-	return &actor, nil
-}
-
 func (vm *ViewMeta) actorExists(ctx context.Context, filter sq.Eq) (bool, error) {
 	var exists bool
 	innerSql, args, err := sq.Select("id").
@@ -106,6 +91,54 @@ func (vm *ViewMeta) actorExists(ctx context.Context, filter sq.Eq) (bool, error)
 	err = vm.DB.GetRow(ctx, sql, args...).Scan(&exists)
 
 	return exists, err
+}
+
+func (vm *ViewMeta) userExists(ctx context.Context, filter sq.Eq) (bool, error) {
+	var exists bool
+	innerSql, args, err := sq.Select("id").
+		From(vm.Schema + ".user").
+		Where(filter).
+		PlaceholderFormat(sq.Dollar).ToSql()
+
+	if err != nil {
+		vm.Log.InfoContext(ctx, "Error building user exists query", "error", err)
+		return false, err
+	}
+
+	sql := fmt.Sprintf("SELECT EXISTS(%s)", innerSql)
+	err = vm.DB.GetRow(ctx, sql, args...).Scan(&exists)
+
+	return exists, err
+}
+
+func (vm *ViewMeta) lookupUserQuery(ctx context.Context, filter sq.Sqlizer) (*atp.User, error) {
+	var entity atp.User
+	user, err := database.GetAll(ctx, vm.DB, entity, filter)
+	if err != nil {
+		vm.Log.ErrorContext(ctx, "Failed to lookup user", "filter", filter)
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (vm *ViewMeta) LookupUserByEmail(ctx context.Context, email string) (*atp.User, error) {
+	filter := sq.Eq{"email": email}
+	return vm.lookupUserQuery(ctx, filter)
+}
+
+func (vm *ViewMeta) LookupUserByHandle(ctx context.Context, handle string) (*atp.User, error) {
+	actor, err := vm.LookupActorByHandle(ctx, handle)
+	if err != nil {
+		return nil, err
+	}
+
+	return vm.LookupUserByAid(ctx, actor.ID)
+}
+
+func (vm *ViewMeta) LookupUserByAid(ctx context.Context, aid atp.Aid) (*atp.User, error) {
+	filter := sq.Eq{"aid": aid}
+	return vm.lookupUserQuery(ctx, filter)
 }
 
 func (vm *ViewMeta) lookupActorQuery(ctx context.Context, filter sq.Sqlizer) (*atp.Actor, error) {
@@ -144,14 +177,14 @@ func (vm *ViewMeta) LookupActorByEmail(ctx context.Context, email string) (*atp.
 }
 
 // LookupGraphFollowers queries user records with a join to user_follow_record filtered by 'target'
-func (vm *ViewMeta) LookupGraphFollowers(ctx context.Context, aid atp.Aid) ([]*atp.UserBasic, error) {
+func (vm *ViewMeta) LookupGraphFollowers(ctx context.Context, aid atp.Aid) ([]*atp.ActorBasic, error) {
 	filter := sq.Eq{"target": aid}
-	var leftTbl atp.UserBasic
+	var leftTbl atp.ActorBasic
 	var rightTbl atp.ActorFollowRecord
 
-	followers, err := database.SelectLeft(ctx, vm.DB, leftTbl, "aid", rightTbl, "follower", filter)
+	followers, err := database.SelectLeft(ctx, vm.DB, leftTbl, "id", rightTbl, "follower", filter)
 	if err != nil {
-		vm.Log.ErrorContext(ctx, "Failed to lookup followers", "aid", aid)
+		vm.Log.ErrorContext(ctx, "Failed to lookup followers", "id", aid)
 		return nil, err
 	}
 
@@ -159,23 +192,27 @@ func (vm *ViewMeta) LookupGraphFollowers(ctx context.Context, aid atp.Aid) ([]*a
 }
 
 // LookupGraphFollowing queries actor records with a join to actor_follow_record filtered by 'follower'
-func (vm *ViewMeta) LookupGraphFollowing(ctx context.Context, aid atp.Aid) ([]*atp.UserBasic, error) {
+func (vm *ViewMeta) LookupGraphFollowing(ctx context.Context, aid atp.Aid) ([]*atp.ActorBasic, error) {
 	filter := sq.Eq{"follower": aid}
-	var leftTbl atp.UserBasic
+	var leftTbl atp.ActorBasic
 	var rightTbl atp.ActorFollowRecord
 
-	following, err := database.SelectLeft(ctx, vm.DB, leftTbl, "aid", rightTbl, "target", filter)
+	following, err := database.SelectLeft(ctx, vm.DB, leftTbl, "id", rightTbl, "target", filter)
 	if err != nil {
-		vm.Log.ErrorContext(ctx, "Failed to lookup followers", "aid", aid)
+		vm.Log.ErrorContext(ctx, "Failed to lookup followers", "id", aid)
 		return nil, err
 	}
 
 	return following, nil
 }
 
-// GetUserBasicProfile queries user record for the basic profile
-func (vm *ViewMeta) GetUserBasicProfile(ctx context.Context, aid atp.Aid) (*atp.UserBasic, error) {
-	query, err := database.BuildSelect(&atp.UserBasic{}, vm.Schema, sq.Eq{"aid": aid})
+// GetActorBasic queries actor record for the basic information
+func (vm *ViewMeta) GetActorBasic(ctx context.Context, aid atp.Aid) (*atp.ActorBasic, error) {
+	filter := sq.And{
+		sq.Eq{"id": aid},
+		sq.Eq{"deleted_at": nil},
+	}
+	query, err := database.BuildSelect(&atp.ActorBasic{}, vm.Schema, filter)
 	if err != nil {
 		vm.Log.ErrorContext(ctx, "Error building profile select query", "error", err)
 		return nil, err
@@ -187,11 +224,11 @@ func (vm *ViewMeta) GetUserBasicProfile(ctx context.Context, aid atp.Aid) (*atp.
 		return nil, err
 	}
 
-	profile, err := database.Get[atp.UserBasic](ctx, vm.DB, sql, args...)
+	actorBasic, err := database.Get[atp.ActorBasic](ctx, vm.DB, sql, args...)
 	if err != nil {
-		vm.Log.ErrorContext(ctx, "Failed getting profile", "sql", sql, "aid", aid)
+		vm.Log.ErrorContext(ctx, "Failed getting profile", "sql", sql, "aid", aid, "err", err)
 		return nil, err
 	}
 
-	return profile, nil
+	return actorBasic, nil
 }

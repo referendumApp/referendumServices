@@ -16,7 +16,6 @@ import (
 func (p *PDS) CreateActor(
 	ctx context.Context,
 	req refApp.ServerCreateAccount_Input,
-	pw string,
 ) (*atp.Actor, *refErr.APIError) {
 	var recoveryKey string
 	if req.RecoveryKey != nil {
@@ -43,11 +42,10 @@ func (p *PDS) CreateActor(
 	}
 
 	actor := &atp.Actor{
-		Handle:         sql.NullString{String: req.Handle, Valid: true},
-		Email:          sql.NullString{String: req.Email, Valid: true},
-		HashedPassword: sql.NullString{String: pw, Valid: true},
-		RecoveryKey:    recoveryKey,
-		Did:            did,
+		Did:         did,
+		DisplayName: req.DisplayName,
+		Handle:      sql.NullString{String: req.Handle, Valid: true},
+		RecoveryKey: recoveryKey,
 	}
 
 	return actor, nil
@@ -57,10 +55,9 @@ func (p *PDS) CreateActor(
 func (p *PDS) CreateNewRepo(
 	ctx context.Context,
 	actor *atp.Actor,
-	dname string,
 ) (*refApp.ServerCreateAccount_Output, *refErr.APIError) {
 	profile := &refApp.UserProfile{
-		DisplayName: &dname,
+		DisplayName: &actor.DisplayName,
 	}
 
 	if err := p.repoman.InitNewRepo(ctx, actor.ID, actor.Did, profile.NSID(), profile.Key(), profile); err != nil {
@@ -75,7 +72,7 @@ func (p *PDS) CreateNewRepo(
 
 	return &refApp.ServerCreateAccount_Output{
 		Did:          actor.Did,
-		DisplayName:  dname,
+		DisplayName:  actor.DisplayName,
 		Handle:       actor.Handle.String,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
@@ -102,24 +99,23 @@ func (p *PDS) CreateTokens(ctx context.Context, aid atp.Aid, did string) (string
 // CreateSession completes a login request and returns the access and refresh tokens
 func (p *PDS) CreateSession(
 	ctx context.Context,
-	profile *atp.UserBasic,
-	aid atp.Aid,
-	email string,
+	user *atp.User,
+	actor *atp.ActorBasic,
 ) (*refApp.ServerCreateSession_Output, *refErr.APIError) {
-	accessToken, refreshToken, err := p.CreateTokens(ctx, aid, profile.Did)
+	accessToken, refreshToken, err := p.CreateTokens(ctx, user.Aid, user.Did)
 	if err != nil {
 		return nil, refErr.InternalServer()
 	}
 
-	if err := p.km.UpdateKeyCache(ctx, profile.Did); err != nil {
+	if err := p.km.UpdateKeyCache(ctx, user.Did); err != nil {
 		return nil, refErr.InternalServer()
 	}
 
 	return &refApp.ServerCreateSession_Output{
-		Did:          profile.Did,
-		Handle:       profile.Handle.String,
-		DisplayName:  profile.DisplayName,
-		Email:        &email,
+		Did:          user.Did,
+		Handle:       *actor.Handle,
+		DisplayName:  actor.DisplayName,
+		Email:        &user.Email.String,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    p.jwt.AuthScheme,
