@@ -1719,6 +1719,29 @@ func (t *LegislatorProfile) MarshalCBOR(w io.Writer) error {
 		return err
 	}
 
+	// t.Role (string) (string)
+	if len("role") > 1000000 {
+		return xerrors.Errorf("Value in field \"role\" was too long")
+	}
+
+	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len("role"))); err != nil {
+		return err
+	}
+	if _, err := cw.WriteString(string("role")); err != nil {
+		return err
+	}
+
+	if len(t.Role) > 1000000 {
+		return xerrors.Errorf("Value in field t.Role was too long")
+	}
+
+	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len(t.Role))); err != nil {
+		return err
+	}
+	if _, err := cw.WriteString(string(t.Role)); err != nil {
+		return err
+	}
+
 	// t.LexiconTypeID (string) (string)
 	if len("$type") > 1000000 {
 		return xerrors.Errorf("Value in field \"$type\" was too long")
@@ -1755,29 +1778,6 @@ func (t *LegislatorProfile) MarshalCBOR(w io.Writer) error {
 		if err := t.Image.MarshalCBOR(cw); err != nil {
 			return err
 		}
-	}
-
-	// t.Level (string) (string)
-	if len("level") > 1000000 {
-		return xerrors.Errorf("Value in field \"level\" was too long")
-	}
-
-	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len("level"))); err != nil {
-		return err
-	}
-	if _, err := cw.WriteString(string("level")); err != nil {
-		return err
-	}
-
-	if len(t.Level) > 1000000 {
-		return xerrors.Errorf("Value in field t.Level was too long")
-	}
-
-	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len(t.Level))); err != nil {
-		return err
-	}
-	if _, err := cw.WriteString(string(t.Level)); err != nil {
-		return err
 	}
 
 	// t.Party (string) (string)
@@ -2041,26 +2041,26 @@ func (t *LegislatorProfile) MarshalCBOR(w io.Writer) error {
 		}
 	}
 
-	// t.LegislativeBody (string) (string)
-	if len("legislativeBody") > 1000000 {
-		return xerrors.Errorf("Value in field \"legislativeBody\" was too long")
+	// t.Legislature (string) (string)
+	if len("legislature") > 1000000 {
+		return xerrors.Errorf("Value in field \"legislature\" was too long")
 	}
 
-	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len("legislativeBody"))); err != nil {
+	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len("legislature"))); err != nil {
 		return err
 	}
-	if _, err := cw.WriteString(string("legislativeBody")); err != nil {
+	if _, err := cw.WriteString(string("legislature")); err != nil {
 		return err
 	}
 
-	if len(t.LegislativeBody) > 1000000 {
-		return xerrors.Errorf("Value in field t.LegislativeBody was too long")
+	if len(t.Legislature) > 1000000 {
+		return xerrors.Errorf("Value in field t.Legislature was too long")
 	}
 
-	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len(t.LegislativeBody))); err != nil {
+	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len(t.Legislature))); err != nil {
 		return err
 	}
-	if _, err := cw.WriteString(string(t.LegislativeBody)); err != nil {
+	if _, err := cw.WriteString(string(t.Legislature)); err != nil {
 		return err
 	}
 	return nil
@@ -2091,7 +2091,7 @@ func (t *LegislatorProfile) UnmarshalCBOR(r io.Reader) (err error) {
 
 	n := extra
 
-	nameBuf := make([]byte, 15)
+	nameBuf := make([]byte, 11)
 	for i := uint64(0); i < n; i++ {
 		nameLen, ok, err := cbg.ReadFullStringIntoBuf(cr, nameBuf, 1000000)
 		if err != nil {
@@ -2117,6 +2117,17 @@ func (t *LegislatorProfile) UnmarshalCBOR(r io.Reader) (err error) {
 				}
 
 				t.Name = string(sval)
+			}
+			// t.Role (string) (string)
+		case "role":
+
+			{
+				sval, err := cbg.ReadStringWithMax(cr, 1000000)
+				if err != nil {
+					return err
+				}
+
+				t.Role = string(sval)
 			}
 			// t.LexiconTypeID (string) (string)
 		case "$type":
@@ -2148,17 +2159,6 @@ func (t *LegislatorProfile) UnmarshalCBOR(r io.Reader) (err error) {
 					}
 				}
 
-			}
-			// t.Level (string) (string)
-		case "level":
-
-			{
-				sval, err := cbg.ReadStringWithMax(cr, 1000000)
-				if err != nil {
-					return err
-				}
-
-				t.Level = string(sval)
 			}
 			// t.Party (string) (string)
 		case "party":
@@ -2319,8 +2319,8 @@ func (t *LegislatorProfile) UnmarshalCBOR(r io.Reader) (err error) {
 					t.Instagram = (*string)(&sval)
 				}
 			}
-			// t.LegislativeBody (string) (string)
-		case "legislativeBody":
+			// t.Legislature (string) (string)
+		case "legislature":
 
 			{
 				sval, err := cbg.ReadStringWithMax(cr, 1000000)
@@ -2328,7 +2328,7 @@ func (t *LegislatorProfile) UnmarshalCBOR(r io.Reader) (err error) {
 					return err
 				}
 
-				t.LegislativeBody = string(sval)
+				t.Legislature = string(sval)
 			}
 
 		default:

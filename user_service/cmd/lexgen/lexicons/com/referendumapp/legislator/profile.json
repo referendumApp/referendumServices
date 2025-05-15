@@ -12,9 +12,9 @@
           "name",
           "district",
           "party",
-          "level",
-          "legislativeBody",
-          "state"
+          "role",
+          "state",
+          "legislature"
         ],
         "properties": {
           "name": { "type": "string", "format": "name", "maxLength": 60 },
@@ -24,9 +24,9 @@
           "facebook": { "type": "string" },
           "instagram": { "type": "string" },
           "twitter": { "type": "string" },
-          "level": { "type": "string", "enum": ["federal", "state", "local"] },
-          "legislativeBody": { "type": "string" },
+          "role": { "type": "string" },
           "state": { "type": "string" },
+          "legislature": { "type": "string" },
           "phone": { "type": "string", "format": "e164" },
           "imageUrl": { "type": "string" },
           "image": {
