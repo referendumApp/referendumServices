@@ -3,14 +3,12 @@ package app
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
 	"github.com/referendumApp/referendumServices/internal/database"
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
-	refErr "github.com/referendumApp/referendumServices/internal/error"
 )
 
 // ViewMeta embeds the DB specifically for app view related queries
@@ -209,8 +207,12 @@ func (vm *ViewMeta) LookupGraphFollowing(ctx context.Context, aid atp.Aid) ([]*a
 }
 
 // GetActorBasic queries actor record for the basic information
-func (vm *ViewMeta) GetActorBasic(ctx context.Context, aid atp.Aid, includeDeleted bool) (*atp.ActorBasic, error) {
-	query, err := database.BuildSelect(&atp.ActorBasic{}, vm.Schema, sq.Eq{"id": aid})
+func (vm *ViewMeta) GetActorBasic(ctx context.Context, aid atp.Aid) (*atp.ActorBasic, error) {
+	filter := sq.And{
+		sq.Eq{"id": aid},
+		sq.Eq{"deleted_at": nil},
+	}
+	query, err := database.BuildSelect(&atp.ActorBasic{}, vm.Schema, filter)
 	if err != nil {
 		vm.Log.ErrorContext(ctx, "Error building profile select query", "error", err)
 		return nil, err
@@ -225,14 +227,7 @@ func (vm *ViewMeta) GetActorBasic(ctx context.Context, aid atp.Aid, includeDelet
 	actorBasic, err := database.Get[atp.ActorBasic](ctx, vm.DB, sql, args...)
 	if err != nil {
 		vm.Log.ErrorContext(ctx, "Failed getting profile", "sql", sql, "aid", aid, "err", err)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, refErr.NotFound("Actor %s not found", fmt.Sprintf("%d", aid))
-		}
 		return nil, err
-	}
-
-	if !includeDeleted && actorBasic.DeletedAt.Valid {
-		return nil, refErr.NotFound("Actor %s has been deleted", fmt.Sprintf("%d", aid))
 	}
 
 	return actorBasic, nil
