@@ -15,11 +15,6 @@
               "legislatorId": {
                 "type": "integer"
               },
-              "handle": {
-                "type": "string",
-                "format": "handle",
-                "description": "Requested handle for the legislator."
-              },
               "name": {
                 "type": "string"
               },

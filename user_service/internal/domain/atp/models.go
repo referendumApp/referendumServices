@@ -117,7 +117,7 @@ func (a User) TableName() string {
 type Legislator struct {
 	Base
 	Did          string        `db:"did,omitempty"           json:"did"`
-	Aid          Aid           `db:"id,omitempty,pk"         json:"id"`
+	Aid          Aid           `db:"aid,omitempty,pk"        json:"aid"`
 	LegislatorId int64         `db:"legislator_id,omitempty" json:"-"`
 	PDS          sql.NullInt64 `db:"pds_id,omitempty"        json:"-"`
 }

@@ -3,6 +3,8 @@ package service
 import (
 	"fmt"
 	"net/http"
+	"regexp"
+	"strings"
 	"time"
 
 	refApp "github.com/referendumApp/referendumServices/internal/domain/lexicon/referendumapp"
@@ -67,7 +69,7 @@ func (s *Service) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := s.pds.CreateNewRepo(ctx, actor)
+	resp, err := s.pds.CreateNewUserRepo(ctx, actor)
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -84,13 +86,20 @@ func (s *Service) handleCreateLegislator(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	var handle = fmt.Sprintf("refLegislator%d", req.LegislatorId)
-	req.Handle = &handle
-
-	err := s.av.ValidateHandle(ctx, *req.Handle)
+	// Create the handle from the legislator name
+	var handle string
+	sanitizedName := strings.ToLower(req.Name)
+	sanitizedName = regexp.MustCompile(`[^a-z0-9-]`).ReplaceAllString(sanitizedName, "-")
+	sanitizedName = strings.Trim(sanitizedName, "-")
+	handle = fmt.Sprintf("%s.referendumapp.com", sanitizedName)
+	err := s.av.ValidateHandle(ctx, handle)
 	if err != nil {
-		err.WriteResponse(w)
-		return
+		handle = fmt.Sprintf("%s-%d.referendumapp.com", sanitizedName, req.LegislatorId)
+		err = s.av.ValidateHandle(ctx, handle)
+		if err != nil {
+			err.WriteResponse(w)
+			return
+		}
 	}
 
 	err = s.av.ResolveNewLegislator(ctx, &req)
@@ -99,7 +108,7 @@ func (s *Service) handleCreateLegislator(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	actor, err := s.pds.CreateActor(ctx, *req.Handle, req.Name, "")
+	actor, err := s.pds.CreateActor(ctx, handle, req.Name, "")
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -110,11 +119,12 @@ func (s *Service) handleCreateLegislator(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	resp, err := s.pds.CreateNewRepo(ctx, actor)
+	resp, err := s.pds.CreateNewLegislatorRepo(ctx, actor, &req)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
+	s.log.ErrorContext(ctx, "Created PROBABLY INVALID response", "resp", resp)
 
 	s.encode(ctx, w, http.StatusCreated, resp)
 }

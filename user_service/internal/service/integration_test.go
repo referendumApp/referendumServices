@@ -852,3 +852,118 @@ func TestSession(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateLegislator(t *testing.T) {
+	tests := []testCase{
+		{
+			"Create Legislator Successfully",
+			testRequest{
+				method: http.MethodPost,
+				path:   "/legislator",
+				body: refApp.ServerCreateLegislator_Input{
+					LegislatorId: 12345,
+					Name:         "Senator Smith",
+					District:     "WA-SD-01",
+					Party:        "Independent",
+					Role:         "Senator",
+					State:        "WA",
+					Legislature:  "US",
+					Address:      stringPtr("123 Capitol St"),
+					Phone:        stringPtr("+12065551234"),
+				},
+			},
+			testResponse{
+				status: http.StatusCreated,
+				body:   &refApp.ServerCreateLegislator_Output{},
+			},
+			nil,
+		},
+		{
+			"Create Legislator with Duplicate ID",
+			testRequest{
+				method: http.MethodPost,
+				path:   "/legislator",
+				body: refApp.ServerCreateLegislator_Input{
+					LegislatorId: 12345, // Same ID as previous test
+					Name:         "Senator Jones",
+					District:     "CA-SD-01",
+					Party:        "Democrat",
+					Role:         "Senator",
+					State:        "CA",
+					Legislature:  "US",
+				},
+			},
+			testResponse{
+				status: http.StatusConflict,
+			},
+			nil,
+		},
+		{
+			"Create Legislator with Missing Required Fields",
+			testRequest{
+				method: http.MethodPost,
+				path:   "/legislator",
+				body: refApp.ServerCreateLegislator_Input{
+					LegislatorId: 54321,
+					Name:         "Representative Missing",
+				},
+			},
+			testResponse{
+				status: http.StatusUnprocessableEntity,
+			},
+			nil,
+		},
+		{
+			"Create Legislator with Invalid Phone",
+			testRequest{
+				method: http.MethodPost,
+				path:   "/legislator",
+				body: refApp.ServerCreateLegislator_Input{
+					LegislatorId: 54321,
+					Name:         "Representative Invalid",
+					District:     "District 7",
+					Party:        "Independent",
+					Role:         "Representative",
+					State:        "Oregon",
+					Legislature:  "State House",
+					Phone:        stringPtr("555-1234"),
+				},
+			},
+			testResponse{
+				status: http.StatusUnprocessableEntity,
+			},
+			nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := tc.request.handleJsonRequest(t)
+			status := tc.response.getResponse(t, req)
+
+			if status == http.StatusCreated {
+				duplicateReq := testRequest{
+					method: http.MethodPost,
+					path:   "/legislator",
+					body:   tc.request.body,
+				}
+
+				req := duplicateReq.handleJsonRequest(t)
+				resp, err := client.Do(req)
+				assert.NoError(t, err, "HTTP request failed")
+				defer resp.Body.Close()
+
+				assert.Equal(
+					t,
+					http.StatusConflict,
+					resp.StatusCode,
+					"Expected conflict when creating duplicate legislator",
+				)
+			}
+		})
+	}
+}
+
+func stringPtr(s string) *string {
+	return &s
+}

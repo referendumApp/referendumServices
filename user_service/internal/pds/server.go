@@ -49,8 +49,8 @@ func (p *PDS) CreateActor(
 	return actor, nil
 }
 
-// CreateNewRepo initialize a new repo and write the first record to the CAR store
-func (p *PDS) CreateNewRepo(
+// CreateNewUserRepo initialize a new repo and write the first record to the CAR store
+func (p *PDS) CreateNewUserRepo(
 	ctx context.Context,
 	actor *atp.Actor,
 ) (*refApp.ServerCreateAccount_Output, *refErr.APIError) {
@@ -75,6 +75,35 @@ func (p *PDS) CreateNewRepo(
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    p.jwt.AuthScheme,
+	}, nil
+}
+
+// CreateNewLegislatorRepo initialize a new repo and write the first record to the CAR store
+func (p *PDS) CreateNewLegislatorRepo(
+	ctx context.Context,
+	actor *atp.Actor,
+	legislatorInput *refApp.ServerCreateLegislator_Input,
+) (*refApp.ServerCreateLegislator_Output, *refErr.APIError) {
+	profile := &refApp.LegislatorProfile{
+		District:    legislatorInput.District,
+		Image:       legislatorInput.Image,
+		ImageUrl:    legislatorInput.ImageUrl,
+		Legislature: legislatorInput.Legislature,
+		Name:        legislatorInput.Name,
+		Party:       legislatorInput.Party,
+		Phone:       legislatorInput.ImageUrl,
+		Role:        legislatorInput.Role,
+		State:       legislatorInput.State,
+	}
+
+	if err := p.repoman.InitNewRepo(ctx, actor.ID, actor.Did, profile.NSID(), profile.Key(), profile); err != nil {
+		p.log.ErrorContext(ctx, "Error initializing new actor repository", "error", err, "did", actor.Did)
+		return nil, refErr.Repo()
+	}
+
+	return &refApp.ServerCreateLegislator_Output{
+		Did:    actor.Did,
+		Handle: actor.Handle.String,
 	}, nil
 }
 

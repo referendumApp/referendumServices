@@ -10,11 +10,9 @@ import (
 
 // ServerCreateLegislator_Input is the input argument to a com.referendumapp.server.createLegislator call.
 type ServerCreateLegislator_Input struct {
-	Address  *string `json:"address,omitempty" cborgen:"address,omitempty" validate:"omitempty"`
-	District string  `json:"district" cborgen:"district" validate:"required"`
-	Facebook *string `json:"facebook,omitempty" cborgen:"facebook,omitempty" validate:"omitempty"`
-	// handle: Requested handle for the legislator.
-	Handle       *string       `json:"handle,omitempty" cborgen:"handle,omitempty" validate:"omitempty,handle"`
+	Address      *string       `json:"address,omitempty" cborgen:"address,omitempty" validate:"omitempty"`
+	District     string        `json:"district" cborgen:"district" validate:"required"`
+	Facebook     *string       `json:"facebook,omitempty" cborgen:"facebook,omitempty" validate:"omitempty"`
 	Image        *util.LexBlob `json:"image,omitempty" cborgen:"image,omitempty" validate:"omitempty"`
 	ImageUrl     *string       `json:"imageUrl,omitempty" cborgen:"imageUrl,omitempty" validate:"omitempty"`
 	Instagram    *string       `json:"instagram,omitempty" cborgen:"instagram,omitempty" validate:"omitempty"`

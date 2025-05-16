@@ -92,13 +92,13 @@ func (vm *ViewMeta) insertActorAndLegislatorRecords(
 			return serr
 		}
 
-		user := &atp.Legislator{
+		legislator := &atp.Legislator{
 			Aid:          actor.ID,
 			Did:          actor.Did,
 			LegislatorId: legislatorId,
 		}
 
-		if err := vm.CreateWithTx(ctx, tx, user); err != nil {
+		if err := vm.CreateWithTx(ctx, tx, legislator); err != nil {
 			vm.Log.ErrorContext(ctx, "Failed to create legislator", "error", err)
 			return err
 		}
