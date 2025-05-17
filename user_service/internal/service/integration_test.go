@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
@@ -851,4 +852,366 @@ func TestSession(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCreateLegislator(t *testing.T) {
+	tests := []testCase{
+		{
+			"Create Legislator Successfully",
+			testRequest{
+				method: http.MethodPost,
+				path:   "/legislator",
+				body: refApp.ServerCreateLegislator_Input{
+					LegislatorId: 12345,
+					Name:         "Senator Smith",
+					District:     "WA-SD-01",
+					Party:        "Independent",
+					Role:         "Senator",
+					State:        "WA",
+					Legislature:  "US",
+					Address:      stringPtr("123 Capitol St"),
+					Phone:        stringPtr("+12065551234"),
+				},
+			},
+			testResponse{
+				status: http.StatusCreated,
+				body:   &refApp.ServerCreateLegislator_Output{},
+			},
+			nil,
+		},
+		{
+			"Create Legislator with Duplicate ID",
+			testRequest{
+				method: http.MethodPost,
+				path:   "/legislator",
+				body: refApp.ServerCreateLegislator_Input{
+					LegislatorId: 12345, // Same ID as previous test
+					Name:         "Senator Jones",
+					District:     "CA-SD-01",
+					Party:        "Democrat",
+					Role:         "Senator",
+					State:        "CA",
+					Legislature:  "US",
+				},
+			},
+			testResponse{
+				status: http.StatusConflict,
+			},
+			nil,
+		},
+		{
+			"Create Legislator with Missing Required Fields",
+			testRequest{
+				method: http.MethodPost,
+				path:   "/legislator",
+				body: refApp.ServerCreateLegislator_Input{
+					LegislatorId: 54321,
+					Name:         "Representative Missing",
+				},
+			},
+			testResponse{
+				status: http.StatusUnprocessableEntity,
+			},
+			nil,
+		},
+		{
+			"Create Legislator with Invalid Phone",
+			testRequest{
+				method: http.MethodPost,
+				path:   "/legislator",
+				body: refApp.ServerCreateLegislator_Input{
+					LegislatorId: 54321,
+					Name:         "Representative Invalid",
+					District:     "District 7",
+					Party:        "Independent",
+					Role:         "Representative",
+					State:        "Oregon",
+					Legislature:  "State House",
+					Phone:        stringPtr("555-1234"),
+				},
+			},
+			testResponse{
+				status: http.StatusUnprocessableEntity,
+			},
+			nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := tc.request.handleJsonRequest(t)
+			status := tc.response.getResponse(t, req)
+
+			if status == http.StatusCreated {
+				duplicateReq := testRequest{
+					method: http.MethodPost,
+					path:   "/legislator",
+					body:   tc.request.body,
+				}
+
+				req := duplicateReq.handleJsonRequest(t)
+				resp, err := client.Do(req)
+				assert.NoError(t, err, "HTTP request failed")
+				defer resp.Body.Close()
+
+				assert.Equal(
+					t,
+					http.StatusConflict,
+					resp.StatusCode,
+					"Expected conflict when creating duplicate legislator",
+				)
+			}
+		})
+	}
+}
+
+func TestGetLegislator(t *testing.T) {
+	createLegislatorRequest := testRequest{
+		method: http.MethodPost,
+		path:   "/legislator",
+		body: refApp.ServerCreateLegislator_Input{
+			LegislatorId: 99999,
+			Name:         "Senator Test",
+			District:     "WA-SD-02",
+			Party:        "Independent",
+			Role:         "Senator",
+			State:        "WA",
+			Legislature:  "US",
+			Address:      stringPtr("456 Capitol Ave"),
+			Phone:        stringPtr("+12065557890"),
+		},
+	}
+	createReq := createLegislatorRequest.handleJsonRequest(t)
+	resp, err := client.Do(createReq)
+	assert.NoError(t, err, "Create legislator request failed")
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusCreated, resp.StatusCode, "Failed to create test legislator")
+
+	// Extract the created legislator's DID and handle from the response
+	var createResp refApp.ServerCreateLegislator_Output
+	err = json.NewDecoder(resp.Body).Decode(&createResp)
+	assert.NoError(t, err, "Failed to decode create legislator response")
+	assert.NotEmpty(t, createResp.Did, "Created legislator should have a DID")
+	assert.NotEmpty(t, createResp.Handle, "Created legislator should have a handle")
+
+	createdHandle := createResp.Handle
+
+	tests := []testCase{
+		{
+			"Get Legislator By ID",
+			testRequest{
+				method: http.MethodGet,
+				path:   "/legislator?legislatorId=99999",
+			},
+			testResponse{
+				status: http.StatusOK,
+				body:   &refApp.LegislatorProfile{},
+			},
+			nil,
+		},
+		{
+			"Get Legislator That Doesn't Exist",
+			testRequest{
+				method: http.MethodGet,
+				path:   "/legislator?legislatorId=88888",
+			},
+			testResponse{
+				status: http.StatusNotFound,
+			},
+			nil,
+		},
+		{
+			"Get Legislator With Invalid ID Format",
+			testRequest{
+				method: http.MethodGet,
+				path:   "/legislator?legislatorId=invalid",
+			},
+			testResponse{
+				status: http.StatusBadRequest,
+			},
+			nil,
+		},
+		{
+			"Get Legislator Without Parameters",
+			testRequest{
+				method: http.MethodGet,
+				path:   "/legislator",
+			},
+			testResponse{
+				status: http.StatusBadRequest,
+			},
+			nil,
+		},
+		{
+			"Get Legislator Using Handle",
+			testRequest{
+				method: http.MethodGet,
+				path:   fmt.Sprintf("/legislator?handle=%s", createdHandle),
+			},
+			testResponse{
+				status: http.StatusOK,
+				body:   &refApp.LegislatorProfile{},
+			},
+			nil,
+		},
+		{
+			"Get Legislator Using Invalid Handle",
+			testRequest{
+				method: http.MethodGet,
+				path:   "/legislator?handle=invalid-handle",
+			},
+			testResponse{
+				status: http.StatusNotFound,
+			},
+			nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req, err := http.NewRequestWithContext(
+				context.Background(),
+				tc.request.method,
+				baseUrl+tc.request.path,
+				nil,
+			)
+			assert.NoError(t, err, "Failed to create HTTP request")
+			for k, v := range tc.request.headers {
+				req.Header.Set(k, v)
+			}
+			status := tc.response.getResponse(t, req)
+			if status == http.StatusOK {
+				profile, ok := tc.response.body.(*refApp.LegislatorProfile)
+				assert.True(t, ok, "Response body should be *LegislatorProfile")
+				assert.Contains(t, profile.Name, "Senator Test", "Legislator name should match")
+				assert.Contains(t, profile.District, "WA-SD-02", "Legislator district should match")
+			}
+		})
+	}
+}
+
+func TestDeleteLegislator(t *testing.T) {
+	createLegislatorRequest := testRequest{
+		method: http.MethodPost,
+		path:   "/legislator",
+		body: refApp.ServerCreateLegislator_Input{
+			LegislatorId: 77777,
+			Name:         "Senator ToDelete",
+			District:     "WA-SD-03",
+			Party:        "Independent",
+			Role:         "Senator",
+			State:        "WA",
+			Legislature:  "US",
+			Address:      stringPtr("789 Capitol Blvd"),
+			Phone:        stringPtr("+12065559999"),
+		},
+	}
+	createReq := createLegislatorRequest.handleJsonRequest(t)
+	resp, err := client.Do(createReq)
+	assert.NoError(t, err, "Create legislator request failed")
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusCreated, resp.StatusCode, "Failed to create test legislator")
+
+	var createResp refApp.ServerCreateLegislator_Output
+	err = json.NewDecoder(resp.Body).Decode(&createResp)
+	assert.NoError(t, err, "Failed to decode create legislator response")
+	assert.NotEmpty(t, createResp.Did, "Created legislator should have a DID")
+	assert.NotEmpty(t, createResp.Handle, "Created legislator should have a handle")
+
+	tests := []testCase{
+		{
+			"Delete Legislator By ID",
+			testRequest{
+				method: http.MethodDelete,
+				path:   "/legislator?legislatorId=77777",
+			},
+			testResponse{
+				status: http.StatusOK,
+			},
+			nil,
+		},
+		{
+			"Delete Already Deleted Legislator",
+			testRequest{
+				method: http.MethodDelete,
+				path:   "/legislator?legislatorId=77777",
+			},
+			testResponse{
+				status: http.StatusNotFound,
+			},
+			nil,
+		},
+		{
+			"Delete Non-existent Legislator",
+			testRequest{
+				method: http.MethodDelete,
+				path:   "/legislator?legislatorId=99999999",
+			},
+			testResponse{
+				status: http.StatusNotFound,
+			},
+			nil,
+		},
+		{
+			"Delete Legislator With Invalid ID Format",
+			testRequest{
+				method: http.MethodDelete,
+				path:   "/legislator?legislatorId=invalid",
+			},
+			testResponse{
+				status: http.StatusBadRequest,
+			},
+			nil,
+		},
+		{
+			"Delete Legislator Without Parameters",
+			testRequest{
+				method: http.MethodDelete,
+				path:   "/legislator",
+			},
+			testResponse{
+				status: http.StatusBadRequest,
+			},
+			nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req, err := http.NewRequestWithContext(
+				context.Background(),
+				tc.request.method,
+				baseUrl+tc.request.path,
+				nil,
+			)
+			assert.NoError(t, err, "Failed to create HTTP request")
+			for k, v := range tc.request.headers {
+				req.Header.Set(k, v)
+			}
+			status := tc.response.getResponse(t, req)
+
+			if status == http.StatusOK && strings.Contains(tc.request.path, "legislatorId=") {
+				idStr := strings.Split(strings.Split(tc.request.path, "legislatorId=")[1], "&")[0]
+
+				getReq, err := http.NewRequestWithContext(
+					context.Background(),
+					http.MethodGet,
+					baseUrl+fmt.Sprintf("/legislator?legislatorId=%s", idStr),
+					nil,
+				)
+				assert.NoError(t, err, "Failed to create HTTP request")
+
+				getResp, err := client.Do(getReq)
+				assert.NoError(t, err, "HTTP request failed")
+				defer getResp.Body.Close()
+
+				assert.Equal(t, http.StatusNotFound, getResp.StatusCode,
+					"Legislator should not be found after deletion")
+			}
+		})
+	}
+}
+
+func stringPtr(s string) *string {
+	return &s
 }

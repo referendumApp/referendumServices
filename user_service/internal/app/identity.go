@@ -16,7 +16,7 @@ import (
 	"github.com/referendumApp/referendumServices/internal/util"
 )
 
-func (v *View) validateHandle(ctx context.Context, handle string) *refErr.APIError {
+func (v *View) ValidateHandle(ctx context.Context, handle string) *refErr.APIError {
 	if !strings.HasSuffix(handle, v.handleSuffix) {
 		fieldErr := refErr.FieldError{Field: "handle", Message: "Invalid handle format"}
 		return fieldErr.Invalid()
@@ -34,13 +34,8 @@ func (v *View) validateHandle(ctx context.Context, handle string) *refErr.APIErr
 	return nil
 }
 
-// ResolveHandle validates handle, email, and password for create account request
-func (v *View) ResolveHandle(ctx context.Context, req *refApp.ServerCreateAccount_Input) (string, *refErr.APIError) {
-	if err := v.validateHandle(ctx, req.Handle); err != nil {
-		v.log.ErrorContext(ctx, "Error validating handle", "error", err)
-		return "", err
-	}
-
+// ResolveNewUser validates if the new account request can be handled and returns a hashed password
+func (v *View) ResolveNewUser(ctx context.Context, req *refApp.ServerCreateAccount_Input) (string, *refErr.APIError) {
 	filter := sq.Eq{"email": req.Email}
 	if exists, err := v.meta.userExists(ctx, filter); err != nil {
 		v.log.ErrorContext(ctx, "Error checking database for user email", "error", err)
@@ -139,23 +134,11 @@ func (v *View) AuthenticateSession(ctx context.Context, aid atp.Aid, did string)
 	return nil
 }
 
-// DeleteAccount deletes a user and user record from the DB
-func (v *View) DeleteAccount(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
+// DeleteActor deletes an actor record from the DB
+func (v *View) DeleteActor(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		deletedAt := sql.NullTime{Time: time.Now(), Valid: true}
-
-		if err := v.meta.UpdateWithTx(ctx, tx, atp.Actor{DeletedAt: deletedAt}, sq.Eq{"id": aid}); err != nil {
-			v.log.ErrorContext(ctx, "Failed to delete user", "error", err)
-			return err
-		}
-
-		user := atp.User{Base: atp.Base{DeletedAt: deletedAt}}
-		if err := v.meta.UpdateWithTx(ctx, tx, user, sq.Eq{"aid": aid}); err != nil {
-			v.log.ErrorContext(ctx, "Failed to delete user", "error", err)
-			return err
-		}
-
 		nullHandle := sql.NullString{Valid: false}
+		deletedAt := sql.NullTime{Time: time.Now(), Valid: true}
 		actor := atp.Actor{
 			Handle:    nullHandle,
 			DeletedAt: deletedAt,
@@ -172,6 +155,44 @@ func (v *View) DeleteAccount(ctx context.Context, aid atp.Aid, did string) *refE
 	return nil
 }
 
+// DeleteUser deletes a user and user record from the DB
+func (v *View) DeleteUser(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
+	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		deletedAt := sql.NullTime{Time: time.Now(), Valid: true}
+
+		user := atp.User{Base: atp.Base{DeletedAt: deletedAt}}
+		if err := v.meta.UpdateWithTx(ctx, tx, user, sq.Eq{"aid": aid}); err != nil {
+			v.log.ErrorContext(ctx, "Failed to delete user", "error", err)
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		return refErr.Database()
+	}
+
+	return nil
+}
+
+// DeleteLegislator deletes a user and user record from the DB
+func (v *View) DeleteLegislator(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
+	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		deletedAt := sql.NullTime{Time: time.Now(), Valid: true}
+
+		legislator := atp.Legislator{Base: atp.Base{DeletedAt: deletedAt}}
+		if err := v.meta.UpdateWithTx(ctx, tx, legislator, sq.Eq{"aid": aid}); err != nil {
+			v.log.ErrorContext(ctx, "Failed to delete legislator", "error", err)
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		return refErr.Database()
+	}
+
+	return nil
+}
+
 // UpdateProfile updates a user profile with a new handle, email, or display name
 func (v *View) UpdateProfile(ctx context.Context, aid atp.Aid, req *refApp.UserUpdateProfile_Input) *refErr.APIError {
 	var newActor atp.Actor
@@ -179,7 +200,7 @@ func (v *View) UpdateProfile(ctx context.Context, aid atp.Aid, req *refApp.UserU
 
 	if req.Handle != nil {
 		handle := *req.Handle
-		if err := v.validateHandle(ctx, handle); err != nil {
+		if err := v.ValidateHandle(ctx, handle); err != nil {
 			v.log.ErrorContext(ctx, "Error validating handle", "error", err)
 			return err
 		}

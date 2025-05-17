@@ -39,7 +39,7 @@ func (s *Service) handleValidationErrors(ctx context.Context, err error) *refErr
 				"Request validation failed",
 				"field",
 				e.Field(),
-				"valdationTag",
+				"validationTag",
 				e.ActualTag(),
 				"error",
 				e.Error(),
