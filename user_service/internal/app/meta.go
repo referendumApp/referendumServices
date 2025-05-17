@@ -191,6 +191,45 @@ func (vm *ViewMeta) LookupUserByAid(ctx context.Context, aid atp.Aid) (*atp.User
 	return vm.lookupUserQuery(ctx, filter)
 }
 
+func (vm *ViewMeta) lookupLegislatorQuery(ctx context.Context, filter sq.Sqlizer) (*atp.Legislator, error) {
+	var entity atp.Legislator
+	legislator, err := database.GetAll(ctx, vm.DB, entity, filter)
+	if err != nil {
+		vm.Log.ErrorContext(ctx, "Failed to lookup legislator", "filter", filter)
+		return nil, err
+	}
+
+	return legislator, nil
+}
+
+// LookupLegislatorByID queries actor record by actor ID
+func (vm *ViewMeta) LookupLegislatorByID(ctx context.Context, id int64) (*atp.Legislator, error) {
+	filter := sq.Eq{"legislator_id": id}
+	return vm.lookupLegislatorQuery(ctx, filter)
+}
+
+// LookupLegislatorByDid queries actor record by actor DID
+func (vm *ViewMeta) LookupLegislatorByDid(ctx context.Context, did string) (*atp.Legislator, error) {
+	filter := sq.Eq{"did": did}
+	return vm.lookupLegislatorQuery(ctx, filter)
+}
+
+// LookupLegislatorByHandle queries actor record by actor handle
+func (vm *ViewMeta) LookupLegislatorByHandle(ctx context.Context, handle string) (*atp.Legislator, error) {
+	actor, err := vm.LookupActorByHandle(ctx, handle)
+	if err != nil {
+		return nil, err
+	}
+
+	return vm.LookupLegislatorByAid(ctx, actor.ID)
+}
+
+// LookupLegislatorByAid queries actor record by actor handle
+func (vm *ViewMeta) LookupLegislatorByAid(ctx context.Context, aid atp.Aid) (*atp.Legislator, error) {
+	filter := sq.Eq{"aid": aid}
+	return vm.lookupLegislatorQuery(ctx, filter)
+}
+
 func (vm *ViewMeta) lookupActorQuery(ctx context.Context, filter sq.Sqlizer) (*atp.Actor, error) {
 	var entity atp.Actor
 	actor, err := database.GetAll(ctx, vm.DB, entity, filter)

@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
@@ -959,6 +960,155 @@ func TestCreateLegislator(t *testing.T) {
 					resp.StatusCode,
 					"Expected conflict when creating duplicate legislator",
 				)
+			}
+		})
+	}
+}
+
+func TestGetLegislator(t *testing.T) {
+	createLegislatorRequest := testRequest{
+		method: http.MethodPost,
+		path:   "/legislator",
+		body: refApp.ServerCreateLegislator_Input{
+			LegislatorId: 99999,
+			Name:         "Senator Test",
+			District:     "WA-SD-02",
+			Party:        "Independent",
+			Role:         "Senator",
+			State:        "WA",
+			Legislature:  "US",
+			Address:      stringPtr("456 Capitol Ave"),
+			Phone:        stringPtr("+12065557890"),
+		},
+	}
+	createReq := createLegislatorRequest.handleJsonRequest(t)
+	resp, err := client.Do(createReq)
+	assert.NoError(t, err, "Create legislator request failed")
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusCreated, resp.StatusCode, "Failed to create test legislator")
+
+	// Extract the created legislator's DID and handle from the response
+	var createResp refApp.ServerCreateLegislator_Output
+	err = json.NewDecoder(resp.Body).Decode(&createResp)
+	assert.NoError(t, err, "Failed to decode create legislator response")
+	assert.NotEmpty(t, createResp.Did, "Created legislator should have a DID")
+	assert.NotEmpty(t, createResp.Handle, "Created legislator should have a handle")
+
+	createdDid := createResp.Did
+	createdHandle := createResp.Handle
+
+	tests := []testCase{
+		{
+			"Get Legislator By ID",
+			testRequest{
+				method: http.MethodGet,
+				path:   "/legislator?legislatorId=99999",
+			},
+			testResponse{
+				status: http.StatusOK,
+				body:   &refApp.LegislatorProfile{},
+			},
+			nil,
+		},
+		{
+			"Get Legislator That Doesn't Exist",
+			testRequest{
+				method: http.MethodGet,
+				path:   "/legislator?legislatorId=88888",
+			},
+			testResponse{
+				status: http.StatusNotFound,
+			},
+			nil,
+		},
+		{
+			"Get Legislator With Invalid ID Format",
+			testRequest{
+				method: http.MethodGet,
+				path:   "/legislator?legislatorId=invalid",
+			},
+			testResponse{
+				status: http.StatusBadRequest,
+			},
+			nil,
+		},
+		{
+			"Get Legislator Without Parameters",
+			testRequest{
+				method: http.MethodGet,
+				path:   "/legislator",
+			},
+			testResponse{
+				status: http.StatusBadRequest,
+			},
+			nil,
+		},
+		{
+			"Get Legislator Using DID",
+			testRequest{
+				method: http.MethodGet,
+				path:   fmt.Sprintf("/legislator?did=%s", createdDid),
+			},
+			testResponse{
+				status: http.StatusOK,
+				body:   &refApp.LegislatorProfile{},
+			},
+			nil,
+		},
+		{
+			"Get Legislator Using Handle",
+			testRequest{
+				method: http.MethodGet,
+				path:   fmt.Sprintf("/legislator?handle=%s", createdHandle),
+			},
+			testResponse{
+				status: http.StatusOK,
+				body:   &refApp.LegislatorProfile{},
+			},
+			nil,
+		},
+		{
+			"Get Legislator Using Invalid DID",
+			testRequest{
+				method: http.MethodGet,
+				path:   "/legislator?did=invalid-did",
+			},
+			testResponse{
+				status: http.StatusNotFound,
+			},
+			nil,
+		},
+		{
+			"Get Legislator Using Invalid Handle",
+			testRequest{
+				method: http.MethodGet,
+				path:   "/legislator?handle=invalid-handle",
+			},
+			testResponse{
+				status: http.StatusNotFound,
+			},
+			nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req, err := http.NewRequestWithContext(
+				context.Background(),
+				tc.request.method,
+				baseUrl+tc.request.path,
+				nil,
+			)
+			assert.NoError(t, err, "Failed to create HTTP request")
+			for k, v := range tc.request.headers {
+				req.Header.Set(k, v)
+			}
+			status := tc.response.getResponse(t, req)
+			if status == http.StatusOK {
+				profile, ok := tc.response.body.(*refApp.LegislatorProfile)
+				assert.True(t, ok, "Response body should be *LegislatorProfile")
+				assert.Contains(t, profile.Name, "Senator Test", "Legislator name should match")
+				assert.Contains(t, profile.District, "WA-SD-02", "Legislator district should match")
 			}
 		})
 	}

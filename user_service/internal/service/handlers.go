@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -270,6 +271,49 @@ func (s *Service) handleGetUserProfile(w http.ResponseWriter, r *http.Request) {
 
 	var profile refApp.UserProfile
 	if _, err := s.pds.GetRecord(ctx, aid, &profile); err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	s.encode(ctx, w, http.StatusOK, profile)
+}
+
+func (s *Service) handleGetLegislator(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var legislatorId *int64
+	legislatorIdStr := r.URL.Query().Get("legislatorId")
+	if legislatorIdStr != "" {
+		id, err := strconv.ParseInt(legislatorIdStr, 10, 64)
+		if err != nil {
+			apiErr := refErr.BadRequest("Invalid legislatorId format")
+			apiErr.WriteResponse(w)
+			return
+		}
+		legislatorId = &id
+	}
+
+	var did *string
+	didStr := r.URL.Query().Get("did")
+	if didStr != "" {
+		did = &didStr
+	}
+
+	var handle *string
+	handleStr := r.URL.Query().Get("handle")
+	if handleStr != "" {
+		handle = &handleStr
+	}
+
+	legislator, apiErr := s.av.GetLegislator(ctx, legislatorId, did, handle)
+	if apiErr != nil {
+		apiErr.WriteResponse(w)
+		return
+	}
+
+	var profile refApp.LegislatorProfile
+	_, err := s.pds.GetRecord(ctx, legislator.Aid, &profile)
+	if err != nil {
 		err.WriteResponse(w)
 		return
 	}

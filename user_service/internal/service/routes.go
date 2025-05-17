@@ -25,10 +25,11 @@ func (s *Service) setupRoutes() {
 	})
 
 	s.mux.Route("/legislator", func(r chi.Router) {
+		// TODO - add system auth here
 		// 		r.Use(s.pds.AuthorizeUser)
 
 		r.Post("/", s.handleCreateLegislator)
-		// 		r.Get("/", s.handleGetLegislator)
+		r.Get("/", s.handleGetLegislator)
 		// 		r.Put("/", s.handleLegislatorUpdate)
 		// 		r.Delete("/", s.handleDeleteLegislator)
 	})
