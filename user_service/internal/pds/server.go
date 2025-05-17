@@ -192,8 +192,8 @@ func (p *PDS) DeleteSession(ctx context.Context, did string) *refErr.APIError {
 	return nil
 }
 
-// DeleteAccount tombstones the DID in the PLC, deletes DB metadata, and deletes CAR files
-func (p *PDS) DeleteAccount(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
+// DeleteActor tombstones the DID in the PLC, deletes DB metadata, and deletes CAR files
+func (p *PDS) DeleteActor(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
 	op, err := p.plc.GetLatestOp(ctx, did)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Error searching for latest operation in PLC log", "error", err)

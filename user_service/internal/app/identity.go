@@ -134,23 +134,11 @@ func (v *View) AuthenticateSession(ctx context.Context, aid atp.Aid, did string)
 	return nil
 }
 
-// DeleteAccount deletes a user and user record from the DB
-func (v *View) DeleteAccount(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
+// DeleteActor deletes an actor record from the DB
+func (v *View) DeleteActor(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		deletedAt := sql.NullTime{Time: time.Now(), Valid: true}
-
-		if err := v.meta.UpdateWithTx(ctx, tx, atp.Actor{DeletedAt: deletedAt}, sq.Eq{"id": aid}); err != nil {
-			v.log.ErrorContext(ctx, "Failed to delete user", "error", err)
-			return err
-		}
-
-		user := atp.User{Base: atp.Base{DeletedAt: deletedAt}}
-		if err := v.meta.UpdateWithTx(ctx, tx, user, sq.Eq{"aid": aid}); err != nil {
-			v.log.ErrorContext(ctx, "Failed to delete user", "error", err)
-			return err
-		}
-
 		nullHandle := sql.NullString{Valid: false}
+		deletedAt := sql.NullTime{Time: time.Now(), Valid: true}
 		actor := atp.Actor{
 			Handle:    nullHandle,
 			DeletedAt: deletedAt,
@@ -159,6 +147,44 @@ func (v *View) DeleteAccount(ctx context.Context, aid atp.Aid, did string) *refE
 			v.log.ErrorContext(ctx, "Failed to delete actor handle", "error", err)
 			return err
 		}
+		return nil
+	}); err != nil {
+		return refErr.Database()
+	}
+
+	return nil
+}
+
+// DeleteUser deletes a user and user record from the DB
+func (v *View) DeleteUser(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
+	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		deletedAt := sql.NullTime{Time: time.Now(), Valid: true}
+
+		user := atp.User{Base: atp.Base{DeletedAt: deletedAt}}
+		if err := v.meta.UpdateWithTx(ctx, tx, user, sq.Eq{"aid": aid}); err != nil {
+			v.log.ErrorContext(ctx, "Failed to delete user", "error", err)
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		return refErr.Database()
+	}
+
+	return nil
+}
+
+// DeleteLegislator deletes a user and user record from the DB
+func (v *View) DeleteLegislator(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
+	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		deletedAt := sql.NullTime{Time: time.Now(), Valid: true}
+
+		legislator := atp.Legislator{Base: atp.Base{DeletedAt: deletedAt}}
+		if err := v.meta.UpdateWithTx(ctx, tx, legislator, sq.Eq{"aid": aid}); err != nil {
+			v.log.ErrorContext(ctx, "Failed to delete legislator", "error", err)
+			return err
+		}
+
 		return nil
 	}); err != nil {
 		return refErr.Database()

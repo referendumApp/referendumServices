@@ -193,7 +193,13 @@ func (vm *ViewMeta) LookupUserByAid(ctx context.Context, aid atp.Aid) (*atp.User
 
 func (vm *ViewMeta) lookupLegislatorQuery(ctx context.Context, filter sq.Sqlizer) (*atp.Legislator, error) {
 	var entity atp.Legislator
-	legislator, err := database.GetAll(ctx, vm.DB, entity, filter)
+
+	combinedFilter := sq.And{
+		filter,
+		sq.Eq{"deleted_at": nil},
+	}
+
+	legislator, err := database.GetAll(ctx, vm.DB, entity, combinedFilter)
 	if err != nil {
 		vm.Log.ErrorContext(ctx, "Failed to lookup legislator", "filter", filter)
 		return nil, err

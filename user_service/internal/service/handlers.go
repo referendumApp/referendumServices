@@ -125,7 +125,6 @@ func (s *Service) handleCreateLegislator(w http.ResponseWriter, r *http.Request)
 		err.WriteResponse(w)
 		return
 	}
-	s.log.ErrorContext(ctx, "Created PROBABLY INVALID response", "resp", resp)
 
 	s.encode(ctx, w, http.StatusCreated, resp)
 }
@@ -218,12 +217,17 @@ func (s *Service) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.pds.DeleteAccount(ctx, aid, did); err != nil {
+	if err := s.pds.DeleteActor(ctx, aid, did); err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	if err := s.av.DeleteAccount(ctx, aid, did); err != nil {
+	if err := s.av.DeleteActor(ctx, aid, did); err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	if err := s.av.DeleteUser(ctx, aid, did); err != nil {
 		err.WriteResponse(w)
 		return
 	}
@@ -293,19 +297,13 @@ func (s *Service) handleGetLegislator(w http.ResponseWriter, r *http.Request) {
 		legislatorId = &id
 	}
 
-	var did *string
-	didStr := r.URL.Query().Get("did")
-	if didStr != "" {
-		did = &didStr
-	}
-
 	var handle *string
 	handleStr := r.URL.Query().Get("handle")
 	if handleStr != "" {
 		handle = &handleStr
 	}
 
-	legislator, apiErr := s.av.GetLegislator(ctx, legislatorId, did, handle)
+	legislator, apiErr := s.av.GetLegislator(ctx, legislatorId, handle)
 	if apiErr != nil {
 		apiErr.WriteResponse(w)
 		return
@@ -319,6 +317,43 @@ func (s *Service) handleGetLegislator(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.encode(ctx, w, http.StatusOK, profile)
+}
+
+func (s *Service) handleDeleteLegislator(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var legislatorId *int64
+	legislatorIdStr := r.URL.Query().Get("legislatorId")
+	if legislatorIdStr != "" {
+		id, err := strconv.ParseInt(legislatorIdStr, 10, 64)
+		if err != nil {
+			apiErr := refErr.BadRequest("Invalid legislatorId format")
+			apiErr.WriteResponse(w)
+			return
+		}
+		legislatorId = &id
+	}
+
+	legislator, apiErr := s.av.GetLegislator(ctx, legislatorId, nil)
+	if apiErr != nil {
+		apiErr.WriteResponse(w)
+		return
+	}
+
+	if err := s.pds.DeleteActor(ctx, legislator.Aid, legislator.Did); err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	if err := s.av.DeleteActor(ctx, legislator.Aid, legislator.Did); err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	if err := s.av.DeleteLegislator(ctx, legislator.Aid, legislator.Did); err != nil {
+		err.WriteResponse(w)
+		return
+	}
 }
 
 func (s *Service) handleGraphFollow(w http.ResponseWriter, r *http.Request) {

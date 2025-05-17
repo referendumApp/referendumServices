@@ -31,7 +31,7 @@ func (s *Service) setupRoutes() {
 		r.Post("/", s.handleCreateLegislator)
 		r.Get("/", s.handleGetLegislator)
 		// 		r.Put("/", s.handleLegislatorUpdate)
-		// 		r.Delete("/", s.handleDeleteLegislator)
+		r.Delete("/", s.handleDeleteLegislator)
 	})
 
 	s.mux.Route("/server", func(r chi.Router) {

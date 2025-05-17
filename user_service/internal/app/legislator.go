@@ -42,11 +42,9 @@ func (v *View) SaveActorAndLegislator(
 func (v *View) GetLegislator(
 	ctx context.Context,
 	legislatorId *int64,
-	did *string,
 	handle *string,
 ) (*atp.Legislator, *refErr.APIError) {
 	hasValidId := legislatorId != nil && *legislatorId != 0
-	hasValidDid := did != nil && *did != ""
 	hasValidHandle := handle != nil && *handle != ""
 
 	var legislator *atp.Legislator
@@ -63,10 +61,6 @@ func (v *View) GetLegislator(
 		legislator, err = v.meta.LookupLegislatorByHandle(ctx, *handle)
 		lookupParam = *handle
 		lookupType = "HANDLE"
-	case hasValidDid:
-		legislator, err = v.meta.LookupLegislatorByDid(ctx, *did)
-		lookupParam = *did
-		lookupType = "DID"
 	default:
 		v.log.ErrorContext(ctx, "Missing required parameter", "error", "legislator_id, did, or handle required")
 		return nil, refErr.BadRequest("Required parameter not provided, needs one of: did, legislatorId, handle")
