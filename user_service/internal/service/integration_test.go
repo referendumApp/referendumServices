@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"log/slog"
 	"net/http"
@@ -232,14 +233,61 @@ func (e *testResponse) getResponse(t *testing.T, req *http.Request) int {
 	assert.NoError(t, err, "HTTP request failed")
 	defer resp.Body.Close()
 
-	assert.Equal(t, e.status, resp.StatusCode)
+	// Always log request details for debugging
+	t.Logf("Request: %s %s", req.Method, req.URL.String())
+	if len(req.Header) > 0 {
+		t.Logf("Request Headers: %+v", req.Header)
+	}
 
-	if e.body != nil && resp.Body != nil && resp.StatusCode < 300 {
-		decodeErr := json.NewDecoder(resp.Body).Decode(e.body)
-		assert.NoError(t, decodeErr, "Error decoding response body")
+	// Log actual response details
+	t.Logf("Response Status: %d %s", resp.StatusCode, resp.Status)
+	if len(resp.Header) > 0 {
+		t.Logf("Response Headers: %+v", resp.Header)
+	}
 
-		valErr := util.Validate.Struct(e.body)
-		assert.NoError(t, valErr, "Error validating response body")
+	// Read the response body to log and validate it
+	bodyBytes, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		t.Logf("Failed to read response body: %v", readErr)
+	} else if len(bodyBytes) > 0 {
+		t.Logf("Response Body: %s", string(bodyBytes))
+	}
+
+	// Check if status code matches expected
+	if e.status != resp.StatusCode {
+		t.Errorf("Status code mismatch: expected %d, got %d", e.status, resp.StatusCode)
+		t.Errorf("Response details logged above")
+	}
+
+	// If we have an expected response body and the request was successful, try to decode
+	if e.body != nil && resp.StatusCode < 300 && len(bodyBytes) > 0 {
+		// Create a new reader from the bytes we already read
+		bodyReader := bytes.NewReader(bodyBytes)
+
+		decodeErr := json.NewDecoder(bodyReader).Decode(e.body)
+		if decodeErr != nil {
+			t.Errorf("Error decoding response body: %v", decodeErr)
+			t.Errorf("Raw response body: %s", string(bodyBytes))
+		} else {
+			// Validate the decoded structure
+			valErr := util.Validate.Struct(e.body)
+			if valErr != nil {
+				t.Errorf("Error validating response body structure: %v", valErr)
+				t.Errorf("Decoded body: %+v", e.body)
+			}
+		}
+	}
+
+	// For error responses, always log what we got vs what we expected
+	if resp.StatusCode >= 400 {
+		t.Logf("Error response received - Expected status: %d, Got status: %d", e.status, resp.StatusCode)
+		if len(bodyBytes) > 0 {
+			// Try to parse as JSON error for better formatting
+			var errorResp map[string]interface{}
+			if json.Unmarshal(bodyBytes, &errorResp) == nil {
+				t.Logf("Parsed error response: %+v", errorResp)
+			}
+		}
 	}
 
 	return resp.StatusCode
