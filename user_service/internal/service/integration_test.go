@@ -1104,7 +1104,7 @@ func TestLegislator(t *testing.T) {
 
 	t.Run("Update", func(t *testing.T) {
 		// Create a test legislator for update tests
-		_, err := createTestLegislator(updateID, "Senator Update")
+		_, err := createTestLegislator(updateID, "Senator Original")
 		assert.NoError(t, err, "Failed to create test legislator for updates")
 
 		tests := []testCase{
@@ -1177,7 +1177,7 @@ func TestLegislator(t *testing.T) {
 					path:   "/legislator",
 					body: refApp.LegislatorUpdateProfile_Input{
 						LegislatorId: 999999,
-						Name:         stringPtr("Non-existent"),
+						Name:         stringPtr("NonExistent"),
 					},
 				},
 				testResponse{
@@ -1235,10 +1235,8 @@ func TestLegislator(t *testing.T) {
 				req := tc.request.handleJsonRequest(t)
 				status := tc.response.getResponse(t, req)
 
-				// For successful updates, verify the changes took effect
 				if status == http.StatusOK {
 					updateReq := tc.request.body.(refApp.LegislatorUpdateProfile_Input)
-					// Fetch the updated legislator to verify changes
 					getReq, err := http.NewRequestWithContext(
 						context.Background(),
 						http.MethodGet,
@@ -1256,7 +1254,6 @@ func TestLegislator(t *testing.T) {
 						err := json.NewDecoder(getResp.Body).Decode(&profile)
 						assert.NoError(t, err, "Failed to decode updated legislator")
 
-						// Verify updates were applied
 						if updateReq.Name != nil {
 							assert.Equal(t, *updateReq.Name, profile.Name, "Name should be updated")
 						}

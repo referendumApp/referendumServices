@@ -248,7 +248,7 @@ func (v *View) UpdateUserProfile(
 	return nil
 }
 
-// UpdateLegislator updates a legislator profile in the DB
+// UpdateLegislator updates a legislator in the DB
 func (v *View) UpdateLegislator(
 	ctx context.Context,
 	aid atp.Aid,

@@ -319,6 +319,21 @@ func (s *Service) handleGetLegislator(w http.ResponseWriter, r *http.Request) {
 	s.encode(ctx, w, http.StatusOK, profile)
 }
 
+func updateStringIfNotNil(target *string, source *string) {
+	if source != nil {
+		*target = *source
+	}
+}
+
+func updateStringPtrIfNotNil(target **string, source *string) {
+	if source != nil {
+		if *target == nil {
+			*target = new(string)
+		}
+		**target = *source
+	}
+}
+
 func (s *Service) handleLegislatorUpdate(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -333,9 +348,25 @@ func (s *Service) handleLegislatorUpdate(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	var profile = refApp.LegislatorProfile{}
-	if req.Address != nil {
-		profile.Address = req.Address
+	var currentProfile refApp.LegislatorProfile
+	if _, err := s.pds.GetRecord(ctx, legislator.Aid, &currentProfile); err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	profile := currentProfile
+	updateStringIfNotNil(&profile.Name, req.Name)
+	updateStringIfNotNil(&profile.District, req.District)
+	updateStringIfNotNil(&profile.Party, req.Party)
+	updateStringIfNotNil(&profile.Role, req.Role)
+	updateStringIfNotNil(&profile.State, req.State)
+	updateStringIfNotNil(&profile.Legislature, req.Legislature)
+	updateStringPtrIfNotNil(&profile.Phone, req.Phone)
+	updateStringPtrIfNotNil(&profile.ImageUrl, req.ImageUrl)
+	updateStringPtrIfNotNil(&profile.Address, req.Address)
+
+	if req.Image != nil {
+		profile.Image = req.Image
 	}
 
 	if _, err := s.pds.UpdateRecord(ctx, legislator.Aid, &profile); err != nil {
@@ -347,6 +378,8 @@ func (s *Service) handleLegislatorUpdate(w http.ResponseWriter, r *http.Request)
 		err.WriteResponse(w)
 		return
 	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *Service) handleDeleteLegislator(w http.ResponseWriter, r *http.Request) {
