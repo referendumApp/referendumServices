@@ -87,7 +87,6 @@ func (s *Service) handleCreateLegislator(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Create the handle from the legislator name
 	var handle string
 	sanitizedName := strings.ToLower(req.Name)
 	sanitizedName = regexp.MustCompile(`[^a-z0-9-]`).ReplaceAllString(sanitizedName, "-")

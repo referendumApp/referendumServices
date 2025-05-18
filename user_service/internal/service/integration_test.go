@@ -1103,7 +1103,6 @@ func TestLegislator(t *testing.T) {
 	})
 
 	t.Run("Update", func(t *testing.T) {
-		// Create a test legislator for update tests
 		_, err := createTestLegislator(updateID, "Senator Original")
 		assert.NoError(t, err, "Failed to create test legislator for updates")
 
@@ -1267,7 +1266,6 @@ func TestLegislator(t *testing.T) {
 	})
 
 	t.Run("Delete", func(t *testing.T) {
-		// Create a test legislator for deletion tests
 		_, err := createTestLegislator(deleteID, "Senator ToDelete")
 		assert.NoError(t, err, "Failed to create test legislator for deletion")
 
