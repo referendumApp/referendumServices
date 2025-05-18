@@ -193,8 +193,12 @@ func (v *View) DeleteLegislator(ctx context.Context, aid atp.Aid, did string) *r
 	return nil
 }
 
-// UpdateProfile updates a user profile with a new handle, email, or display name
-func (v *View) UpdateProfile(ctx context.Context, aid atp.Aid, req *refApp.UserUpdateProfile_Input) *refErr.APIError {
+// UpdateUserProfile updates a user profile with a new handle, email, or display name
+func (v *View) UpdateUserProfile(
+	ctx context.Context,
+	aid atp.Aid,
+	req *refApp.UserUpdateProfile_Input,
+) *refErr.APIError {
 	var newActor atp.Actor
 	var newUser atp.User
 
@@ -233,6 +237,43 @@ func (v *View) UpdateProfile(ctx context.Context, aid atp.Aid, req *refApp.UserU
 
 		if err := v.meta.UpdateWithTx(ctx, tx, &newUser, sq.Eq{"aid": aid}); err != nil && !errors.Is(err, database.ErrNoFields) {
 			v.log.ErrorContext(ctx, "Failed to update user profile", "error", err)
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		return refErr.Database()
+	}
+
+	return nil
+}
+
+// UpdateLegislator updates a legislator profile in the DB
+func (v *View) UpdateLegislator(
+	ctx context.Context,
+	aid atp.Aid,
+	req *refApp.LegislatorUpdateProfile_Input,
+) *refErr.APIError {
+	var newActor atp.Actor
+
+	if req.Handle != nil {
+		handle := *req.Handle
+		if err := v.ValidateHandle(ctx, handle); err != nil {
+			v.log.ErrorContext(ctx, "Error validating handle", "error", err)
+			return err
+		}
+		newActor.Handle = sql.NullString{String: handle, Valid: true}
+	}
+
+	if req.Name != nil {
+		newActor.DisplayName = *req.Name
+	}
+
+	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		if err := v.meta.UpdateWithTx(
+			ctx, tx, &newActor, sq.Eq{"id": aid},
+		); err != nil && !errors.Is(err, database.ErrNoFields) {
+			v.log.ErrorContext(ctx, "Failed to update actor", "error", err)
 			return err
 		}
 

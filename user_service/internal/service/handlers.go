@@ -258,7 +258,7 @@ func (s *Service) handleUserProfileUpdate(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	if err := s.av.UpdateProfile(ctx, aid, &req); err != nil {
+	if err := s.av.UpdateUserProfile(ctx, aid, &req); err != nil {
 		err.WriteResponse(w)
 		return
 	}
@@ -303,20 +303,50 @@ func (s *Service) handleGetLegislator(w http.ResponseWriter, r *http.Request) {
 		handle = &handleStr
 	}
 
-	legislator, apiErr := s.av.GetLegislator(ctx, legislatorId, handle)
-	if apiErr != nil {
-		apiErr.WriteResponse(w)
+	legislator, err := s.av.GetLegislator(ctx, legislatorId, handle)
+	if err != nil {
+		err.WriteResponse(w)
 		return
 	}
 
 	var profile refApp.LegislatorProfile
-	_, err := s.pds.GetRecord(ctx, legislator.Aid, &profile)
+	_, err = s.pds.GetRecord(ctx, legislator.Aid, &profile)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
 	s.encode(ctx, w, http.StatusOK, profile)
+}
+
+func (s *Service) handleLegislatorUpdate(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var req refApp.LegislatorUpdateProfile_Input
+	if err := s.decodeAndValidate(ctx, w, r.Body, &req); err != nil {
+		return
+	}
+
+	var legislator, err = s.av.GetLegislator(ctx, &req.LegislatorId, nil)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	var profile = refApp.LegislatorProfile{}
+	if req.Address != nil {
+		profile.Address = req.Address
+	}
+
+	if _, err := s.pds.UpdateRecord(ctx, legislator.Aid, &profile); err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	if err := s.av.UpdateLegislator(ctx, legislator.Aid, &req); err != nil {
+		err.WriteResponse(w)
+		return
+	}
 }
 
 func (s *Service) handleDeleteLegislator(w http.ResponseWriter, r *http.Request) {
