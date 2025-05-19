@@ -4,8 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	sq "github.com/Masterminds/squirrel"
+	"github.com/jackc/pgx/v5"
+	"github.com/referendumApp/referendumServices/internal/database"
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
 	refApp "github.com/referendumApp/referendumServices/internal/domain/lexicon/referendumapp"
 	refErr "github.com/referendumApp/referendumServices/internal/error"
@@ -81,4 +84,60 @@ func (v *View) GetLegislator(
 	}
 
 	return legislator, nil
+}
+
+// UpdateLegislator updates a legislator in the DB
+func (v *View) UpdateLegislator(
+	ctx context.Context,
+	aid atp.Aid,
+	req *refApp.LegislatorUpdateProfile_Input,
+) *refErr.APIError {
+	var newActor atp.Actor
+
+	if req.Handle != nil {
+		handle := *req.Handle
+		if err := v.ValidateHandle(ctx, handle); err != nil {
+			v.log.ErrorContext(ctx, "Error validating handle", "error", err)
+			return err
+		}
+		newActor.Handle = sql.NullString{String: handle, Valid: true}
+	}
+
+	if req.Name != nil {
+		newActor.DisplayName = sql.NullString{String: *req.Name, Valid: true}
+	}
+
+	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		if err := v.meta.UpdateWithTx(
+			ctx, tx, &newActor, sq.Eq{"id": aid},
+		); err != nil && !errors.Is(err, database.ErrNoFields) {
+			v.log.ErrorContext(ctx, "Failed to update actor", "error", err)
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		return refErr.Database()
+	}
+
+	return nil
+}
+
+// DeleteLegislator deletes a user and user record from the DB
+func (v *View) DeleteLegislator(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
+	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		deletedAt := sql.NullTime{Time: time.Now(), Valid: true}
+
+		legislator := atp.Legislator{Base: atp.Base{DeletedAt: deletedAt}}
+		if err := v.meta.UpdateWithTx(ctx, tx, legislator, sq.Eq{"aid": aid}); err != nil {
+			v.log.ErrorContext(ctx, "Failed to delete legislator", "error", err)
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		return refErr.Database()
+	}
+
+	return nil
 }

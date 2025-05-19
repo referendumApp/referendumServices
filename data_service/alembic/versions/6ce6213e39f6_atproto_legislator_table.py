@@ -39,8 +39,27 @@ def upgrade() -> None:
         unique=True,
     )
 
+    # Actor indexing
+    op.create_index(
+        "idx_actor_deleted_at_null",
+        "actor",
+        ["deleted_at"],
+        schema="atproto",
+        postgresql_where=sa.text("deleted_at IS NULL"),
+    )
+    op.create_index(
+        "idx_actor_deleted_at_not_null",
+        "actor",
+        ["deleted_at"],
+        schema="atproto",
+        postgresql_where=sa.text("deleted_at IS NOT NULL"),
+    )
+
 
 def downgrade() -> None:
+    op.drop_index("idx_actor_deleted_at_not_null", table_name="actor", schema="atproto")
+    op.drop_index("idx_actor_deleted_at_null", table_name="actor", schema="atproto")
+
     op.drop_index(op.f("ix_legislator_did"), table_name="legislator", schema="atproto")
     op.drop_index(op.f("ix_legislator_aid"), table_name="legislator", schema="atproto")
     op.drop_index(op.f("ix_legislator_legislator_id"), table_name="legislator", schema="atproto")

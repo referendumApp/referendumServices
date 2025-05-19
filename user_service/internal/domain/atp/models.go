@@ -23,7 +23,7 @@ type Base struct {
 // Actor represents an authentication entity in the system and is the core account object that owns a repo
 type Actor struct {
 	Handle      sql.NullString `db:"handle,omitempty"       json:"-"`
-	DisplayName string         `db:"display_name,omitempty" json:"display_name"`
+	DisplayName sql.NullString `db:"display_name,omitempty" json:"display_name"`
 	RecoveryKey string         `db:"recovery_key,omitempty" json:"-"`
 	Did         string         `db:"did,omitempty"          json:"did"`
 	CreatedAt   time.Time      `db:"created_at,omitempty"   json:"-"`

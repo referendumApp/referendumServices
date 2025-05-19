@@ -137,11 +137,10 @@ func (v *View) AuthenticateSession(ctx context.Context, aid atp.Aid, did string)
 // DeleteActor deletes an actor record from the DB
 func (v *View) DeleteActor(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		nullHandle := sql.NullString{Valid: false}
-		deletedAt := sql.NullTime{Time: time.Now(), Valid: true}
 		actor := atp.Actor{
-			Handle:    nullHandle,
-			DeletedAt: deletedAt,
+			Handle:      sql.NullString{Valid: false},
+			DisplayName: sql.NullString{Valid: false},
+			DeletedAt:   sql.NullTime{Time: time.Now(), Valid: true},
 		}
 		if err := v.meta.UpdateWithTx(ctx, tx, actor, sq.Eq{"id": aid}); err != nil {
 			v.log.ErrorContext(ctx, "Failed to delete actor handle", "error", err)
@@ -160,28 +159,12 @@ func (v *View) DeleteUser(ctx context.Context, aid atp.Aid, did string) *refErr.
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		deletedAt := sql.NullTime{Time: time.Now(), Valid: true}
 
-		user := atp.User{Base: atp.Base{DeletedAt: deletedAt}}
+		user := atp.User{
+			Base:  atp.Base{DeletedAt: deletedAt},
+			Email: sql.NullString{Valid: false},
+		}
 		if err := v.meta.UpdateWithTx(ctx, tx, user, sq.Eq{"aid": aid}); err != nil {
 			v.log.ErrorContext(ctx, "Failed to delete user", "error", err)
-			return err
-		}
-
-		return nil
-	}); err != nil {
-		return refErr.Database()
-	}
-
-	return nil
-}
-
-// DeleteLegislator deletes a user and user record from the DB
-func (v *View) DeleteLegislator(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
-	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		deletedAt := sql.NullTime{Time: time.Now(), Valid: true}
-
-		legislator := atp.Legislator{Base: atp.Base{DeletedAt: deletedAt}}
-		if err := v.meta.UpdateWithTx(ctx, tx, legislator, sq.Eq{"aid": aid}); err != nil {
-			v.log.ErrorContext(ctx, "Failed to delete legislator", "error", err)
 			return err
 		}
 
@@ -226,7 +209,7 @@ func (v *View) UpdateUserProfile(
 	}
 
 	if req.DisplayName != nil {
-		newActor.DisplayName = *req.DisplayName
+		newActor.DisplayName = sql.NullString{String: *req.DisplayName, Valid: true}
 	}
 
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
@@ -237,43 +220,6 @@ func (v *View) UpdateUserProfile(
 
 		if err := v.meta.UpdateWithTx(ctx, tx, &newUser, sq.Eq{"aid": aid}); err != nil && !errors.Is(err, database.ErrNoFields) {
 			v.log.ErrorContext(ctx, "Failed to update user profile", "error", err)
-			return err
-		}
-
-		return nil
-	}); err != nil {
-		return refErr.Database()
-	}
-
-	return nil
-}
-
-// UpdateLegislator updates a legislator in the DB
-func (v *View) UpdateLegislator(
-	ctx context.Context,
-	aid atp.Aid,
-	req *refApp.LegislatorUpdateProfile_Input,
-) *refErr.APIError {
-	var newActor atp.Actor
-
-	if req.Handle != nil {
-		handle := *req.Handle
-		if err := v.ValidateHandle(ctx, handle); err != nil {
-			v.log.ErrorContext(ctx, "Error validating handle", "error", err)
-			return err
-		}
-		newActor.Handle = sql.NullString{String: handle, Valid: true}
-	}
-
-	if req.Name != nil {
-		newActor.DisplayName = *req.Name
-	}
-
-	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		if err := v.meta.UpdateWithTx(
-			ctx, tx, &newActor, sq.Eq{"id": aid},
-		); err != nil && !errors.Is(err, database.ErrNoFields) {
-			v.log.ErrorContext(ctx, "Failed to update actor", "error", err)
 			return err
 		}
 
