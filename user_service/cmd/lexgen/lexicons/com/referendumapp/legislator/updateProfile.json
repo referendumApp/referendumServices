@@ -1,0 +1,61 @@
+{
+  "lexicon": 1,
+  "id": "com.referendumapp.legislator.updateProfile",
+  "defs": {
+    "main": {
+      "type": "string",
+      "description": "Update a legislator profile",
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "needsType": true,
+          "type": "object",
+          "required": ["legislatorId"],
+          "properties": {
+            "legislatorId": { "type": "integer" },
+            "name": { "type": "string", "format": "name", "maxLength": 60 },
+            "district": { "type": "string" },
+            "party": { "type": "string" },
+            "address": { "type": "string" },
+            "role": { "type": "string" },
+            "state": { "type": "string" },
+            "legislature": { "type": "string" },
+            "phone": { "type": "string", "format": "e164" },
+            "imageUrl": { "type": "string" },
+            "image": {
+              "type": "blob",
+              "accept": ["image/png", "image/jpeg"],
+              "maxSize": 1000000
+            },
+            "handle": { "type": "string", "format": "handle" }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "description": "Account login session returned on successful account creation.",
+          "properties": {
+            "legislatorId": {"type": "integer"},
+            "name": { "type": "string", "format": "name", "maxLength": 60 },
+            "district": { "type": "string" },
+            "party": { "type": "string" },
+            "address": { "type": "string" },
+            "role": { "type": "string" },
+            "state": { "type": "string" },
+            "legislature": { "type": "string" },
+            "phone": { "type": "string", "format": "e164" },
+            "imageUrl": { "type": "string" },
+            "image": {
+              "type": "blob",
+              "accept": ["image/png", "image/jpeg"],
+              "maxSize": 1000000
+            },
+            "handle": { "type": "string", "format": "handle" }
+          }
+        }
+      }
+    }
+  }
+}

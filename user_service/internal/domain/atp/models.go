@@ -23,7 +23,7 @@ type Base struct {
 // Actor represents an authentication entity in the system and is the core account object that owns a repo
 type Actor struct {
 	Handle      sql.NullString `db:"handle,omitempty"       json:"-"`
-	DisplayName string         `db:"display_name,omitempty" json:"display_name"`
+	DisplayName sql.NullString `db:"display_name,omitempty" json:"display_name"`
 	RecoveryKey string         `db:"recovery_key,omitempty" json:"-"`
 	Did         string         `db:"did,omitempty"          json:"did"`
 	CreatedAt   time.Time      `db:"created_at,omitempty"   json:"-"`
@@ -113,6 +113,19 @@ func (a User) TableName() string {
 	return "user"
 }
 
+// Legislator represents the legislator profile in the system
+type Legislator struct {
+	Base
+	Did          string        `db:"did,omitempty"           json:"did"`
+	Aid          Aid           `db:"aid,omitempty,pk"        json:"aid"`
+	LegislatorId int64         `db:"legislator_id,omitempty" json:"-"`
+	PDS          sql.NullInt64 `db:"pds_id,omitempty"        json:"-"`
+}
+
+func (u Legislator) TableName() string {
+	return "legislator"
+}
+
 // EndorsementRecord represents a like or endorsement of a post
 type EndorsementRecord struct {
 	Created  string `db:"created"         json:"-"`
@@ -196,19 +209,4 @@ type Feed struct {
 
 func (p Feed) TableName() string {
 	return "feed"
-}
-
-type Legislator struct {
-	Handle      sql.NullString `db:"handle,omitempty"       json:"-"`
-	RecoveryKey string         `db:"recovery_key,omitempty" json:"-"`
-	Did         string         `db:"did,omitempty"          json:"did"`
-	CreatedAt   time.Time      `db:"created_at,omitempty"   json:"-"`
-	UpdatedAt   time.Time      `db:"updated_at,omitempty"   json:"-"`
-	DeletedAt   sql.NullTime   `db:"deleted_at,omitempty"   json:"-"`
-	Aid         Aid            `db:"id,omitempty,pk"        json:"id"`
-	PDS         sql.NullInt64  `db:"pds_id,omitempty"       json:"-"`
-}
-
-func (u Legislator) TableName() string {
-	return "legislator"
 }

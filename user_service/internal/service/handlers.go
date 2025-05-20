@@ -1,7 +1,11 @@
 package service
 
 import (
+	"fmt"
 	"net/http"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	refApp "github.com/referendumApp/referendumServices/internal/domain/lexicon/referendumapp"
@@ -38,13 +42,24 @@ func (s *Service) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hashed_pw, err := s.av.ResolveHandle(ctx, &req)
+	err := s.av.ValidateHandle(ctx, req.Handle)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	actor, err := s.pds.CreateActor(ctx, req)
+	hashed_pw, err := s.av.ResolveNewUser(ctx, &req)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	var recoveryKey string
+	if req.RecoveryKey != nil {
+		recoveryKey = *req.RecoveryKey
+	}
+
+	actor, err := s.pds.CreateActor(ctx, req.Handle, req.DisplayName, recoveryKey)
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -55,7 +70,56 @@ func (s *Service) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := s.pds.CreateNewRepo(ctx, actor)
+	resp, err := s.pds.CreateNewUserRepo(ctx, actor)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	s.encode(ctx, w, http.StatusCreated, resp)
+}
+
+func (s *Service) handleCreateLegislator(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var req refApp.ServerCreateLegislator_Input
+	if err := s.decodeAndValidate(ctx, w, r.Body, &req); err != nil {
+		return
+	}
+
+	var handle string
+	sanitizedName := strings.ToLower(req.Name)
+	sanitizedName = regexp.MustCompile(`[^a-z0-9-]`).ReplaceAllString(sanitizedName, "-")
+	sanitizedName = strings.Trim(sanitizedName, "-")
+	handle = fmt.Sprintf("%s.referendumapp.com", sanitizedName)
+	err := s.av.ValidateHandle(ctx, handle)
+	if err != nil {
+		handle = fmt.Sprintf("%s-%d.referendumapp.com", sanitizedName, req.LegislatorId)
+		err = s.av.ValidateHandle(ctx, handle)
+		if err != nil {
+			err.WriteResponse(w)
+			return
+		}
+	}
+
+	err = s.av.ResolveNewLegislator(ctx, &req)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	actor, err := s.pds.CreateActor(ctx, handle, req.Name, "")
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	if cerr := s.av.SaveActorAndLegislator(ctx, actor, req.LegislatorId); cerr != nil {
+		cerr.WriteResponse(w)
+		return
+	}
+
+	resp, err := s.pds.CreateNewLegislatorRepo(ctx, actor, &req)
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -152,12 +216,17 @@ func (s *Service) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.pds.DeleteAccount(ctx, aid, did); err != nil {
+	if err := s.pds.DeleteActor(ctx, aid, did); err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	if err := s.av.DeleteAccount(ctx, aid, did); err != nil {
+	if err := s.av.DeleteActor(ctx, aid, did); err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	if err := s.av.DeleteUser(ctx, aid, did); err != nil {
 		err.WriteResponse(w)
 		return
 	}
@@ -188,7 +257,7 @@ func (s *Service) handleUserProfileUpdate(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	if err := s.av.UpdateProfile(ctx, aid, &req); err != nil {
+	if err := s.av.UpdateUserProfile(ctx, aid, &req); err != nil {
 		err.WriteResponse(w)
 		return
 	}
@@ -210,6 +279,143 @@ func (s *Service) handleGetUserProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.encode(ctx, w, http.StatusOK, profile)
+}
+
+func (s *Service) handleGetLegislator(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var legislatorId *int64
+	legislatorIdStr := r.URL.Query().Get("legislatorId")
+	if legislatorIdStr != "" {
+		id, err := strconv.ParseInt(legislatorIdStr, 10, 64)
+		if err != nil {
+			apiErr := refErr.BadRequest("Invalid legislatorId format")
+			apiErr.WriteResponse(w)
+			return
+		}
+		legislatorId = &id
+	}
+
+	var handle *string
+	handleStr := r.URL.Query().Get("handle")
+	if handleStr != "" {
+		handle = &handleStr
+	}
+
+	legislator, err := s.av.GetLegislator(ctx, legislatorId, handle)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	var profile refApp.LegislatorProfile
+	_, err = s.pds.GetRecord(ctx, legislator.Aid, &profile)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	s.encode(ctx, w, http.StatusOK, profile)
+}
+
+func updateStringIfNotNil(target *string, source *string) {
+	if source != nil {
+		*target = *source
+	}
+}
+
+func updateStringPtrIfNotNil(target **string, source *string) {
+	if source != nil {
+		if *target == nil {
+			*target = new(string)
+		}
+		**target = *source
+	}
+}
+
+func (s *Service) handleLegislatorUpdate(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var req refApp.LegislatorUpdateProfile_Input
+	if err := s.decodeAndValidate(ctx, w, r.Body, &req); err != nil {
+		return
+	}
+
+	var legislator, err = s.av.GetLegislator(ctx, &req.LegislatorId, nil)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	var currentProfile refApp.LegislatorProfile
+	if _, err := s.pds.GetRecord(ctx, legislator.Aid, &currentProfile); err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	profile := currentProfile
+	updateStringIfNotNil(&profile.Name, req.Name)
+	updateStringIfNotNil(&profile.District, req.District)
+	updateStringIfNotNil(&profile.Party, req.Party)
+	updateStringIfNotNil(&profile.Role, req.Role)
+	updateStringIfNotNil(&profile.State, req.State)
+	updateStringIfNotNil(&profile.Legislature, req.Legislature)
+	updateStringPtrIfNotNil(&profile.Phone, req.Phone)
+	updateStringPtrIfNotNil(&profile.ImageUrl, req.ImageUrl)
+	updateStringPtrIfNotNil(&profile.Address, req.Address)
+
+	if req.Image != nil {
+		profile.Image = req.Image
+	}
+
+	if _, err := s.pds.UpdateRecord(ctx, legislator.Aid, &profile); err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	if err := s.av.UpdateLegislator(ctx, legislator.Aid, &req); err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Service) handleDeleteLegislator(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var legislatorId *int64
+	legislatorIdStr := r.URL.Query().Get("legislatorId")
+	if legislatorIdStr != "" {
+		id, err := strconv.ParseInt(legislatorIdStr, 10, 64)
+		if err != nil {
+			apiErr := refErr.BadRequest("Invalid legislatorId format")
+			apiErr.WriteResponse(w)
+			return
+		}
+		legislatorId = &id
+	}
+
+	legislator, apiErr := s.av.GetLegislator(ctx, legislatorId, nil)
+	if apiErr != nil {
+		apiErr.WriteResponse(w)
+		return
+	}
+
+	if err := s.pds.DeleteActor(ctx, legislator.Aid, legislator.Did); err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	if err := s.av.DeleteActor(ctx, legislator.Aid, legislator.Did); err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	if err := s.av.DeleteLegislator(ctx, legislator.Aid, legislator.Did); err != nil {
+		err.WriteResponse(w)
+		return
+	}
 }
 
 func (s *Service) handleGraphFollow(w http.ResponseWriter, r *http.Request) {

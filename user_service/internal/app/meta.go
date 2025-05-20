@@ -75,6 +75,38 @@ func (vm *ViewMeta) insertActorAndUserRecords(
 	})
 }
 
+func (vm *ViewMeta) insertActorAndLegislatorRecords(
+	ctx context.Context,
+	actor *atp.Actor,
+	legislatorId int64,
+) error {
+	return vm.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		row, err := database.CreateReturningWithTx(ctx, vm.DB, tx, actor, "id")
+		if err != nil {
+			vm.Log.ErrorContext(ctx, "Failed to create actor", "error", err)
+			return err
+		}
+
+		if serr := row.Scan(&actor.ID); serr != nil {
+			vm.Log.ErrorContext(ctx, "Failed to scan new Actor ID", "error", serr)
+			return serr
+		}
+
+		legislator := &atp.Legislator{
+			Aid:          actor.ID,
+			Did:          actor.Did,
+			LegislatorId: legislatorId,
+		}
+
+		if err := vm.CreateWithTx(ctx, tx, legislator); err != nil {
+			vm.Log.ErrorContext(ctx, "Failed to create legislator", "error", err)
+			return err
+		}
+
+		return nil
+	})
+}
+
 func (vm *ViewMeta) actorExists(ctx context.Context, filter sq.Eq) (bool, error) {
 	var exists bool
 	innerSql, args, err := sq.Select("id").
@@ -84,6 +116,24 @@ func (vm *ViewMeta) actorExists(ctx context.Context, filter sq.Eq) (bool, error)
 
 	if err != nil {
 		vm.Log.InfoContext(ctx, "Error building actor exists query", "error", err)
+		return false, err
+	}
+
+	sql := fmt.Sprintf("SELECT EXISTS(%s)", innerSql)
+	err = vm.DB.GetRow(ctx, sql, args...).Scan(&exists)
+
+	return exists, err
+}
+
+func (vm *ViewMeta) legislatorExists(ctx context.Context, filter sq.Eq) (bool, error) {
+	var exists bool
+	innerSql, args, err := sq.Select("id").
+		From(vm.Schema + ".legislator").
+		Where(filter).
+		PlaceholderFormat(sq.Dollar).ToSql()
+
+	if err != nil {
+		vm.Log.InfoContext(ctx, "Error building legislator exists query", "error", err)
 		return false, err
 	}
 
@@ -139,6 +189,51 @@ func (vm *ViewMeta) LookupUserByHandle(ctx context.Context, handle string) (*atp
 func (vm *ViewMeta) LookupUserByAid(ctx context.Context, aid atp.Aid) (*atp.User, error) {
 	filter := sq.Eq{"aid": aid}
 	return vm.lookupUserQuery(ctx, filter)
+}
+
+func (vm *ViewMeta) lookupLegislatorQuery(ctx context.Context, filter sq.Sqlizer) (*atp.Legislator, error) {
+	var entity atp.Legislator
+
+	combinedFilter := sq.And{
+		filter,
+		sq.Eq{"deleted_at": nil},
+	}
+
+	legislator, err := database.GetAll(ctx, vm.DB, entity, combinedFilter)
+	if err != nil {
+		vm.Log.ErrorContext(ctx, "Failed to lookup legislator", "filter", filter)
+		return nil, err
+	}
+
+	return legislator, nil
+}
+
+// LookupLegislatorByID queries actor record by actor ID
+func (vm *ViewMeta) LookupLegislatorByID(ctx context.Context, id int64) (*atp.Legislator, error) {
+	filter := sq.Eq{"legislator_id": id}
+	return vm.lookupLegislatorQuery(ctx, filter)
+}
+
+// LookupLegislatorByDid queries actor record by actor DID
+func (vm *ViewMeta) LookupLegislatorByDid(ctx context.Context, did string) (*atp.Legislator, error) {
+	filter := sq.Eq{"did": did}
+	return vm.lookupLegislatorQuery(ctx, filter)
+}
+
+// LookupLegislatorByHandle queries actor record by actor handle
+func (vm *ViewMeta) LookupLegislatorByHandle(ctx context.Context, handle string) (*atp.Legislator, error) {
+	actor, err := vm.LookupActorByHandle(ctx, handle)
+	if err != nil {
+		return nil, err
+	}
+
+	return vm.LookupLegislatorByAid(ctx, actor.ID)
+}
+
+// LookupLegislatorByAid queries actor record by actor handle
+func (vm *ViewMeta) LookupLegislatorByAid(ctx context.Context, aid atp.Aid) (*atp.Legislator, error) {
+	filter := sq.Eq{"aid": aid}
+	return vm.lookupLegislatorQuery(ctx, filter)
 }
 
 func (vm *ViewMeta) lookupActorQuery(ctx context.Context, filter sq.Sqlizer) (*atp.Actor, error) {

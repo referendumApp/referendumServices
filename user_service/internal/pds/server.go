@@ -15,12 +15,10 @@ import (
 // CreateActor create DID in the PLC directory and initialize an 'Actor' struct
 func (p *PDS) CreateActor(
 	ctx context.Context,
-	req refApp.ServerCreateAccount_Input,
+	handle string,
+	displayName string,
+	recoveryKey string,
 ) (*atp.Actor, *refErr.APIError) {
-	var recoveryKey string
-	if req.RecoveryKey != nil {
-		recoveryKey = *req.RecoveryKey
-	}
 	if recoveryKey == "" {
 		recoveryKey = p.km.RecoveryKey()
 	}
@@ -30,7 +28,7 @@ func (p *PDS) CreateActor(
 		return nil, refErr.InternalServer()
 	}
 
-	did, err := p.plc.CreateDID(ctx, sigkey, []string{recoveryKey, p.km.RotationKey()}, req.Handle, p.serviceUrl)
+	did, err := p.plc.CreateDID(ctx, sigkey, []string{recoveryKey, p.km.RotationKey()}, handle, p.serviceUrl)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Failed to create DID", "error", err)
 		return nil, refErr.PLCServer()
@@ -43,21 +41,21 @@ func (p *PDS) CreateActor(
 
 	actor := &atp.Actor{
 		Did:         did,
-		DisplayName: req.DisplayName,
-		Handle:      sql.NullString{String: req.Handle, Valid: true},
+		DisplayName: sql.NullString{String: displayName, Valid: true},
+		Handle:      sql.NullString{String: handle, Valid: true},
 		RecoveryKey: recoveryKey,
 	}
 
 	return actor, nil
 }
 
-// CreateNewRepo initialize a new repo and write the first record to the CAR store
-func (p *PDS) CreateNewRepo(
+// CreateNewUserRepo initialize a new repo and write the first record to the CAR store
+func (p *PDS) CreateNewUserRepo(
 	ctx context.Context,
 	actor *atp.Actor,
 ) (*refApp.ServerCreateAccount_Output, *refErr.APIError) {
 	profile := &refApp.UserProfile{
-		DisplayName: &actor.DisplayName,
+		DisplayName: &actor.DisplayName.String,
 	}
 
 	if err := p.repoman.InitNewRepo(ctx, actor.ID, actor.Did, profile.NSID(), profile.Key(), profile); err != nil {
@@ -72,11 +70,40 @@ func (p *PDS) CreateNewRepo(
 
 	return &refApp.ServerCreateAccount_Output{
 		Did:          actor.Did,
-		DisplayName:  actor.DisplayName,
+		DisplayName:  actor.DisplayName.String,
 		Handle:       actor.Handle.String,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    p.jwt.AuthScheme,
+	}, nil
+}
+
+// CreateNewLegislatorRepo initialize a new repo and write the first record to the CAR store
+func (p *PDS) CreateNewLegislatorRepo(
+	ctx context.Context,
+	actor *atp.Actor,
+	legislatorInput *refApp.ServerCreateLegislator_Input,
+) (*refApp.ServerCreateLegislator_Output, *refErr.APIError) {
+	profile := &refApp.LegislatorProfile{
+		District:    legislatorInput.District,
+		Image:       legislatorInput.Image,
+		ImageUrl:    legislatorInput.ImageUrl,
+		Legislature: legislatorInput.Legislature,
+		Name:        legislatorInput.Name,
+		Party:       legislatorInput.Party,
+		Phone:       legislatorInput.ImageUrl,
+		Role:        legislatorInput.Role,
+		State:       legislatorInput.State,
+	}
+
+	if err := p.repoman.InitNewRepo(ctx, actor.ID, actor.Did, profile.NSID(), profile.Key(), profile); err != nil {
+		p.log.ErrorContext(ctx, "Error initializing new actor repository", "error", err, "did", actor.Did)
+		return nil, refErr.Repo()
+	}
+
+	return &refApp.ServerCreateLegislator_Output{
+		Did:    actor.Did,
+		Handle: actor.Handle.String,
 	}, nil
 }
 
@@ -165,8 +192,8 @@ func (p *PDS) DeleteSession(ctx context.Context, did string) *refErr.APIError {
 	return nil
 }
 
-// DeleteAccount tombstones the DID in the PLC, deletes DB metadata, and deletes CAR files
-func (p *PDS) DeleteAccount(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
+// DeleteActor tombstones the DID in the PLC, deletes DB metadata, and deletes CAR files
+func (p *PDS) DeleteActor(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
 	op, err := p.plc.GetLatestOp(ctx, did)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Error searching for latest operation in PLC log", "error", err)
