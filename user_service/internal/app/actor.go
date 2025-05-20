@@ -11,8 +11,8 @@ import (
 )
 
 // GetBasicActorInformation handler to querying the basic user profile
-func (v *View) GetBasicActorInformation(ctx context.Context, aid atp.Aid) (*atp.ActorBasic, *refErr.APIError) {
-	actor, err := v.meta.GetActorBasic(ctx, aid)
+func (v *View) GetBasicActorInformation(ctx context.Context, aid atp.Aid) (*atp.Actor, *refErr.APIError) {
+	actor, err := v.meta.LookupActorByID(ctx, aid)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, refErr.NotFound("Actor %s not found", fmt.Sprintf("%d", aid))

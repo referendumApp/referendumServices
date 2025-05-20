@@ -59,13 +59,13 @@ func (s *Service) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		recoveryKey = *req.RecoveryKey
 	}
 
-	actor, err := s.pds.CreateActor(ctx, req.Handle, req.DisplayName, recoveryKey)
+	actor, err := s.pds.CreateActor(ctx, req.Handle, req.DisplayName, recoveryKey, req.Email, hashed_pw)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	if cerr := s.av.SaveActorAndUser(ctx, actor, req.Email, hashed_pw); cerr != nil {
+	if cerr := s.av.SaveActorAndUser(ctx, actor); cerr != nil {
 		cerr.WriteResponse(w)
 		return
 	}
@@ -108,7 +108,7 @@ func (s *Service) handleCreateLegislator(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	actor, err := s.pds.CreateActor(ctx, handle, req.Name, "")
+	actor, err := s.pds.CreateActor(ctx, handle, req.Name, "", "", "")
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -149,19 +149,13 @@ func (s *Service) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := s.av.GetAuthenticatedUser(ctx, login.Username, login.Password)
+	actor, err := s.av.GetAuthenticatedActor(ctx, login.Username, login.Password)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	actorBasic, err := s.av.GetBasicActorInformation(ctx, user.Aid)
-	if err != nil {
-		err.WriteResponse(w)
-		return
-	}
-
-	resp, err := s.pds.CreateSession(ctx, user, actorBasic)
+	resp, err := s.pds.CreateSession(ctx, actor)
 	if err != nil {
 		err.WriteResponse(w)
 		return

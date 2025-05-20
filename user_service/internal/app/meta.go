@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	sq "github.com/Masterminds/squirrel"
@@ -19,8 +18,6 @@ type ViewMeta struct {
 func (vm *ViewMeta) insertActorAndUserRecords(
 	ctx context.Context,
 	actor *atp.Actor,
-	email string,
-	hashedpassword string,
 ) error {
 	return vm.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		row, err := database.CreateReturningWithTx(ctx, vm.DB, tx, actor, "id")
@@ -35,10 +32,8 @@ func (vm *ViewMeta) insertActorAndUserRecords(
 		}
 
 		user := &atp.User{
-			Aid:            actor.ID,
-			Did:            actor.Did,
-			Email:          sql.NullString{String: email, Valid: true},
-			HashedPassword: sql.NullString{String: hashedpassword, Valid: true},
+			Aid: actor.ID,
+			Did: actor.Did,
 		}
 
 		if err := vm.CreateWithTx(ctx, tx, user); err != nil {
@@ -173,8 +168,11 @@ func (vm *ViewMeta) lookupUserQuery(ctx context.Context, filter sq.Sqlizer) (*at
 }
 
 func (vm *ViewMeta) LookupUserByEmail(ctx context.Context, email string) (*atp.User, error) {
-	filter := sq.Eq{"email": email}
-	return vm.lookupUserQuery(ctx, filter)
+	actor, err := vm.LookupActorByEmail(ctx, email)
+	if err != nil {
+		return nil, err
+	}
+	return vm.LookupUserByAid(ctx, actor.ID)
 }
 
 func (vm *ViewMeta) LookupUserByHandle(ctx context.Context, handle string) (*atp.User, error) {
