@@ -37,8 +37,8 @@ func (v *View) ValidateHandle(ctx context.Context, handle string) *refErr.APIErr
 // ResolveNewUser validates if the new account request can be handled and returns a hashed password
 func (v *View) ResolveNewUser(ctx context.Context, req *refApp.ServerCreateAccount_Input) (string, *refErr.APIError) {
 	filter := sq.Eq{"email": req.Email}
-	if exists, err := v.meta.userExists(ctx, filter); err != nil {
-		v.log.ErrorContext(ctx, "Error checking database for user email", "error", err)
+	if exists, err := v.meta.actorExists(ctx, filter); err != nil {
+		v.log.ErrorContext(ctx, "Error checking database for actor email", "error", err)
 		return "", refErr.InternalServer()
 	} else if exists {
 		nerr := errors.New("email already exists")
@@ -137,6 +137,7 @@ func (v *View) DeleteActor(ctx context.Context, aid atp.Aid, did string) *refErr
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		actor := atp.Actor{
 			Handle:      sql.NullString{Valid: false},
+			Email:       sql.NullString{Valid: false},
 			DisplayName: sql.NullString{Valid: false},
 			DeletedAt:   sql.NullTime{Time: time.Now(), Valid: true},
 		}
