@@ -18,6 +18,8 @@ func (p *PDS) CreateActor(
 	handle string,
 	displayName string,
 	recoveryKey string,
+	email string,
+	hashedPassword string,
 ) (*atp.Actor, *refErr.APIError) {
 	if recoveryKey == "" {
 		recoveryKey = p.km.RecoveryKey()
@@ -40,10 +42,12 @@ func (p *PDS) CreateActor(
 	}
 
 	actor := &atp.Actor{
-		Did:         did,
-		DisplayName: sql.NullString{String: displayName, Valid: true},
-		Handle:      sql.NullString{String: handle, Valid: true},
-		RecoveryKey: recoveryKey,
+		Did:            did,
+		DisplayName:    sql.NullString{String: displayName, Valid: true},
+		Handle:         sql.NullString{String: handle, Valid: true},
+		RecoveryKey:    recoveryKey,
+		Email:          sql.NullString{String: email, Valid: true},
+		HashedPassword: sql.NullString{String: hashedPassword, Valid: true},
 	}
 
 	return actor, nil
@@ -126,23 +130,22 @@ func (p *PDS) CreateTokens(ctx context.Context, aid atp.Aid, did string) (string
 // CreateSession completes a login request and returns the access and refresh tokens
 func (p *PDS) CreateSession(
 	ctx context.Context,
-	user *atp.User,
-	actor *atp.ActorBasic,
+	actor *atp.Actor,
 ) (*refApp.ServerCreateSession_Output, *refErr.APIError) {
-	accessToken, refreshToken, err := p.CreateTokens(ctx, user.Aid, user.Did)
+	accessToken, refreshToken, err := p.CreateTokens(ctx, actor.ID, actor.Did)
 	if err != nil {
 		return nil, refErr.InternalServer()
 	}
 
-	if err := p.km.UpdateKeyCache(ctx, user.Did); err != nil {
+	if err := p.km.UpdateKeyCache(ctx, actor.Did); err != nil {
 		return nil, refErr.InternalServer()
 	}
 
 	return &refApp.ServerCreateSession_Output{
-		Did:          user.Did,
-		Handle:       *actor.Handle,
-		DisplayName:  actor.DisplayName,
-		Email:        &user.Email.String,
+		Did:          actor.Did,
+		Handle:       actor.Handle.String,
+		DisplayName:  actor.DisplayName.String,
+		Email:        &actor.Email.String,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    p.jwt.AuthScheme,

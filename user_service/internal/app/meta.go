@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	sq "github.com/Masterminds/squirrel"
@@ -19,8 +18,6 @@ type ViewMeta struct {
 func (vm *ViewMeta) insertActorAndUserRecords(
 	ctx context.Context,
 	actor *atp.Actor,
-	email string,
-	hashedpassword string,
 ) error {
 	return vm.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		row, err := database.CreateReturningWithTx(ctx, vm.DB, tx, actor, "id")
@@ -35,10 +32,8 @@ func (vm *ViewMeta) insertActorAndUserRecords(
 		}
 
 		user := &atp.User{
-			Aid:            actor.ID,
-			Did:            actor.Did,
-			Email:          sql.NullString{String: email, Valid: true},
-			HashedPassword: sql.NullString{String: hashedpassword, Valid: true},
+			Aid: actor.ID,
+			Did: actor.Did,
 		}
 
 		if err := vm.CreateWithTx(ctx, tx, user); err != nil {
@@ -162,10 +157,15 @@ func (vm *ViewMeta) userExists(ctx context.Context, filter sq.Eq) (bool, error) 
 }
 
 func (vm *ViewMeta) lookupUserQuery(ctx context.Context, filter sq.Sqlizer) (*atp.User, error) {
+	combinedFilter := sq.And{
+		filter,
+		sq.Eq{"deleted_at": nil},
+	}
+
 	var entity atp.User
-	user, err := database.GetAll(ctx, vm.DB, entity, filter)
+	user, err := database.GetAll(ctx, vm.DB, entity, combinedFilter)
 	if err != nil {
-		vm.Log.ErrorContext(ctx, "Failed to lookup user", "filter", filter)
+		vm.Log.ErrorContext(ctx, "Failed to lookup user", "filter", combinedFilter)
 		return nil, err
 	}
 
@@ -173,8 +173,11 @@ func (vm *ViewMeta) lookupUserQuery(ctx context.Context, filter sq.Sqlizer) (*at
 }
 
 func (vm *ViewMeta) LookupUserByEmail(ctx context.Context, email string) (*atp.User, error) {
-	filter := sq.Eq{"email": email}
-	return vm.lookupUserQuery(ctx, filter)
+	actor, err := vm.LookupActorByEmail(ctx, email)
+	if err != nil {
+		return nil, err
+	}
+	return vm.LookupUserByAid(ctx, actor.ID)
 }
 
 func (vm *ViewMeta) LookupUserByHandle(ctx context.Context, handle string) (*atp.User, error) {
@@ -192,16 +195,15 @@ func (vm *ViewMeta) LookupUserByAid(ctx context.Context, aid atp.Aid) (*atp.User
 }
 
 func (vm *ViewMeta) lookupLegislatorQuery(ctx context.Context, filter sq.Sqlizer) (*atp.Legislator, error) {
-	var entity atp.Legislator
-
 	combinedFilter := sq.And{
 		filter,
 		sq.Eq{"deleted_at": nil},
 	}
 
+	var entity atp.Legislator
 	legislator, err := database.GetAll(ctx, vm.DB, entity, combinedFilter)
 	if err != nil {
-		vm.Log.ErrorContext(ctx, "Failed to lookup legislator", "filter", filter)
+		vm.Log.ErrorContext(ctx, "Failed to lookup legislator", "filter", combinedFilter)
 		return nil, err
 	}
 
@@ -237,10 +239,15 @@ func (vm *ViewMeta) LookupLegislatorByAid(ctx context.Context, aid atp.Aid) (*at
 }
 
 func (vm *ViewMeta) lookupActorQuery(ctx context.Context, filter sq.Sqlizer) (*atp.Actor, error) {
+	combinedFilter := sq.And{
+		filter,
+		sq.Eq{"deleted_at": nil},
+	}
+
 	var entity atp.Actor
-	actor, err := database.GetAll(ctx, vm.DB, entity, filter)
+	actor, err := database.GetAll(ctx, vm.DB, entity, combinedFilter)
 	if err != nil {
-		vm.Log.ErrorContext(ctx, "Failed to lookup actor", "filter", filter)
+		vm.Log.ErrorContext(ctx, "Failed to lookup actor", "filter", combinedFilter)
 		return nil, err
 	}
 
@@ -265,7 +272,7 @@ func (vm *ViewMeta) LookupActorByHandle(ctx context.Context, handle string) (*at
 	return vm.lookupActorQuery(ctx, filter)
 }
 
-// LookupActorByEmail queries actor record by actor email
+// LookupActorByEmail queries actor `record by actor email
 func (vm *ViewMeta) LookupActorByEmail(ctx context.Context, email string) (*atp.Actor, error) {
 	filter := sq.Eq{"email": email}
 	return vm.lookupActorQuery(ctx, filter)
