@@ -137,7 +137,6 @@ func (v *View) DeleteActor(ctx context.Context, aid atp.Aid, did string) *refErr
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		actor := atp.Actor{
 			Handle:      sql.NullString{Valid: false},
-			Email:       sql.NullString{Valid: false},
 			DisplayName: sql.NullString{Valid: false},
 			DeletedAt:   sql.NullTime{Time: time.Now(), Valid: true},
 		}
