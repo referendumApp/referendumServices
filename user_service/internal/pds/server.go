@@ -43,7 +43,6 @@ func (p *PDS) CreateActor(
 
 	actor := &atp.Actor{
 		Did:            did,
-		DisplayName:    sql.NullString{String: displayName, Valid: true},
 		Handle:         sql.NullString{String: handle, Valid: true},
 		RecoveryKey:    recoveryKey,
 		Email:          sql.NullString{String: email, Valid: true},
@@ -57,9 +56,10 @@ func (p *PDS) CreateActor(
 func (p *PDS) CreateNewUserRepo(
 	ctx context.Context,
 	actor *atp.Actor,
+	user *atp.User,
 ) (*refApp.ServerCreateAccount_Output, *refErr.APIError) {
 	profile := &refApp.UserProfile{
-		DisplayName: &actor.DisplayName.String,
+		DisplayName: &user.DisplayName,
 	}
 
 	if err := p.repoman.InitNewRepo(ctx, actor.ID, actor.Did, profile.NSID(), profile.Key(), profile); err != nil {
@@ -74,7 +74,7 @@ func (p *PDS) CreateNewUserRepo(
 
 	return &refApp.ServerCreateAccount_Output{
 		Did:          actor.Did,
-		DisplayName:  actor.DisplayName.String,
+		DisplayName:  user.DisplayName,
 		Handle:       actor.Handle.String,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
@@ -144,7 +144,6 @@ func (p *PDS) CreateSession(
 	return &refApp.ServerCreateSession_Output{
 		Did:          actor.Did,
 		Handle:       actor.Handle.String,
-		DisplayName:  actor.DisplayName.String,
 		Email:        &actor.Email.String,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,

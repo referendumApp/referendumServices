@@ -69,15 +69,16 @@ func (v *View) ResolveNewUser(ctx context.Context, req *refApp.ServerCreateAccou
 	return hashedPassword, nil
 }
 
-// SaveActorAndUser inserts a actor and user record to the DB
-func (v *View) SaveActorAndUser(
+// CreateUser inserts a actor and user record to the DB
+func (v *View) CreateUser(
 	ctx context.Context,
 	actor *atp.Actor,
-) *refErr.APIError {
-	if err := v.meta.insertActorAndUserRecords(ctx, actor); err != nil {
-		return refErr.Database()
+) (*atp.User, *refErr.APIError) {
+	user, err := v.meta.insertActorAndUserRecords(ctx, actor)
+	if err != nil {
+		return nil, refErr.Database()
 	}
-	return nil
+	return &user, nil
 }
 
 // GetAuthenticatedActor validates username (which can be email or handle) and password
@@ -136,9 +137,8 @@ func (v *View) AuthenticateSession(ctx context.Context, aid atp.Aid, did string)
 func (v *View) DeleteActor(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		actor := atp.Actor{
-			Handle:      sql.NullString{Valid: false},
-			DisplayName: sql.NullString{Valid: false},
-			DeletedAt:   sql.NullTime{Time: time.Now(), Valid: true},
+			Handle:    sql.NullString{Valid: false},
+			DeletedAt: sql.NullTime{Time: time.Now(), Valid: true},
 		}
 		if err := v.meta.UpdateWithTx(ctx, tx, actor, sq.Eq{"id": aid}); err != nil {
 			v.log.ErrorContext(ctx, "Failed to delete actor handle", "error", err)
@@ -180,6 +180,7 @@ func (v *View) UpdateUserProfile(
 	req *refApp.UserUpdateProfile_Input,
 ) *refErr.APIError {
 	var newActor atp.Actor
+	var newUser atp.User
 
 	if req.Handle != nil {
 		handle := *req.Handle
@@ -205,12 +206,17 @@ func (v *View) UpdateUserProfile(
 	}
 
 	if req.DisplayName != nil {
-		newActor.DisplayName = sql.NullString{String: *req.DisplayName, Valid: true}
+		newUser.DisplayName = *req.DisplayName
 	}
 
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		if err := v.meta.UpdateWithTx(ctx, tx, &newActor, sq.Eq{"id": aid}); err != nil && !errors.Is(err, database.ErrNoFields) {
 			v.log.ErrorContext(ctx, "Failed to update actor", "error", err)
+			return err
+		}
+
+		if err := v.meta.UpdateWithTx(ctx, tx, &newUser, sq.Eq{"aid": aid}); err != nil && !errors.Is(err, database.ErrNoFields) {
+			v.log.ErrorContext(ctx, "Failed to update user", "error", err)
 			return err
 		}
 
