@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	app "github.com/referendumApp/referendumServices/internal/domain/app"
 	refApp "github.com/referendumApp/referendumServices/internal/domain/lexicon/referendumapp"
 	refErr "github.com/referendumApp/referendumServices/internal/error"
 	"github.com/referendumApp/referendumServices/internal/util"
@@ -59,7 +60,15 @@ func (s *Service) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		recoveryKey = *req.RecoveryKey
 	}
 
-	actor, err := s.pds.CreateActor(ctx, req.Handle, req.DisplayName, recoveryKey, req.Email, hashed_pw)
+	actor, err := s.pds.CreateActor(
+		ctx,
+		req.Handle,
+		req.DisplayName,
+		recoveryKey,
+		req.Email,
+		hashed_pw,
+		"",
+	)
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -108,7 +117,7 @@ func (s *Service) handleCreateLegislator(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	actor, err := s.pds.CreateActor(ctx, handle, req.Name, "", "", "")
+	actor, err := s.pds.CreateActor(ctx, handle, req.Name, "", "", "", "")
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -473,4 +482,44 @@ func (s *Service) handleGraphFollowing(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.encode(ctx, w, http.StatusOK, following)
+}
+
+func (s *Service) handleCreateAdmin(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var req app.AdminPayload
+	if err := s.decodeAndValidate(ctx, w, r.Body, &req); err != nil {
+		return
+	}
+
+	apiToken, err := s.av.CreateAdminApiToken(ctx)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	actor, err := s.pds.CreateActor(ctx, req.Handle, req.Name, "", "", "", apiToken)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	if cerr := s.av.SaveActorAndUser(ctx, actor); cerr != nil {
+		cerr.WriteResponse(w)
+		return
+	}
+
+	resp, err := s.pds.CreateNewUserRepo(ctx, actor)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	adminResp := app.AdminResponse{
+		Did:      resp.Did,
+		Handle:   resp.Handle,
+		ApiToken: apiToken,
+	}
+
+	s.encode(ctx, w, http.StatusCreated, adminResp)
 }

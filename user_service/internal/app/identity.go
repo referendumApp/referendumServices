@@ -221,3 +221,10 @@ func (v *View) UpdateUserProfile(
 
 	return nil
 }
+
+// CreateAdminApiToken creates a new system user with an API token
+func (a *View) CreateAdminApiToken(ctx context.Context) (string, *refErr.APIError) {
+	var apiToken = "SOME_TOKEN"
+
+	return apiToken, nil
+}

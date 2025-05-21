@@ -20,6 +20,7 @@ func (p *PDS) CreateActor(
 	recoveryKey string,
 	email string,
 	hashedPassword string,
+	apiToken string,
 ) (*atp.Actor, *refErr.APIError) {
 	if recoveryKey == "" {
 		recoveryKey = p.km.RecoveryKey()
