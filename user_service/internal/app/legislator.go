@@ -34,8 +34,9 @@ func (v *View) SaveActorAndLegislator(
 	ctx context.Context,
 	actor *atp.Actor,
 	legislatorId int64,
+	legislatorName string,
 ) *refErr.APIError {
-	if err := v.meta.insertActorAndLegislatorRecords(ctx, actor, legislatorId); err != nil {
+	if err := v.meta.insertActorAndLegislatorRecords(ctx, actor, legislatorId, legislatorName); err != nil {
 		return refErr.Database()
 	}
 	return nil
@@ -117,7 +118,7 @@ func (v *View) UpdateLegislator(
 		}
 
 		if err := v.meta.UpdateWithTx(
-			ctx, tx, &newLegislator, sq.Eq{"legislatorId": req.LegislatorId},
+			ctx, tx, &newLegislator, sq.Eq{"legislator_id": req.LegislatorId},
 		); err != nil && !errors.Is(err, database.ErrNoFields) {
 			v.log.ErrorContext(ctx, "Failed to update actor", "error", err)
 			return err

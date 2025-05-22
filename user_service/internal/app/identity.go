@@ -73,8 +73,9 @@ func (v *View) ResolveNewUser(ctx context.Context, req *refApp.ServerCreateAccou
 func (v *View) CreateUser(
 	ctx context.Context,
 	actor *atp.Actor,
+	name string,
 ) (*atp.User, *refErr.APIError) {
-	user, err := v.meta.insertActorAndUserRecords(ctx, actor)
+	user, err := v.meta.insertActorAndUserRecords(ctx, actor, name)
 	if err != nil {
 		return nil, refErr.Database()
 	}

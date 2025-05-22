@@ -25,11 +25,13 @@ def upgrade() -> None:
     op.drop_column("actor", "settings", schema="atproto")
 
     op.drop_column("user", "did", schema="atproto")
-    op.add_column("user", sa.Column("display_name", sa.String), schema="atproto")
-    op.add_column("user", sa.Column("settings", JSONB, nullable=True, default={}), schema="atproto")
+    op.add_column("user", sa.Column("display_name", sa.String, nullable=False), schema="atproto")
+    op.add_column("user", sa.Column("settings", JSONB, nullable=True), schema="atproto")
 
     op.drop_column("legislator", "did", schema="atproto")
-    op.add_column("legislator", sa.Column("display_name", sa.String), schema="atproto")
+    op.add_column(
+        "legislator", sa.Column("display_name", sa.String, nullable=False), schema="atproto"
+    )
 
 
 def downgrade() -> None:

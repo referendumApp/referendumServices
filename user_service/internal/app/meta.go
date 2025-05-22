@@ -18,10 +18,11 @@ type ViewMeta struct {
 func (vm *ViewMeta) insertActorAndUserRecords(
 	ctx context.Context,
 	actor *atp.Actor,
+	name string,
 ) (atp.User, error) {
 	var user atp.User
 	err := vm.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		row, err := database.CreateReturningWithTx(ctx, vm.DB, tx, actor, "id")
+		row, err := database.CreateReturningWithTx(ctx, vm.DB, tx, *actor, "id")
 		if err != nil {
 			vm.Log.ErrorContext(ctx, "Failed to create actor", "error", err)
 			return err
@@ -31,7 +32,7 @@ func (vm *ViewMeta) insertActorAndUserRecords(
 			return serr
 		}
 
-		userObj := &atp.User{Aid: actor.ID}
+		userObj := &atp.User{Aid: actor.ID, DisplayName: name}
 		if err := vm.CreateWithTx(ctx, tx, userObj); err != nil {
 			vm.Log.ErrorContext(ctx, "Failed to create user", "error", err)
 			return err
@@ -64,7 +65,6 @@ func (vm *ViewMeta) insertActorAndUserRecords(
 		// }
 
 		user = *userObj
-
 		return nil
 	})
 
@@ -75,6 +75,7 @@ func (vm *ViewMeta) insertActorAndLegislatorRecords(
 	ctx context.Context,
 	actor *atp.Actor,
 	legislatorId int64,
+	name string,
 ) error {
 	return vm.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		row, err := database.CreateReturningWithTx(ctx, vm.DB, tx, actor, "id")
@@ -91,6 +92,7 @@ func (vm *ViewMeta) insertActorAndLegislatorRecords(
 		legislator := &atp.Legislator{
 			Aid:          actor.ID,
 			LegislatorId: legislatorId,
+			DisplayName:  name,
 		}
 
 		if err := vm.CreateWithTx(ctx, tx, legislator); err != nil {
