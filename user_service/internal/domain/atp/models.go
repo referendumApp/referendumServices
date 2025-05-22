@@ -20,7 +20,22 @@ type Base struct {
 	ID        uint         `db:"id,omitempty,pk"      json:"id"`
 }
 
-// Actor represents an authentication entity in the system and is the core account object that owns a repo
+// AuthSettings stores authentication configuration
+type AuthSettings struct {
+	Type string `db:"type" json:"type"`
+}
+
+// Marshal serializes Settings to JSON
+func (u *AuthSettings) Marshal() ([]byte, error) {
+	return json.Marshal(u)
+}
+
+// Unmarshal deserializes Settings from JSON
+func (u *AuthSettings) Unmarshal(data []byte) error {
+	return json.Unmarshal(data, u)
+}
+
+// Actor is the core account object that owns a repo and contains auth information
 type Actor struct {
 	Handle         sql.NullString `db:"handle,omitempty"          json:"-"`
 	RecoveryKey    string         `db:"recovery_key,omitempty"    json:"-"`
@@ -32,6 +47,7 @@ type Actor struct {
 	PDS            sql.NullInt64  `db:"pds_id,omitempty"          json:"-"`
 	Email          sql.NullString `db:"email,omitempty"           json:"email"`
 	HashedPassword sql.NullString `db:"hashed_password,omitempty" json:"-"`
+	AuthSettings   *AuthSettings  `db:"auth_settings,omitempty"   json:"auth_settings"`
 }
 
 func (u Actor) TableName() string {
@@ -39,10 +55,11 @@ func (u Actor) TableName() string {
 }
 
 type ActorBasic struct {
-	ID        Aid          `db:"id,omitempty,pk"      json:"id"`
-	Handle    *string      `db:"handle,omitempty"     json:"handle"`
-	Did       string       `db:"did,omitempty"        json:"did"`
-	DeletedAt sql.NullTime `db:"deleted_at,omitempty" json:"-"`
+	ID           Aid           `db:"id,omitempty,pk"         json:"id"`
+	Handle       *string       `db:"handle,omitempty"        json:"handle"`
+	Did          string        `db:"did,omitempty"           json:"did"`
+	DeletedAt    sql.NullTime  `db:"deleted_at,omitempty"    json:"-"`
+	AuthSettings *AuthSettings `db:"auth_settings,omitempty" json:"auth_settings"`
 }
 
 func (a ActorBasic) TableName() string {
@@ -186,12 +203,12 @@ func ClientForPds(pds *PDS) *xrpc.Client {
 }
 
 // type DomainBan struct {
-// 	Base
-// 	Domain string `db:"domain"`
+//      Base
+//      Domain string `db:"domain"`
 // }
 //
 // func (d DomainBan) TableName() string {
-// 	return "domain_ban"
+//      return "domain_ban"
 // }
 
 // Feed represents a content feed with filtering criteria
