@@ -42,11 +42,11 @@ func (p *PDS) CreateActor(
 	}
 
 	actor := &atp.Actor{
-		Did:            did,
-		Handle:         sql.NullString{String: handle, Valid: true},
-		RecoveryKey:    recoveryKey,
-		Email:          sql.NullString{String: email, Valid: true},
-		HashedPassword: sql.NullString{String: hashedPassword, Valid: true},
+		Did:          did,
+		Handle:       sql.NullString{String: handle, Valid: true},
+		RecoveryKey:  recoveryKey,
+		Email:        sql.NullString{String: email, Valid: true},
+		AuthSettings: &atp.AuthSettings{HashedPassword: hashedPassword},
 	}
 
 	return actor, nil

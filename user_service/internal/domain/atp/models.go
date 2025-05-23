@@ -22,7 +22,7 @@ type Base struct {
 
 // AuthSettings stores authentication configuration
 type AuthSettings struct {
-	Type string `db:"type" json:"type"`
+	HashedPassword string `json:"hashed_password,omitempty"`
 }
 
 // Marshal serializes Settings to JSON
@@ -37,17 +37,16 @@ func (u *AuthSettings) Unmarshal(data []byte) error {
 
 // Actor is the core account object that owns a repo and contains auth information
 type Actor struct {
-	Handle         sql.NullString `db:"handle,omitempty"          json:"-"`
-	RecoveryKey    string         `db:"recovery_key,omitempty"    json:"-"`
-	Did            string         `db:"did,omitempty"             json:"did"`
-	CreatedAt      time.Time      `db:"created_at,omitempty"      json:"-"`
-	UpdatedAt      time.Time      `db:"updated_at,omitempty"      json:"-"`
-	DeletedAt      sql.NullTime   `db:"deleted_at,omitempty"      json:"-"`
-	ID             Aid            `db:"id,omitempty,pk"           json:"id"`
-	PDS            sql.NullInt64  `db:"pds_id,omitempty"          json:"-"`
-	Email          sql.NullString `db:"email,omitempty"           json:"email"`
-	HashedPassword sql.NullString `db:"hashed_password,omitempty" json:"-"`
-	AuthSettings   *AuthSettings  `db:"auth_settings,omitempty"   json:"auth_settings"`
+	Handle       sql.NullString `db:"handle,omitempty"        json:"-"`
+	RecoveryKey  string         `db:"recovery_key,omitempty"  json:"-"`
+	Did          string         `db:"did,omitempty"           json:"did"`
+	CreatedAt    time.Time      `db:"created_at,omitempty"    json:"-"`
+	UpdatedAt    time.Time      `db:"updated_at,omitempty"    json:"-"`
+	DeletedAt    sql.NullTime   `db:"deleted_at,omitempty"    json:"-"`
+	ID           Aid            `db:"id,omitempty,pk"         json:"id"`
+	PDS          sql.NullInt64  `db:"pds_id,omitempty"        json:"-"`
+	Email        sql.NullString `db:"email,omitempty"         json:"email"`
+	AuthSettings *AuthSettings  `db:"auth_settings,omitempty" json:"auth_settings"`
 }
 
 func (u Actor) TableName() string {

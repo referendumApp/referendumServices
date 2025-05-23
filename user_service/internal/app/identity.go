@@ -108,7 +108,15 @@ func (v *View) GetAuthenticatedActor(
 	}
 
 	// Verify the password
-	if ok, verr := util.VerifyPassword(pw, actor.HashedPassword.String); verr != nil {
+	if actor.AuthSettings == nil {
+		v.log.ErrorContext(ctx, "Actor has no auth settings", "username", username)
+		return nil, defaultErr.NotFound()
+	}
+	if actor.AuthSettings.HashedPassword == "" {
+		v.log.ErrorContext(ctx, "Actor has no hashed password", "username", username)
+		return nil, defaultErr.NotFound()
+	}
+	if ok, verr := util.VerifyPassword(pw, actor.AuthSettings.HashedPassword); verr != nil {
 		v.log.ErrorContext(ctx, "Error verifying password", "error", verr, "username", username)
 		return nil, refErr.InternalServer()
 	} else if !ok {

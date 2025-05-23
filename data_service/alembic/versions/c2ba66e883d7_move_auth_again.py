@@ -23,6 +23,8 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.drop_column("actor", "display_name", schema="atproto")
     op.drop_column("actor", "settings", schema="atproto")
+    op.drop_column("actor", "hashed_password", schema="atproto")
+    op.add_column("actor", sa.Column("auth_settings", JSONB, nullable=True), schema="atproto")
 
     op.drop_column("user", "did", schema="atproto")
     op.add_column("user", sa.Column("display_name", sa.String, nullable=False), schema="atproto")
@@ -42,6 +44,8 @@ def downgrade() -> None:
     op.drop_column("user", "display_name", schema="atproto")
     op.add_column("user", sa.Column("did", sa.String), schema="atproto")
 
+    op.drop_column("actor", "auth_settings", schema="atproto")
+    op.add_column("actor", sa.Column("hashed_password", sa.String), schema="atproto")
     op.add_column(
         "actor", sa.Column("settings", JSONB, nullable=True, default={}), schema="atproto"
     )
