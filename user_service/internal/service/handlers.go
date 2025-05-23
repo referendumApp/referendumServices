@@ -59,7 +59,7 @@ func (s *Service) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		recoveryKey = *req.RecoveryKey
 	}
 
-	actor, err := s.pds.CreateActor(ctx, req.Handle, req.DisplayName, recoveryKey, req.Email, hashed_pw)
+	actor, err := s.pds.CreateActor(ctx, req.Handle, req.DisplayName, recoveryKey, req.Email, hashed_pw, "")
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -109,7 +109,7 @@ func (s *Service) handleCreateLegislator(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	actor, err := s.pds.CreateActor(ctx, handle, req.Name, "", "", "")
+	actor, err := s.pds.CreateActor(ctx, handle, req.Name, "", "", "", "")
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -227,7 +227,7 @@ func (s *Service) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Service) handleUserProfileUpdate(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleUpdateUserProfile(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var req refApp.UserUpdateProfile_Input
@@ -480,4 +480,45 @@ func (s *Service) handleGraphFollowing(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.encode(ctx, w, http.StatusOK, following)
+}
+
+func (s *Service) handleCreateAdmin(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var req refApp.ServerCreateSystemUser_Input
+	if err := s.decodeAndValidate(ctx, w, r.Body, &req); err != nil {
+		return
+	}
+
+	apiKey, err := s.av.CreateAdminApiKey(ctx)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	actor, err := s.pds.CreateActor(ctx, req.Handle, *req.DisplayName, "", req.Email, "", apiKey)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	user, err := s.av.CreateUser(ctx, actor, *req.DisplayName)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	resp, err := s.pds.CreateNewUserRepo(ctx, actor, user)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	adminResp := refApp.ServerCreateSystemUser_Output{
+		Did:    resp.Did,
+		Handle: resp.Handle,
+		ApiKey: apiKey,
+	}
+
+	s.encode(ctx, w, http.StatusCreated, adminResp)
 }

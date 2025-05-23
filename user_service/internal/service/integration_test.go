@@ -1344,3 +1344,80 @@ func TestLegislator(t *testing.T) {
 func stringPtr(s string) *string {
 	return &s
 }
+
+func TestCreateAdmin(t *testing.T) {
+	tests := []testCase{
+		{
+			"Create Admin User Successfully",
+			testRequest{
+				method: http.MethodPost,
+				path:   "/auth/system",
+				body: refApp.ServerCreateSystemUser_Input{
+					DisplayName: stringPtr("System Admin"),
+					Email:       "admin@referendumapp.com",
+					Handle:      "admin.referendumapp.com",
+				},
+			},
+			testResponse{
+				status: http.StatusCreated,
+				body:   &refApp.ServerCreateSystemUser_Output{},
+			},
+			nil,
+		},
+		{
+			"Create Admin User with Duplicate Handle",
+			testRequest{
+				method: http.MethodPost,
+				path:   "/auth/system",
+				body: refApp.ServerCreateSystemUser_Input{
+					DisplayName: stringPtr("Another Admin"),
+					Email:       "admin2@referendumapp.com",
+					Handle:      "admin.referendumapp.com",
+				},
+			},
+			testResponse{
+				status: http.StatusConflict,
+			},
+			nil,
+		},
+		{
+			"Create Admin User with Duplicate Email",
+			testRequest{
+				method: http.MethodPost,
+				path:   "/auth/system",
+				body: refApp.ServerCreateSystemUser_Input{
+					DisplayName: stringPtr("Third Admin"),
+					Email:       "admin@referendumapp.com",
+					Handle:      "admin3.referendumapp.com",
+				},
+			},
+			testResponse{
+				status: http.StatusConflict,
+			},
+			nil,
+		},
+	}
+
+	var adminApiKey string
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := tc.request.handleJsonRequest(t)
+			tc.response.getResponse(t, req)
+
+			if tc.response.status == http.StatusCreated {
+				adminResp, ok := tc.response.body.(*refApp.ServerCreateSystemUser_Output)
+				assert.True(t, ok, "Response body should be *ServerCreateSystemUser_Output")
+
+				if adminResp.ApiKey != "" {
+					adminApiKey = adminResp.ApiKey
+					t.Logf("Created admin with API key: %s", adminApiKey)
+
+					assert.NotEmpty(t, adminResp.Did, "Admin should have a DID")
+					assert.NotEmpty(t, adminResp.Handle, "Admin should have a handle")
+					assert.NotEmpty(t, adminResp.ApiKey, "Admin should have an API key")
+				}
+			}
+		})
+	}
+}

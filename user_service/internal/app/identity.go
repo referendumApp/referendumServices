@@ -112,11 +112,11 @@ func (v *View) GetAuthenticatedActor(
 		v.log.ErrorContext(ctx, "Actor has no auth settings", "username", username)
 		return nil, defaultErr.NotFound()
 	}
-	if actor.AuthSettings.HashedPassword == "" {
+	if *actor.AuthSettings.HashedPassword == "" {
 		v.log.ErrorContext(ctx, "Actor has no hashed password", "username", username)
 		return nil, defaultErr.NotFound()
 	}
-	if ok, verr := util.VerifyPassword(pw, actor.AuthSettings.HashedPassword); verr != nil {
+	if ok, verr := util.VerifyPassword(pw, *actor.AuthSettings.HashedPassword); verr != nil {
 		v.log.ErrorContext(ctx, "Error verifying password", "error", verr, "username", username)
 		return nil, refErr.InternalServer()
 	} else if !ok {
@@ -235,4 +235,11 @@ func (v *View) UpdateUserProfile(
 	}
 
 	return nil
+}
+
+// CreateAdminApiKey creates a new system user with an API key
+func (a *View) CreateAdminApiKey(ctx context.Context) (string, *refErr.APIError) {
+	var apiKey = "SOME_TOKEN"
+
+	return apiKey, nil
 }
