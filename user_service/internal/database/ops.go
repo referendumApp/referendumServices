@@ -3,7 +3,6 @@ package database
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
@@ -25,19 +24,6 @@ func (d *DB) lookupPDSQuery(ctx context.Context, filter sq.Sqlizer) (*atp.PDS, e
 func (d *DB) LookupPDSById(ctx context.Context, id int64) (*atp.PDS, error) {
 	filter := sq.Eq{"id": id}
 	return d.lookupPDSQuery(ctx, filter)
-}
-
-// LookupDidByAid returns a DID based on an actor ID
-func (d *DB) LookupDidByAid(ctx context.Context, aid atp.Aid) (string, error) {
-	var user atp.User
-	sql := fmt.Sprintf("SELECT did FROM %s.%s WHERE aid = $1", d.Schema, user.TableName())
-
-	if err := d.pool.QueryRow(ctx, sql, aid).Scan(&user.Did); err != nil {
-		d.Log.ErrorContext(ctx, "Failed to get DID for user", "aid", aid)
-		return "", err
-	}
-
-	return user.Did, nil
 }
 
 func (d *DB) lookupUserQuery(ctx context.Context, filter sq.Sqlizer) (*atp.User, error) {

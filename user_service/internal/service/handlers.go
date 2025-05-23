@@ -65,12 +65,13 @@ func (s *Service) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if cerr := s.av.SaveActorAndUser(ctx, actor); cerr != nil {
+	user, cerr := s.av.CreateUser(ctx, actor, req.DisplayName)
+	if cerr != nil {
 		cerr.WriteResponse(w)
 		return
 	}
 
-	resp, err := s.pds.CreateNewUserRepo(ctx, actor)
+	resp, err := s.pds.CreateNewUserRepo(ctx, actor, user)
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -114,7 +115,7 @@ func (s *Service) handleCreateLegislator(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if cerr := s.av.SaveActorAndLegislator(ctx, actor, req.LegislatorId); cerr != nil {
+	if cerr := s.av.SaveActorAndLegislator(ctx, actor, req.LegislatorId, req.Name); cerr != nil {
 		cerr.WriteResponse(w)
 		return
 	}
@@ -327,7 +328,7 @@ func updateStringPtrIfNotNil(target **string, source *string) {
 	}
 }
 
-func (s *Service) handleLegislatorUpdate(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleUpdateLegislator(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var req refApp.LegislatorUpdateProfile_Input
@@ -396,17 +397,23 @@ func (s *Service) handleDeleteLegislator(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := s.pds.DeleteActor(ctx, legislator.Aid, legislator.Did); err != nil {
+	did, err := s.av.GetDidForAid(ctx, legislator.Aid)
+	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	if err := s.av.DeleteActor(ctx, legislator.Aid, legislator.Did); err != nil {
+	if err := s.pds.DeleteActor(ctx, legislator.Aid, *did); err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	if err := s.av.DeleteLegislator(ctx, legislator.Aid, legislator.Did); err != nil {
+	if err := s.av.DeleteActor(ctx, legislator.Aid, *did); err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	if err := s.av.DeleteLegislator(ctx, legislator.Aid, *did); err != nil {
 		err.WriteResponse(w)
 		return
 	}

@@ -36,7 +36,6 @@ require (
 	gitlab.com/yawning/secp256k1-voi v0.0.0-20230925100816-f2616030848b
 	go.opentelemetry.io/otel v1.35.0
 	golang.org/x/crypto v0.37.0
-	golang.org/x/time v0.11.0
 	golang.org/x/tools v0.32.0
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da
 )
