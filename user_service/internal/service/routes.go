@@ -12,8 +12,7 @@ func (s *Service) setupRoutes() {
 		r.With(s.pds.AuthorizeUser).Delete("/session", s.handleDeleteSession)
 		r.With(s.pds.AuthorizeUser).Delete("/account", s.handleDeleteUser)
 
-		r.Post("/system", s.handleCreateAdmin)
-		// TODO - add AuthorizeAdmin here
+		r.With(s.av.AuthorizeSystemUser).Post("/system", s.handleCreateAdmin)
 	})
 
 	s.mux.Route("/user", func(r chi.Router) {

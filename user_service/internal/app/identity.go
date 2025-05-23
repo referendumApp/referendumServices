@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"net/http"
 	"strings"
 	"time"
 
@@ -242,4 +243,44 @@ func (a *View) CreateAdminApiKey(ctx context.Context) (string, *refErr.APIError)
 	var apiKey = "SOME_TOKEN"
 
 	return apiKey, nil
+}
+
+func (a *View) AuthorizeSystemUser(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCtx := r.Context()
+
+		// Extract Bearer token from Authorization header
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			a.log.ErrorContext(requestCtx, "Missing Authorization header")
+			refErr.BadRequest("Missing Authorization header").WriteResponse(w)
+			return
+		}
+
+		const bearerPrefix = "Bearer "
+		if !strings.HasPrefix(authHeader, bearerPrefix) {
+			a.log.ErrorContext(requestCtx, "Invalid Authorization header format")
+			refErr.BadRequest("Invalid Authorization header format").WriteResponse(w)
+			return
+		}
+
+		var apiKey = strings.TrimSpace(authHeader[len(bearerPrefix):])
+		if apiKey == "" {
+			a.log.ErrorContext(requestCtx, "Empty API key in Authorization header")
+			refErr.BadRequest("Empty API key").WriteResponse(w)
+			return
+		}
+		// aid, did, err := util.ValidateApiKey(apiKey)
+		// if err != nil {
+		// 	a.log.ErrorContext(requestCtx, "Failed validate access token", "error", err)
+		// 	refErr.BadRequest("Invalid token type for access token").WriteResponse(w)
+		// 	return
+		// }
+
+		var ctx = requestCtx
+		// didCtx := context.WithValue(requestCtx, "did", did)
+		// ctx := context.WithValue(didCtx, "aid", aid)
+
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }

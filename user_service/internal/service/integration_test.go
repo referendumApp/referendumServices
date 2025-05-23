@@ -1399,7 +1399,6 @@ func TestCreateAdmin(t *testing.T) {
 	}
 
 	var adminApiKey string
-
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			req := tc.request.handleJsonRequest(t)
