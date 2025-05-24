@@ -32,7 +32,6 @@
             "accessToken",
             "refreshToken",
             "handle",
-            "displayName",
             "did",
             "tokenType"
           ],
@@ -44,11 +43,6 @@
               "format": "handle",
               "minLength": 8,
               "maxLength": 100
-            },
-            "displayName": {
-              "type": "string",
-              "format": "name",
-              "maxLength": 60
             },
             "did": { "type": "string", "format": "did" },
             "didDoc": { "type": "unknown" },

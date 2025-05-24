@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"net/http"
 	"strings"
 	"time"
 
@@ -69,15 +70,17 @@ func (v *View) ResolveNewUser(ctx context.Context, req *refApp.ServerCreateAccou
 	return hashedPassword, nil
 }
 
-// SaveActorAndUser inserts a actor and user record to the DB
-func (v *View) SaveActorAndUser(
+// CreateUser inserts a actor and user record to the DB
+func (v *View) CreateUser(
 	ctx context.Context,
 	actor *atp.Actor,
-) *refErr.APIError {
-	if err := v.meta.insertActorAndUserRecords(ctx, actor); err != nil {
-		return refErr.Database()
+	name string,
+) (*atp.User, *refErr.APIError) {
+	user, err := v.meta.insertActorAndUserRecords(ctx, actor, name)
+	if err != nil {
+		return nil, refErr.Database()
 	}
-	return nil
+	return &user, nil
 }
 
 // GetAuthenticatedActor validates username (which can be email or handle) and password
@@ -106,7 +109,15 @@ func (v *View) GetAuthenticatedActor(
 	}
 
 	// Verify the password
-	if ok, verr := util.VerifyPassword(pw, actor.HashedPassword.String); verr != nil {
+	if actor.AuthSettings == nil {
+		v.log.ErrorContext(ctx, "Actor has no auth settings", "username", username)
+		return nil, defaultErr.NotFound()
+	}
+	if *actor.AuthSettings.HashedPassword == "" {
+		v.log.ErrorContext(ctx, "Actor has no hashed password", "username", username)
+		return nil, defaultErr.NotFound()
+	}
+	if ok, verr := util.VerifyPassword(pw, *actor.AuthSettings.HashedPassword); verr != nil {
 		v.log.ErrorContext(ctx, "Error verifying password", "error", verr, "username", username)
 		return nil, refErr.InternalServer()
 	} else if !ok {
@@ -136,9 +147,8 @@ func (v *View) AuthenticateSession(ctx context.Context, aid atp.Aid, did string)
 func (v *View) DeleteActor(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		actor := atp.Actor{
-			Handle:      sql.NullString{Valid: false},
-			DisplayName: sql.NullString{Valid: false},
-			DeletedAt:   sql.NullTime{Time: time.Now(), Valid: true},
+			Handle:    sql.NullString{Valid: false},
+			DeletedAt: sql.NullTime{Time: time.Now(), Valid: true},
 		}
 		if err := v.meta.UpdateWithTx(ctx, tx, actor, sq.Eq{"id": aid}); err != nil {
 			v.log.ErrorContext(ctx, "Failed to delete actor handle", "error", err)
@@ -180,6 +190,7 @@ func (v *View) UpdateUserProfile(
 	req *refApp.UserUpdateProfile_Input,
 ) *refErr.APIError {
 	var newActor atp.Actor
+	var newUser atp.User
 
 	if req.Handle != nil {
 		handle := *req.Handle
@@ -205,12 +216,17 @@ func (v *View) UpdateUserProfile(
 	}
 
 	if req.DisplayName != nil {
-		newActor.DisplayName = sql.NullString{String: *req.DisplayName, Valid: true}
+		newUser.DisplayName = *req.DisplayName
 	}
 
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		if err := v.meta.UpdateWithTx(ctx, tx, &newActor, sq.Eq{"id": aid}); err != nil && !errors.Is(err, database.ErrNoFields) {
 			v.log.ErrorContext(ctx, "Failed to update actor", "error", err)
+			return err
+		}
+
+		if err := v.meta.UpdateWithTx(ctx, tx, &newUser, sq.Eq{"aid": aid}); err != nil && !errors.Is(err, database.ErrNoFields) {
+			v.log.ErrorContext(ctx, "Failed to update user", "error", err)
 			return err
 		}
 
@@ -220,4 +236,50 @@ func (v *View) UpdateUserProfile(
 	}
 
 	return nil
+}
+
+// CreateAdminApiKey creates a new system user with an API key
+func (a *View) CreateAdminApiKey(ctx context.Context) (string, *refErr.APIError) {
+	var apiKey = "LOCAL_TEST_API_KEY" // #nosec G101
+
+	return apiKey, nil
+}
+
+func (a *View) AuthorizeSystemUser(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCtx := r.Context()
+
+		// Extract Bearer token from Authorization header
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			a.log.ErrorContext(requestCtx, "Missing Authorization header")
+			refErr.BadRequest("Missing Authorization header").WriteResponse(w)
+			return
+		}
+
+		const bearerPrefix = "Bearer "
+		if !strings.HasPrefix(authHeader, bearerPrefix) {
+			a.log.ErrorContext(requestCtx, "Invalid Authorization header format")
+			refErr.BadRequest("Invalid Authorization header format").WriteResponse(w)
+			return
+		}
+
+		var apiKey = strings.TrimSpace(authHeader[len(bearerPrefix):])
+		if apiKey == "" {
+			a.log.ErrorContext(requestCtx, "Empty API key in Authorization header")
+			refErr.BadRequest("Empty API key").WriteResponse(w)
+			return
+		}
+		aid, did, err := util.ValidateApiKey(apiKey)
+		if err != nil {
+			a.log.ErrorContext(requestCtx, "Failed validate access token", "error", err)
+			refErr.BadRequest("Invalid token type for access token").WriteResponse(w)
+			return
+		}
+
+		didCtx := context.WithValue(requestCtx, util.DidKey, did)
+		ctx := context.WithValue(didCtx, util.SubjectKey, aid)
+
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }

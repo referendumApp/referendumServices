@@ -18,25 +18,22 @@ type ViewMeta struct {
 func (vm *ViewMeta) insertActorAndUserRecords(
 	ctx context.Context,
 	actor *atp.Actor,
-) error {
-	return vm.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		row, err := database.CreateReturningWithTx(ctx, vm.DB, tx, actor, "id")
+	name string,
+) (atp.User, error) {
+	var user atp.User
+	err := vm.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		row, err := database.CreateReturningWithTx(ctx, vm.DB, tx, *actor, "id")
 		if err != nil {
 			vm.Log.ErrorContext(ctx, "Failed to create actor", "error", err)
 			return err
 		}
-
 		if serr := row.Scan(&actor.ID); serr != nil {
 			vm.Log.ErrorContext(ctx, "Failed to scan new Actor ID", "error", serr)
 			return serr
 		}
 
-		user := &atp.User{
-			Aid: actor.ID,
-			Did: actor.Did,
-		}
-
-		if err := vm.CreateWithTx(ctx, tx, user); err != nil {
+		userObj := &atp.User{Aid: actor.ID, DisplayName: name}
+		if err := vm.CreateWithTx(ctx, tx, userObj); err != nil {
 			vm.Log.ErrorContext(ctx, "Failed to create user", "error", err)
 			return err
 		}
@@ -66,14 +63,19 @@ func (vm *ViewMeta) insertActorAndUserRecords(
 		// 	refErr.InternalServer().WriteResponse(w)
 		// 	return
 		// }
+
+		user = *userObj
 		return nil
 	})
+
+	return user, err
 }
 
 func (vm *ViewMeta) insertActorAndLegislatorRecords(
 	ctx context.Context,
 	actor *atp.Actor,
 	legislatorId int64,
+	name string,
 ) error {
 	return vm.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		row, err := database.CreateReturningWithTx(ctx, vm.DB, tx, actor, "id")
@@ -89,8 +91,8 @@ func (vm *ViewMeta) insertActorAndLegislatorRecords(
 
 		legislator := &atp.Legislator{
 			Aid:          actor.ID,
-			Did:          actor.Did,
 			LegislatorId: legislatorId,
+			DisplayName:  name,
 		}
 
 		if err := vm.CreateWithTx(ctx, tx, legislator); err != nil {

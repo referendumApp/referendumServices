@@ -17,7 +17,6 @@ type ServerCreateSession_Output struct {
 	AccessToken    string       `json:"accessToken" cborgen:"accessToken" validate:"required"`
 	Did            string       `json:"did" cborgen:"did" validate:"required,did"`
 	DidDoc         *interface{} `json:"didDoc,omitempty" cborgen:"didDoc,omitempty" validate:"omitempty"`
-	DisplayName    string       `json:"displayName" cborgen:"displayName" validate:"required,name,max=60"`
 	Email          *string      `json:"email,omitempty" cborgen:"email,omitempty" validate:"omitempty,email,max=100"`
 	EmailConfirmed *bool        `json:"emailConfirmed,omitempty" cborgen:"emailConfirmed,omitempty" validate:"omitempty"`
 	Handle         string       `json:"handle" cborgen:"handle" validate:"required,handle,min=8,max=100"`
