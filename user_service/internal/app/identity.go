@@ -240,7 +240,7 @@ func (v *View) UpdateUserProfile(
 
 // CreateAdminApiKey creates a new system user with an API key
 func (a *View) CreateAdminApiKey(ctx context.Context) (string, *refErr.APIError) {
-	var apiKey = "SOME_TOKEN"
+	var apiKey = "LOCAL_TEST_API_KEY" // #nosec G101
 
 	return apiKey, nil
 }
