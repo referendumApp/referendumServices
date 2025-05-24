@@ -270,16 +270,15 @@ func (a *View) AuthorizeSystemUser(next http.Handler) http.Handler {
 			refErr.BadRequest("Empty API key").WriteResponse(w)
 			return
 		}
-		// aid, did, err := util.ValidateApiKey(apiKey)
-		// if err != nil {
-		// 	a.log.ErrorContext(requestCtx, "Failed validate access token", "error", err)
-		// 	refErr.BadRequest("Invalid token type for access token").WriteResponse(w)
-		// 	return
-		// }
+		aid, did, err := util.ValidateApiKey(apiKey)
+		if err != nil {
+			a.log.ErrorContext(requestCtx, "Failed validate access token", "error", err)
+			refErr.BadRequest("Invalid token type for access token").WriteResponse(w)
+			return
+		}
 
-		var ctx = requestCtx
-		// didCtx := context.WithValue(requestCtx, "did", did)
-		// ctx := context.WithValue(didCtx, "aid", aid)
+		didCtx := context.WithValue(requestCtx, util.DidKey, did)
+		ctx := context.WithValue(didCtx, util.SubjectKey, aid)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
