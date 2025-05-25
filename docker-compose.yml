@@ -251,8 +251,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      minio:
-        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
       local-db-init:
         condition: service_completed_successfully
       migrations:
@@ -269,8 +269,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      minio:
-        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
       local-db-init:
         condition: service_completed_successfully
       migrations:
