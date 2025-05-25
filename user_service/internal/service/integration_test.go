@@ -302,7 +302,7 @@ type testCase struct {
 }
 
 func TestCreateAdmin(t *testing.T) {
-	var adminApiKey = "LOCAL_TEST_API_KEY"
+	adminApiKey = "LOCAL_TEST_API_KEY"
 
 	tests := []testCase{
 		{
@@ -970,6 +970,7 @@ func TestLegislator(t *testing.T) {
 				Address:      stringPtr(fmt.Sprintf("%d Capitol St", id)),
 				Phone:        stringPtr(fmt.Sprintf("+1206555%04d", id%10000)),
 			},
+			headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 		}
 
 		req := createReq.handleJsonRequest(t)
@@ -1006,6 +1007,7 @@ func TestLegislator(t *testing.T) {
 						Address:      stringPtr("123 Capitol St"),
 						Phone:        stringPtr("+12065551234"),
 					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
 					status: http.StatusCreated,
@@ -1027,6 +1029,7 @@ func TestLegislator(t *testing.T) {
 						State:        "CA",
 						Legislature:  "US",
 					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
 					status: http.StatusConflict,
@@ -1043,6 +1046,7 @@ func TestLegislator(t *testing.T) {
 						Name:         "Representative Missing",
 						// Missing required fields like District, Party, Role, State, Legislature
 					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
 					status: http.StatusUnprocessableEntity,
@@ -1064,9 +1068,51 @@ func TestLegislator(t *testing.T) {
 						Legislature:  "State House",
 						Phone:        stringPtr("555-1234"), // Invalid format
 					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
 					status: http.StatusUnprocessableEntity,
+				},
+				nil,
+			},
+			{
+				"Create Legislator without API Key",
+				testRequest{
+					method: http.MethodPost,
+					path:   "/legislator",
+					body: refApp.ServerCreateLegislator_Input{
+						LegislatorId: 98767,
+						Name:         "Representative Unauthorized",
+						District:     "WA-SD-02",
+						Party:        "Independent",
+						Role:         "Representative",
+						State:        "WA",
+						Legislature:  "US",
+					},
+				},
+				testResponse{
+					status: http.StatusUnauthorized,
+				},
+				nil,
+			},
+			{
+				"Create Legislator with Invalid API Key",
+				testRequest{
+					method: http.MethodPost,
+					path:   "/legislator",
+					body: refApp.ServerCreateLegislator_Input{
+						LegislatorId: 98768,
+						Name:         "Representative Invalid Key",
+						District:     "WA-SD-03",
+						Party:        "Independent",
+						Role:         "Representative",
+						State:        "WA",
+						Legislature:  "US",
+					},
+					headers: map[string]string{"Authorization": "Bearer INVALID_API_KEY"},
+				},
+				testResponse{
+					status: http.StatusUnauthorized,
 				},
 				nil,
 			},
@@ -1089,37 +1135,56 @@ func TestLegislator(t *testing.T) {
 		tests := []struct {
 			name     string
 			path     string
+			headers  map[string]string
 			expected int
 		}{
 			{
 				"Get Legislator By ID",
 				"/legislator?legislatorId=99999",
+				map[string]string{"Authorization": "Bearer " + adminApiKey},
 				http.StatusOK,
 			},
 			{
 				"Get Legislator That Doesn't Exist",
 				"/legislator?legislatorId=88888",
+				map[string]string{"Authorization": "Bearer " + adminApiKey},
 				http.StatusNotFound,
 			},
 			{
 				"Get Legislator With Invalid ID Format",
 				"/legislator?legislatorId=invalid",
+				map[string]string{"Authorization": "Bearer " + adminApiKey},
 				http.StatusBadRequest,
 			},
 			{
 				"Get Legislator Without Parameters",
 				"/legislator",
+				map[string]string{"Authorization": "Bearer " + adminApiKey},
 				http.StatusBadRequest,
 			},
 			{
 				"Get Legislator Using Handle",
 				fmt.Sprintf("/legislator?handle=%s", testLegislator.Handle),
+				map[string]string{"Authorization": "Bearer " + adminApiKey},
 				http.StatusOK,
 			},
 			{
 				"Get Legislator Using Invalid Handle",
 				"/legislator?handle=invalid-handle",
+				map[string]string{"Authorization": "Bearer " + adminApiKey},
 				http.StatusNotFound,
+			},
+			{
+				"Get Legislator without API Key",
+				"/legislator?legislatorId=99999",
+				nil,
+				http.StatusUnauthorized,
+			},
+			{
+				"Get Legislator with Invalid API Key",
+				"/legislator?legislatorId=99999",
+				map[string]string{"Authorization": "Bearer INVALID_API_KEY"},
+				http.StatusUnauthorized,
 			},
 		}
 
@@ -1132,6 +1197,12 @@ func TestLegislator(t *testing.T) {
 					nil,
 				)
 				assert.NoError(t, err, "Failed to create HTTP request")
+
+				if tc.headers != nil {
+					for k, v := range tc.headers {
+						req.Header.Set(k, v)
+					}
+				}
 
 				resp, err := client.Do(req)
 				assert.NoError(t, err, "HTTP request failed")
@@ -1163,6 +1234,7 @@ func TestLegislator(t *testing.T) {
 						LegislatorId: updateID,
 						Handle:       stringPtr("updated-handle.referendumapp.com"),
 					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
 					status: http.StatusOK,
@@ -1178,6 +1250,7 @@ func TestLegislator(t *testing.T) {
 						LegislatorId: updateID,
 						Name:         stringPtr("Senator Updated Name"),
 					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
 					status: http.StatusOK,
@@ -1193,6 +1266,7 @@ func TestLegislator(t *testing.T) {
 						LegislatorId: updateID,
 						Address:      stringPtr("999 Updated Capitol Ave"),
 					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
 					status: http.StatusOK,
@@ -1210,6 +1284,7 @@ func TestLegislator(t *testing.T) {
 						Name:         stringPtr("Senator Multi Update"),
 						Address:      stringPtr("888 Multi Update St"),
 					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
 					status: http.StatusOK,
@@ -1225,6 +1300,7 @@ func TestLegislator(t *testing.T) {
 						LegislatorId: 999999,
 						Name:         stringPtr("NonExistent"),
 					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
 					status: http.StatusNotFound,
@@ -1240,6 +1316,7 @@ func TestLegislator(t *testing.T) {
 						LegislatorId: updateID,
 						Handle:       stringPtr("invalid_handle"),
 					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
 					status: http.StatusUnprocessableEntity,
@@ -1254,6 +1331,7 @@ func TestLegislator(t *testing.T) {
 					body: refApp.LegislatorUpdateProfile_Input{
 						Name: stringPtr("Missing ID"),
 					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
 					status: http.StatusUnprocessableEntity,
@@ -1268,9 +1346,42 @@ func TestLegislator(t *testing.T) {
 					body: refApp.LegislatorUpdateProfile_Input{
 						LegislatorId: updateID,
 					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
 					status: http.StatusOK, // Should succeed even with no fields to update
+				},
+				nil,
+			},
+			{
+				"Update Legislator without API Key",
+				testRequest{
+					method: http.MethodPut,
+					path:   "/legislator",
+					body: refApp.LegislatorUpdateProfile_Input{
+						LegislatorId: updateID,
+						Name:         stringPtr("Unauthorized Update"),
+					},
+					// No Authorization header
+				},
+				testResponse{
+					status: http.StatusUnauthorized,
+				},
+				nil,
+			},
+			{
+				"Update Legislator with Invalid API Key",
+				testRequest{
+					method: http.MethodPut,
+					path:   "/legislator",
+					body: refApp.LegislatorUpdateProfile_Input{
+						LegislatorId: updateID,
+						Name:         stringPtr("Invalid Key Update"),
+					},
+					headers: map[string]string{"Authorization": "Bearer INVALID_API_KEY"},
+				},
+				testResponse{
+					status: http.StatusUnauthorized,
 				},
 				nil,
 			},
@@ -1290,6 +1401,7 @@ func TestLegislator(t *testing.T) {
 						nil,
 					)
 					assert.NoError(t, err, "Failed to create GET request")
+					getReq.Header.Set("Authorization", "Bearer "+adminApiKey)
 
 					getResp, err := client.Do(getReq)
 					assert.NoError(t, err, "Failed to fetch updated legislator")
@@ -1319,31 +1431,37 @@ func TestLegislator(t *testing.T) {
 		tests := []struct {
 			name     string
 			path     string
+			headers  map[string]string
 			expected int
 		}{
 			{
 				"Delete Legislator By ID",
 				"/legislator?legislatorId=77777",
+				map[string]string{"Authorization": "Bearer " + adminApiKey},
 				http.StatusOK,
 			},
 			{
 				"Delete Already Deleted Legislator",
 				"/legislator?legislatorId=77777",
+				map[string]string{"Authorization": "Bearer " + adminApiKey},
 				http.StatusNotFound,
 			},
 			{
 				"Delete Non-existent Legislator",
 				"/legislator?legislatorId=99999999",
+				map[string]string{"Authorization": "Bearer " + adminApiKey},
 				http.StatusNotFound,
 			},
 			{
 				"Delete Legislator With Invalid ID Format",
 				"/legislator?legislatorId=invalid",
+				map[string]string{"Authorization": "Bearer " + adminApiKey},
 				http.StatusBadRequest,
 			},
 			{
 				"Delete Legislator Without Parameters",
 				"/legislator",
+				map[string]string{"Authorization": "Bearer " + adminApiKey},
 				http.StatusBadRequest,
 			},
 		}

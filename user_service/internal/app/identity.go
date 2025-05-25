@@ -253,27 +253,29 @@ func (a *View) AuthorizeSystemUser(next http.Handler) http.Handler {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			a.log.ErrorContext(requestCtx, "Missing Authorization header")
-			refErr.BadRequest("Missing Authorization header").WriteResponse(w)
+			refErr.Unauthorized("Missing Authorization header").WriteResponse(w)
 			return
 		}
 
 		const bearerPrefix = "Bearer "
 		if !strings.HasPrefix(authHeader, bearerPrefix) {
 			a.log.ErrorContext(requestCtx, "Invalid Authorization header format")
-			refErr.BadRequest("Invalid Authorization header format").WriteResponse(w)
+			refErr.Unauthorized("Invalid Authorization header format").WriteResponse(w)
 			return
 		}
 
 		var apiKey = strings.TrimSpace(authHeader[len(bearerPrefix):])
 		if apiKey == "" {
 			a.log.ErrorContext(requestCtx, "Empty API key in Authorization header")
-			refErr.BadRequest("Empty API key").WriteResponse(w)
+			refErr.Unauthorized("Empty API key").WriteResponse(w)
 			return
 		}
+
 		aid, did, err := util.ValidateApiKey(apiKey)
+		a.log.ErrorContext(requestCtx, "Got Actor info", "aid", aid, "did", did, "err", err)
 		if err != nil {
 			a.log.ErrorContext(requestCtx, "Failed validate access token", "error", err)
-			refErr.BadRequest("Invalid token type for access token").WriteResponse(w)
+			refErr.Unauthorized("Invalid token type for access token").WriteResponse(w)
 			return
 		}
 

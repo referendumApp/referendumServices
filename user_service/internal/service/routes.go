@@ -27,10 +27,8 @@ func (s *Service) setupRoutes() {
 	})
 
 	s.mux.Route("/legislator", func(r chi.Router) {
-		// TODO - add system auth here
-		// 		r.Use(s.pds.AuthorizeUser)
 		r.Group(func(r chi.Router) {
-			// r.Use(s.pds.AuthorizeAdmin)
+			r.Use(s.av.AuthorizeSystemUser)
 			r.Post("/", s.handleCreateLegislator)
 			r.Put("/", s.handleUpdateLegislator)
 			r.Delete("/", s.handleDeleteLegislator)
