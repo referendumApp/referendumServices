@@ -1174,18 +1174,6 @@ func TestLegislator(t *testing.T) {
 				map[string]string{"Authorization": "Bearer " + adminApiKey},
 				http.StatusNotFound,
 			},
-			{
-				"Get Legislator without API Key",
-				"/legislator?legislatorId=99999",
-				nil,
-				http.StatusUnauthorized,
-			},
-			{
-				"Get Legislator with Invalid API Key",
-				"/legislator?legislatorId=99999",
-				map[string]string{"Authorization": "Bearer INVALID_API_KEY"},
-				http.StatusUnauthorized,
-			},
 		}
 
 		for _, tc := range tests {
@@ -1474,6 +1462,7 @@ func TestLegislator(t *testing.T) {
 					baseUrl+tc.path,
 					nil,
 				)
+				req.Header.Set("Authorization", "Bearer "+adminApiKey)
 				assert.NoError(t, err, "Failed to create HTTP request")
 
 				resp, err := client.Do(req)

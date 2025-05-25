@@ -249,7 +249,7 @@ func (a *View) AuthorizeSystemUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestCtx := r.Context()
 
-		// Extract Bearer token from Authorization header
+		a.log.ErrorContext(requestCtx, "authorization header", "header", r.Header)
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			a.log.ErrorContext(requestCtx, "Missing Authorization header")
