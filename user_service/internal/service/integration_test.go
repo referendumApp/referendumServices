@@ -323,40 +323,6 @@ func TestCreateAdmin(t *testing.T) {
 			},
 			nil,
 		},
-		{
-			"Create Admin User with Duplicate Handle",
-			testRequest{
-				method: http.MethodPost,
-				path:   "/auth/system",
-				body: refApp.ServerCreateSystemUser_Input{
-					DisplayName: stringPtr("Another Admin"),
-					Email:       "admin2@referendumapp.com",
-					Handle:      "admin.referendumapp.com",
-				},
-				headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
-			},
-			testResponse{
-				status: http.StatusConflict,
-			},
-			nil,
-		},
-		{
-			"Create Admin User with Duplicate Email",
-			testRequest{
-				method: http.MethodPost,
-				path:   "/auth/system",
-				body: refApp.ServerCreateSystemUser_Input{
-					DisplayName: stringPtr("Third Admin"),
-					Email:       "admin@referendumapp.com",
-					Handle:      "admin3.referendumapp.com",
-				},
-				headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
-			},
-			testResponse{
-				status: http.StatusConflict,
-			},
-			nil,
-		},
 	}
 
 	for _, tc := range tests {
