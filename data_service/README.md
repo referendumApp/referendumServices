@@ -81,7 +81,7 @@ SECRET_KEY=                 # JWT signing key (min 32 chars)
 API_ACCESS_TOKEN=           # API gateway access token
 
 # AWS/S3 Configuration
-AWS_REGION=                 # AWS region (default: us-west-2)
+AWS_REGION=                 # AWS region (default: us-east-2)
 S3_ACCESS_KEY=              # S3 access key
 S3_SECRET_KEY=              # S3 secret key
 BILL_TEXT_BUCKET_NAME=      # S3 bucket for bill texts

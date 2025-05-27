@@ -13,14 +13,14 @@ echo "LocalStack is ready. Creating S3 bucket..."
 
 # Create the bucket
 aws --endpoint-url=http://localstack:4566 \
-    --region=us-east-1 \
+    --region=us-east-2 \
     s3 mb s3://bill-texts
 
 echo "S3 bucket created successfully"
 
 # Set bucket policy for public read
 aws --endpoint-url=http://localstack:4566 \
-    --region=us-east-1 \
+    --region=us-east-2 \
     s3api put-bucket-policy \
     --bucket bill-texts \
     --policy '{
@@ -38,7 +38,7 @@ echo "Bucket policy set successfully"
 
 # Verify bucket exists
 aws --endpoint-url=http://localstack:4566 \
-    --region=us-east-1 \
+    --region=us-east-2 \
     s3 ls s3://bill-texts
 
 echo "LocalStack initialization complete!"

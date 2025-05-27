@@ -15,8 +15,8 @@ on:
       - "docker-compose.yml"
 
 env:
-  AWS_ACCESS_KEY_ID: minioadmin
-  AWS_SECRET_ACCESS_KEY: minioadmin
+  AWS_ACCESS_KEY_ID: test
+  AWS_SECRET_ACCESS_KEY: test
   LOCALSTACK_PORT: 4566
   KMS_PORT: 9002
 

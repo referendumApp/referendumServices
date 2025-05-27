@@ -18,7 +18,7 @@ class S3Client:
         if not self.access_key or not self.secret_key:
             raise ValueError("AWS credentials not found in environment variables")
 
-        self.region = os.getenv("AWS_REGION", "us-east-1")
+        self.region = os.getenv("AWS_REGION", "us-east-2")
         self.endpoint_url = os.getenv("S3_ENDPOINT_URL")
         self.timeout = 30
         self.max_retries = 3
