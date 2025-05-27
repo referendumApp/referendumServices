@@ -20,20 +20,33 @@ type Base struct {
 	ID        uint         `db:"id,omitempty,pk"      json:"id"`
 }
 
-// Actor represents an authentication entity in the system and is the core account object that owns a repo
+// AuthSettings stores authentication configuration
+type AuthSettings struct {
+	HashedPassword string `json:"hashed_password,omitempty"`
+}
+
+// Marshal serializes Settings to JSON
+func (u *AuthSettings) Marshal() ([]byte, error) {
+	return json.Marshal(u)
+}
+
+// Unmarshal deserializes Settings from JSON
+func (u *AuthSettings) Unmarshal(data []byte) error {
+	return json.Unmarshal(data, u)
+}
+
+// Actor is the core account object that owns a repo and contains auth information
 type Actor struct {
-	Handle         sql.NullString `db:"handle,omitempty"          json:"-"`
-	DisplayName    sql.NullString `db:"display_name,omitempty"    json:"display_name"`
-	RecoveryKey    string         `db:"recovery_key,omitempty"    json:"-"`
-	Did            string         `db:"did,omitempty"             json:"did"`
-	CreatedAt      time.Time      `db:"created_at,omitempty"      json:"-"`
-	UpdatedAt      time.Time      `db:"updated_at,omitempty"      json:"-"`
-	DeletedAt      sql.NullTime   `db:"deleted_at,omitempty"      json:"-"`
-	ID             Aid            `db:"id,omitempty,pk"           json:"id"`
-	PDS            sql.NullInt64  `db:"pds_id,omitempty"          json:"-"`
-	Settings       *Settings      `db:"settings,omitempty"        json:"settings"`
-	Email          sql.NullString `db:"email,omitempty"           json:"email"`
-	HashedPassword sql.NullString `db:"hashed_password,omitempty" json:"-"`
+	Handle       sql.NullString `db:"handle,omitempty"        json:"-"`
+	RecoveryKey  string         `db:"recovery_key,omitempty"  json:"-"`
+	Did          string         `db:"did,omitempty"           json:"did"`
+	CreatedAt    time.Time      `db:"created_at,omitempty"    json:"-"`
+	UpdatedAt    time.Time      `db:"updated_at,omitempty"    json:"-"`
+	DeletedAt    sql.NullTime   `db:"deleted_at,omitempty"    json:"-"`
+	ID           Aid            `db:"id,omitempty,pk"         json:"id"`
+	PDS          sql.NullInt64  `db:"pds_id,omitempty"        json:"-"`
+	Email        sql.NullString `db:"email,omitempty"         json:"email"`
+	AuthSettings *AuthSettings  `db:"auth_settings,omitempty" json:"auth_settings"`
 }
 
 func (u Actor) TableName() string {
@@ -41,11 +54,11 @@ func (u Actor) TableName() string {
 }
 
 type ActorBasic struct {
-	ID          Aid          `db:"id,omitempty,pk"        json:"id"`
-	Handle      *string      `db:"handle,omitempty"       json:"handle"`
-	DisplayName string       `db:"display_name,omitempty" json:"display_name"`
-	Did         string       `db:"did,omitempty"          json:"did"`
-	DeletedAt   sql.NullTime `db:"deleted_at,omitempty"   json:"-"`
+	ID           Aid           `db:"id,omitempty,pk"         json:"id"`
+	Handle       *string       `db:"handle,omitempty"        json:"handle"`
+	Did          string        `db:"did,omitempty"           json:"did"`
+	DeletedAt    sql.NullTime  `db:"deleted_at,omitempty"    json:"-"`
+	AuthSettings *AuthSettings `db:"auth_settings,omitempty" json:"auth_settings"`
 }
 
 func (a ActorBasic) TableName() string {
@@ -81,18 +94,18 @@ func (f ActivityPost) TableName() string {
 	return "activity_post"
 }
 
-// Settings stores user configuration settings
-type Settings struct {
+// UserSettings stores user configuration settings
+type UserSettings struct {
 	Type string `db:"type" json:"type"`
 }
 
 // Marshal serializes Settings to JSON
-func (u *Settings) Marshal() ([]byte, error) {
+func (u *UserSettings) Marshal() ([]byte, error) {
 	return json.Marshal(u)
 }
 
 // Unmarshal deserializes Settings from JSON
-func (u *Settings) Unmarshal(data []byte) error {
+func (u *UserSettings) Unmarshal(data []byte) error {
 	return json.Unmarshal(data, u)
 }
 
@@ -100,13 +113,14 @@ func (u *Settings) Unmarshal(data []byte) error {
 // Each User is associated with exactly one Actor via the Aid field.
 type User struct {
 	Base
-	Did         string        `db:"did,omitempty"          json:"did"`
 	Aid         Aid           `db:"aid,omitempty"          json:"-"`
+	DisplayName string        `db:"display_name,omitempty" json:"display_name"`
 	Following   int64         `db:"following,omitempty"    json:"following"`
 	Followers   int64         `db:"followers,omitempty"    json:"followers"`
 	Posts       int64         `db:"posts,omitempty"        json:"posts"`
 	PDS         sql.NullInt64 `db:"pds_id,omitempty"       json:"-"`
 	ValidHandle bool          `db:"valid_handle,omitempty" json:"valid_handle"`
+	Settings    *UserSettings `db:"settings,omitempty"     json:"settings"`
 }
 
 func (a User) TableName() string {
@@ -116,8 +130,8 @@ func (a User) TableName() string {
 // Legislator represents the legislator profile in the system
 type Legislator struct {
 	Base
-	Did          string        `db:"did,omitempty"           json:"did"`
 	Aid          Aid           `db:"aid,omitempty,pk"        json:"aid"`
+	DisplayName  string        `db:"display_name,omitempty"  json:"display_name"`
 	LegislatorId int64         `db:"legislator_id,omitempty" json:"-"`
 	PDS          sql.NullInt64 `db:"pds_id,omitempty"        json:"-"`
 }
@@ -188,12 +202,12 @@ func ClientForPds(pds *PDS) *xrpc.Client {
 }
 
 // type DomainBan struct {
-// 	Base
-// 	Domain string `db:"domain"`
+//      Base
+//      Domain string `db:"domain"`
 // }
 //
 // func (d DomainBan) TableName() string {
-// 	return "domain_ban"
+//      return "domain_ban"
 // }
 
 // Feed represents a content feed with filtering criteria
