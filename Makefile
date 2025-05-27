@@ -75,7 +75,7 @@ test-parallel: clean build
 
 	$(MAKE) clean
 
-# Run specific test suites with cleanupF
+# Run specific test suites with cleanup
 test-api: clean build pytest-api clean
 test-pipeline: clean build pytest-pipeline clean
 test-user: clean build lint-user build-schema go-test-user clean
