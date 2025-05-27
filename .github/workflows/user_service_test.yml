@@ -17,7 +17,7 @@ on:
 env:
   AWS_ACCESS_KEY_ID: minioadmin
   AWS_SECRET_ACCESS_KEY: minioadmin
-  MINIO_CONSOLE_PORT: 9001
+  LOCALSTACK_PORT: 4566
   KMS_PORT: 9002
 
 jobs:
