@@ -263,3 +263,13 @@ func ValidateToken(token *jwt.Token, tokenType TokenType) (atp.Aid, string, erro
 
 	return aid, didStr, nil
 }
+
+func ValidateApiKey(apiKey string) (*atp.Aid, *string, error) {
+	var validationKey = "LOCAL_TEST_API_KEY" // #nosec G101
+	if apiKey == validationKey {
+		var aid = atp.Aid(1)
+		var did = "didStr"
+		return &aid, &did, nil
+	}
+	return nil, nil, errors.ErrUnsupported
+}
