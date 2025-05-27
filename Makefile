@@ -59,19 +59,16 @@ test: clean build
 	docker compose --profile test run --rm user-test
 	$(MAKE) clean
 
-# Alternative approach - run tests in parallel isolated environments
+# Run tests in parallel isolated environments
 test-parallel: clean build
-	# Run API tests
 	docker compose --profile test -p api-test run --rm data-test pytest $(ARGS) api/ common/ && \
 	docker compose --profile test -p api-test down --remove-orphans || \
 	(docker compose --profile test -p api-test down --remove-orphans && exit 1)
 
-	# Run pipeline tests
 	docker compose --profile test -p pipeline-test run --rm data-test pytest $(ARGS) pipeline/ && \
 	docker compose --profile test -p pipeline-test down --remove-orphans || \
 	(docker compose --profile test -p pipeline-test down --remove-orphans && exit 1)
 
-	# Run user tests
 	docker compose --profile test -p user-test run --rm user-test && \
 	docker compose --profile test -p user-test down --remove-orphans || \
 	(docker compose --profile test -p user-test down --remove-orphans && exit 1)
