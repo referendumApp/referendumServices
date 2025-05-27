@@ -76,7 +76,7 @@ func setupAndRunTests(m *testing.M, servChErr chan error) int {
 
 	sc, err := docker.SetupS3(ctx)
 	if err != nil {
-		log.Printf("Failed to setup minio container: %v\n", err)
+		log.Printf("Failed to setup s3 container: %v\n", err)
 		return 1
 	}
 	defer sc.CleanupS3(docker)

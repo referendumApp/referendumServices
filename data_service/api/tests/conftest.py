@@ -315,7 +315,7 @@ class TestManager:
         if not hash_value:
             hash_value = generate_random_string()
 
-        # Upload bill text to MinIO
+        # Upload bill text
         bill_text = "A BILL"
         storage_client.upload_file(
             bucket=BILL_TEXT_BUCKET_NAME,
