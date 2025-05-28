@@ -36,10 +36,6 @@ func (d *Docker) SetupS3(ctx context.Context) (*S3Container, error) {
 	if err != nil {
 		return nil, err
 	}
-	consolePort, err := common.GetEnvOrFail("LOCALSTACK_PORT")
-	if err != nil {
-		return nil, err
-	}
 
 	s3Once.Do(func() {
 		s3Container, s3Err = d.pool.RunWithOptions(&dockertest.RunOptions{
@@ -51,7 +47,7 @@ func (d *Docker) SetupS3(ctx context.Context) (*S3Container, error) {
 				"SERVICES=s3,secretsmanager",
 				"AWS_DEFAULT_REGION=us-east-2",
 			},
-			ExposedPorts: []string{consolePort},
+			ExposedPorts: []string{"4566/tcp"},
 			NetworkID:    d.network.ID,
 		})
 		if s3Err != nil {
@@ -59,12 +55,12 @@ func (d *Docker) SetupS3(ctx context.Context) (*S3Container, error) {
 			return
 		}
 
-		s3Port = s3Container.GetPort(consolePort + "/tcp")
+		s3Port = s3Container.GetPort("4566/tcp")
 		s3IP := s3Container.Container.NetworkSettings.Networks[d.network.Name].IPAddress
 
 		if s3Err = d.pool.Retry(func() error {
 			if ec, err := s3Container.Exec(
-				[]string{"curl", "-f", fmt.Sprintf("http://%s:%s/_localstack/health", s3IP, consolePort)},
+				[]string{"curl", "-f", fmt.Sprintf("http://%s:4566/_localstack/health", s3IP)},
 				dockertest.ExecOptions{},
 			); err != nil {
 				return err
