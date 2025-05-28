@@ -50,10 +50,32 @@ logs:
 # Rebuild and restart the app in local development mode
 restart: clean local
 
-# Run all tests and cleanup
-test: clean build pytest-api pytest-pipeline test-user clean
+# Run all tests with proper cleanup between test suites
+test: clean build
+	docker compose --profile test run --rm data-test pytest $(ARGS) api/ common/
+	docker compose --profile test down --remove-orphans
+	docker compose --profile test run --rm data-test pytest $(ARGS) pipeline/
+	docker compose --profile test down --remove-orphans
+	docker compose --profile test run --rm user-test
+	$(MAKE) clean
 
-# Run specific test suites and cleanup
+# Run tests in parallel isolated environments
+test-parallel: clean build
+	docker compose --profile test -p api-test run --rm data-test pytest $(ARGS) api/ common/ && \
+	docker compose --profile test -p api-test down --remove-orphans || \
+	(docker compose --profile test -p api-test down --remove-orphans && exit 1)
+
+	docker compose --profile test -p pipeline-test run --rm data-test pytest $(ARGS) pipeline/ && \
+	docker compose --profile test -p pipeline-test down --remove-orphans || \
+	(docker compose --profile test -p pipeline-test down --remove-orphans && exit 1)
+
+	docker compose --profile test -p user-test run --rm user-test && \
+	docker compose --profile test -p user-test down --remove-orphans || \
+	(docker compose --profile test -p user-test down --remove-orphans && exit 1)
+
+	$(MAKE) clean
+
+# Run specific test suites with cleanup
 test-api: clean build pytest-api clean
 test-pipeline: clean build pytest-pipeline clean
 test-user: clean build lint-user build-schema go-test-user clean

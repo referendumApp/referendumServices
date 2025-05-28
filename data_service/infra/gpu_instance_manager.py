@@ -316,7 +316,7 @@ def main():
     )
     parser.add_argument("action", choices=["start", "stop", "price", "request"])
     parser.add_argument("--instance-id", required=False)
-    parser.add_argument("--region", default="us-east-2")
+    parser.add_argument("--region", default="us-east-1")
     parser.add_argument("--instance-type", default="g4dn.xlarge")
     parser.add_argument("--ami-id", help="Optional AMI ID")
     parser.add_argument("--key-name", help="Name of your AWS key pair (without .pem extension)")

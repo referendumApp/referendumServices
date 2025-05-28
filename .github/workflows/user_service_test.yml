@@ -15,9 +15,9 @@ on:
       - "docker-compose.yml"
 
 env:
-  AWS_ACCESS_KEY_ID: minioadmin
-  AWS_SECRET_ACCESS_KEY: minioadmin
-  MINIO_CONSOLE_PORT: 9001
+  AWS_ACCESS_KEY_ID: test
+  AWS_SECRET_ACCESS_KEY: test
+  LOCALSTACK_PORT: 4566
   KMS_PORT: 9002
 
 jobs:
@@ -128,7 +128,7 @@ jobs:
             --env CI=true \
             --env AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID }} \
             --env AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY }} \
-            --env MINIO_CONSOLE_PORT=${{ env.MINIO_CONSOLE_PORT }} \
+            --env LOCALSTACK_PORT=${{ env.LOCALSTACK_PORT }} \
             --env KMS_PORT=${{ env.KMS_PORT }} \
             --env-file .env \
             --volume /var/run/docker.sock:/var/run/docker.sock \
