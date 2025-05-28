@@ -35,7 +35,7 @@ func (s *Service) setupRoutes() {
 		})
 
 		r.Group(func(r chi.Router) {
-			// r.Use(s.pds.AuthorizeAdminOrUser)
+			r.Use(s.AuthorizeAdminOrUser)
 			r.Get("/", s.handleGetLegislator)
 		})
 	})
