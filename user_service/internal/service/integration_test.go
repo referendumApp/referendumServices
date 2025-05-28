@@ -1510,7 +1510,7 @@ func TestLegislator(t *testing.T) {
 					actualStatus := verificationResp.getResponse(t, req)
 
 					if actualStatus == http.StatusNotFound {
-						t.Logf("Verified deletion: Legislator %s returns 404 after deletion", legislatorID)
+						t.Logf("Verified deletion: Legislator %d returns 404 after deletion", legislatorID)
 					}
 				}
 			})
