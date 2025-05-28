@@ -921,7 +921,6 @@ func TestSession(t *testing.T) {
 
 	for _, tc := range deleteAcctTests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Logf("%s: %s", tc.name, tc.request.headers)
 			req := tc.request.handleJsonRequest(t)
 			sc := tc.response.getResponse(t, req)
 
@@ -1416,79 +1415,103 @@ func TestLegislator(t *testing.T) {
 		_, err := createTestLegislator(deleteID, "Senator ToDelete")
 		assert.NoError(t, err, "Failed to create test legislator for deletion")
 
-		tests := []struct {
-			name     string
-			path     string
-			headers  map[string]string
-			expected int
-		}{
+		tests := []testCase{
 			{
 				"Delete Legislator By ID",
-				"/legislator?legislatorId=77777",
-				map[string]string{"Authorization": "Bearer " + adminApiKey},
-				http.StatusOK,
-			},
-			{
-				"Delete Already Deleted Legislator",
-				"/legislator?legislatorId=77777",
-				map[string]string{"Authorization": "Bearer " + adminApiKey},
-				http.StatusNotFound,
+				testRequest{
+					method:  http.MethodDelete,
+					path:    "/legislator?legislatorId=77777",
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
+				},
+				testResponse{
+					status: http.StatusOK,
+				},
+				nil,
 			},
 			{
 				"Delete Non-existent Legislator",
-				"/legislator?legislatorId=99999999",
-				map[string]string{"Authorization": "Bearer " + adminApiKey},
-				http.StatusNotFound,
+				testRequest{
+					method:  http.MethodDelete,
+					path:    "/legislator?legislatorId=88888",
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
+				},
+				testResponse{
+					status: http.StatusNotFound,
+				},
+				nil,
 			},
 			{
-				"Delete Legislator With Invalid ID Format",
-				"/legislator?legislatorId=invalid",
-				map[string]string{"Authorization": "Bearer " + adminApiKey},
-				http.StatusBadRequest,
+				"Delete Legislator with Invalid ID Format",
+				testRequest{
+					method:  http.MethodDelete,
+					path:    "/legislator?legislatorId=invalid",
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
+				},
+				testResponse{
+					status: http.StatusBadRequest,
+				},
+				nil,
 			},
 			{
 				"Delete Legislator Without Parameters",
-				"/legislator",
-				map[string]string{"Authorization": "Bearer " + adminApiKey},
-				http.StatusBadRequest,
+				testRequest{
+					method:  http.MethodDelete,
+					path:    "/legislator",
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
+				},
+				testResponse{
+					status: http.StatusBadRequest,
+				},
+				nil,
+			},
+			{
+				"Delete Legislator without API Key",
+				testRequest{
+					method: http.MethodDelete,
+					path:   "/legislator?legislatorId=99998",
+					// No Authorization header
+				},
+				testResponse{
+					status: http.StatusUnauthorized,
+				},
+				nil,
+			},
+			{
+				"Delete Legislator with Invalid API Key",
+				testRequest{
+					method:  http.MethodDelete,
+					path:    "/legislator?legislatorId=99997",
+					headers: map[string]string{"Authorization": "Bearer INVALID_API_KEY"},
+				},
+				testResponse{
+					status: http.StatusUnauthorized,
+				},
+				nil,
 			},
 		}
 
 		for _, tc := range tests {
 			t.Run(tc.name, func(t *testing.T) {
-				req, err := http.NewRequestWithContext(
-					context.Background(),
-					http.MethodDelete,
-					baseUrl+tc.path,
-					nil,
-				)
-				req.Header.Set("Authorization", "Bearer "+adminApiKey)
-				assert.NoError(t, err, "Failed to create HTTP request")
+				req := tc.request.handleJsonRequest(t)
+				sc := tc.response.getResponse(t, req)
 
-				resp, err := client.Do(req)
-				assert.NoError(t, err, "HTTP request failed")
-				defer resp.Body.Close()
+				if sc == http.StatusOK {
+					verificationReq := testRequest{
+						method:  http.MethodGet,
+						path:    tc.request.path,
+						headers: tc.request.headers,
+					}
 
-				assert.Equal(t, tc.expected, resp.StatusCode)
+					verificationResp := testResponse{
+						status: http.StatusNotFound,
+					}
 
-				// Verify deletion by trying to fetch the deleted legislator
-				if resp.StatusCode == http.StatusOK && strings.Contains(tc.path, "legislatorId=") {
-					idStr := strings.Split(strings.Split(tc.path, "legislatorId=")[1], "&")[0]
+					req := verificationReq.handleJsonRequest(t)
+					actualStatus := verificationResp.getResponse(t, req)
 
-					getReq, err := http.NewRequestWithContext(
-						context.Background(),
-						http.MethodGet,
-						baseUrl+fmt.Sprintf("/legislator?legislatorId=%s", idStr),
-						nil,
-					)
-					assert.NoError(t, err, "Failed to create GET request")
-
-					getResp, err := client.Do(getReq)
-					assert.NoError(t, err, "Failed to verify deletion")
-					defer getResp.Body.Close()
-
-					assert.Equal(t, http.StatusNotFound, getResp.StatusCode,
-						"Legislator should not be found after deletion")
+					if actualStatus == http.StatusNotFound {
+						t.Logf("Verified deletion: Legislator %s returns 404 after deletion", legislatorID)
+					}
 				}
 			})
 		}
