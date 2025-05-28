@@ -428,12 +428,12 @@ func (ix *Indexer) handleRecordCreateFeedLike(
 		return err
 	}
 
-	vr := &atp.EndorsementRecord{
-		Endorser: evt.Actor,
-		Post:     post.ID,
-		Created:  rec.CreatedAt,
-		Rkey:     op.Rkey,
-		Cid:      atp.DbCID{CID: *op.RecCid},
+	vr := &atp.Endorsement{
+		EndorserID: evt.Actor,
+		Post:       post.ID,
+		Created:    rec.CreatedAt,
+		Rkey:       op.Rkey,
+		Cid:        atp.DbCID{CID: *op.RecCid},
 	}
 	if err := ix.db.Create(ctx, vr); err != nil {
 		return err
@@ -470,11 +470,11 @@ func (ix *Indexer) handleRecordCreateGraphFollow(
 	}
 
 	// 'follower' followed 'target'
-	fr := &atp.ActorFollowRecord{
-		Follower: evt.Actor,
-		Target:   subj.Aid,
-		Rkey:     op.Rkey,
-		Cid:      atp.DbCID{CID: *op.RecCid},
+	fr := &atp.ActorFollow{
+		FollowerID: evt.Actor,
+		TargetID:   subj.Aid,
+		Rkey:       op.Rkey,
+		Cid:        atp.DbCID{CID: *op.RecCid},
 	}
 	if err := ix.db.Create(ctx, fr); err != nil {
 		return err
@@ -527,7 +527,7 @@ func (ix *Indexer) handleRecordUpdate(ctx context.Context, evt *repo.Event, op *
 		return nil
 
 	case *bsky.FeedLike:
-		vr, err := ix.db.LookupEndorsementRecordByUid(ctx, evt.Actor, op.Rkey)
+		vr, err := ix.db.LookupEndorsementByUid(ctx, evt.Actor, op.Rkey)
 		if err != nil {
 			return err
 		}
@@ -638,7 +638,7 @@ func (ix *Indexer) handleRecordCreateActivityPost(
 			ix.log.WarnContext(ctx, "potentially erroneous event, duplicate create", "rkey", rkey, "actor", actor)
 		}
 
-		if err := ix.db.CreateConflict(ctx, fp, "rkey", "author"); err != nil {
+		if err := ix.db.CreateConflict(ctx, fp, []string{"rkey", "author"}); err != nil {
 			return fmt.Errorf("initializing new feed post: %w", err)
 		}
 	} else {
@@ -693,6 +693,6 @@ func (ix *Indexer) addNewPostNotification(
 	return nil
 }
 
-func (ix *Indexer) addNewVoteNotification(ctx context.Context, postauthor atp.Aid, vr *atp.EndorsementRecord) error {
+func (ix *Indexer) addNewVoteNotification(ctx context.Context, postauthor atp.Aid, vr *atp.Endorsement) error {
 	return nil
 }

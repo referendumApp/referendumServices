@@ -117,16 +117,16 @@ func (v *View) GetAuthenticatedActor(
 	return actor, nil
 }
 
-// AuthenticateSession validates a session based on the user ID and DID
+// AuthenticateSession validates a session based on the actor ID and DID
 func (v *View) AuthenticateSession(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
 	filter := sq.Eq{"id": aid, "did": did}
 	exists, err := v.meta.actorExists(ctx, filter)
 	if err != nil {
-		v.log.ErrorContext(ctx, "Failed to lookup user", "error", err)
-		return refErr.BadRequest("Failed to find user with refresh token")
+		v.log.ErrorContext(ctx, "Failed to lookup actor", "error", err)
+		return refErr.BadRequest("Failed to find actor with refresh token")
 	} else if !exists {
-		v.log.ErrorContext(ctx, "User does not exist", "aid", aid, "did", did)
-		return refErr.NotFound(aid, "user ID")
+		v.log.ErrorContext(ctx, "Actor does not exist", "aid", aid, "did", did)
+		return refErr.NotFound(aid, "actor ID")
 	}
 
 	return nil
@@ -138,7 +138,7 @@ func (v *View) DeleteActor(ctx context.Context, aid atp.Aid, did string) *refErr
 		actor := atp.Actor{
 			Handle:      sql.NullString{Valid: false},
 			DisplayName: sql.NullString{Valid: false},
-			DeletedAt:   sql.NullTime{Time: time.Now(), Valid: true},
+			Metadata:    atp.Metadata{DeletedAt: sql.NullTime{Time: time.Now(), Valid: true}},
 		}
 		if err := v.meta.UpdateWithTx(ctx, tx, actor, sq.Eq{"id": aid}); err != nil {
 			v.log.ErrorContext(ctx, "Failed to delete actor handle", "error", err)
@@ -158,7 +158,7 @@ func (v *View) DeleteUser(ctx context.Context, aid atp.Aid, did string) *refErr.
 		deletedAt := sql.NullTime{Time: time.Now(), Valid: true}
 
 		user := atp.User{
-			Base: atp.Base{DeletedAt: deletedAt},
+			Base: atp.Base{Metadata: atp.Metadata{DeletedAt: deletedAt}},
 		}
 		if err := v.meta.UpdateWithTx(ctx, tx, user, sq.Eq{"aid": aid}); err != nil {
 			v.log.ErrorContext(ctx, "Failed to delete user", "error", err)

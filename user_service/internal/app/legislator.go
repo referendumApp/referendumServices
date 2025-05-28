@@ -128,7 +128,7 @@ func (v *View) DeleteLegislator(ctx context.Context, aid atp.Aid, did string) *r
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		deletedAt := sql.NullTime{Time: time.Now(), Valid: true}
 
-		legislator := atp.Legislator{Base: atp.Base{DeletedAt: deletedAt}}
+		legislator := atp.Legislator{Base: atp.Base{Metadata: atp.Metadata{DeletedAt: deletedAt}}}
 		if err := v.meta.UpdateWithTx(ctx, tx, legislator, sq.Eq{"aid": aid}); err != nil {
 			v.log.ErrorContext(ctx, "Failed to delete legislator", "error", err)
 			return err

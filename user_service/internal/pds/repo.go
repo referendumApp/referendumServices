@@ -39,6 +39,16 @@ func (p *PDS) UpdateRecord(ctx context.Context, aid atp.Aid, rec Record) (cid.Ci
 	return cc, nil
 }
 
+// DeleteRecord 'Record' interface handler for deleting a repo record
+func (p *PDS) DeleteRecord(ctx context.Context, aid atp.Aid, collection string, rkey string) *refErr.APIError {
+	if err := p.repoman.DeleteRecord(ctx, aid, collection, rkey); err != nil {
+		p.log.ErrorContext(ctx, "Error deleting repo record", "error", err, "nsid", collection, "rkey", rkey)
+		return refErr.Repo()
+	}
+
+	return nil
+}
+
 // GetRecord 'Record' interface handler for getting a repo record
 func (p *PDS) GetRecord(ctx context.Context, aid atp.Aid, rec Record) (cid.Cid, *refErr.APIError) {
 	cc, err := p.repoman.GetRecord(ctx, aid, rec.NSID(), rec.Key(), rec, cid.Undef)

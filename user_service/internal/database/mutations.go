@@ -91,14 +91,14 @@ func (d *DB) CreateBatch(ctx context.Context, entities []TableEntity) error {
 }
 
 // CreateConflict inserts record and updates on conflicts
-func (d *DB) CreateConflict(ctx context.Context, entity TableEntity, conflictCol ...string) error {
-	query, err := BuildInsertWithConflictQuery(entity, d.Schema, conflictCol...)
+func (d *DB) CreateConflict(ctx context.Context, entity TableEntity, conflictCol []string) error {
+	query, err := BuildInsertQuery(entity, d.Schema)
 	if err != nil {
 		d.Log.ErrorContext(ctx, "Error building insert w/ conflict query", "error", err, "table", entity.TableName())
 		return err
 	}
 
-	sql, args, err := query.ToSql()
+	sql, args, err := query.OnConflictDoUpdate(conflictCol).ToSql()
 	if err != nil {
 		d.Log.ErrorContext(
 			ctx,
@@ -126,15 +126,52 @@ func CreateReturning[T TableEntity](
 	entity T,
 	returnCol ...string,
 ) (*T, error) {
-	query, err := BuildInsertWithReturnQuery(entity, d.Schema, returnCol...)
+	query, err := BuildInsertQuery(entity, d.Schema)
 	if err != nil {
 		d.Log.ErrorContext(ctx, "Error building insert w/ return query", "error", err, "table", entity.TableName())
 		return nil, err
 	}
 
-	sql, args, err := query.ToSql()
+	sql, args, err := query.Returning(returnCol...).ToSql()
 	if err != nil {
 		d.Log.ErrorContext(ctx, "Error creating raw insert w/ return query", "error", err, "table", entity.TableName())
+		return nil, err
+	}
+
+	return Get[T](ctx, d, sql, args...)
+}
+
+// CreateConflictReturning inserts record and returns columns
+func CreateConflictReturning[T TableEntity](
+	ctx context.Context,
+	d *DB,
+	entity T,
+	conflictCol []string,
+	returnCol ...string,
+) (*T, error) {
+	query, err := BuildInsertQuery(entity, d.Schema)
+	if err != nil {
+		d.Log.ErrorContext(
+			ctx,
+			"Error building insert on conflict w/ return query",
+			"error",
+			err,
+			"table",
+			entity.TableName(),
+		)
+		return nil, err
+	}
+
+	sql, args, err := query.OnConflictDoUpdate(conflictCol).Returning(returnCol...).ToSql()
+	if err != nil {
+		d.Log.ErrorContext(
+			ctx,
+			"Error creating raw insert on conflict w/ return query",
+			"error",
+			err,
+			"table",
+			entity.TableName(),
+		)
 		return nil, err
 	}
 
@@ -167,9 +204,83 @@ func (d *DB) Update(ctx context.Context, entity TableEntity, filters ...sq.Sqliz
 	return nil
 }
 
-// UpdateCount increments a column
-func (d *DB) UpdateCount(ctx context.Context, entity TableEntity, field string, filters ...sq.Sqlizer) error {
-	query, err := BuildUpdateCountQuery(entity, d.Schema, field, filters...)
+// UpdateReturning updates record and returns values
+func UpdateReturning[T TableEntity](
+	ctx context.Context,
+	d *DB,
+	entity T,
+	filters sq.Sqlizer,
+	returnCols ...string,
+) (*T, error) {
+	query, err := BuildUpdateQuery(entity, d.Schema, filters)
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error building update w/ returning query", "error", err, "table", entity.TableName())
+		return nil, err
+	}
+
+	sql, args, err := query.Returning(returnCols...).ToSql()
+	if err != nil {
+		d.Log.ErrorContext(
+			ctx,
+			"Error creating raw update w/ returning query",
+			"error",
+			err,
+			"table",
+			entity.TableName(),
+		)
+		return nil, err
+	}
+
+	return Get[T](ctx, d, sql, args...)
+}
+
+// UpdateIncrement increments a column
+func (d *DB) UpdateIncrement(ctx context.Context, entity TableEntity, field string, filters ...sq.Sqlizer) error {
+	query, err := BuildUpdateIncrementQuery(entity, d.Schema, field, filters...)
+	if err != nil {
+		d.Log.ErrorContext(
+			ctx,
+			"Error building update query in DB tx",
+			"error",
+			err,
+			"table",
+			entity.TableName(),
+			"field",
+			field,
+		)
+		return err
+	}
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		d.Log.ErrorContext(
+			ctx,
+			"Error creating raw update query in DB tx",
+			"error",
+			err,
+			"table",
+			entity.TableName(),
+			"field",
+			field,
+		)
+		return err
+	}
+
+	tag, err := d.pool.Exec(ctx, sql, args...)
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error executing statement in DB tx", "error", err, "sql", sql)
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNoRowsAffected
+	}
+
+	return nil
+}
+
+// UpdateDecrement increments a column
+func (d *DB) UpdateDecrement(ctx context.Context, entity TableEntity, field string, filters ...sq.Sqlizer) error {
+	query, err := BuildUpdateDecrementQuery(entity, d.Schema, field, filters...)
 	if err != nil {
 		d.Log.ErrorContext(
 			ctx,
@@ -286,9 +397,9 @@ func (d *DB) CreateConflictWithTx(
 	ctx context.Context,
 	tx pgx.Tx,
 	entity TableEntity,
-	conflictCol ...string,
+	conflictCol []string,
 ) error {
-	query, err := BuildInsertWithConflictQuery(entity, d.Schema, conflictCol...)
+	query, err := BuildInsertQuery(entity, d.Schema)
 	if err != nil {
 		d.Log.ErrorContext(
 			ctx,
@@ -301,7 +412,7 @@ func (d *DB) CreateConflictWithTx(
 		return err
 	}
 
-	sql, args, err := query.ToSql()
+	sql, args, err := query.OnConflictDoUpdate(conflictCol).ToSql()
 	if err != nil {
 		d.Log.ErrorContext(
 			ctx,
@@ -330,7 +441,7 @@ func CreateReturningWithTx[T TableEntity](
 	entity T,
 	returnCol ...string,
 ) (pgx.Row, error) {
-	query, err := BuildInsertWithReturnQuery(entity, d.Schema, returnCol...)
+	query, err := BuildInsertQuery(entity, d.Schema)
 	if err != nil {
 		d.Log.ErrorContext(
 			ctx,
@@ -343,11 +454,49 @@ func CreateReturningWithTx[T TableEntity](
 		return nil, err
 	}
 
-	sql, args, err := query.ToSql()
+	sql, args, err := query.Returning(returnCol...).ToSql()
 	if err != nil {
 		d.Log.ErrorContext(
 			ctx,
 			"Error compiling raw insert w/ return query in DB tx",
+			"error",
+			err,
+			"table",
+			entity.TableName(),
+		)
+		return nil, err
+	}
+
+	return d.GetRowWithTx(ctx, tx, sql, args...), nil
+}
+
+// CreateConflictReturningWithTx inserts record and returns columns
+func CreateConflictReturningWithTx[T TableEntity](
+	ctx context.Context,
+	d *DB,
+	tx pgx.Tx,
+	entity T,
+	conflictCol []string,
+	returnCol ...string,
+) (pgx.Row, error) {
+	query, err := BuildInsertQuery(entity, d.Schema)
+	if err != nil {
+		d.Log.ErrorContext(
+			ctx,
+			"Error building insert on conflict w/ return query",
+			"error",
+			err,
+			"table",
+			entity.TableName(),
+		)
+		return nil, err
+	}
+
+	sql, args, err := query.OnConflictDoUpdate(conflictCol).Returning(returnCol...).ToSql()
+	if err != nil {
+		d.Log.ErrorContext(
+			ctx,
+			"Error creating raw insert on conflict w/ return query",
 			"error",
 			err,
 			"table",
@@ -385,15 +534,103 @@ func (d *DB) UpdateWithTx(ctx context.Context, tx pgx.Tx, entity TableEntity, fi
 	return nil
 }
 
-// UpdateCountWithTx increments a column within a transaction
-func (d *DB) UpdateCountWithTx(
+// UpdateReturningWithTx updates record and returns values
+func UpdateReturningWithTx[T TableEntity](
+	ctx context.Context,
+	d *DB,
+	tx pgx.Tx,
+	entity T,
+	filters sq.Sqlizer,
+	returnCols ...string,
+) (pgx.Row, error) {
+	query, err := BuildUpdateQuery(entity, d.Schema, filters)
+	if err != nil {
+		d.Log.ErrorContext(
+			ctx,
+			"Error building update w/ returning query in DB tx",
+			"error",
+			err,
+			"table",
+			entity.TableName(),
+		)
+		return nil, err
+	}
+
+	sql, args, err := query.Returning(returnCols...).ToSql()
+	if err != nil {
+		d.Log.ErrorContext(
+			ctx,
+			"Error creating raw update w/ returning query in DB tx",
+			"error",
+			err,
+			"table",
+			entity.TableName(),
+		)
+		return nil, err
+	}
+
+	return d.GetRowWithTx(ctx, tx, sql, args...), nil
+}
+
+// UpdateIncrementWithTx increments a column within a transaction
+func (d *DB) UpdateIncrementWithTx(
 	ctx context.Context,
 	tx pgx.Tx,
 	entity TableEntity,
 	field string,
 	filters ...sq.Sqlizer,
 ) error {
-	query, err := BuildUpdateCountQuery(entity, d.Schema, field, filters...)
+	query, err := BuildUpdateIncrementQuery(entity, d.Schema, field, filters...)
+	if err != nil {
+		d.Log.ErrorContext(
+			ctx,
+			"Error building update query in DB tx",
+			"error",
+			err,
+			"table",
+			entity.TableName(),
+			"field",
+			field,
+		)
+		return err
+	}
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		d.Log.ErrorContext(
+			ctx,
+			"Error creating raw update query in DB tx",
+			"error",
+			err,
+			"table",
+			entity.TableName(),
+			"field",
+			field,
+		)
+		return err
+	}
+
+	tag, err := tx.Exec(ctx, sql, args...)
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error executing statement in DB tx", "error", err, "sql", sql)
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNoRowsAffected
+	}
+
+	return nil
+}
+
+// UpdateDecrementWithTx decrements a column within a transaction
+func (d *DB) UpdateDecrementWithTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	entity TableEntity,
+	field string,
+	filters ...sq.Sqlizer,
+) error {
+	query, err := BuildUpdateDecrementQuery(entity, d.Schema, field, filters...)
 	if err != nil {
 		d.Log.ErrorContext(
 			ctx,

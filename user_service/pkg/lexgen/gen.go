@@ -151,6 +151,7 @@ func GenCodeForSchema(pkg Package, reqcode bool, s *Schema, packages []Package, 
 	pf("\t\"github.com/bluesky-social/indigo/xrpc\"\n")
 	pf("\t\"github.com/bluesky-social/indigo/lex/util\"\n")
 
+	pf("\t\"github.com/referendumApp/referendumServices/internal/domain/atp\"\n")
 	pf("\t\"github.com/referendumApp/referendumServices/internal/repo\"\n")
 	for _, xpkg := range packages {
 		if xpkg.Prefix != pkg.Prefix {

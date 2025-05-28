@@ -6,7 +6,9 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
 	refErr "github.com/referendumApp/referendumServices/internal/error"
@@ -14,11 +16,12 @@ import (
 )
 
 var ErrUnauthorized = errors.New("unauthorized user request")
+var ErrInvalidActor = errors.New("invalid actor ID")
 
 func (s *Service) getAuthenticatedIds(ctx context.Context) (atp.Aid, string, *refErr.APIError) {
 	aid, ok := ctx.Value(util.SubjectKey).(atp.Aid)
 	if !ok {
-		s.log.ErrorContext(ctx, "Invalid user ID", "aid", aid)
+		s.log.ErrorContext(ctx, ErrInvalidActor.Error(), "aid", aid)
 		return 0, "", refErr.Unauthorized(ErrUnauthorized.Error())
 	}
 	did, ok := ctx.Value(util.DidKey).(string)
@@ -27,6 +30,18 @@ func (s *Service) getAuthenticatedIds(ctx context.Context) (atp.Aid, string, *re
 		return 0, "", refErr.Unauthorized(ErrUnauthorized.Error())
 	}
 	return aid, did, nil
+}
+
+func (s *Service) getAidURLParam(ctx context.Context, key string) (atp.Aid, *refErr.APIError) {
+	aidStr := chi.URLParamFromCtx(ctx, key)
+	aidUint, err := strconv.ParseUint(aidStr, 10, 64)
+	if err != nil {
+		s.log.ErrorContext(ctx, ErrInvalidActor.Error(), "aid", aidUint, "key", key)
+		return 0, refErr.BadRequest(ErrInvalidActor.Error())
+	}
+	aid := atp.Aid(aidUint)
+
+	return aid, nil
 }
 
 func (s *Service) handleValidationErrors(ctx context.Context, err error) *refErr.APIError {

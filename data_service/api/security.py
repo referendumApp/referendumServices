@@ -132,8 +132,8 @@ async def validate_user(token: str = Depends(oauth2_scheme), db: Session = Depen
     if payload.get("type") != "access":
         raise ForbiddenException("Invalid token type for access token")
 
-    uid = payload.get("sub")
-    if not uid:
+    aid = payload.get("sub")
+    if not aid:
         raise ForbiddenException("Missing user ID in access token")
 
     did = payload.get("did")
@@ -141,10 +141,10 @@ async def validate_user(token: str = Depends(oauth2_scheme), db: Session = Depen
         raise ForbiddenException("Missing DID in access token")
 
     try:
-        user = crud.validate_atp_user(db, int(uid), did)
+        user = crud.validate_atp_user(db, int(aid), did)
         if not user:
-            raise ForbiddenException(f"User not found for ID: {uid}")
-        logger.info(f"User authenticated: {uid}")
+            raise ForbiddenException(f"User not found for ID: {aid}")
+        logger.info(f"User authenticated: {aid}")
     except Exception as e:
         raise ForbiddenException(f"Error retrieving user: {str(e)}")
 

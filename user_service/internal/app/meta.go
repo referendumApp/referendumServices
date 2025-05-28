@@ -282,7 +282,7 @@ func (vm *ViewMeta) LookupActorByEmail(ctx context.Context, email string) (*atp.
 func (vm *ViewMeta) LookupGraphFollowers(ctx context.Context, aid atp.Aid) ([]*atp.ActorBasic, error) {
 	filter := sq.Eq{"target": aid}
 	var leftTbl atp.ActorBasic
-	var rightTbl atp.ActorFollowRecord
+	var rightTbl atp.ActorFollow
 
 	followers, err := database.SelectLeft(ctx, vm.DB, leftTbl, "id", rightTbl, "follower", filter)
 	if err != nil {
@@ -297,7 +297,7 @@ func (vm *ViewMeta) LookupGraphFollowers(ctx context.Context, aid atp.Aid) ([]*a
 func (vm *ViewMeta) LookupGraphFollowing(ctx context.Context, aid atp.Aid) ([]*atp.ActorBasic, error) {
 	filter := sq.Eq{"follower": aid}
 	var leftTbl atp.ActorBasic
-	var rightTbl atp.ActorFollowRecord
+	var rightTbl atp.ActorFollow
 
 	following, err := database.SelectLeft(ctx, vm.DB, leftTbl, "id", rightTbl, "target", filter)
 	if err != nil {

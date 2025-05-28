@@ -12,44 +12,48 @@ import (
 // Aid represents an Actor ID, used as a primary identifier for actors in the system
 type Aid uint64
 
+// Metadata provides common datetime fields for database models
+type Metadata struct {
+	CreatedAt time.Time    `db:"created_at,omitempty"`
+	UpdatedAt time.Time    `db:"updated_at,omitempty"`
+	DeletedAt sql.NullTime `db:"deleted_at,omitempty"`
+}
+
 // Base provides common fields for database models including timestamps and primary key
 type Base struct {
-	CreatedAt time.Time    `db:"created_at,omitempty" json:"-"`
-	UpdatedAt time.Time    `db:"updated_at,omitempty" json:"-"`
-	DeletedAt sql.NullTime `db:"deleted_at,omitempty" json:"-"`
-	ID        uint         `db:"id,omitempty,pk"      json:"id"`
+	Metadata
+	ID uint `db:"id,omitempty,pk"`
 }
 
 // Actor represents an authentication entity in the system and is the core account object that owns a repo
 type Actor struct {
-	Handle         sql.NullString `db:"handle,omitempty"          json:"-"`
-	DisplayName    sql.NullString `db:"display_name,omitempty"    json:"display_name"`
-	RecoveryKey    string         `db:"recovery_key,omitempty"    json:"-"`
-	Did            string         `db:"did,omitempty"             json:"did"`
-	CreatedAt      time.Time      `db:"created_at,omitempty"      json:"-"`
-	UpdatedAt      time.Time      `db:"updated_at,omitempty"      json:"-"`
-	DeletedAt      sql.NullTime   `db:"deleted_at,omitempty"      json:"-"`
-	ID             Aid            `db:"id,omitempty,pk"           json:"id"`
-	PDS            sql.NullInt64  `db:"pds_id,omitempty"          json:"-"`
-	Settings       *Settings      `db:"settings,omitempty"        json:"settings"`
-	Email          sql.NullString `db:"email,omitempty"           json:"email"`
-	HashedPassword sql.NullString `db:"hashed_password,omitempty" json:"-"`
+	Handle      sql.NullString `db:"handle,omitempty"`
+	DisplayName sql.NullString `db:"display_name,omitempty"`
+	RecoveryKey string         `db:"recovery_key,omitempty"`
+	Did         string         `db:"did,omitempty"`
+	Metadata
+	ID             Aid            `db:"id,omitempty,pk"`
+	PDS            sql.NullInt64  `db:"pds_id,omitempty"`
+	Settings       *Settings      `db:"settings,omitempty"`
+	Email          sql.NullString `db:"email,omitempty"`
+	HashedPassword sql.NullString `db:"hashed_password,omitempty"`
 }
 
 func (u Actor) TableName() string {
-	return "actor"
+	return "actors"
 }
 
+// ActorBasic represents the data to be used when displaying a basic profile
 type ActorBasic struct {
-	ID          Aid          `db:"id,omitempty,pk"        json:"id"`
-	Handle      *string      `db:"handle,omitempty"       json:"handle"`
-	DisplayName string       `db:"display_name,omitempty" json:"display_name"`
-	Did         string       `db:"did,omitempty"          json:"did"`
-	DeletedAt   sql.NullTime `db:"deleted_at,omitempty"   json:"-"`
+	ID          Aid          `db:"id,omitempty,pk"`
+	Handle      *string      `db:"handle,omitempty"`
+	DisplayName string       `db:"display_name,omitempty"`
+	Did         string       `db:"did,omitempty"`
+	DeletedAt   sql.NullTime `db:"deleted_at,omitempty"`
 }
 
 func (a ActorBasic) TableName() string {
-	return "actor"
+	return "actors"
 }
 
 // Peering represents a peering relationship between servers
@@ -66,15 +70,15 @@ func (p Peering) TableName() string {
 
 // ActivityPost represents a post or content item in the activity stream
 type ActivityPost struct {
-	Rkey string `db:"rkey"         json:"-"`
-	Cid  DbCID  `db:"cid"          json:"-"`
+	Rkey string `db:"rkey"`
+	Cid  DbCID  `db:"cid"`
 	Base
-	Author       Aid   `db:"author"       json:"author"`
-	Endorsements int64 `db:"endorsements" json:"endorsements"`
-	ReplyCount   int64 `db:"reply_count"  json:"reply_count"`
-	ReplyTo      uint  `db:"reply_to"     json:"reply_to"`
-	Missing      bool  `db:"missing"      json:"missing"`
-	Deleted      bool  `db:"deleted"      json:"deleted"`
+	Author       Aid   `db:"author"`
+	Endorsements int64 `db:"endorsements"`
+	ReplyCount   int64 `db:"reply_count"`
+	ReplyTo      uint  `db:"reply_to"`
+	Missing      bool  `db:"missing"`
+	Deleted      bool  `db:"deleted"`
 }
 
 func (f ActivityPost) TableName() string {
@@ -86,12 +90,10 @@ type Settings struct {
 	Type string `db:"type" json:"type"`
 }
 
-// Marshal serializes Settings to JSON
 func (u *Settings) Marshal() ([]byte, error) {
 	return json.Marshal(u)
 }
 
-// Unmarshal deserializes Settings from JSON
 func (u *Settings) Unmarshal(data []byte) error {
 	return json.Unmarshal(data, u)
 }
@@ -100,57 +102,134 @@ func (u *Settings) Unmarshal(data []byte) error {
 // Each User is associated with exactly one Actor via the Aid field.
 type User struct {
 	Base
-	Did         string        `db:"did,omitempty"          json:"did"`
-	Aid         Aid           `db:"aid,omitempty"          json:"-"`
-	Following   int64         `db:"following,omitempty"    json:"following"`
-	Followers   int64         `db:"followers,omitempty"    json:"followers"`
-	Posts       int64         `db:"posts,omitempty"        json:"posts"`
-	PDS         sql.NullInt64 `db:"pds_id,omitempty"       json:"-"`
-	ValidHandle bool          `db:"valid_handle,omitempty" json:"valid_handle"`
+	Did         string        `db:"did,omitempty"`
+	Aid         Aid           `db:"aid,omitempty"`
+	Following   int64         `db:"following,omitempty"`
+	Followers   int64         `db:"followers,omitempty"`
+	Votes       int64         `db:"votes,omitempty"`
+	Comments    int64         `db:"comments,omitempty"`
+	PDS         sql.NullInt64 `db:"pds_id,omitempty"`
+	ValidHandle bool          `db:"valid_handle,omitempty"`
 }
 
 func (a User) TableName() string {
-	return "user"
+	return "users"
+}
+
+// PublicServant represents the ATP metadata in the system for US policy makers
+// Each PublicServant is associated with exactly one Actor via the Aid field.
+type PublicServant struct {
+	Base
+	Aid       Aid           `db:"aid,omitempty"`
+	Followers int64         `db:"followers,omitempty"`
+	UserVotes int64         `db:"user_votes,omitempty"`
+	PDS       sql.NullInt64 `db:"pds_id,omitempty"`
+}
+
+func (a PublicServant) TableName() string {
+	return "public_servants"
 }
 
 // Legislator represents the legislator profile in the system
 type Legislator struct {
 	Base
-	Did          string        `db:"did,omitempty"           json:"did"`
-	Aid          Aid           `db:"aid,omitempty,pk"        json:"aid"`
-	LegislatorId int64         `db:"legislator_id,omitempty" json:"-"`
-	PDS          sql.NullInt64 `db:"pds_id,omitempty"        json:"-"`
+	Did          string        `db:"did,omitempty"`
+	Aid          Aid           `db:"aid,omitempty,pk"`
+	LegislatorId int64         `db:"legislator_id,omitempty"`
+	PDS          sql.NullInt64 `db:"pds_id,omitempty"`
 }
 
 func (u Legislator) TableName() string {
 	return "legislator"
 }
 
-// EndorsementRecord represents a like or endorsement of a post
-type EndorsementRecord struct {
-	Created  string `db:"created"         json:"-"`
-	Rkey     string `db:"rkey"            json:"-"`
-	Cid      DbCID  `db:"cid"             json:"-"`
-	Endorser Aid    `db:"endorser"        json:"endorser"`
-	ID       uint   `db:"id,omitempty,pk" json:"id"`
-	Post     uint   `db:"post_id"         json:"post"`
-}
-
-func (v EndorsementRecord) TableName() string {
-	return "endorsement_record"
-}
-
-// ActorFollowRecord represents a follow relationship between actors
-type ActorFollowRecord struct {
-	Rkey string `db:"rkey"     json:"-"`
-	Cid  DbCID  `db:"cid"      json:"-"`
+// PolicyContent represents an item created by policy makers
+type PolicyContent struct {
+	Collection string `db:"collection"`
+	Rkey       string `db:"rkey"`
+	Cid        DbCID  `db:"cid"`
 	Base
-	Follower Aid `db:"follower" json:"follower"`
-	Target   Aid `db:"target"   json:"target"`
+	AuthorID  Aid   `db:"author_id"`
+	YayCount  int64 `db:"yay_count"`
+	NayCount  int64 `db:"nay_count"`
+	Followers uint  `db:"followers"`
+	Deleted   bool  `db:"deleted"`
 }
 
-func (f ActorFollowRecord) TableName() string {
-	return "actor_follow_record"
+func (f PolicyContent) TableName() string {
+	return "policy_content"
+}
+
+// Endorsement represents a like or endorsement of a post
+type Endorsement struct {
+	Created    string `db:"created"`
+	Rkey       string `db:"rkey"`
+	Cid        DbCID  `db:"cid"`
+	EndorserID Aid    `db:"endorser_id"`
+	ID         uint   `db:"id,omitempty,pk"`
+	Post       uint   `db:"post_id"`
+}
+
+func (v Endorsement) TableName() string {
+	return "endorsements"
+}
+
+// ActorFollow represents a follow relationship between actors
+type ActorFollow struct {
+	TargetCollection string `db:"target_collection"`
+	Collection       string `db:"collection"`
+	Rkey             string `db:"rkey"`
+	Cid              DbCID  `db:"cid"`
+	Metadata
+	FollowerID Aid `db:"follower_id"`
+	TargetID   Aid `db:"target_id"`
+}
+
+func (f ActorFollow) TableName() string {
+	return "actor_follows"
+}
+
+// ContentFollow represents a follow relationship between an actor and content
+type ContentFollow struct {
+	Collection        string `db:"collection"`
+	Rkey              string `db:"rkey"`
+	SubjectCollection string `db:"subject_collection"`
+	SubjectRkey       string `db:"subject_rkey"`
+	Cid               DbCID  `db:"cid"`
+	SubjectCid        DbCID  `db:"subject_cid"`
+	Metadata
+	FollowerID Aid `db:"follower_id"`
+}
+
+func (f ContentFollow) TableName() string {
+	return "content_follows"
+}
+
+// ActorVote represents a follow relationship between actors
+type ActorVote struct {
+	VoteChoice VoteChoice `db:"vote_choice"`
+	Metadata
+	VoterID  Aid `db:"voter_id"`
+	TargetID Aid `db:"target_id"`
+}
+
+func (f ActorVote) TableName() string {
+	return "actor_votes"
+}
+
+// ContentVote represents a follow relationship between an actor and content
+type ContentVote struct {
+	VoteChoice        VoteChoice `db:"vote_choice"`
+	SubjectCollection string     `db:"subject_collection"`
+	Rkey              string     `db:"rkey"`
+	Cid               DbCID      `db:"cid"`
+	SubjectCid        DbCID      `db:"subject_cid"`
+	Metadata
+	FollowerID Aid `db:"follower_id"`
+}
+
+func (f ContentVote) TableName() string {
+	return "content_votes"
 }
 
 // PDS represents a Personal Data Server that hosts user data
@@ -198,13 +277,13 @@ func ClientForPds(pds *PDS) *xrpc.Client {
 
 // Feed represents a content feed with filtering criteria
 type Feed struct {
-	ID           uint      `db:"id,omitempty,pk"        json:"id"`
-	IndexedAt    time.Time `db:"indexed_at,omitempty"   json:"-"`
-	Rkey         string    `db:"rkey"                   json:"-"`
-	Cid          DbCID     `db:"cid"                    json:"-"`
-	Jurisdiction string    `db:"jurisdiction,omitempty" json:"jurisdiction"`
-	Topic        []string  `db:"topic,omitempty"        json:"topic"`
-	Type         string    `db:"type"                   json:"type"`
+	ID           uint      `db:"id,omitempty,pk"`
+	IndexedAt    time.Time `db:"indexed_at,omitempty"`
+	Rkey         string    `db:"rkey"`
+	Cid          DbCID     `db:"cid"`
+	Jurisdiction string    `db:"jurisdiction,omitempty"`
+	Topic        []string  `db:"topic,omitempty"`
+	Type         string    `db:"type"`
 }
 
 func (p Feed) TableName() string {
