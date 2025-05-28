@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     USER_SERVICE_URL: str
 
     # AWS
-    AWS_REGION: Optional[str] = "us-east-2"
+    AWS_REGION: Optional[str] = "us-east-1"
     BILL_TEXT_BUCKET_NAME: str
     FEEDBACK_FILE_NAME: str = "feedback.json"
     FEEDBACK_BUCKET_NAME: str = "referendumapp-beta"

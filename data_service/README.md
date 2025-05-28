@@ -31,7 +31,7 @@ Backend infrastructure for the Referendum mobile app
    - API Documentation: 
      - Swagger UI: http://localhost:80/docs (interactive API testing)
      - Redoc: http://localhost:80/redoc (detailed API documentation)
-   - MinIO Console: http://localhost:9001 (S3-compatible storage interface)
+   - Localstack Console: http://localhost:4566 
    - Database: localhost:5432 (PostgreSQL)
 
 ## 🏗 Architecture
@@ -53,7 +53,7 @@ Backend infrastructure for the Referendum mobile app
   - RDS for deployed system
 - **Storage Layer**:
   - S3 buckets for bill texts and attachments
-  - MinIO for local development
+  - Localstack for local development
 - **AWS Deployment**:
   - EC2 for compute resources
   - ECR for container registry
@@ -81,9 +81,9 @@ SECRET_KEY=                 # JWT signing key (min 32 chars)
 API_ACCESS_TOKEN=           # API gateway access token
 
 # AWS/S3 Configuration
-AWS_REGION=                 # AWS region (default: us-west-2)
-S3_ACCESS_KEY=              # S3/MinIO access key
-S3_SECRET_KEY=              # S3/MinIO secret key
+AWS_REGION=                 # AWS region (default: us-east-1)
+S3_ACCESS_KEY=              # S3 access key
+S3_SECRET_KEY=              # S3 secret key
 BILL_TEXT_BUCKET_NAME=      # S3 bucket for bill texts
 ```
 
