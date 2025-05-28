@@ -45,7 +45,7 @@ func (d *Docker) SetupS3(ctx context.Context) (*S3Container, error) {
 				fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", id),
 				fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", secret),
 				"SERVICES=s3,secretsmanager",
-				"AWS_DEFAULT_REGION=us-east-2",
+				"AWS_DEFAULT_REGION=us-east-1",
 			},
 			ExposedPorts: []string{"4566/tcp"},
 			NetworkID:    d.network.ID,
