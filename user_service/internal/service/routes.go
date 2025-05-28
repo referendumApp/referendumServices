@@ -9,14 +9,14 @@ func (s *Service) setupRoutes() {
 		r.Post("/signup", s.handleCreateUser)
 		r.Post("/login", s.handleCreateSession)
 		r.Post("/refresh", s.handleRefreshSession)
-		r.With(s.pds.AuthorizeUser).Delete("/session", s.handleDeleteSession)
-		r.With(s.pds.AuthorizeUser).Delete("/account", s.handleDeleteUser)
+		r.With(s.AuthorizeUser).Delete("/session", s.handleDeleteSession)
+		r.With(s.AuthorizeUser).Delete("/account", s.handleDeleteUser)
 
-		r.With(s.av.AuthorizeSystemUser).Post("/system", s.handleCreateAdmin)
+		r.With(s.AuthorizeSystemUser).Post("/system", s.handleCreateAdmin)
 	})
 
 	s.mux.Route("/user", func(r chi.Router) {
-		r.Use(s.pds.AuthorizeUser)
+		r.Use(s.AuthorizeUser)
 
 		r.Put("/profile", s.handleUpdateUserProfile)
 		r.Post("/follow", s.handleGraphFollow)
@@ -28,7 +28,7 @@ func (s *Service) setupRoutes() {
 
 	s.mux.Route("/legislator", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
-			r.Use(s.av.AuthorizeSystemUser)
+			r.Use(s.AuthorizeSystemUser)
 			r.Post("/", s.handleCreateLegislator)
 			r.Put("/", s.handleUpdateLegislator)
 			r.Delete("/", s.handleDeleteLegislator)

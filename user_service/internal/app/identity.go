@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"net/http"
 	"strings"
 	"time"
 
@@ -243,45 +242,4 @@ func (a *View) CreateAdminApiKey(ctx context.Context) (string, *refErr.APIError)
 	var apiKey = "LOCAL_TEST_API_KEY" // #nosec G101
 
 	return apiKey, nil
-}
-
-func (a *View) AuthorizeSystemUser(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestCtx := r.Context()
-
-		a.log.ErrorContext(requestCtx, "authorization header", "header", r.Header)
-		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			a.log.ErrorContext(requestCtx, "Missing Authorization header")
-			refErr.Unauthorized("Missing Authorization header").WriteResponse(w)
-			return
-		}
-
-		const bearerPrefix = "Bearer "
-		if !strings.HasPrefix(authHeader, bearerPrefix) {
-			a.log.ErrorContext(requestCtx, "Invalid Authorization header format")
-			refErr.Unauthorized("Invalid Authorization header format").WriteResponse(w)
-			return
-		}
-
-		var apiKey = strings.TrimSpace(authHeader[len(bearerPrefix):])
-		if apiKey == "" {
-			a.log.ErrorContext(requestCtx, "Empty API key in Authorization header")
-			refErr.Unauthorized("Empty API key").WriteResponse(w)
-			return
-		}
-
-		aid, did, err := util.ValidateApiKey(apiKey)
-		a.log.ErrorContext(requestCtx, "Got Actor info", "aid", aid, "did", did, "err", err)
-		if err != nil {
-			a.log.ErrorContext(requestCtx, "Failed validate access token", "error", err)
-			refErr.Unauthorized("Invalid token type for access token").WriteResponse(w)
-			return
-		}
-
-		didCtx := context.WithValue(requestCtx, util.DidKey, did)
-		ctx := context.WithValue(didCtx, util.SubjectKey, aid)
-
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
 }
