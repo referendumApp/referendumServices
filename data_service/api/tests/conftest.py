@@ -13,7 +13,7 @@ from api.main import app
 from api.security import create_access_token
 from api.settings import settings
 from api.tests.test_utils import generate_random_string
-from common.object_storage.client import ObjectStorageClient
+from common.object_storage.client import S3Client
 
 ENV = os.environ.get("ENVIRONMENT")
 DEBUGGER = os.environ.get("ENABLE_DEBUGGER")
@@ -27,7 +27,7 @@ if ENV == "local" and DEBUGGER is not None and DEBUGGER.lower() == "true":
 
 transport = ASGITransport(app=app)
 base_url = "http://localhost"
-storage_client = ObjectStorageClient()
+storage_client = S3Client()
 
 
 @pytest.fixture(scope="session")
@@ -315,7 +315,7 @@ class TestManager:
         if not hash_value:
             hash_value = generate_random_string()
 
-        # Upload bill text to MinIO
+        # Upload bill text
         bill_text = "A BILL"
         storage_client.upload_file(
             bucket=BILL_TEXT_BUCKET_NAME,

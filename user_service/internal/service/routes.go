@@ -61,7 +61,7 @@ func (s *Service) setupRoutes() {
 
 		r.Post("/", s.handleCreateLegislator)
 		r.Get("/", s.handleGetLegislator)
-		r.Put("/", s.handleLegislatorUpdate)
+		r.Put("/", s.handleUpdateLegislator)
 		r.Delete("/", s.handleDeleteLegislator)
 	})
 

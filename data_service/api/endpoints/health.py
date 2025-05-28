@@ -4,7 +4,7 @@ from sqlalchemy import text
 from typing import Dict
 import os
 
-from common.object_storage.client import ObjectStorageClient
+from common.object_storage.client import S3Client
 
 from ..database import get_db
 from ..schemas.interactions import ErrorResponse, HealthResponse
@@ -37,7 +37,7 @@ async def healthcheck(
 
     # Check S3 access
     try:
-        s3_client = ObjectStorageClient()
+        s3_client = S3Client()
         s3_client.check_connection(BILL_TEXT_BUCKET_NAME)
     except Exception as e:
         raise HTTPException(

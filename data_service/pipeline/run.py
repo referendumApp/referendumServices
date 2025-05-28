@@ -10,7 +10,7 @@ from typing import List, Dict
 
 from common.database.referendum import connection as referendum_connection
 from common.database.legiscan_api import connection as legiscan_api_connection
-from common.object_storage.client import ObjectStorageClient
+from common.object_storage.client import S3Client
 from pipeline.bill_text_extraction import BillTextExtractor
 from pipeline.etl_config import ETLConfig
 
@@ -119,7 +119,7 @@ def timeout(seconds):
 
 
 def run_text_extraction(batch_size=20):
-    storage_client = ObjectStorageClient()
+    storage_client = S3Client()
     referendum_db = next(get_referendum_db())
     extractor = BillTextExtractor(
         storage_client=storage_client, db_session=referendum_db, bucket_name=BILL_TEXT_BUCKET_NAME

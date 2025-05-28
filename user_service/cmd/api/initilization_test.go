@@ -37,7 +37,7 @@ func TestServiceInitialization(t *testing.T) {
 
 	sc, err := docker.SetupS3(ctx)
 	if err != nil {
-		t.Fatalf("Failed to setup minio container: %v", err)
+		t.Fatalf("Failed to setup s3 container: %v", err)
 	}
 	defer sc.CleanupS3(docker)
 

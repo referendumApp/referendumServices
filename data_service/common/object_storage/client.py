@@ -4,12 +4,13 @@ from typing import Optional, Dict, Any, List
 from io import BytesIO
 import boto3
 from botocore.client import Config
+from botocore.exceptions import ClientError
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class ObjectStorageClient:
+class S3Client:
     def __init__(self) -> None:
         self.access_key = os.getenv("S3_ACCESS_KEY")
         self.secret_key = os.getenv("S3_SECRET_KEY")
@@ -29,8 +30,10 @@ class ObjectStorageClient:
             connect_timeout=self.timeout,
             read_timeout=self.timeout,
             retries={"max_attempts": self.max_retries},
-            s3={"addressing_style": "path"},  # Required for MinIO
         )
+
+        if self.endpoint_url and "localstack" in self.endpoint_url:
+            boto_config.s3 = {"addressing_style": "path"}
 
         client_kwargs: Dict[str, Any] = {
             "aws_access_key_id": self.access_key,

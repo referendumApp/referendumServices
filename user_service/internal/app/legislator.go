@@ -34,8 +34,9 @@ func (v *View) SaveActorAndLegislator(
 	ctx context.Context,
 	actor *atp.Actor,
 	legislatorId int64,
+	legislatorName string,
 ) *refErr.APIError {
-	if err := v.meta.insertActorAndLegislatorRecords(ctx, actor, legislatorId); err != nil {
+	if err := v.meta.insertActorAndLegislatorRecords(ctx, actor, legislatorId, legislatorName); err != nil {
 		return refErr.Database()
 	}
 	return nil
@@ -93,6 +94,7 @@ func (v *View) UpdateLegislator(
 	req *refApp.LegislatorUpdateProfile_Input,
 ) *refErr.APIError {
 	var newActor atp.Actor
+	var newLegislator atp.Legislator
 
 	if req.Handle != nil {
 		handle := *req.Handle
@@ -104,12 +106,19 @@ func (v *View) UpdateLegislator(
 	}
 
 	if req.Name != nil {
-		newActor.DisplayName = sql.NullString{String: *req.Name, Valid: true}
+		newLegislator.DisplayName = *req.Name
 	}
 
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		if err := v.meta.UpdateWithTx(
 			ctx, tx, &newActor, sq.Eq{"id": aid},
+		); err != nil && !errors.Is(err, database.ErrNoFields) {
+			v.log.ErrorContext(ctx, "Failed to update actor", "error", err)
+			return err
+		}
+
+		if err := v.meta.UpdateWithTx(
+			ctx, tx, &newLegislator, sq.Eq{"legislator_id": req.LegislatorId},
 		); err != nil && !errors.Is(err, database.ErrNoFields) {
 			v.log.ErrorContext(ctx, "Failed to update actor", "error", err)
 			return err
@@ -140,4 +149,18 @@ func (v *View) DeleteLegislator(ctx context.Context, aid atp.Aid, did string) *r
 	}
 
 	return nil
+}
+
+// GetDidForAid returns a DID based on an actor ID
+// TODO - modify this to use a cache instead of hitting the db
+func (v *View) GetDidForAid(
+	ctx context.Context,
+	aid atp.Aid,
+) (*string, *refErr.APIError) {
+	actor, err := v.meta.LookupActorByID(ctx, aid)
+	if err != nil {
+		return nil, refErr.Database()
+	}
+
+	return &actor.Did, nil
 }

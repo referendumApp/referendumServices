@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from common.chat.bill import BillChatSessionManager
 from common.chat.service import LLMService, OpenAIException
 from common.database.referendum import crud, schemas
-from common.object_storage.client import ObjectStorageClient
+from common.object_storage.client import S3Client
 
 from ..database import get_db
 from ..schemas.interactions import (
@@ -57,7 +57,7 @@ async def get_bill_text(
 ) -> dict:
     bill_version = crud.bill_version.read(db=db, obj_id=bill_version_id)
 
-    s3_client = ObjectStorageClient()
+    s3_client = S3Client()
     text = s3_client.download_file(
         bucket=settings.BILL_TEXT_BUCKET_NAME, key=f"{bill_version.hash}.txt"
     ).decode("utf-8")
@@ -86,7 +86,7 @@ async def get_bill_briefing(
     if bill_version.briefing:
         briefing = bill_version.briefing
     else:
-        s3_client = ObjectStorageClient()
+        s3_client = S3Client()
         bill_text = s3_client.download_file(
             bucket=settings.BILL_TEXT_BUCKET_NAME, key=f"{bill_version.hash}.txt"
         ).decode("utf-8")
@@ -133,7 +133,7 @@ async def initialize_chat(
     bill_version = crud.bill_version.read(db=db, obj_id=bill_version_id)
 
     # Get bill text
-    s3_client = ObjectStorageClient()
+    s3_client = S3Client()
     text = s3_client.download_file(
         bucket=settings.BILL_TEXT_BUCKET_NAME, key=f"{bill_version.hash}.txt"
     ).decode("utf-8")
