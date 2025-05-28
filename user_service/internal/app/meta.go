@@ -104,51 +104,15 @@ func (vm *ViewMeta) insertActorAndLegislatorRecords(
 	})
 }
 
-func (vm *ViewMeta) actorExists(ctx context.Context, filter sq.Eq) (bool, error) {
+func (vm *ViewMeta) recordExists(ctx context.Context, entity database.TableEntity, filter sq.Eq) (bool, error) {
 	var exists bool
-	innerSql, args, err := sq.Select("id").
-		From(vm.Schema + ".actor").
+	innerSql, args, err := sq.Select("1").
+		From(vm.Schema + "." + entity.TableName()).
 		Where(filter).
 		PlaceholderFormat(sq.Dollar).ToSql()
 
 	if err != nil {
-		vm.Log.InfoContext(ctx, "Error building actor exists query", "error", err)
-		return false, err
-	}
-
-	sql := fmt.Sprintf("SELECT EXISTS(%s)", innerSql)
-	err = vm.DB.GetRow(ctx, sql, args...).Scan(&exists)
-
-	return exists, err
-}
-
-func (vm *ViewMeta) legislatorExists(ctx context.Context, filter sq.Eq) (bool, error) {
-	var exists bool
-	innerSql, args, err := sq.Select("id").
-		From(vm.Schema + ".legislator").
-		Where(filter).
-		PlaceholderFormat(sq.Dollar).ToSql()
-
-	if err != nil {
-		vm.Log.InfoContext(ctx, "Error building legislator exists query", "error", err)
-		return false, err
-	}
-
-	sql := fmt.Sprintf("SELECT EXISTS(%s)", innerSql)
-	err = vm.DB.GetRow(ctx, sql, args...).Scan(&exists)
-
-	return exists, err
-}
-
-func (vm *ViewMeta) userExists(ctx context.Context, filter sq.Eq) (bool, error) {
-	var exists bool
-	innerSql, args, err := sq.Select("id").
-		From(vm.Schema + ".user").
-		Where(filter).
-		PlaceholderFormat(sq.Dollar).ToSql()
-
-	if err != nil {
-		vm.Log.InfoContext(ctx, "Error building user exists query", "error", err)
+		vm.Log.InfoContext(ctx, "Error building exists query", "error", err, "table", entity.TableName())
 		return false, err
 	}
 

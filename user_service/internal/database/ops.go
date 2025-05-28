@@ -125,14 +125,14 @@ func (d *DB) LookupEndorsementByUid(
 	voter atp.Aid,
 	rkey string,
 ) (*atp.Endorsement, error) {
-	filter := sq.Eq{"voter": voter}
+	filter := sq.Eq{"endorser_id": voter}
 	return d.lookupEndorsementQuery(ctx, filter)
 }
 
 // HandleRecordDeleteFeedLike delete feed like
 func (d *DB) HandleRecordDeleteFeedLike(ctx context.Context, aid atp.Aid, rkey string) error {
 	var entity atp.Endorsement
-	filter := sq.Eq{"voter": aid, "rkey": rkey}
+	filter := sq.Eq{"endorser_id": aid, "rkey": rkey}
 	er, err := GetAll(ctx, d, entity, filter)
 	if err != nil {
 		return err
@@ -151,7 +151,7 @@ func (d *DB) HandleRecordDeleteFeedLike(ctx context.Context, aid atp.Aid, rkey s
 
 // HandleRecordDeleteGraphFollow delete actor follow
 func (d *DB) HandleRecordDeleteGraphFollow(ctx context.Context, aid atp.Aid, rkey string) error {
-	filter := sq.Eq{"follower": aid, "rkey": rkey}
+	filter := sq.Eq{"follower_id": aid, "rkey": rkey}
 	if err := d.Delete(ctx, atp.ActorFollow{}, filter); err != nil {
 		if errors.Is(err, ErrNoRowsAffected) {
 			d.Log.WarnContext(

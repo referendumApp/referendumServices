@@ -17,7 +17,7 @@ import (
 // ResolveNewLegislator validates if the new legislator request can be handled
 func (v *View) ResolveNewLegislator(ctx context.Context, req *refApp.ServerCreateLegislator_Input) *refErr.APIError {
 	filter := sq.Eq{"legislator_id": req.LegislatorId}
-	if exists, err := v.meta.legislatorExists(ctx, filter); err != nil {
+	if exists, err := v.meta.recordExists(ctx, &atp.Legislator{}, filter); err != nil {
 		v.log.ErrorContext(ctx, "Error checking database for legislator_id", "error", err)
 		return refErr.InternalServer()
 	} else if exists {
