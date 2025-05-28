@@ -42,12 +42,10 @@ func (u *AuthSettings) Unmarshal(data []byte) error {
 
 // Actor is the core account object that owns a repo and contains auth information
 type Actor struct {
-	Handle       sql.NullString `db:"handle,omitempty"        json:"-"`
-	RecoveryKey  string         `db:"recovery_key,omitempty"  json:"-"`
-	Did          string         `db:"did,omitempty"           json:"did"`
-	CreatedAt    time.Time      `db:"created_at,omitempty"    json:"-"`
-	UpdatedAt    time.Time      `db:"updated_at,omitempty"    json:"-"`
-	DeletedAt    sql.NullTime   `db:"deleted_at,omitempty"    json:"-"`
+	Handle      sql.NullString `db:"handle,omitempty"        json:"-"`
+	RecoveryKey string         `db:"recovery_key,omitempty"  json:"-"`
+	Did         string         `db:"did,omitempty"           json:"did"`
+	Metadata
 	ID           Aid            `db:"id,omitempty,pk"         json:"id"`
 	PDS          sql.NullInt64  `db:"pds_id,omitempty"        json:"-"`
 	Email        sql.NullString `db:"email,omitempty"         json:"email"`

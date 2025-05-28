@@ -146,8 +146,8 @@ func (v *View) AuthenticateSession(ctx context.Context, aid atp.Aid, did string)
 func (v *View) DeleteActor(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		actor := atp.Actor{
-			Handle:    sql.NullString{Valid: false},
-			Metadata:  atp.Metadata{DeletedAt: sql.NullTime{Time: time.Now(), Valid: true}},
+			Handle:   sql.NullString{Valid: false},
+			Metadata: atp.Metadata{DeletedAt: sql.NullTime{Time: time.Now(), Valid: true}},
 		}
 		if err := v.meta.UpdateWithTx(ctx, tx, actor, sq.Eq{"id": aid}); err != nil {
 			v.log.ErrorContext(ctx, "Failed to delete actor handle", "error", err)
