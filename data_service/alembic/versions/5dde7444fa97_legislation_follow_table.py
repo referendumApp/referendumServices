@@ -1,7 +1,7 @@
 """Legislation Follow Table
 
 Revision ID: 5dde7444fa97
-Revises: 01793d9ea433
+Revises: c2ba66e883d7
 Create Date: 2025-05-23 12:39:53.292905
 
 """
@@ -14,7 +14,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "5dde7444fa97"
-down_revision: Union[str, None] = "01793d9ea433"
+down_revision: Union[str, None] = "c2ba66e883d7"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
