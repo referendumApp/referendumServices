@@ -128,7 +128,7 @@ jobs:
             --env CI=true \
             --env AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID }} \
             --env AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY }} \
-            --env MINIO_CONSOLE_PORT=${{ env.MINIO_CONSOLE_PORT }} \
+            --env LOCALSTACK_PORT=${{ env.LOCALSTACK_PORT }} \
             --env KMS_PORT=${{ env.KMS_PORT }} \
             --env-file .env \
             --volume /var/run/docker.sock:/var/run/docker.sock \
