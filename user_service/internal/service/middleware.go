@@ -3,6 +3,7 @@ package service
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -108,51 +109,68 @@ func (s *Service) requestTimeout(next http.Handler) http.Handler {
 	})
 }
 
+// extractBearerToken extracts and validates the Bearer token from the Authorization header
+func (s *Service) extractBearerToken(r *http.Request) (string, error) {
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		return "", errors.New("missing Authorization header")
+	}
+
+	const bearerPrefix = "Bearer "
+	if !strings.HasPrefix(authHeader, bearerPrefix) {
+		return "", errors.New("invalid Authorization header format")
+	}
+
+	token := strings.TrimSpace(authHeader[len(bearerPrefix):])
+	if token == "" {
+		return "", errors.New("empty token")
+	}
+
+	return token, nil
+}
+
+// setContextFromAuth sets the DID and Subject context values from auth results
+func (s *Service) setContextFromAuth(ctx context.Context, aid *atp.Aid, did *string) context.Context {
+	var aidValue atp.Aid
+	var didValue string
+
+	if aid != nil {
+		aidValue = *aid
+	}
+	if did != nil {
+		didValue = *did
+	}
+
+	didCtx := context.WithValue(ctx, util.DidKey, didValue)
+	return context.WithValue(didCtx, util.SubjectKey, aidValue)
+}
+
+// writeUnauthorizedError logs the error and writes an unauthorized response
+func (s *Service) writeUnauthorizedError(w http.ResponseWriter, r *http.Request, message string, err error) {
+	if err != nil {
+		s.log.ErrorContext(r.Context(), message, "error", err)
+	} else {
+		s.log.ErrorContext(r.Context(), message)
+	}
+	refErr.Unauthorized(message).WriteResponse(w)
+}
+
 // AuthorizeSystemUser validates system user tokens only
 func (s *Service) AuthorizeSystemUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestCtx := r.Context()
-
-		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			s.log.ErrorContext(requestCtx, "Missing Authorization header")
-			refErr.Unauthorized("Missing Authorization header").WriteResponse(w)
-			return
-		}
-
-		const bearerPrefix = "Bearer "
-		if !strings.HasPrefix(authHeader, bearerPrefix) {
-			s.log.ErrorContext(requestCtx, "Invalid Authorization header format")
-			refErr.Unauthorized("Invalid Authorization header format").WriteResponse(w)
-			return
-		}
-
-		token := strings.TrimSpace(authHeader[len(bearerPrefix):])
-		if token == "" {
-			s.log.ErrorContext(requestCtx, "Empty token in Authorization header")
-			refErr.Unauthorized("Empty token").WriteResponse(w)
+		token, err := s.extractBearerToken(r)
+		if err != nil {
+			s.writeUnauthorizedError(w, r, err.Error(), nil)
 			return
 		}
 
 		aid, did, err := util.ValidateApiKey(token)
 		if err != nil {
-			s.log.ErrorContext(requestCtx, "Failed to validate API key", "error", err)
-			refErr.Unauthorized("Invalid API key").WriteResponse(w)
+			s.writeUnauthorizedError(w, r, "Invalid API key", err)
 			return
 		}
 
-		var aidValue atp.Aid
-		var didValue string
-		if aid != nil {
-			aidValue = *aid
-		}
-		if did != nil {
-			didValue = *did
-		}
-
-		didCtx := context.WithValue(requestCtx, util.DidKey, didValue)
-		ctx := context.WithValue(didCtx, util.SubjectKey, aidValue)
-
+		ctx := s.setContextFromAuth(r.Context(), aid, did)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -165,88 +183,48 @@ func (s *Service) AuthorizeUser(next http.Handler) http.Handler {
 // AuthorizeAdminOrUser validates both system user and regular user tokens
 func (s *Service) AuthorizeAdminOrUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestCtx := r.Context()
-
-		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			s.log.ErrorContext(requestCtx, "Missing Authorization header")
-			refErr.Unauthorized("Missing Authorization header").WriteResponse(w)
+		token, err := s.extractBearerToken(r)
+		if err != nil {
+			s.writeUnauthorizedError(w, r, err.Error(), nil)
 			return
 		}
 
-		const bearerPrefix = "Bearer "
-		if !strings.HasPrefix(authHeader, bearerPrefix) {
-			s.log.ErrorContext(requestCtx, "Invalid Authorization header format")
-			refErr.Unauthorized("Invalid Authorization header format").WriteResponse(w)
-			return
-		}
-
-		token := strings.TrimSpace(authHeader[len(bearerPrefix):])
-		if token == "" {
-			s.log.ErrorContext(requestCtx, "Empty token in Authorization header")
-			refErr.Unauthorized("Empty token").WriteResponse(w)
-			return
-		}
-
-		// First try to validate as API key (system user)
+		// Try API key validation first
 		if aid, did, err := util.ValidateApiKey(token); err == nil {
-			s.log.InfoContext(requestCtx, "Authenticated as system user")
-
-			// Set context values (handle pointer dereferencing if needed)
-			var aidValue atp.Aid
-			var didValue string
-
-			if aid != nil {
-				aidValue = *aid
-			}
-			if did != nil {
-				didValue = *did
-			}
-
-			didCtx := context.WithValue(requestCtx, util.DidKey, didValue)
-			ctx := context.WithValue(didCtx, util.SubjectKey, aidValue)
-
+			s.log.InfoContext(r.Context(), "Authenticated as system user")
+			ctx := s.setContextFromAuth(r.Context(), aid, did)
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
 
-		// If API key validation fails, try user token validation through PDS
-		s.log.InfoContext(requestCtx, "API key validation failed, trying user token validation")
+		s.log.InfoContext(r.Context(), "API key validation failed, trying user token validation")
 
-		// Create a custom response writer to capture the response from PDS auth
-		customWriter := &authResponseCapture{
-			ResponseWriter: w,
-			authSucceeded:  false,
-		}
+		authCapture := &authResponseCapture{ResponseWriter: w}
 
-		// Try PDS user authentication
 		s.pds.AuthorizeUser(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// If we reach here, PDS authentication succeeded
-			customWriter.authSucceeded = true
+			authCapture.authSucceeded = true
 			next.ServeHTTP(w, r)
-		})).ServeHTTP(customWriter, r)
+		})).ServeHTTP(authCapture, r)
 
-		// If PDS auth also failed and no response was written, write unauthorized
-		if !customWriter.authSucceeded && !customWriter.responseWritten {
-			s.log.ErrorContext(requestCtx, "Both API key and user token validation failed")
-			refErr.Unauthorized("Invalid token").WriteResponse(w)
+		if !authCapture.authSucceeded && !authCapture.responseWritten {
+			s.writeUnauthorizedError(w, r, "Invalid token", nil)
 		}
 	})
 }
 
-// authResponseCapture captures whether authentication succeeded and if a response was written
+// authResponseCapture captures authentication state and response status
 type authResponseCapture struct {
 	http.ResponseWriter
 	authSucceeded   bool
 	responseWritten bool
 }
 
-func (arc *authResponseCapture) WriteHeader(statusCode int) {
-	arc.responseWritten = true
-	arc.ResponseWriter.WriteHeader(statusCode)
+func (c *authResponseCapture) WriteHeader(statusCode int) {
+	c.responseWritten = true
+	c.ResponseWriter.WriteHeader(statusCode)
 }
 
-func (arc *authResponseCapture) Write(data []byte) (int, error) {
-	arc.responseWritten = true
-	return arc.ResponseWriter.Write(data)
+func (c *authResponseCapture) Write(data []byte) (int, error) {
+	c.responseWritten = true
+	return c.ResponseWriter.Write(data)
 }
