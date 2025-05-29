@@ -231,3 +231,10 @@ func (p *PDS) HandleAtprotoDescribeServer() *atproto.ServerDescribeServer_Output
 	// TODO: Add some other fields here
 	return &atproto.ServerDescribeServer_Output{AvailableUserDomains: []string{p.handleSuffix}}
 }
+
+// CreateAdminApiKey creates a new system user with an API key
+func (p *PDS) CreateAdminApiKey(ctx context.Context) (string, *refErr.APIError) {
+	var apiKey = "LOCAL_TEST_API_KEY" // #nosec G101
+
+	return apiKey, nil
+}

@@ -517,7 +517,7 @@ func (s *Service) handleCreateAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiKey, err := s.av.CreateAdminApiKey(ctx)
+	apiKey, err := s.pds.CreateAdminApiKey(ctx)
 	if err != nil {
 		err.WriteResponse(w)
 		return
