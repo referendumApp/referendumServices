@@ -808,7 +808,7 @@ func TestSession(t *testing.T) {
 				headers: map[string]string{"Authorization": "Bearer " + testAccessToken},
 			},
 			testResponse{
-				status: http.StatusBadRequest,
+				status: http.StatusUnauthorized,
 			},
 			nil,
 		},
@@ -842,7 +842,7 @@ func TestSession(t *testing.T) {
 				headers: map[string]string{"Authorization": "Bearer " + testAccessToken},
 			},
 			testResponse{
-				status: http.StatusBadRequest,
+				status: http.StatusUnauthorized,
 			},
 			nil,
 		},
