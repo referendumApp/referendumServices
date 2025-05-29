@@ -9,14 +9,14 @@ func (s *Service) setupRoutes() {
 		r.Post("/signup", s.handleCreateUser)
 		r.Post("/login", s.handleCreateSession)
 		r.Post("/refresh", s.handleRefreshSession)
-		r.With(s.AuthorizeUser).Delete("/session", s.handleDeleteSession)
-		r.With(s.AuthorizeUser).Delete("/account", s.handleDeleteUser)
+		r.With(s.pds.AuthorizeUser).Delete("/session", s.handleDeleteSession)
+		r.With(s.pds.AuthorizeUser).Delete("/account", s.handleDeleteUser)
 
-		r.With(s.AuthorizeSystemUser).Post("/system", s.handleCreateAdmin)
+		r.With(s.pds.AuthorizeSystemUser).Post("/system", s.handleCreateAdmin)
 	})
 
 	s.mux.Route("/users", func(r chi.Router) {
-		r.Use(s.AuthorizeUser)
+		r.Use(s.pds.AuthorizeUser)
 
 		r.Get("/profile", s.handleGetUserProfile)
 		r.Put("/profile", s.handleUpdateUserProfile)
@@ -56,20 +56,20 @@ func (s *Service) setupRoutes() {
 
 	s.mux.Route("/legislators", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
-			r.Use(s.AuthorizeSystemUser)
+			r.Use(s.pds.AuthorizeSystemUser)
 			r.Post("/", s.handleCreateLegislator)
 			r.Put("/", s.handleUpdateLegislator)
 			r.Delete("/", s.handleDeleteLegislator)
 		})
 
 		r.Group(func(r chi.Router) {
-			r.Use(s.AuthorizeAdminOrUser)
+			r.Use(s.pds.AuthorizeAdminOrUser)
 			r.Get("/", s.handleGetLegislator)
 		})
 	})
 
 	s.mux.Route("/server", func(r chi.Router) {
-		r.Use(s.AuthorizeSystemUser)
+		r.Use(s.pds.AuthorizeSystemUser)
 		r.Get("/describeServer", s.handleDescribeServer)
 		// r.Get("/com.atproto.sync.subscribeRepos", s.pds.EventsHandler)
 	})
