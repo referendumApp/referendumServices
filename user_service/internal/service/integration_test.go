@@ -1420,7 +1420,7 @@ func TestLegislator(t *testing.T) {
 				"Delete Legislator By ID",
 				testRequest{
 					method:  http.MethodDelete,
-					path:    "/legislator?legislatorId=77777",
+					path:    "/legislators?legislatorId=77777",
 					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
@@ -1432,7 +1432,7 @@ func TestLegislator(t *testing.T) {
 				"Delete Non-existent Legislator",
 				testRequest{
 					method:  http.MethodDelete,
-					path:    "/legislator?legislatorId=88888",
+					path:    "/legislators?legislatorId=88888",
 					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
@@ -1444,7 +1444,7 @@ func TestLegislator(t *testing.T) {
 				"Delete Legislator with Invalid ID Format",
 				testRequest{
 					method:  http.MethodDelete,
-					path:    "/legislator?legislatorId=invalid",
+					path:    "/legislators?legislatorId=invalid",
 					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
@@ -1456,7 +1456,7 @@ func TestLegislator(t *testing.T) {
 				"Delete Legislator Without Parameters",
 				testRequest{
 					method:  http.MethodDelete,
-					path:    "/legislator",
+					path:    "/legislators",
 					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
@@ -1468,7 +1468,7 @@ func TestLegislator(t *testing.T) {
 				"Delete Legislator without API Key",
 				testRequest{
 					method: http.MethodDelete,
-					path:   "/legislator?legislatorId=99998",
+					path:   "/legislators?legislatorId=99998",
 					// No Authorization header
 				},
 				testResponse{
@@ -1480,7 +1480,7 @@ func TestLegislator(t *testing.T) {
 				"Delete Legislator with Invalid API Key",
 				testRequest{
 					method:  http.MethodDelete,
-					path:    "/legislator?legislatorId=99997",
+					path:    "/legislators?legislatorId=99997",
 					headers: map[string]string{"Authorization": "Bearer INVALID_API_KEY"},
 				},
 				testResponse{
