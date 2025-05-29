@@ -9,22 +9,22 @@ ENV GOCACHE=$GOCACHE
 ENV GOMODCACHE=$GOMODCACHE
 
 RUN --mount=type=cache,target=${GOMODCACHE} \
-    --mount=type=bind,source=go.sum,target=go.sum \
-    --mount=type=bind,source=go.mod,target=go.mod \
-    go mod download
+  --mount=type=bind,source=go.sum,target=go.sum \
+  --mount=type=bind,source=go.mod,target=go.mod \
+  go mod download
 
 FROM base AS builder
 ARG BINARY_PATH
 ENV BINARY_PATH=$BINARY_PATH
 
 RUN --mount=type=cache,target=${GOMODCACHE} \
-    --mount=type=cache,target=${GOCACHE} \
-    --mount=type=bind,source=go.sum,target=go.sum \
-    --mount=type=bind,source=go.mod,target=go.mod \
-    --mount=type=bind,source=./cmd/api/main.go,target=./cmd/api/main.go \
-    --mount=type=bind,source=./internal,target=./internal \
-    --mount=type=bind,source=./pkg/common,target=./pkg/common \
-    go build -o ${BINARY_PATH} ./cmd/api/main.go
+  --mount=type=cache,target=${GOCACHE} \
+  --mount=type=bind,source=go.sum,target=go.sum \
+  --mount=type=bind,source=go.mod,target=go.mod \
+  --mount=type=bind,source=./cmd/api/main.go,target=./cmd/api/main.go \
+  --mount=type=bind,source=./internal,target=./internal \
+  --mount=type=bind,source=./pkg/common,target=./pkg/common \
+  go build -o ${BINARY_PATH} ./cmd/api/main.go
 
 FROM alpine:latest AS user-prod
 ARG BINARY_PATH
@@ -41,15 +41,15 @@ RUN apk add --no-cache curl
 ENTRYPOINT ["go", "run", "-tags=dev", "./cmd/dev/main.go"]
 
 FROM base AS test-builder
-RUN --mount=type=cache,target=${GOMODCACHE} \
-    --mount=type=cache,target=${GOCACHE} \
-    --mount=type=bind,source=go.sum,target=go.sum \
-    --mount=type=bind,source=go.mod,target=go.mod \
-    --mount=type=bind,source=./cmd/api,target=./cmd/api \
-    --mount=type=bind,source=./internal,target=./internal \
-    --mount=type=bind,source=./pkg/common,target=./pkg/common \
-    --mount=type=bind,source=./testutil,target=./testutil \
-    go test -c -tags=init,integration ./... -o test/
+RUN --mount=type=bind,source=${GOMODCACHE},target=/go/pkg/mod \
+  --mount=type=bind,source=${GOCACHE},target=/root/.cache/go-build \
+  --mount=type=bind,source=go.sum,target=go.sum \
+  --mount=type=bind,source=go.mod,target=go.mod \
+  --mount=type=bind,source=./cmd/api,target=./cmd/api \
+  --mount=type=bind,source=./internal,target=./internal \
+  --mount=type=bind,source=./pkg/common,target=./pkg/common \
+  --mount=type=bind,source=./testutil,target=./testutil \
+  go test -c -tags=init,integration ./... -o test/
 
 FROM alpine:latest AS test
 COPY --from=test-builder /code/test/ ./test/

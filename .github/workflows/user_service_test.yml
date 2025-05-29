@@ -138,11 +138,9 @@ jobs:
       - name: Update Cache
         run: |
           echo "Removing old cache directory if it exists..."
-          # rm -rf /tmp/.buildx-cache-migrations || true
           rm -rf /tmp/.buildx-cache-user-tests || true
           
           echo "Creating new merged cache directory..."
-          # mv /tmp/.buildx-cache-migrations-new /tmp/.buildx-cache-migrations
           mv /tmp/.buildx-cache-user-tests-new /tmp/.buildx-cache-user-tests
 
       - name: Clean Tests
