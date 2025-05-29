@@ -41,8 +41,8 @@ RUN apk add --no-cache curl
 ENTRYPOINT ["go", "run", "-tags=dev", "./cmd/dev/main.go"]
 
 FROM base AS test-builder
-RUN --mount=type=bind,source=${GOMODCACHE},target=/go/pkg/mod \
-  --mount=type=bind,source=${GOCACHE},target=/root/.cache/go-build \
+RUN --mount=type=cache,target=${GOMODCACHE} \
+  --mount=type=cache,target=${GOCACHE} \
   --mount=type=bind,source=go.sum,target=go.sum \
   --mount=type=bind,source=go.mod,target=go.mod \
   --mount=type=bind,source=./cmd/api,target=./cmd/api \

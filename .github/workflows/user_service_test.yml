@@ -63,25 +63,6 @@ jobs:
           cache: true
           cache-dependency-path: user_service/go.sum
 
-      - name: Set Go Cache Paths
-        id: go-cache-paths
-        run: |
-          echo "go-mod=$(go env GOMODCACHE)" >> $GITHUB_OUTPUT
-          echo "go-build=$(go env GOCACHE)" >> $GITHUB_OUTPUT
-
-      - name: Go Build Cache
-        uses: actions/cache@v3
-        with:
-          path: ${{ steps.go-cache-paths.outputs.go-build }}
-          key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-build-${{ github.ref }}-
-            ${{ runner.os }}-go-build-
-
-      - name: Pre-build Test Binary
-        working-directory: user_service
-        run: go test -c -tags=init,integration ./cmd/api/... ./internal/...
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -114,8 +95,8 @@ jobs:
           load: true
           tags: user-test
           build-args: |
-            GOMODCACHE=${{ steps.go-cache-paths.outputs.go-mod }}
-            GOCACHE=${{ steps.go-cache-paths.outputs.go-build }}
+            GOMODCACHE=/go/pkg/mod
+            GOCACHE=/root/.cache/go-build
           cache-from: type=local,src=/tmp/.buildx-cache-user-tests
           cache-to: type=local,dest=/tmp/.buildx-cache-user-tests-new,mode=max
 
@@ -139,7 +120,7 @@ jobs:
         run: |
           echo "Removing old cache directory if it exists..."
           rm -rf /tmp/.buildx-cache-user-tests || true
-          
+
           echo "Creating new merged cache directory..."
           mv /tmp/.buildx-cache-user-tests-new /tmp/.buildx-cache-user-tests
 
