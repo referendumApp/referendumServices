@@ -1324,7 +1324,7 @@ func TestLegislator(t *testing.T) {
 					getReq, err := http.NewRequestWithContext(
 						context.Background(),
 						http.MethodGet,
-						baseUrl+fmt.Sprintf("/legislator?legislatorId=%s", idStr),
+						baseUrl+fmt.Sprintf("/legislators?legislatorId=%s", idStr),
 						nil,
 					)
 					assert.NoError(t, err, "Failed to create GET request")
