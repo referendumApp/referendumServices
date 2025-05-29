@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/referendumApp/referendumServices/internal/app"
+	"github.com/referendumApp/referendumServices/internal/domain/atp"
 	"github.com/referendumApp/referendumServices/internal/pds"
 )
 
@@ -94,4 +95,8 @@ func (s *Service) Shutdown() error {
 
 	log.Println("Server shutdown complete")
 	return nil
+}
+
+func (s *Service) validateSystemApiKey(token string) (atp.Aid, string, error) {
+	return atp.Aid(0), "", nil
 }

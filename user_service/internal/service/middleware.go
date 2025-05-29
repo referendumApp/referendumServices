@@ -130,19 +130,9 @@ func (s *Service) extractBearerToken(r *http.Request) (string, error) {
 }
 
 // setContextFromAuth sets the DID and Subject context values from auth results
-func (s *Service) setContextFromAuth(ctx context.Context, aid *atp.Aid, did *string) context.Context {
-	var aidValue atp.Aid
-	var didValue string
-
-	if aid != nil {
-		aidValue = *aid
-	}
-	if did != nil {
-		didValue = *did
-	}
-
-	didCtx := context.WithValue(ctx, util.DidKey, didValue)
-	return context.WithValue(didCtx, util.SubjectKey, aidValue)
+func (s *Service) setContextFromAuth(ctx context.Context, aid atp.Aid, did string) context.Context {
+	didCtx := context.WithValue(ctx, util.DidKey, did)
+	return context.WithValue(didCtx, util.SubjectKey, aid)
 }
 
 // writeUnauthorizedError logs the error and writes an unauthorized response
@@ -169,7 +159,7 @@ func (s *Service) AuthorizeSystem(next http.Handler) http.Handler {
 			return
 		}
 
-		aid, did, err := util.ValidateApiKey(token)
+		aid, did, err := s.validateSystemApiKey(token)
 		if err != nil {
 			s.writeUnauthorizedError(w, r, "Invalid API key", err)
 			return
@@ -190,7 +180,7 @@ func (s *Service) AuthorizeSystemOrUser(next http.Handler) http.Handler {
 		}
 
 		// Try API key validation first
-		if aid, did, err := util.ValidateApiKey(token); err == nil {
+		if aid, did, err := s.validateSystemApiKey(token); err == nil {
 			s.log.InfoContext(r.Context(), "Authenticated as system user")
 			ctx := s.setContextFromAuth(r.Context(), aid, did)
 			next.ServeHTTP(w, r.WithContext(ctx))

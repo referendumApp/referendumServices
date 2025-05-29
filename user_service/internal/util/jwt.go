@@ -263,9 +263,3 @@ func ValidateToken(token *jwt.Token, tokenType TokenType) (atp.Aid, string, erro
 
 	return aid, didStr, nil
 }
-
-func ValidateApiKey(apiKey string) (*atp.Aid, *string, error) {
-	var aid = atp.Aid(1)
-	var did = "didStr"
-	return &aid, &did, nil
-}
