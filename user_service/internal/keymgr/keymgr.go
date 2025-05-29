@@ -3,6 +3,7 @@ package keymgr
 import (
 	"context"
 	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"log/slog"
@@ -102,6 +103,19 @@ func (km *KeyManager) CreateEncryptedKey(ctx context.Context, did string, privke
 	}
 
 	return nil
+}
+
+// CreateSystemApiKey generates the signing key for an actor
+func (km *KeyManager) CreateSystemApiKey(ctx context.Context, did string) (string, error) {
+	keyBytes := make([]byte, 32) // 256 bits
+	if _, err := rand.Read(keyBytes); err != nil {
+		return "", fmt.Errorf("failed to generate random key: %w", err)
+	}
+	apiKey := base64.URLEncoding.EncodeToString(keyBytes)
+
+	// Save to SecretsManager here
+
+	return apiKey, nil
 }
 
 // UpdateKeyCache updates the cache with both the signing and encrypted keys

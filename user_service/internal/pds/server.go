@@ -20,7 +20,6 @@ func (p *PDS) CreateActor(
 	recoveryKey string,
 	email string,
 	hashedPassword string,
-	apiKey string,
 ) (*atp.Actor, *refErr.APIError) {
 	if recoveryKey == "" {
 		recoveryKey = p.km.RecoveryKey()
@@ -40,6 +39,12 @@ func (p *PDS) CreateActor(
 	if err := p.km.CreateEncryptedKey(ctx, did, sigkey); err != nil {
 		p.log.ErrorContext(ctx, "Failed to create encrypted signing key", "error", err)
 		return nil, refErr.InternalServer()
+	}
+
+	apiKey, kmerr := p.km.CreateSystemApiKey(ctx, did)
+	if kmerr != nil {
+		p.log.ErrorContext(ctx, "Failed to create API key", "error", kmerr)
+		return nil, refErr.PLCServer()
 	}
 
 	actor := &atp.Actor{
@@ -230,11 +235,4 @@ func (p *PDS) DeleteActor(ctx context.Context, aid atp.Aid, did string) *refErr.
 func (p *PDS) HandleAtprotoDescribeServer() *atproto.ServerDescribeServer_Output {
 	// TODO: Add some other fields here
 	return &atproto.ServerDescribeServer_Output{AvailableUserDomains: []string{p.handleSuffix}}
-}
-
-// CreateAdminApiKey creates a new system user with an API key
-func (p *PDS) CreateAdminApiKey(ctx context.Context) (string, *refErr.APIError) {
-	var apiKey = "LOCAL_TEST_API_KEY" // #nosec G101
-
-	return apiKey, nil
 }

@@ -59,7 +59,7 @@ func (s *Service) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		recoveryKey = *req.RecoveryKey
 	}
 
-	actor, err := s.pds.CreateActor(ctx, req.Handle, req.DisplayName, recoveryKey, req.Email, hashed_pw, "")
+	actor, err := s.pds.CreateActor(ctx, req.Handle, req.DisplayName, recoveryKey, req.Email, hashed_pw)
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -109,7 +109,7 @@ func (s *Service) handleCreateLegislator(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	actor, err := s.pds.CreateActor(ctx, handle, req.Name, "", "", "", "")
+	actor, err := s.pds.CreateActor(ctx, handle, req.Name, "", "", "")
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -517,13 +517,7 @@ func (s *Service) handleCreateAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiKey, err := s.pds.CreateAdminApiKey(ctx)
-	if err != nil {
-		err.WriteResponse(w)
-		return
-	}
-
-	actor, err := s.pds.CreateActor(ctx, req.Handle, *req.DisplayName, "", req.Email, "", apiKey)
+	actor, err := s.pds.CreateActor(ctx, req.Handle, *req.DisplayName, "", req.Email, "")
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -544,7 +538,7 @@ func (s *Service) handleCreateAdmin(w http.ResponseWriter, r *http.Request) {
 	adminResp := refApp.ServerCreateSystemUser_Output{
 		Did:    resp.Did,
 		Handle: resp.Handle,
-		ApiKey: apiKey,
+		ApiKey: *actor.AuthSettings.ApiKey,
 	}
 
 	s.encode(ctx, w, http.StatusCreated, adminResp)
