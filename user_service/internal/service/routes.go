@@ -15,18 +15,46 @@ func (s *Service) setupRoutes() {
 		r.With(s.AuthorizeSystemUser).Post("/system", s.handleCreateAdmin)
 	})
 
-	s.mux.Route("/user", func(r chi.Router) {
+	s.mux.Route("/users", func(r chi.Router) {
 		r.Use(s.AuthorizeUser)
 
-		r.Put("/profile", s.handleUpdateUserProfile)
-		r.Post("/follow", s.handleGraphFollow)
-
 		r.Get("/profile", s.handleGetUserProfile)
+		r.Put("/profile", s.handleUpdateUserProfile)
+
+		r.Post("/follow", s.handleGraphFollow)
 		r.Get("/followers", s.handleGraphFollowers)
 		r.Get("/following", s.handleGraphFollowing)
 	})
 
-	s.mux.Route("/legislator", func(r chi.Router) {
+	s.mux.Route("/follows", func(r chi.Router) {
+		r.Use(s.pds.AuthorizeUser)
+
+		r.Route("/public_servants", func(r chi.Router) {
+			r.Post("/", s.handleGraphFollow)
+			r.Delete("/{targetID}", s.handleGraphUnfollow)
+		})
+
+		r.Route("/content", func(r chi.Router) {
+			r.Post("/", s.handleContentFollow)
+			r.Delete("/", s.handleContentUnfollow)
+		})
+	})
+
+	s.mux.Route("/votes", func(r chi.Router) {
+		r.Use(s.pds.AuthorizeUser)
+
+		r.Route("/policy_makers", func(r chi.Router) {
+			r.Put("/", s.handleGraphVote)
+			r.Delete("/", s.handleGraphUnvote)
+		})
+
+		r.Route("/content", func(r chi.Router) {
+			r.Put("/", s.handleContentVote)
+			r.Delete("/", s.handleContentUnvote)
+		})
+	})
+
+	s.mux.Route("/legislators", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
 			r.Use(s.AuthorizeSystemUser)
 			r.Post("/", s.handleCreateLegislator)
@@ -41,6 +69,7 @@ func (s *Service) setupRoutes() {
 	})
 
 	s.mux.Route("/server", func(r chi.Router) {
+		r.Use(s.AuthorizeSystemUser)
 		r.Get("/describeServer", s.handleDescribeServer)
 		// r.Get("/com.atproto.sync.subscribeRepos", s.pds.EventsHandler)
 	})

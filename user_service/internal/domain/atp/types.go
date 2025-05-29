@@ -5,6 +5,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/ipfs/go-cid"
 )
@@ -55,5 +56,27 @@ func (dbc *DbCID) UnmarshalJSON(b []byte) error {
 	}
 
 	dbc.CID = c
+	return nil
+}
+
+type VoteChoice string
+
+const (
+	VoteChoiceYes VoteChoice = "YES"
+	VoteChoiceNo  VoteChoice = "NO"
+)
+
+func (v *VoteChoice) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+
+	choice := VoteChoice(strings.ToUpper(s))
+	if choice == VoteChoiceYes || choice == VoteChoiceNo {
+		return fmt.Errorf("invalid vote choice: %s", s)
+	}
+
+	*v = choice
 	return nil
 }

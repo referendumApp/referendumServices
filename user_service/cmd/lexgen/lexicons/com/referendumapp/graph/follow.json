@@ -25,12 +25,21 @@
         "schema": {
           "needsType": true,
           "type": "object",
-          "required": ["did"],
+          "required": ["targetID", "did", "targetCollection"],
           "properties": {
+            "targetID": {
+              "type": "aid",
+              "description": "Atproto actor ID to follow."
+            },
             "did": {
               "type": "string",
               "format": "did",
               "description": "Atproto DID to follow."
+            },
+            "targetCollection": {
+              "type": "string",
+              "format": "nsid",
+              "description": "Atproto NSID for the target."
             }
           }
         }

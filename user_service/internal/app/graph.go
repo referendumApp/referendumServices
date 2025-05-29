@@ -2,11 +2,13 @@ package app
 
 import (
 	"context"
-	"errors"
+	"database/sql"
+	"time"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/ipfs/go-cid"
 	"github.com/jackc/pgx/v5"
+	"github.com/referendumApp/referendumServices/internal/database"
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
 	refErr "github.com/referendumApp/referendumServices/internal/error"
 )
@@ -15,32 +17,34 @@ import (
 func (v *View) HandleGraphFollow(
 	ctx context.Context,
 	aid atp.Aid,
-	did string,
+	targetID atp.Aid,
+	targetCollection string,
 	cc cid.Cid,
+	collection string,
 	tid string,
 ) *refErr.APIError {
-	target, err := v.meta.LookupUserByDid(ctx, did)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return refErr.NotFound(did, "DID")
-		}
-
-		return refErr.Database()
-	}
-
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		// TODO: Should be able to combine these queries with a CTE to speed things up
-		if err := v.meta.CreateWithTx(ctx, tx, &atp.ActorFollowRecord{Rkey: tid, Cid: atp.DbCID{CID: cc}, Follower: aid, Target: target.Aid}); err != nil {
+		actorFollow := &atp.ActorFollow{
+			TargetCollection: targetCollection,
+			Collection:       collection,
+			Rkey:             tid,
+			Cid:              atp.DbCID{CID: cc},
+			FollowerID:       aid,
+			TargetID:         targetID,
+			Metadata:         atp.Metadata{DeletedAt: sql.NullTime{Valid: false}},
+		}
+		if err := v.meta.CreateConflictWithTx(ctx, tx, actorFollow, []string{"rkey", "cid", "deleted_at"}); err != nil {
 			return err
 		}
 
 		followerFilter := sq.Eq{"aid": aid}
-		if err := v.meta.UpdateCountWithTx(ctx, tx, &atp.User{}, "following", followerFilter); err != nil {
+		if err := v.meta.UpdateIncrementWithTx(ctx, tx, &atp.User{}, "following", followerFilter); err != nil {
 			return err
 		}
 
-		targetFilter := sq.Eq{"id": target.ID}
-		if err := v.meta.UpdateCountWithTx(ctx, tx, &atp.User{}, "followers", targetFilter); err != nil {
+		targetFilter := sq.Eq{"id": targetID}
+		if err := v.meta.UpdateIncrementWithTx(ctx, tx, &atp.PublicServant{}, "followers", targetFilter); err != nil {
 			return err
 		}
 
@@ -51,6 +55,51 @@ func (v *View) HandleGraphFollow(
 	}
 
 	return nil
+}
+
+// HandleGraphUnfollow proccesses an unfollow request for another actor
+func (v *View) HandleGraphUnfollow(
+	ctx context.Context,
+	aid atp.Aid,
+	targetID atp.Aid,
+) (string, string, *refErr.APIError) {
+	var collection string
+	var rkey string
+
+	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		// TODO: Should be able to combine these queries with a CTE to speed things up
+		actorFollow := &atp.ActorFollow{
+			Metadata: atp.Metadata{DeletedAt: sql.NullTime{Time: time.Now(), Valid: true}},
+		}
+
+		updateFilter := sq.Eq{"follower_id": aid, "target_id": targetID}
+		row, err := database.UpdateReturningWithTx(ctx, v.meta.DB, tx, actorFollow, updateFilter, "target_collection", "rkey")
+		if err != nil {
+			return err
+		}
+
+		if serr := row.Scan(&collection, &rkey); serr != nil {
+			v.log.ErrorContext(ctx, "Failed to scan collection and record key", "error", serr)
+			return serr
+		}
+
+		followerFilter := sq.Eq{"aid": aid}
+		if err := v.meta.UpdateDecrementWithTx(ctx, tx, &atp.User{}, "following", followerFilter); err != nil {
+			return err
+		}
+
+		targetFilter := sq.Eq{"id": targetID}
+		if err := v.meta.UpdateDecrementWithTx(ctx, tx, &atp.PublicServant{}, "followers", targetFilter); err != nil {
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		v.log.ErrorContext(ctx, "Failed to update actor follow record", "error", err)
+		return "", "", refErr.Database()
+	}
+
+	return collection, rkey, nil
 }
 
 // HandleGraphFollowers queries the actor_follow_record table for followering users

@@ -33,7 +33,6 @@ repos:
         args: ["-c", "cd user_service && golines -w --max-len=120 ."]
         language: system
         types: [go]
-        always_run: true
         files: ^user_service/.*\.go$
         pass_filenames: false
 
@@ -45,7 +44,6 @@ repos:
         args: ["-c", "cd user_service && gci write ."]
         language: system
         types: [go]
-        always_run: true
         files: ^user_service/.*\.go$
         pass_filenames: false
 

@@ -957,7 +957,7 @@ func TestLegislator(t *testing.T) {
 	createTestLegislator := func(id int64, name string) (*refApp.ServerCreateLegislator_Output, error) {
 		createReq := testRequest{
 			method: http.MethodPost,
-			path:   "/legislator",
+			path:   "/legislators",
 			body: refApp.ServerCreateLegislator_Input{
 				LegislatorId: id,
 				Name:         name,
@@ -994,7 +994,7 @@ func TestLegislator(t *testing.T) {
 				"Create Legislator Successfully",
 				testRequest{
 					method: http.MethodPost,
-					path:   "/legislator",
+					path:   "/legislators",
 					body: refApp.ServerCreateLegislator_Input{
 						LegislatorId: legislatorID,
 						Name:         "Senator Smith",
@@ -1018,7 +1018,7 @@ func TestLegislator(t *testing.T) {
 				"Create Legislator with Duplicate ID",
 				testRequest{
 					method: http.MethodPost,
-					path:   "/legislator",
+					path:   "/legislators",
 					body: refApp.ServerCreateLegislator_Input{
 						LegislatorId: duplicateID,
 						Name:         "Senator Jones",
@@ -1039,7 +1039,7 @@ func TestLegislator(t *testing.T) {
 				"Create Legislator with Missing Required Fields",
 				testRequest{
 					method: http.MethodPost,
-					path:   "/legislator",
+					path:   "/legislators",
 					body: refApp.ServerCreateLegislator_Input{
 						LegislatorId: 98765,
 						Name:         "Representative Missing",
@@ -1056,7 +1056,7 @@ func TestLegislator(t *testing.T) {
 				"Create Legislator with Invalid Phone",
 				testRequest{
 					method: http.MethodPost,
-					path:   "/legislator",
+					path:   "/legislators",
 					body: refApp.ServerCreateLegislator_Input{
 						LegislatorId: 98766,
 						Name:         "Representative Invalid",
@@ -1139,37 +1139,37 @@ func TestLegislator(t *testing.T) {
 		}{
 			{
 				"Get Legislator By ID",
-				"/legislator?legislatorId=99999",
+				"/legislators?legislatorId=99999",
 				map[string]string{"Authorization": "Bearer " + adminApiKey},
 				http.StatusOK,
 			},
 			{
 				"Get Legislator That Doesn't Exist",
-				"/legislator?legislatorId=88888",
+				"/legislators?legislatorId=88888",
 				map[string]string{"Authorization": "Bearer " + adminApiKey},
 				http.StatusNotFound,
 			},
 			{
 				"Get Legislator With Invalid ID Format",
-				"/legislator?legislatorId=invalid",
+				"/legislators?legislatorId=invalid",
 				map[string]string{"Authorization": "Bearer " + adminApiKey},
 				http.StatusBadRequest,
 			},
 			{
 				"Get Legislator Without Parameters",
-				"/legislator",
+				"/legislators",
 				map[string]string{"Authorization": "Bearer " + adminApiKey},
 				http.StatusBadRequest,
 			},
 			{
 				"Get Legislator Using Handle",
-				fmt.Sprintf("/legislator?handle=%s", testLegislator.Handle),
+				fmt.Sprintf("/legislators?handle=%s", testLegislator.Handle),
 				map[string]string{"Authorization": "Bearer " + adminApiKey},
 				http.StatusOK,
 			},
 			{
 				"Get Legislator Using Invalid Handle",
-				"/legislator?handle=invalid-handle",
+				"/legislators?handle=invalid-handle",
 				map[string]string{"Authorization": "Bearer " + adminApiKey},
 				http.StatusNotFound,
 			},
@@ -1216,7 +1216,7 @@ func TestLegislator(t *testing.T) {
 				"Update Legislator Successfully - Handle Only",
 				testRequest{
 					method: http.MethodPut,
-					path:   "/legislator",
+					path:   "/legislators",
 					body: refApp.LegislatorUpdateProfile_Input{
 						LegislatorId: updateID,
 						Handle:       stringPtr("updated-handle.referendumapp.com"),
@@ -1232,7 +1232,7 @@ func TestLegislator(t *testing.T) {
 				"Update Legislator Successfully - Name Only",
 				testRequest{
 					method: http.MethodPut,
-					path:   "/legislator",
+					path:   "/legislators",
 					body: refApp.LegislatorUpdateProfile_Input{
 						LegislatorId: updateID,
 						Name:         stringPtr("Senator Updated Name"),
@@ -1248,7 +1248,7 @@ func TestLegislator(t *testing.T) {
 				"Update Legislator Successfully - Address Only",
 				testRequest{
 					method: http.MethodPut,
-					path:   "/legislator",
+					path:   "/legislators",
 					body: refApp.LegislatorUpdateProfile_Input{
 						LegislatorId: updateID,
 						Address:      stringPtr("999 Updated Capitol Ave"),
@@ -1264,7 +1264,7 @@ func TestLegislator(t *testing.T) {
 				"Update Legislator Successfully - Multiple Fields",
 				testRequest{
 					method: http.MethodPut,
-					path:   "/legislator",
+					path:   "/legislators",
 					body: refApp.LegislatorUpdateProfile_Input{
 						LegislatorId: updateID,
 						Handle:       stringPtr("multi-update.referendumapp.com"),
@@ -1282,7 +1282,7 @@ func TestLegislator(t *testing.T) {
 				"Update Non-existent Legislator",
 				testRequest{
 					method: http.MethodPut,
-					path:   "/legislator",
+					path:   "/legislators",
 					body: refApp.LegislatorUpdateProfile_Input{
 						LegislatorId: 999999,
 						Name:         stringPtr("NonExistent"),
@@ -1298,7 +1298,7 @@ func TestLegislator(t *testing.T) {
 				"Update with Invalid Handle",
 				testRequest{
 					method: http.MethodPut,
-					path:   "/legislator",
+					path:   "/legislators",
 					body: refApp.LegislatorUpdateProfile_Input{
 						LegislatorId: updateID,
 						Handle:       stringPtr("invalid_handle"),
@@ -1314,7 +1314,7 @@ func TestLegislator(t *testing.T) {
 				"Update with Missing Legislator ID",
 				testRequest{
 					method: http.MethodPut,
-					path:   "/legislator",
+					path:   "/legislators",
 					body: refApp.LegislatorUpdateProfile_Input{
 						Name: stringPtr("Missing ID"),
 					},
@@ -1329,7 +1329,7 @@ func TestLegislator(t *testing.T) {
 				"Update with No Fields to Update",
 				testRequest{
 					method: http.MethodPut,
-					path:   "/legislator",
+					path:   "/legislators",
 					body: refApp.LegislatorUpdateProfile_Input{
 						LegislatorId: updateID,
 					},
@@ -1384,7 +1384,7 @@ func TestLegislator(t *testing.T) {
 					getReq, err := http.NewRequestWithContext(
 						context.Background(),
 						http.MethodGet,
-						baseUrl+fmt.Sprintf("/legislator?legislatorId=%d", updateReq.LegislatorId),
+						baseUrl+fmt.Sprintf("/legislators?legislatorId=%d", updateReq.LegislatorId),
 						nil,
 					)
 					assert.NoError(t, err, "Failed to create GET request")

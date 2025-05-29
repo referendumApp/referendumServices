@@ -23,7 +23,7 @@ func (v *View) ValidateHandle(ctx context.Context, handle string) *refErr.APIErr
 	}
 
 	filter := sq.Eq{"handle": handle}
-	if exists, err := v.meta.actorExists(ctx, filter); err != nil {
+	if exists, err := v.meta.recordExists(ctx, &atp.Actor{}, filter); err != nil {
 		v.log.ErrorContext(ctx, "Error checking database for user handle", "error", err)
 		return refErr.InternalServer()
 	} else if exists {
@@ -37,7 +37,7 @@ func (v *View) ValidateHandle(ctx context.Context, handle string) *refErr.APIErr
 // ResolveNewUser validates if the new account request can be handled and returns a hashed password
 func (v *View) ResolveNewUser(ctx context.Context, req *refApp.ServerCreateAccount_Input) (string, *refErr.APIError) {
 	filter := sq.Eq{"email": req.Email}
-	if exists, err := v.meta.actorExists(ctx, filter); err != nil {
+	if exists, err := v.meta.recordExists(ctx, &atp.Actor{}, filter); err != nil {
 		v.log.ErrorContext(ctx, "Error checking database for actor email", "error", err)
 		return "", refErr.InternalServer()
 	} else if exists {
@@ -127,16 +127,16 @@ func (v *View) GetAuthenticatedActor(
 	return actor, nil
 }
 
-// AuthenticateSession validates a session based on the user ID and DID
+// AuthenticateSession validates a session based on the actor ID and DID
 func (v *View) AuthenticateSession(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
 	filter := sq.Eq{"id": aid, "did": did}
-	exists, err := v.meta.actorExists(ctx, filter)
+	exists, err := v.meta.recordExists(ctx, &atp.Actor{}, filter)
 	if err != nil {
-		v.log.ErrorContext(ctx, "Failed to lookup user", "error", err)
-		return refErr.BadRequest("Failed to find user with refresh token")
+		v.log.ErrorContext(ctx, "Failed to lookup actor", "error", err)
+		return refErr.BadRequest("Failed to find actor with refresh token")
 	} else if !exists {
-		v.log.ErrorContext(ctx, "User does not exist", "aid", aid, "did", did)
-		return refErr.NotFound(aid, "user ID")
+		v.log.ErrorContext(ctx, "Actor does not exist", "aid", aid, "did", did)
+		return refErr.NotFound(aid, "actor ID")
 	}
 
 	return nil
@@ -146,8 +146,8 @@ func (v *View) AuthenticateSession(ctx context.Context, aid atp.Aid, did string)
 func (v *View) DeleteActor(ctx context.Context, aid atp.Aid, did string) *refErr.APIError {
 	if err := v.meta.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		actor := atp.Actor{
-			Handle:    sql.NullString{Valid: false},
-			DeletedAt: sql.NullTime{Time: time.Now(), Valid: true},
+			Handle:   sql.NullString{Valid: false},
+			Metadata: atp.Metadata{DeletedAt: sql.NullTime{Time: time.Now(), Valid: true}},
 		}
 		if err := v.meta.UpdateWithTx(ctx, tx, actor, sq.Eq{"id": aid}); err != nil {
 			v.log.ErrorContext(ctx, "Failed to delete actor handle", "error", err)
@@ -167,7 +167,7 @@ func (v *View) DeleteUser(ctx context.Context, aid atp.Aid, did string) *refErr.
 		deletedAt := sql.NullTime{Time: time.Now(), Valid: true}
 
 		user := atp.User{
-			Base: atp.Base{DeletedAt: deletedAt},
+			Base: atp.Base{Metadata: atp.Metadata{DeletedAt: deletedAt}},
 		}
 		if err := v.meta.UpdateWithTx(ctx, tx, user, sq.Eq{"aid": aid}); err != nil {
 			v.log.ErrorContext(ctx, "Failed to delete user", "error", err)
@@ -202,7 +202,7 @@ func (v *View) UpdateUserProfile(
 
 	if req.Email != nil {
 		email := *req.Email
-		exists, err := v.meta.userExists(ctx, sq.Eq{"email": email})
+		exists, err := v.meta.recordExists(ctx, &atp.User{}, sq.Eq{"email": email})
 		if err != nil {
 			v.log.ErrorContext(ctx, "Error checking database for user email", "error", err)
 			return refErr.Database()
