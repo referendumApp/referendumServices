@@ -166,6 +166,22 @@ func (j *JWTConfig) ExtractToken(r *http.Request) string {
 	return ""
 }
 
+// ExtractBearerToken gets the JWT from the Authorization request header
+func (j *JWTConfig) ExtractBearerToken(r *http.Request) string {
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		return ""
+	}
+
+	const bearerPrefix = "Bearer "
+	if !strings.HasPrefix(authHeader, bearerPrefix) {
+		return ""
+	}
+	token := authHeader[len(bearerPrefix):]
+
+	return strings.TrimSpace(token)
+}
+
 // DecodeJWT parse the JWT and check that the token is valid
 func (j *JWTConfig) DecodeJWT(tokenString string) (*jwt.Token, error) {
 	// Create parser with the validator

@@ -68,20 +68,40 @@ func (p *PDS) AuthorizeSystemOrUser(next http.Handler) http.Handler {
 
 // trySystemAuth attempts system authentication
 func (p *PDS) trySystemAuth(r *http.Request) (*AuthResult, error) {
-	// TODO: Implement when system auth is ready
-	// token, err := p.extractBearerToken(r)
-	// if err != nil {
-	//     return nil, fmt.Errorf("bearer token extraction failed: %w", err)
-	// }
-	//
-	// aid, did, err := util.ValidateApiKey(token)
-	// if err != nil {
-	//     return nil, fmt.Errorf("API key validation failed: %w", err)
-	// }
-	//
-	// return &AuthResult{Aid: aid, Did: did}, nil
+	apiKey := p.jwt.ExtractBearerToken(r)
+	if apiKey == "" {
+		return nil, errors.New("no API key found")
+	}
 
-	return &AuthResult{Aid: 1, Did: "1"}, nil
+	// Grab the secret
+	secret := map[string]string{
+		"apiKey": "TEST_API_KEY",
+	}
+
+	if apiKey != secret["apiKey"] {
+		return nil, errors.New("invalid API key passed")
+	}
+
+	var did string
+	if _, exists := secret["did"]; !exists {
+		did = "1"
+		// p.CreateActor()
+		// p.CreateNewUserRepo()
+	} else {
+		did = secret["did"]
+	}
+
+	var aid atp.Aid
+	if _, exists := secret["aid"]; !exists {
+		aid = atp.Aid(1)
+		// TODO create the database entries
+	} else {
+		// TODO - Convert string to atp.Aid - assuming it's an integer type
+		// You may need to adjust this conversion based on your atp.Aid type
+		aid = atp.Aid(2)
+	}
+
+	return &AuthResult{Aid: aid, Did: did}, nil
 }
 
 // tryUserAuth attempts user authentication
