@@ -227,7 +227,7 @@ func (s *Service) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Service) handleUserProfileUpdate(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleUpdateUserProfile(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var req refApp.UserUpdateProfile_Input
