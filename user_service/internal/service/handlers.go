@@ -59,7 +59,7 @@ func (s *Service) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		recoveryKey = *req.RecoveryKey
 	}
 
-	actor, err := s.pds.CreateActor(ctx, req.Handle, req.DisplayName, recoveryKey, req.Email, hashed_pw)
+	actor, err := s.pds.CreateActor(ctx, req.Handle, req.DisplayName, recoveryKey, req.Email, hashed_pw, "user")
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -109,7 +109,7 @@ func (s *Service) handleCreateLegislator(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	actor, err := s.pds.CreateActor(ctx, handle, req.Name, "", "", "")
+	actor, err := s.pds.CreateActor(ctx, handle, req.Name, "", "", "", "legislator")
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -517,7 +517,7 @@ func (s *Service) handleCreateAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actor, err := s.pds.CreateActor(ctx, req.Handle, *req.DisplayName, "", req.Email, "")
+	actor, err := s.pds.CreateActor(ctx, req.Handle, *req.DisplayName, "", req.Email, "", "system")
 	if err != nil {
 		err.WriteResponse(w)
 		return
