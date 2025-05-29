@@ -509,41 +509,6 @@ func (s *Service) handleGraphFollowing(w http.ResponseWriter, r *http.Request) {
 	s.encode(ctx, w, http.StatusOK, following)
 }
 
-func (s *Service) handleCreateAdmin(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var req refApp.ServerCreateSystemUser_Input
-	if err := s.decodeAndValidate(ctx, w, r.Body, &req); err != nil {
-		return
-	}
-
-	actor, err := s.pds.CreateActor(ctx, req.Handle, *req.DisplayName, "", req.Email, "", "system")
-	if err != nil {
-		err.WriteResponse(w)
-		return
-	}
-
-	user, err := s.av.CreateUser(ctx, actor, *req.DisplayName)
-	if err != nil {
-		err.WriteResponse(w)
-		return
-	}
-
-	resp, err := s.pds.CreateNewUserRepo(ctx, actor, user)
-	if err != nil {
-		err.WriteResponse(w)
-		return
-	}
-
-	adminResp := refApp.ServerCreateSystemUser_Output{
-		Did:    resp.Did,
-		Handle: resp.Handle,
-		ApiKey: *actor.AuthSettings.ApiKey,
-	}
-
-	s.encode(ctx, w, http.StatusCreated, adminResp)
-}
-
 func (s *Service) handleGraphVote(w http.ResponseWriter, r *http.Request) {}
 
 func (s *Service) handleGraphUnvote(w http.ResponseWriter, r *http.Request) {}

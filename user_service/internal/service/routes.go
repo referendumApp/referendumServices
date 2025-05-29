@@ -11,8 +11,6 @@ func (s *Service) setupRoutes() {
 		r.Post("/refresh", s.handleRefreshSession)
 		r.With(s.pds.AuthorizeUser).Delete("/session", s.handleDeleteSession)
 		r.With(s.pds.AuthorizeUser).Delete("/account", s.handleDeleteUser)
-
-		r.With(s.pds.AuthorizeSystemUser).Post("/system", s.handleCreateAdmin)
 	})
 
 	s.mux.Route("/users", func(r chi.Router) {
