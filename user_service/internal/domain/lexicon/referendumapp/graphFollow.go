@@ -6,6 +6,7 @@ package referendumapp
 
 import (
 	"github.com/bluesky-social/indigo/lex/util"
+	"github.com/referendumApp/referendumServices/internal/domain/atp"
 	"github.com/referendumApp/referendumServices/internal/repo"
 )
 
@@ -24,6 +25,10 @@ type GraphFollow struct {
 type GraphFollow_Input struct {
 	// did: Atproto DID to follow.
 	Did string `json:"did" cborgen:"did" validate:"required,did"`
+	// targetCollection: Atproto NSID for the target.
+	TargetCollection string `json:"targetCollection" cborgen:"targetCollection" validate:"required,nsid"`
+	// targetID: Atproto actor ID to follow.
+	TargetID atp.Aid `json:"targetID" cborgen:"targetID" validate:"required"`
 }
 
 func (t GraphFollow) NSID() string {

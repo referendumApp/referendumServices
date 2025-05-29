@@ -17,6 +17,9 @@ var (
 	nameRegex   = regexp.MustCompile(`^[a-zA-Z]+([ ]?[a-zA-Z]+)*$`)
 	handleRegex = regexp.MustCompile(`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`)
 	didRegex    = regexp.MustCompile(`^did:[a-z]+:(?:[a-zA-Z0-9._:%-]*(?:%[0-9A-Fa-f]{2})?[a-zA-Z0-9._-]*)$`)
+	nsidRegex   = regexp.MustCompile(
+		`^[a-zA-Z]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+(\.[a-zA-Z]([a-zA-Z0-9]{0,62})?)$`,
+	)
 )
 
 const specialCharacters = `!@#$%^&*()_-+=[]{};:'"\|,.<>?/~`
@@ -43,6 +46,9 @@ func init() {
 	}
 	if err := Validate.RegisterValidation("did", ValidateDID); err != nil {
 		panic(fmt.Sprintf("Error registering did validator function: %v", err))
+	}
+	if err := Validate.RegisterValidation("nsid", ValidateNSID); err != nil {
+		panic(fmt.Sprintf("Error registering nsid validator function: %v", err))
 	}
 	if err := Validate.RegisterValidation("strongpassword", ValidateStrongPassword); err != nil {
 		panic(fmt.Sprintf("Error registering strong password validator function: %v", err))
@@ -81,6 +87,13 @@ func ValidateDID(fl validator.FieldLevel) bool {
 	did := fl.Field().String()
 
 	return didRegex.MatchString(did)
+}
+
+// ValidateNSID checks for the appropriate format
+func ValidateNSID(fl validator.FieldLevel) bool {
+	nsid := fl.Field().String()
+
+	return nsidRegex.MatchString(nsid)
 }
 
 // ValidateStrongPassword checks for the password requirements

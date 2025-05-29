@@ -108,8 +108,8 @@ func (d *DB) UpdateActivityPostUpCount(ctx context.Context, postId uint) error {
 	})
 }
 
-func (d *DB) lookupEndorsementRecordQuery(ctx context.Context, filter sq.Sqlizer) (*atp.EndorsementRecord, error) {
-	var entity atp.EndorsementRecord
+func (d *DB) lookupEndorsementQuery(ctx context.Context, filter sq.Sqlizer) (*atp.Endorsement, error) {
+	var entity atp.Endorsement
 	vote, err := GetAll(ctx, d, entity, filter)
 	if err != nil {
 		d.Log.ErrorContext(ctx, "Failed to lookup repost record", "filter", filter)
@@ -119,20 +119,20 @@ func (d *DB) lookupEndorsementRecordQuery(ctx context.Context, filter sq.Sqlizer
 	return vote, nil
 }
 
-// LookupEndorsementRecordByUid returns endorsement_record by actor ID
-func (d *DB) LookupEndorsementRecordByUid(
+// LookupEndorsementByUid returns endorsement by actor ID
+func (d *DB) LookupEndorsementByUid(
 	ctx context.Context,
 	voter atp.Aid,
 	rkey string,
-) (*atp.EndorsementRecord, error) {
-	filter := sq.Eq{"voter": voter}
-	return d.lookupEndorsementRecordQuery(ctx, filter)
+) (*atp.Endorsement, error) {
+	filter := sq.Eq{"endorser_id": voter}
+	return d.lookupEndorsementQuery(ctx, filter)
 }
 
 // HandleRecordDeleteFeedLike delete feed like
 func (d *DB) HandleRecordDeleteFeedLike(ctx context.Context, aid atp.Aid, rkey string) error {
-	var entity atp.EndorsementRecord
-	filter := sq.Eq{"voter": aid, "rkey": rkey}
+	var entity atp.Endorsement
+	filter := sq.Eq{"endorser_id": aid, "rkey": rkey}
 	er, err := GetAll(ctx, d, entity, filter)
 	if err != nil {
 		return err
@@ -151,8 +151,8 @@ func (d *DB) HandleRecordDeleteFeedLike(ctx context.Context, aid atp.Aid, rkey s
 
 // HandleRecordDeleteGraphFollow delete actor follow
 func (d *DB) HandleRecordDeleteGraphFollow(ctx context.Context, aid atp.Aid, rkey string) error {
-	filter := sq.Eq{"follower": aid, "rkey": rkey}
-	if err := d.Delete(ctx, atp.ActorFollowRecord{}, filter); err != nil {
+	filter := sq.Eq{"follower_id": aid, "rkey": rkey}
+	if err := d.Delete(ctx, atp.ActorFollow{}, filter); err != nil {
 		if errors.Is(err, ErrNoRowsAffected) {
 			d.Log.WarnContext(
 				ctx,

@@ -138,8 +138,25 @@ func getQueryMap(entity TableEntity) (map[string]any, error) {
 	return queryMap, nil
 }
 
+func buildReturning(cols ...string) string {
+	var returning strings.Builder
+	returning.WriteString("RETURNING ")
+	if len(cols) > 0 {
+		returning.WriteString(strings.Join(cols, ", "))
+	} else {
+		returning.WriteString("*")
+	}
+
+	return returning.String()
+}
+
+type ExtendedUpdateBuilder struct {
+	sq.UpdateBuilder
+	updateMap map[string]any
+}
+
 // BuildUpdateQuery returns a update query
-func BuildUpdateQuery(entity TableEntity, schema string, filters ...sq.Sqlizer) (*sq.UpdateBuilder, error) {
+func BuildUpdateQuery(entity TableEntity, schema string, filters ...sq.Sqlizer) (*ExtendedUpdateBuilder, error) {
 	if len(filters) == 0 {
 		return nil, fmt.Errorf("invalid input: filters must be provided")
 	}
@@ -158,11 +175,16 @@ func BuildUpdateQuery(entity TableEntity, schema string, filters ...sq.Sqlizer) 
 		query = query.Where(filter)
 	}
 
-	return &query, nil
+	return &ExtendedUpdateBuilder{query, updateMap}, nil
 }
 
-// BuildUpdateCountQuery returns a update query that increments a integer field
-func BuildUpdateCountQuery(
+func (b *ExtendedUpdateBuilder) Returning(returnCols ...string) *ExtendedUpdateBuilder {
+	b.UpdateBuilder = b.Suffix(buildReturning(returnCols...))
+	return b
+}
+
+// BuildUpdateIncrementQuery returns a update query that increments a integer field
+func BuildUpdateIncrementQuery(
 	entity TableEntity,
 	schema string,
 	countField string,
@@ -184,86 +206,89 @@ func BuildUpdateCountQuery(
 	return &query, nil
 }
 
-// BuildInsertQuery returns a insert query
-func BuildInsertQuery(entity TableEntity, schema string) (*sq.InsertBuilder, error) {
-	fstMap, err := getQueryMap(entity)
-	if err != nil {
-		return nil, err
+// BuildUpdateDecrementQuery returns a update query that decrements a integer field
+func BuildUpdateDecrementQuery(
+	entity TableEntity,
+	schema string,
+	countField string,
+	filters ...sq.Sqlizer,
+) (*sq.UpdateBuilder, error) {
+	if len(filters) == 0 {
+		return nil, fmt.Errorf("invalid input: filters must be provided")
 	}
 
 	table := schema + "." + entity.TableName()
-	query := sq.Insert(table).SetMap(fstMap).PlaceholderFormat(sq.Dollar)
+	query := sq.Update(table).
+		Set(countField, sq.Expr(countField+" - 1")).
+		PlaceholderFormat(sq.Dollar)
+
+	for _, filter := range filters {
+		query = query.Where(filter)
+	}
 
 	return &query, nil
 }
 
-// BuildInsertWithReturnQuery returns a insert with return query
-func BuildInsertWithReturnQuery(entity TableEntity, schema string, returnCol ...string) (*sq.InsertBuilder, error) {
-	if returnCol == nil {
-		returnCol = []string{"*"}
-	}
-
-	query, err := BuildInsertQuery(entity, schema)
-	if err != nil {
-		return nil, err
-	}
-
-	var returning strings.Builder
-	returning.WriteString("RETURNING ")
-	returning.WriteString(strings.Join(returnCol, ", "))
-
-	returnQuery := query.Suffix(returning.String())
-
-	return &returnQuery, nil
+type ExtendedInsertBuilder struct {
+	sq.InsertBuilder
+	insertMap map[string]any
 }
 
-// BuildInsertWithConflictQuery returns a insert with conflict query
-func BuildInsertWithConflictQuery(entity TableEntity, schema string, conflictCol ...string) (*sq.InsertBuilder, error) {
-	if conflictCol == nil {
-		return nil, fmt.Errorf("invalid input: conflict column must be provided")
-	}
-
-	fstMap, err := getQueryMap(entity)
+// BuildInsertQuery returns a insert query
+func BuildInsertQuery(entity TableEntity, schema string) (*ExtendedInsertBuilder, error) {
+	insertMap, err := getQueryMap(entity)
 	if err != nil {
 		return nil, err
 	}
 
 	table := schema + "." + entity.TableName()
-	query := sq.Insert(table).SetMap(fstMap).PlaceholderFormat(sq.Dollar)
+	query := sq.Insert(table).SetMap(insertMap).PlaceholderFormat(sq.Dollar)
 
+	return &ExtendedInsertBuilder{query, insertMap}, nil
+}
+
+func (b *ExtendedInsertBuilder) Returning(returnCols ...string) *ExtendedInsertBuilder {
+	b.InsertBuilder = b.Suffix(buildReturning(returnCols...))
+	return b
+}
+
+func (b *ExtendedInsertBuilder) OnConflictDoUpdate(conflictCol []string) *ExtendedInsertBuilder {
 	var conflict strings.Builder
-	for column := range fstMap {
+	for column := range b.insertMap {
 		if conflict.Len() == 0 {
 			conflict.WriteString("ON CONFLICT (")
 			conflict.WriteString(strings.Join(conflictCol, ", "))
 			conflict.WriteString(") DO UPDATE SET ")
-			conflict.WriteString(fmt.Sprintf("%s = EXCLUDED.%s", column, column))
-			continue
+		} else {
+			conflict.WriteString(", ")
 		}
-		conflict.WriteString(fmt.Sprintf(", %s = EXCLUDED.%s", column, column))
+		conflict.WriteString(column)
+		conflict.WriteString(" = ")
+		conflict.WriteString("EXLUDED.")
+		conflict.WriteString(column)
 	}
 
-	conQuery := query.Suffix(conflict.String())
+	b.InsertBuilder = b.Suffix(conflict.String())
 
-	return &conQuery, nil
+	return b
 }
 
 // BuildBatchInsertQuery returns a batch insert query
-func BuildBatchInsertQuery(entities []TableEntity, schema string) (*sq.InsertBuilder, error) {
+func BuildBatchInsertQuery(entities []TableEntity, schema string) (*ExtendedInsertBuilder, error) {
 	if len(entities) == 0 {
 		return nil, fmt.Errorf("no table entities provided for batch insert")
 	}
 
 	fstEnt := entities[0]
-	fstMap, err := getQueryMap(fstEnt)
+	queryMap, err := getQueryMap(fstEnt)
 	if err != nil {
 		return nil, err
 	}
 
-	colLen := len(fstMap)
+	colLen := len(queryMap)
 	columns := make([]string, 0, colLen)
 	values := make([]any, 0, colLen)
-	for c, v := range fstMap {
+	for c, v := range queryMap {
 		columns = append(columns, c)
 		values = append(values, v)
 	}
@@ -285,5 +310,5 @@ func BuildBatchInsertQuery(entities []TableEntity, schema string) (*sq.InsertBui
 		query = query.Values(values...)
 	}
 
-	return &query, nil
+	return &ExtendedInsertBuilder{query, queryMap}, nil
 }

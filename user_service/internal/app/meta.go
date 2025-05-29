@@ -104,51 +104,15 @@ func (vm *ViewMeta) insertActorAndLegislatorRecords(
 	})
 }
 
-func (vm *ViewMeta) actorExists(ctx context.Context, filter sq.Eq) (bool, error) {
+func (vm *ViewMeta) recordExists(ctx context.Context, entity database.TableEntity, filter sq.Eq) (bool, error) {
 	var exists bool
-	innerSql, args, err := sq.Select("id").
-		From(vm.Schema + ".actor").
+	innerSql, args, err := sq.Select("1").
+		From(vm.Schema + "." + entity.TableName()).
 		Where(filter).
 		PlaceholderFormat(sq.Dollar).ToSql()
 
 	if err != nil {
-		vm.Log.InfoContext(ctx, "Error building actor exists query", "error", err)
-		return false, err
-	}
-
-	sql := fmt.Sprintf("SELECT EXISTS(%s)", innerSql)
-	err = vm.DB.GetRow(ctx, sql, args...).Scan(&exists)
-
-	return exists, err
-}
-
-func (vm *ViewMeta) legislatorExists(ctx context.Context, filter sq.Eq) (bool, error) {
-	var exists bool
-	innerSql, args, err := sq.Select("id").
-		From(vm.Schema + ".legislator").
-		Where(filter).
-		PlaceholderFormat(sq.Dollar).ToSql()
-
-	if err != nil {
-		vm.Log.InfoContext(ctx, "Error building legislator exists query", "error", err)
-		return false, err
-	}
-
-	sql := fmt.Sprintf("SELECT EXISTS(%s)", innerSql)
-	err = vm.DB.GetRow(ctx, sql, args...).Scan(&exists)
-
-	return exists, err
-}
-
-func (vm *ViewMeta) userExists(ctx context.Context, filter sq.Eq) (bool, error) {
-	var exists bool
-	innerSql, args, err := sq.Select("id").
-		From(vm.Schema + ".user").
-		Where(filter).
-		PlaceholderFormat(sq.Dollar).ToSql()
-
-	if err != nil {
-		vm.Log.InfoContext(ctx, "Error building user exists query", "error", err)
+		vm.Log.InfoContext(ctx, "Error building exists query", "error", err, "table", entity.TableName())
 		return false, err
 	}
 
@@ -284,7 +248,7 @@ func (vm *ViewMeta) LookupActorByEmail(ctx context.Context, email string) (*atp.
 func (vm *ViewMeta) LookupGraphFollowers(ctx context.Context, aid atp.Aid) ([]*atp.ActorBasic, error) {
 	filter := sq.Eq{"target": aid}
 	var leftTbl atp.ActorBasic
-	var rightTbl atp.ActorFollowRecord
+	var rightTbl atp.ActorFollow
 
 	followers, err := database.SelectLeft(ctx, vm.DB, leftTbl, "id", rightTbl, "follower", filter)
 	if err != nil {
@@ -299,7 +263,7 @@ func (vm *ViewMeta) LookupGraphFollowers(ctx context.Context, aid atp.Aid) ([]*a
 func (vm *ViewMeta) LookupGraphFollowing(ctx context.Context, aid atp.Aid) ([]*atp.ActorBasic, error) {
 	filter := sq.Eq{"follower": aid}
 	var leftTbl atp.ActorBasic
-	var rightTbl atp.ActorFollowRecord
+	var rightTbl atp.ActorFollow
 
 	following, err := database.SelectLeft(ctx, vm.DB, leftTbl, "id", rightTbl, "target", filter)
 	if err != nil {

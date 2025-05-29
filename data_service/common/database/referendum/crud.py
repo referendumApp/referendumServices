@@ -788,10 +788,10 @@ class ExecutiveOrderCRUD(
         return query.offset(skip).limit(limit).all()
 
 
-def validate_atp_user(db: Session, uid: int, did: str) -> bool:
+def validate_atp_user(db: Session, aid: int, did: str) -> bool:
     try:
         user_exists = db.query(
-            exists().where(models.ATPUser.id == uid, models.ATPUser.did == did)
+            exists().where(models.ATPUser.aid == aid, models.ATPUser.did == did)
         ).scalar()
 
         return user_exists

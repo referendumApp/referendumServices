@@ -16,6 +16,7 @@ const (
 	Procedure    = "procedure"
 	Object       = "object"
 	String       = "string"
+	Aid          = "aid"
 	Integer      = "integer"
 	Boolean      = "boolean"
 	Float        = "float"
@@ -231,11 +232,16 @@ func (s *TypeSchema) WriteHandlerStub(w io.Writer, fname, shortname, impname str
 			case String:
 				paramtypes = append(paramtypes, k+" string")
 			case Integer:
-				// TODO(bnewbold) could be handling "nullable" here
 				if required != nil && !required[k] {
 					paramtypes = append(paramtypes, k+" *int")
 				} else {
 					paramtypes = append(paramtypes, k+" int")
+				}
+			case Aid:
+				if required != nil && !required[k] {
+					paramtypes = append(paramtypes, k+" *atp.Aid")
+				} else {
+					paramtypes = append(paramtypes, k+" atp.Aid")
 				}
 			case Float:
 				return fmt.Errorf("non-integer numbers currently unsupported")
@@ -571,6 +577,8 @@ func (s *TypeSchema) typeNameForField(name, k string, v TypeSchema) (string, err
 		return "float64", nil
 	case Integer:
 		return "int64", nil
+	case Aid:
+		return "atp.Aid", nil
 	case Boolean:
 		return "bool", nil
 	case Object:
@@ -682,6 +690,8 @@ func (ts *TypeSchema) writeTypeDefinition(name string, w io.Writer) error {
 		pf("type %s float64\n", name)
 	case Integer:
 		pf("type %s int64\n", name)
+	case Aid:
+		pf("type %s atp.Aid\n", name)
 	case Boolean:
 		pf("type %s bool\n", name)
 	case Object:
@@ -831,7 +841,7 @@ func (ts *TypeSchema) writeTypeDefinition(name string, w io.Writer) error {
 
 func (ts *TypeSchema) writeTypeMethods(name string, w io.Writer) error {
 	switch ts.Type {
-	case String, Float, Array, Boolean, Integer, Object:
+	case String, Float, Array, Boolean, Integer, Aid, Object:
 		return nil
 	case Union:
 		if len(ts.Refs) == 0 {

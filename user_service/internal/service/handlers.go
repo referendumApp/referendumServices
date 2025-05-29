@@ -440,7 +440,34 @@ func (s *Service) handleGraphFollow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.av.HandleGraphFollow(ctx, aid, req.Did, cc, tid); err != nil {
+	if err := s.av.HandleGraphFollow(ctx, aid, req.TargetID, req.TargetCollection, cc, rec.NSID(), tid); err != nil {
+		err.WriteResponse(w)
+		return
+	}
+}
+
+func (s *Service) handleGraphUnfollow(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	targetID, err := s.getAidURLParam(ctx, "targetID")
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	aid, _, err := s.getAuthenticatedIds(ctx)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	collection, rkey, err := s.av.HandleGraphUnfollow(ctx, aid, targetID)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	if err := s.pds.DeleteRecord(ctx, aid, collection, rkey); err != nil {
 		err.WriteResponse(w)
 		return
 	}
@@ -481,3 +508,15 @@ func (s *Service) handleGraphFollowing(w http.ResponseWriter, r *http.Request) {
 
 	s.encode(ctx, w, http.StatusOK, following)
 }
+
+func (s *Service) handleGraphVote(w http.ResponseWriter, r *http.Request) {}
+
+func (s *Service) handleGraphUnvote(w http.ResponseWriter, r *http.Request) {}
+
+func (s *Service) handleContentFollow(w http.ResponseWriter, r *http.Request) {}
+
+func (s *Service) handleContentUnfollow(w http.ResponseWriter, r *http.Request) {}
+
+func (s *Service) handleContentVote(w http.ResponseWriter, r *http.Request) {}
+
+func (s *Service) handleContentUnvote(w http.ResponseWriter, r *http.Request) {}
