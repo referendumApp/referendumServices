@@ -34,10 +34,11 @@ import (
 )
 
 const (
-	baseUrl = "http://localhost:80"
-	handle  = "k1ng.referendumapp.com"
-	email   = "ken@referendumapp.com"
-	pw      = "Testing123$"
+	baseUrl     = "http://localhost:80"
+	handle      = "k1ng.referendumapp.com"
+	email       = "ken@referendumapp.com"
+	pw          = "Testing123$"
+	adminApiKey = "TEST_API_KEY"
 )
 
 var (
@@ -45,7 +46,6 @@ var (
 	client       *http.Client
 	accessToken  string
 	refreshToken string
-	adminApiKey  string
 )
 
 func setupAndRunTests(m *testing.M, servChErr chan error) int {

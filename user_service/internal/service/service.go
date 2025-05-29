@@ -2,10 +2,12 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -97,6 +99,66 @@ func (s *Service) Shutdown() error {
 	return nil
 }
 
-func (s *Service) validateSystemApiKey(token string) (atp.Aid, string, error) {
-	return atp.Aid(0), "", nil
+func (s *Service) validateSystemApiKey(ctx context.Context, apiKey string) (*atp.Aid, *string, error) {
+	secret := map[string]string{
+		"apiKey": "TEST_API_KEY",
+	}
+
+	if apiKey != secret["apiKey"] {
+		return nil, nil, errors.New("invalid API key")
+	}
+
+	var did string
+	var aid atp.Aid
+
+	if storedDid, exists := secret["did"]; !exists || storedDid == "" {
+		if err := s.createSystemUser(ctx, secret); err != nil {
+			return nil, nil, fmt.Errorf("failed to create system user: %w", err)
+		}
+		did = secret["did"]
+		aidInt, _ := strconv.ParseInt(secret["aid"], 10, 64)
+		if aidInt < 0 {
+			return nil, nil, errors.New("aid cannot be negative")
+		}
+		aid = atp.Aid(aidInt)
+	} else {
+		did = storedDid
+		aidInt, _ := strconv.ParseInt(secret["aid"], 10, 64)
+		if aidInt < 0 {
+			return nil, nil, errors.New("aid cannot be negative")
+		}
+		aid = atp.Aid(aidInt)
+	}
+
+	return &aid, &did, nil
+}
+
+func (s *Service) createSystemUser(ctx context.Context, secret map[string]string) error {
+	handle := "system.referendumapp.com"
+	displayName := "System User"
+	email := "system@referendumapp.com"
+
+	actor, err := s.pds.CreateActor(ctx, handle, displayName, "", email, "", "system")
+	if err != nil {
+		return err
+	}
+
+	user, err := s.av.CreateUser(ctx, actor, displayName)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.pds.CreateNewUserRepo(ctx, actor, user)
+	if err != nil {
+		return err
+	}
+
+	secret["did"] = actor.Did
+	secret["aid"] = strconv.FormatUint(uint64(actor.ID), 10)
+
+	return s.updateSecret(secret)
+}
+
+func (s *Service) updateSecret(secret map[string]string) error {
+	return nil
 }
