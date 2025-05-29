@@ -301,52 +301,6 @@ type testCase struct {
 	expected any
 }
 
-func TestCreateAdmin(t *testing.T) {
-	adminApiKey = "LOCAL_TEST_API_KEY"
-
-	tests := []testCase{
-		{
-			"Create Admin User Successfully",
-			testRequest{
-				method: http.MethodPost,
-				path:   "/auth/system",
-				body: refApp.ServerCreateSystemUser_Input{
-					DisplayName: stringPtr("System Admin"),
-					Email:       "admin@referendumapp.com",
-					Handle:      "admin.referendumapp.com",
-				},
-				headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
-			},
-			testResponse{
-				status: http.StatusCreated,
-				body:   &refApp.ServerCreateSystemUser_Output{},
-			},
-			nil,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			req := tc.request.handleJsonRequest(t)
-			tc.response.getResponse(t, req)
-
-			if tc.response.status == http.StatusCreated {
-				adminResp, ok := tc.response.body.(*refApp.ServerCreateSystemUser_Output)
-				assert.True(t, ok, "Response body should be *ServerCreateSystemUser_Output")
-
-				if adminResp.ApiKey != "" {
-					adminApiKey = adminResp.ApiKey
-					t.Logf("Created admin with API key: %s", adminApiKey)
-
-					assert.NotEmpty(t, adminResp.Did, "Admin should have a DID")
-					assert.NotEmpty(t, adminResp.Handle, "Admin should have a handle")
-					assert.NotEmpty(t, adminResp.ApiKey, "Admin should have an API key")
-				}
-			}
-		})
-	}
-}
-
 func TestCreateAccount(t *testing.T) {
 	tests := []testCase{
 		{

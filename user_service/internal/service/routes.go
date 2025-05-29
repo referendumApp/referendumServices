@@ -54,20 +54,20 @@ func (s *Service) setupRoutes() {
 
 	s.mux.Route("/legislators", func(r chi.Router) {
 		r.Group(func(r chi.Router) {
-			r.Use(s.pds.AuthorizeSystemUser)
+			r.Use(s.AuthorizeSystem)
 			r.Post("/", s.handleCreateLegislator)
 			r.Put("/", s.handleUpdateLegislator)
 			r.Delete("/", s.handleDeleteLegislator)
 		})
 
 		r.Group(func(r chi.Router) {
-			r.Use(s.pds.AuthorizeAdminOrUser)
+			r.Use(s.AuthorizeSystemOrUser)
 			r.Get("/", s.handleGetLegislator)
 		})
 	})
 
 	s.mux.Route("/server", func(r chi.Router) {
-		r.Use(s.pds.AuthorizeSystemUser)
+		r.Use(s.AuthorizeSystem)
 		r.Get("/describeServer", s.handleDescribeServer)
 		// r.Get("/com.atproto.sync.subscribeRepos", s.pds.EventsHandler)
 	})
