@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -10,11 +11,15 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/go-chi/chi/v5"
 	"github.com/referendumApp/referendumServices/internal/app"
+	"github.com/referendumApp/referendumServices/internal/aws"
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
 	"github.com/referendumApp/referendumServices/internal/pds"
 )
+
+const SECRET_KEY string = "API_KEY_SECRET_KEY" // #nosec G101 -- This is a secret identifier, not a credential
 
 // Service abstraction layer around PDS and App View modules
 type Service struct {
@@ -25,14 +30,16 @@ type Service struct {
 	log        *slog.Logger
 	port       int16
 	cancelCh   chan struct{}
+	clients    *aws.Clients
 }
 
 // New initialize 'Service' struct, setup HTTP routes, and middleware
-func New(ctx context.Context, av *app.View, pds *pds.PDS, logger *slog.Logger) (*Service, error) {
+func New(ctx context.Context, av *app.View, pds *pds.PDS, clients *aws.Clients, logger *slog.Logger) (*Service, error) {
 	srv := &Service{
 		mux:      chi.NewRouter(),
 		av:       av,
 		pds:      pds,
+		clients:  clients,
 		log:      logger,
 		port:     80,
 		cancelCh: make(chan struct{}),
@@ -100,8 +107,9 @@ func (s *Service) Shutdown() error {
 }
 
 func (s *Service) validateSystemApiKey(ctx context.Context, apiKey string) (*atp.Aid, *string, error) {
-	secret := map[string]string{
-		"apiKey": "TEST_API_KEY",
+	secret, err := s.getSystemApiKeySecret(ctx)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	if apiKey != secret["apiKey"] {
@@ -138,27 +146,70 @@ func (s *Service) createSystemUser(ctx context.Context, secret map[string]string
 	displayName := "System User"
 	email := "system@referendumapp.com"
 
-	actor, err := s.pds.CreateActor(ctx, handle, displayName, "", email, "", "system")
-	if err != nil {
-		return err
+	actor, apiErr := s.pds.CreateActor(ctx, handle, displayName, "", email, "", "system")
+	if apiErr != nil {
+		return fmt.Errorf("failed to create actor: %w", apiErr)
 	}
 
 	user, err := s.av.CreateUser(ctx, actor, displayName)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create user: %w", err)
 	}
 
 	_, err = s.pds.CreateNewUserRepo(ctx, actor, user)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create user repo: %w", err)
 	}
 
 	secret["did"] = actor.Did
 	secret["aid"] = strconv.FormatUint(uint64(actor.ID), 10)
 
-	return s.updateSecret(secret)
+	return s.updateSystemApiKeySecret(ctx, secret)
 }
 
-func (s *Service) updateSecret(secret map[string]string) error {
+func (s *Service) getSystemApiKeySecret(ctx context.Context) (map[string]string, error) {
+	secretKey := SECRET_KEY
+	input := &secretsmanager.GetSecretValueInput{
+		SecretId: &secretKey,
+	}
+
+	result, err := s.clients.SECRETSMANAGER.GetSecretValue(ctx, input)
+	if err != nil {
+		s.log.ErrorContext(ctx, "Failed to get secret", "error", err)
+		return nil, errors.New("secret value doesn't exist")
+	}
+
+	if result.SecretString == nil {
+		return nil, errors.New("secret value is empty")
+	}
+
+	var secret map[string]string
+	if err := json.Unmarshal([]byte(*result.SecretString), &secret); err != nil {
+		return nil, fmt.Errorf("failed to parse secret JSON: %w", err)
+	}
+
+	return secret, nil
+}
+
+func (s *Service) updateSystemApiKeySecret(ctx context.Context, secret map[string]string) error {
+	secretBytes, err := json.Marshal(secret) //nolint:errchkjson // secret map is guaranteed safe to marshal
+	if err != nil {
+		return fmt.Errorf("failed to marshal secret to JSON: %w", err)
+	}
+
+	secretString := string(secretBytes)
+	secretKey := SECRET_KEY
+
+	params := &secretsmanager.PutSecretValueInput{
+		SecretId:     &secretKey,
+		SecretString: &secretString,
+	}
+
+	_, err = s.clients.SECRETSMANAGER.PutSecretValue(ctx, params)
+	if err != nil {
+		return fmt.Errorf("failed to update secret in AWS Secrets Manager: %w", err)
+	}
+
+	s.log.InfoContext(ctx, "Successfully updated system API key secret")
 	return nil
 }

@@ -159,8 +159,6 @@ func (s *Service) AuthorizeSystem(next http.Handler) http.Handler {
 			return
 		}
 
-		s.log.Error(token)
-
 		aid, did, err := s.validateSystemApiKey(r.Context(), token)
 		if err != nil {
 			s.writeUnauthorizedError(w, r, "Invalid API key", err)

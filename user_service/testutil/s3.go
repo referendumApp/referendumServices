@@ -13,32 +13,33 @@ import (
 )
 
 var (
-	s3Once      sync.Once
-	s3Container *dockertest.Resource
-	s3Port      string
+	localstackOnce      sync.Once
+	localstackContainer *dockertest.Resource
+	localstackPort      string
 )
 
-// S3Container holds information about the LocalStack docker container
-type S3Container struct {
-	Port        string
-	s3Container *dockertest.Resource
+// LocalStackContainer holds information about the LocalStack docker container
+type LocalStackContainer struct {
+	Port                string
+	localstackContainer *dockertest.Resource
 }
 
-// SetupS3 creates a LocalStack container with S3 service
-func (d *Docker) SetupS3(ctx context.Context) (*S3Container, error) {
-	var s3Err error
+// SetupLocalStack creates a LocalStack container with S3 and SecretsManager services
+func (d *Docker) SetupLocalStack(ctx context.Context) (*LocalStackContainer, error) {
+	var localstackErr error
 
 	id, err := common.GetEnvOrFail("AWS_ACCESS_KEY_ID")
 	if err != nil {
 		return nil, err
 	}
+
 	secret, err := common.GetEnvOrFail("AWS_SECRET_ACCESS_KEY")
 	if err != nil {
 		return nil, err
 	}
 
-	s3Once.Do(func() {
-		s3Container, s3Err = d.pool.RunWithOptions(&dockertest.RunOptions{
+	localstackOnce.Do(func() {
+		localstackContainer, localstackErr = d.pool.RunWithOptions(&dockertest.RunOptions{
 			Repository: "localstack/localstack",
 			Tag:        "3.0",
 			Env: []string{
@@ -50,52 +51,93 @@ func (d *Docker) SetupS3(ctx context.Context) (*S3Container, error) {
 			ExposedPorts: []string{"4566/tcp"},
 			NetworkID:    d.network.ID,
 		})
-		if s3Err != nil {
-			log.Printf("Could not start S3 container: %v", s3Err)
+		if localstackErr != nil {
+			log.Printf("Could not start LocalStack container: %v", localstackErr)
 			return
 		}
 
-		s3Port = s3Container.GetPort("4566/tcp")
-		s3IP := s3Container.Container.NetworkSettings.Networks[d.network.Name].IPAddress
+		localstackPort = localstackContainer.GetPort("4566/tcp")
+		localstackIP := localstackContainer.Container.NetworkSettings.Networks[d.network.Name].IPAddress
 
-		if s3Err = d.pool.Retry(func() error {
-			if ec, err := s3Container.Exec(
-				[]string{"curl", "-f", fmt.Sprintf("http://%s:4566/_localstack/health", s3IP)},
+		if localstackErr = d.pool.Retry(func() error {
+			if ec, err := localstackContainer.Exec(
+				[]string{"curl", "-f", fmt.Sprintf("http://%s:4566/_localstack/health", localstackIP)},
 				dockertest.ExecOptions{},
 			); err != nil {
 				return err
 			} else if ec != 0 {
-				return fmt.Errorf("S3 container healthcheck exited with code: %d", ec)
+				return fmt.Errorf("LocalStack container healthcheck exited with code: %d", ec)
 			}
-
 			return nil
-		}); s3Err != nil {
-			_ = d.pool.Purge(s3Container)
-			log.Printf("S3 healthcheck failed: %v", s3Err)
+		}); localstackErr != nil {
+			_ = d.pool.Purge(localstackContainer)
+			log.Printf("LocalStack healthcheck failed: %v", localstackErr)
+			return
+		}
+
+		// Setup SecretsManager after container is healthy
+		if localstackErr = d.setupSecretsManager(); localstackErr != nil {
+			_ = d.pool.Purge(localstackContainer)
+			log.Printf("SecretsManager setup failed: %v", localstackErr)
 			return
 		}
 	})
 
-	if s3Err != nil {
-		return nil, s3Err
+	if localstackErr != nil {
+		return nil, localstackErr
 	}
 
-	log.Printf("Successfully setup S3 container on port: %s\n", s3Port)
+	log.Printf("Successfully setup LocalStack container on port: %s\n", localstackPort)
 
-	if err := os.Setenv("S3_ENDPOINT_URL", "http://"+d.Host+":"+s3Port); err != nil {
+	// Set environment variables for both S3 and SecretsManager
+	endpointURL := "http://" + d.Host + ":" + localstackPort
+	if err := os.Setenv("S3_ENDPOINT_URL", endpointURL); err != nil {
 		return nil, fmt.Errorf("failed to set S3_ENDPOINT_URL environment variable: %w", err)
 	}
-
-	return &S3Container{Port: s3Port, s3Container: s3Container}, nil
-}
-
-// CleanupS3 should be called after all tests are done
-func (sc *S3Container) CleanupS3(d *Docker) {
-	if sc.s3Container != nil {
-		if err := d.pool.Purge(sc.s3Container); err != nil {
-			log.Printf("Could not purge Localstack container: %s", err)
-		}
+	if err := os.Setenv("SECRETSMANAGER_ENDPOINT_URL", endpointURL); err != nil {
+		return nil, fmt.Errorf("failed to set SECRETS_MANAGER_ENDPOINT environment variable: %w", err)
 	}
 
-	log.Println("S3 test resources cleaned up")
+	return &LocalStackContainer{Port: localstackPort, localstackContainer: localstackContainer}, nil
+}
+
+// setupSecretsManager creates the API key secret in SecretsManager
+func (d *Docker) setupSecretsManager() error {
+	log.Println("Creating API key secret for system authentication...")
+
+	// Create the secret in Secrets Manager
+	secretValue := `{"apiKey":"TEST_API_KEY"}` // #nosec G101 -- This is a test credential
+
+	exitCode, err := localstackContainer.Exec(
+		[]string{
+			"aws", "--endpoint-url=http://localhost:4566",
+			"--region=us-east-1",
+			"secretsmanager", "create-secret",
+			"--name", "API_KEY_SECRET_KEY",
+			"--description", "System API key for referendum app authentication",
+			"--secret-string", secretValue,
+		},
+		dockertest.ExecOptions{},
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to execute secretsmanager create-secret command: %w", err)
+	}
+
+	if exitCode != 0 {
+		return fmt.Errorf("secretsmanager create-secret command exited with code: %d", exitCode)
+	}
+
+	log.Println("Successfully created API_KEY_SECRET_KEY in SecretsManager")
+	return nil
+}
+
+// CleanupLocalStack should be called after all tests are done
+func (lsc *LocalStackContainer) CleanupLocalStack(d *Docker) {
+	if lsc.localstackContainer != nil {
+		if err := d.pool.Purge(lsc.localstackContainer); err != nil {
+			log.Printf("Could not purge LocalStack container: %s", err)
+		}
+	}
+	log.Println("LocalStack test resources cleaned up")
 }

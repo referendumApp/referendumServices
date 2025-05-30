@@ -75,12 +75,12 @@ func setupAndRunTests(m *testing.M, servChErr chan error) int {
 	}
 	defer pc.CleanupPostgres(docker)
 
-	sc, err := docker.SetupS3(ctx)
+	sc, err := docker.SetupLocalStack(ctx)
 	if err != nil {
 		log.Printf("Failed to setup s3 container: %v\n", err)
 		return 1
 	}
-	defer sc.CleanupS3(docker)
+	defer sc.CleanupLocalStack(docker)
 
 	kms, err := docker.SetupKMS(ctx, cfg)
 	if err != nil {
@@ -129,7 +129,7 @@ func setupAndRunTests(m *testing.M, servChErr chan error) int {
 		return 1
 	}
 
-	testService, err = New(ctx, av, pds, logger)
+	testService, err = New(ctx, av, pds, clients, logger)
 	if err != nil {
 		return 1
 	}
