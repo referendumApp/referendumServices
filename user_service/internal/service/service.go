@@ -19,7 +19,8 @@ import (
 	"github.com/referendumApp/referendumServices/internal/pds"
 )
 
-const SECRET_KEY string = "API_KEY_SECRET_KEY" // #nosec G101 -- This is a secret identifier, not a credential
+// TODO - move this to env
+const SECRET_KEY_NAME string = "API_KEY_SECRET_KEY" // #nosec G101 -- This is a secret identifier, not a credential
 
 // Service abstraction layer around PDS and App View modules
 type Service struct {
@@ -146,7 +147,7 @@ func (s *Service) createSystemUser(ctx context.Context, secret map[string]string
 	displayName := "System User"
 	email := "system@referendumapp.com"
 
-	actor, apiErr := s.pds.CreateActor(ctx, handle, displayName, "", email, "", "system")
+	actor, apiErr := s.pds.CreateActor(ctx, handle, displayName, "", email, "", secret["apiKey"])
 	if apiErr != nil {
 		return fmt.Errorf("failed to create actor: %w", apiErr)
 	}
@@ -168,9 +169,9 @@ func (s *Service) createSystemUser(ctx context.Context, secret map[string]string
 }
 
 func (s *Service) getSystemApiKeySecret(ctx context.Context) (map[string]string, error) {
-	secretKey := SECRET_KEY
+	secretKeyName := SECRET_KEY_NAME
 	input := &secretsmanager.GetSecretValueInput{
-		SecretId: &secretKey,
+		SecretId: &secretKeyName,
 	}
 
 	result, err := s.clients.SECRETSMANAGER.GetSecretValue(ctx, input)
@@ -198,10 +199,10 @@ func (s *Service) updateSystemApiKeySecret(ctx context.Context, secret map[strin
 	}
 
 	secretString := string(secretBytes)
-	secretKey := SECRET_KEY
+	secretKeyName := SECRET_KEY_NAME
 
 	params := &secretsmanager.PutSecretValueInput{
-		SecretId:     &secretKey,
+		SecretId:     &secretKeyName,
 		SecretString: &secretString,
 	}
 

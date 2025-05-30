@@ -20,7 +20,7 @@ func (p *PDS) CreateActor(
 	recoveryKey string,
 	email string,
 	hashedPassword string,
-	actorType string,
+	apiKey string,
 ) (*atp.Actor, *refErr.APIError) {
 	if recoveryKey == "" {
 		recoveryKey = p.km.RecoveryKey()
@@ -50,13 +50,7 @@ func (p *PDS) CreateActor(
 		AuthSettings: &atp.AuthSettings{HashedPassword: &hashedPassword},
 	}
 
-	if actorType == "system" {
-		apiKey, kmerr := p.km.CreateSystemApiKey(ctx, did)
-		if kmerr != nil {
-			p.log.ErrorContext(ctx, "Failed to create API key", "error", kmerr)
-			return nil, refErr.PLCServer()
-		}
-
+	if apiKey != "" {
 		actor.AuthSettings.ApiKey = &apiKey
 	}
 
