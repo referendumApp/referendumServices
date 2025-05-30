@@ -159,9 +159,9 @@ func (s *Service) AuthorizeSystem(next http.Handler) http.Handler {
 			return
 		}
 
-		aid, did, err := s.validateSystemApiKey(r.Context(), token)
+		aid, did, err := s.AuthenticateSystemUser(r.Context(), token)
 		if err != nil {
-			s.writeUnauthorizedError(w, r, "Invalid API key", err)
+			s.writeUnauthorizedError(w, r, "System authentication failed", err)
 			return
 		}
 
@@ -180,7 +180,7 @@ func (s *Service) AuthorizeSystemOrUser(next http.Handler) http.Handler {
 		}
 
 		// Try API key validation first
-		if aid, did, err := s.validateSystemApiKey(r.Context(), token); err == nil {
+		if aid, did, err := s.AuthenticateSystemUser(r.Context(), token); err == nil {
 			s.log.InfoContext(r.Context(), "Authenticated as system user")
 			ctx := s.setContextFromAuth(r.Context(), *aid, *did)
 			next.ServeHTTP(w, r.WithContext(ctx))

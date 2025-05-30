@@ -140,39 +140,46 @@ func (s *Service) Shutdown() error {
 	return nil
 }
 
-func (s *Service) validateSystemApiKey(ctx context.Context, apiKey string) (*atp.Aid, *string, error) {
-	secret, err := s.getSystemApiKeySecret(ctx)
+// AuthenticateSystemUser validates the API key and ensures system user exists
+func (s *Service) AuthenticateSystemUser(ctx context.Context, apiKey string) (*atp.Aid, *string, error) {
+	secret, err := s.validateApiKeyAndGetSecret(ctx, apiKey)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	if err = s.ensureSystemUserExists(ctx, secret); err != nil {
+		return nil, nil, fmt.Errorf("failed to ensure system user exists: %w", err)
+	}
+
+	aid, err := secret.GetAIDAsAtp()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get AID: %w", err)
+	}
+
+	return &aid, &secret.DID, nil
+}
+
+// validateApiKeyAndGetSecret validates the provided API key against stored secret
+func (s *Service) validateApiKeyAndGetSecret(ctx context.Context, apiKey string) (*SystemAPIKeySecret, error) {
+	secret, err := s.getSystemApiKeySecret(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	if apiKey != secret.APIKey {
-		return nil, nil, errors.New("invalid API key")
+		return nil, errors.New("invalid API key")
 	}
 
-	var did string
-	var aid atp.Aid
+	return secret, nil
+}
 
-	if !secret.IsUserCreated() {
-		if err := s.createSystemUser(ctx, secret); err != nil {
-			return nil, nil, fmt.Errorf("failed to create system user: %w", err)
-		}
-		did = secret.DID
-		var aidErr error
-		aid, aidErr = secret.GetAIDAsAtp()
-		if aidErr != nil {
-			return nil, nil, fmt.Errorf("failed to get AID: %w", aidErr)
-		}
-	} else {
-		did = secret.DID
-		var aidErr error
-		aid, aidErr = secret.GetAIDAsAtp()
-		if aidErr != nil {
-			return nil, nil, fmt.Errorf("failed to get AID: %w", aidErr)
-		}
+// ensureSystemUserExists creates system user if it doesn't exist, updates secret if created
+func (s *Service) ensureSystemUserExists(ctx context.Context, secret *SystemAPIKeySecret) error {
+	if secret.IsUserCreated() {
+		return nil // User already exists
 	}
 
-	return &aid, &did, nil
+	return s.createSystemUser(ctx, secret)
 }
 
 func (s *Service) createSystemUser(ctx context.Context, secret *SystemAPIKeySecret) error {
