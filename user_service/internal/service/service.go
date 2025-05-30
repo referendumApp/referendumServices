@@ -95,9 +95,11 @@ func New(
 	srv.setupRoutes()
 
 	srv.httpServer = &http.Server{
-		Addr:              fmt.Sprintf(":%d", srv.port),
-		Handler:           srv.mux,
-		ReadHeaderTimeout: 5 * time.Second,
+		Addr:         fmt.Sprintf(":%d", srv.port),
+		Handler:      srv.mux,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  15 * time.Second,
 	}
 
 	return srv, nil
