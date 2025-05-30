@@ -28,6 +28,7 @@ type Base struct {
 // AuthSettings stores authentication configuration
 type AuthSettings struct {
 	HashedPassword string `json:"hashed_password,omitempty"`
+	ApiKey         string `json:"api_key,omitempty"`
 }
 
 // Marshal serializes Settings to JSON

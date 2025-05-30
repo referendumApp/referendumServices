@@ -70,7 +70,7 @@ func run(ctx context.Context, stdout io.Writer, cfg *env.Config) error {
 		return err
 	}
 
-	srv, err := service.New(ctx, av, pds, logger)
+	srv, err := service.New(ctx, av, pds, clients, cfg, logger)
 	if err != nil {
 		return err
 	}
