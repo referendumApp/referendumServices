@@ -53,6 +53,8 @@ func (s *SystemAPIKeySecret) SetUserData(did string, aid atp.Aid) {
 	s.AID = strconv.FormatUint(uint64(aid), 10)
 }
 
+// TODO - implement SystemAPI secret with did key & rotation
+
 // Service abstraction layer around PDS and App View modules
 type Service struct {
 	httpServer *http.Server
