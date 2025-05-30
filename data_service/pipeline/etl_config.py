@@ -141,6 +141,55 @@ class JoinConfig(BaseModel):
                   ON {join_condition}"""
 
 
+class PDSLoader:
+    """Handles loading data into the PDS"""
+
+    def __init__(self):
+        self.user_client = UserServiceClient()
+
+    def create_or_update_legislator(self, legislator_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create or update legislator in PDS and return PDS response with DID/AID"""
+        try:
+            # Try to get existing legislator first
+            existing = None
+            try:
+                existing = self.user_client.get_legislator(
+                    legislator_id=legislator_data["legislatorId"]
+                )
+            except Exception:
+                pass  # Legislator doesn't exist in PDS
+
+            if existing:
+                # Update existing legislator
+                response = self.user_client.update_legislator(legislator_data)
+                logger.info(f"Updated legislator {legislator_data['legislatorId']} in PDS")
+
+                # For updates, we should already have DID/AID, but return them
+                return {
+                    "legislatorId": legislator_data["legislatorId"],
+                    "did": existing.get("did"),
+                    "aid": existing.get("aid"),
+                    "handle": existing.get("handle"),
+                    "action": "updated",
+                }
+            else:
+                # Create new legislator - this will return DID and AID
+                response = self.user_client.create_legislator(legislator_data)
+                logger.info(f"Created legislator {legislator_data['legislatorId']} in PDS")
+
+                return {
+                    "legislatorId": legislator_data["legislatorId"],
+                    "did": response.get("did"),
+                    "aid": response.get("aid"),
+                    "handle": response.get("handle"),
+                    "action": "created",
+                }
+
+        except Exception as e:
+            logger.error(f"Failed to process legislator {legislator_data.get('legislatorId')}: {e}")
+            raise
+
+
 class ETLConfig(BaseModel):
     source: str
     source_columns: Set[str]
@@ -150,6 +199,7 @@ class ETLConfig(BaseModel):
     transformations: List[Transformation]
     unique_constraints: List[str] = Field(default=["id"])
     dataframe: Optional[pd.DataFrame] = None
+    pds_load: bool = False
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -198,6 +248,82 @@ class ETLConfig(BaseModel):
             raise
 
     def load(self, conn: Session):
+        """Enhanced load method with bidirectional PDS support"""
+
+        if self.pds_load:
+            results = {
+                "succeeded": 0,
+                "failed": 0,
+                "errors": [],
+                "pds_responses": [],  # Contains DID/AID data to update database
+            }
+
+            for _, row in self.dataframe.iterrows():
+                try:
+                    legislator_data = row.to_dict()
+
+                    pds_response = self.create_or_update_legislator(legislator_data)
+                    results["pds_responses"].append(pds_response)
+                    results["succeeded"] += 1
+
+                except Exception as e:
+                    results["failed"] += 1
+                    results["errors"].append(
+                        {"legislator_id": legislator_data.get("legislatorId"), "error": str(e)}
+                    )
+
+            logger.info(
+                f"PDS load completed for {self.destination}. "
+                f"Succeeded: {results['succeeded']}, Failed: {results['failed']}"
+            )
+
+            if results["failed"] > 0:
+                logger.error(f"PDS load errors: {results['errors']}")
+                raise Exception(f"PDS load had {results['failed']} failures")
+
+            self._update_database_with_pds_data(conn, results["pds_responses"])
+
+        else:
+            self._load_to_database(conn)
+
+    def _update_database_with_pds_data(self, conn: Session, pds_responses: list):
+        """Update database with DID/AID values returned from PDS"""
+        try:
+            logger.info(f"Updating {len(pds_responses)} legislators with PDS data (DID/AID)")
+
+            for response in pds_responses:
+                if response.get("did") and response.get("aid"):
+                    update_query = text(
+                        """
+                        UPDATE legislators 
+                        SET 
+                            did = :did,
+                            aid = :aid,
+                            pds_handle = :handle,
+                            pds_synced_at = NOW()
+                        WHERE legiscan_id = :legislator_id
+                    """
+                    )
+
+                    conn.execute(
+                        update_query,
+                        {
+                            "did": response["did"],
+                            "aid": response["aid"],
+                            "handle": response["handle"],
+                            "legislator_id": response["legislatorId"],
+                        },
+                    )
+
+            conn.commit()
+            logger.info("Successfully updated legislators table with PDS data")
+
+        except Exception as e:
+            logger.error(f"Failed to update database with PDS data: {e}")
+            conn.rollback()
+            raise
+
+    def _load_to_database(self, conn: Session):
         try:
             logger.info(f"Loading data into {self.destination} with unique_constraints on 'id'")
 

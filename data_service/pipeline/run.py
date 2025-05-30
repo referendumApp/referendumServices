@@ -80,7 +80,7 @@ def load_all(etl_configs: List[ETLConfig]):
 
 def run_etl():
     directory = os.path.dirname(os.path.abspath(__file__))
-    config_filepath = f"{directory}/etl_configs.json"
+    config_filepath = f"{directory}/legiscan_etl_configs.json"
 
     with open(config_filepath, "r") as config_file:
         config_data = json.load(config_file)
@@ -187,8 +187,32 @@ def run_text_extraction(batch_size=20):
 
 
 def run_pds_processing():
-    # UserServiceClient()
-    pass
+    """Run bidirectional ETL that syncs database -> PDS -> database"""
+    directory = os.path.dirname(os.path.abspath(__file__))
+    pds_config_filepath = f"{directory}/pds_etl_configs.json"
+
+    with open(pds_config_filepath, "r") as config_file:
+        pds_config_data = json.load(config_file)
+        pds_config_data["pds_bidirectional"] = True
+        pds_etl_config = ETLConfig(**pds_config_data)
+
+    try:
+        logger.info("Beginning bidirectional PDS ETL")
+
+        # Extract from referendum database
+        referendum_db = next(get_referendum_db())
+        with referendum_db.connection() as conn:
+            pds_etl_config.extract(conn)
+
+            pds_etl_config.transform()
+
+            pds_etl_config.load(conn)
+
+        logger.info("Bidirectional PDS ETL completed successfully")
+
+    except Exception as e:
+        logger.error(f"Bidirectional PDS ETL failed: {str(e)}")
+        raise
 
 
 def orchestrate(stage: str = "all"):

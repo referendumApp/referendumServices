@@ -1,0 +1,42 @@
+{
+  "source": "(SELECT l.legiscan_id, l.name, l.district, l.did, l.aid, l.pds_handle, p.name as party_name, r.name as role_name, s.state_abbr, s.state_name FROM legislators l LEFT JOIN partys p ON l.party_id = p.id LEFT JOIN roles r ON l.role_id = r.id LEFT JOIN states s ON l.state_id = s.id WHERE l.pds_synced_at IS NULL OR l.pds_synced_at < l.updated_at) AS unsynced_legislators",
+  "destination": "legislators",
+  "source_columns": [
+    "legiscan_id",
+    "name", 
+    "district",
+    "did",
+    "aid", 
+    "pds_handle",
+    "party_name",
+    "role_name",
+    "state_abbr",
+    "state_name"
+  ],
+  "destination_columns": [
+    "legislatorId",
+    "name",
+    "district", 
+    "party",
+    "role",
+    "state",
+    "legislature",
+    "handle"
+  ],
+  "transformations": [
+    {
+      "function": "rename",
+      "parameters": {
+        "columns": {
+          "legiscan_id": "legislatorId",
+          "party_name": "party",
+          "role_name": "role", 
+          "state_abbr": "state",
+          "state_name": "legislature"
+        }
+      }
+    }
+  ],
+  "dataframe": null,
+  "pds_load": true
+}
