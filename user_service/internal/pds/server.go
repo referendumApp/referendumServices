@@ -47,11 +47,7 @@ func (p *PDS) CreateActor(
 		Handle:       sql.NullString{String: handle, Valid: true},
 		RecoveryKey:  recoveryKey,
 		Email:        sql.NullString{String: email, Valid: true},
-		AuthSettings: &atp.AuthSettings{HashedPassword: &hashedPassword},
-	}
-
-	if apiKey != "" {
-		actor.AuthSettings.ApiKey = &apiKey
+		AuthSettings: &atp.AuthSettings{HashedPassword: hashedPassword, ApiKey: apiKey},
 	}
 
 	return actor, nil
