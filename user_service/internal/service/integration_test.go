@@ -1032,7 +1032,7 @@ func TestLegislator(t *testing.T) {
 				"Create Legislator without API Key",
 				testRequest{
 					method: http.MethodPost,
-					path:   "/legislator",
+					path:   "/legislators",
 					body: refApp.ServerCreateLegislator_Input{
 						LegislatorId: 98767,
 						Name:         "Representative Unauthorized",
@@ -1052,7 +1052,7 @@ func TestLegislator(t *testing.T) {
 				"Create Legislator with Invalid API Key",
 				testRequest{
 					method: http.MethodPost,
-					path:   "/legislator",
+					path:   "/legislators",
 					body: refApp.ServerCreateLegislator_Input{
 						LegislatorId: 98768,
 						Name:         "Representative Invalid Key",
@@ -1298,7 +1298,7 @@ func TestLegislator(t *testing.T) {
 				"Update Legislator without API Key",
 				testRequest{
 					method: http.MethodPut,
-					path:   "/legislator",
+					path:   "/legislators",
 					body: refApp.LegislatorUpdateProfile_Input{
 						LegislatorId: updateID,
 						Name:         stringPtr("Unauthorized Update"),
@@ -1314,7 +1314,7 @@ func TestLegislator(t *testing.T) {
 				"Update Legislator with Invalid API Key",
 				testRequest{
 					method: http.MethodPut,
-					path:   "/legislator",
+					path:   "/legislators",
 					body: refApp.LegislatorUpdateProfile_Input{
 						LegislatorId: updateID,
 						Name:         stringPtr("Invalid Key Update"),
