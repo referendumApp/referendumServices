@@ -22,6 +22,39 @@ import (
 // TODO - move this to env
 const SECRET_KEY_NAME string = "API_KEY_SECRET_KEY" // #nosec G101 -- This is a secret identifier, not a credential
 
+// SystemAPIKeySecret represents the structure of the system API key secret
+type SystemAPIKeySecret struct {
+	APIKey string `json:"apiKey"`
+	DID    string `json:"did,omitempty"`
+	AID    string `json:"aid,omitempty"`
+}
+
+// IsUserCreated returns true if the system user has been created (DID and AID are present)
+func (s *SystemAPIKeySecret) IsUserCreated() bool {
+	return s.DID != "" && s.AID != ""
+}
+
+// GetAIDAsAtp converts the AID string to atp.Aid and validates it's valid
+func (s *SystemAPIKeySecret) GetAIDAsAtp() (atp.Aid, error) {
+	if s.AID == "" {
+		return 0, errors.New("AID is empty")
+	}
+
+	// Parse as uint64 directly to avoid overflow issues
+	aidUint, err := strconv.ParseUint(s.AID, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse AID: %w", err)
+	}
+
+	return atp.Aid(aidUint), nil
+}
+
+// SetUserData sets the DID and AID after user creation
+func (s *SystemAPIKeySecret) SetUserData(did string, aid atp.Aid) {
+	s.DID = did
+	s.AID = strconv.FormatUint(uint64(aid), 10)
+}
+
 // Service abstraction layer around PDS and App View modules
 type Service struct {
 	httpServer *http.Server
@@ -113,41 +146,41 @@ func (s *Service) validateSystemApiKey(ctx context.Context, apiKey string) (*atp
 		return nil, nil, err
 	}
 
-	if apiKey != secret["apiKey"] {
+	if apiKey != secret.APIKey {
 		return nil, nil, errors.New("invalid API key")
 	}
 
 	var did string
 	var aid atp.Aid
 
-	if storedDid, exists := secret["did"]; !exists || storedDid == "" {
+	if !secret.IsUserCreated() {
 		if err := s.createSystemUser(ctx, secret); err != nil {
 			return nil, nil, fmt.Errorf("failed to create system user: %w", err)
 		}
-		did = secret["did"]
-		aidInt, _ := strconv.ParseInt(secret["aid"], 10, 64)
-		if aidInt < 0 {
-			return nil, nil, errors.New("aid cannot be negative")
+		did = secret.DID
+		var aidErr error
+		aid, aidErr = secret.GetAIDAsAtp()
+		if aidErr != nil {
+			return nil, nil, fmt.Errorf("failed to get AID: %w", aidErr)
 		}
-		aid = atp.Aid(aidInt)
 	} else {
-		did = storedDid
-		aidInt, _ := strconv.ParseInt(secret["aid"], 10, 64)
-		if aidInt < 0 {
-			return nil, nil, errors.New("aid cannot be negative")
+		did = secret.DID
+		var aidErr error
+		aid, aidErr = secret.GetAIDAsAtp()
+		if aidErr != nil {
+			return nil, nil, fmt.Errorf("failed to get AID: %w", aidErr)
 		}
-		aid = atp.Aid(aidInt)
 	}
 
 	return &aid, &did, nil
 }
 
-func (s *Service) createSystemUser(ctx context.Context, secret map[string]string) error {
+func (s *Service) createSystemUser(ctx context.Context, secret *SystemAPIKeySecret) error {
 	handle := "system.referendumapp.com"
 	displayName := "System User"
 	email := "system@referendumapp.com"
 
-	actor, apiErr := s.pds.CreateActor(ctx, handle, displayName, "", email, "", secret["apiKey"])
+	actor, apiErr := s.pds.CreateActor(ctx, handle, displayName, "", email, "", secret.APIKey)
 	if apiErr != nil {
 		return fmt.Errorf("failed to create actor: %w", apiErr)
 	}
@@ -162,13 +195,12 @@ func (s *Service) createSystemUser(ctx context.Context, secret map[string]string
 		return fmt.Errorf("failed to create user repo: %w", err)
 	}
 
-	secret["did"] = actor.Did
-	secret["aid"] = strconv.FormatUint(uint64(actor.ID), 10)
+	secret.SetUserData(actor.Did, actor.ID)
 
 	return s.updateSystemApiKeySecret(ctx, secret)
 }
 
-func (s *Service) getSystemApiKeySecret(ctx context.Context) (map[string]string, error) {
+func (s *Service) getSystemApiKeySecret(ctx context.Context) (*SystemAPIKeySecret, error) {
 	secretKeyName := SECRET_KEY_NAME
 	input := &secretsmanager.GetSecretValueInput{
 		SecretId: &secretKeyName,
@@ -184,16 +216,20 @@ func (s *Service) getSystemApiKeySecret(ctx context.Context) (map[string]string,
 		return nil, errors.New("secret value is empty")
 	}
 
-	var secret map[string]string
+	var secret SystemAPIKeySecret
 	if err := json.Unmarshal([]byte(*result.SecretString), &secret); err != nil {
 		return nil, fmt.Errorf("failed to parse secret JSON: %w", err)
 	}
 
-	return secret, nil
+	if secret.APIKey == "" {
+		return nil, errors.New("API key is missing from secret")
+	}
+
+	return &secret, nil
 }
 
-func (s *Service) updateSystemApiKeySecret(ctx context.Context, secret map[string]string) error {
-	secretBytes, err := json.Marshal(secret) //nolint:errchkjson // secret map is guaranteed safe to marshal
+func (s *Service) updateSystemApiKeySecret(ctx context.Context, secret *SystemAPIKeySecret) error {
+	secretBytes, err := json.Marshal(secret) //nolint:errchkjson // secret struct is guaranteed safe to marshal
 	if err != nil {
 		return fmt.Errorf("failed to marshal secret to JSON: %w", err)
 	}
