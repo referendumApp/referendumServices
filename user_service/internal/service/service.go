@@ -16,11 +16,9 @@ import (
 	"github.com/referendumApp/referendumServices/internal/app"
 	"github.com/referendumApp/referendumServices/internal/aws"
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
+	env "github.com/referendumApp/referendumServices/internal/env-config"
 	"github.com/referendumApp/referendumServices/internal/pds"
 )
-
-// TODO - move this to env
-const SECRET_KEY_NAME string = "API_KEY_SECRET_KEY" // #nosec G101 -- This is a secret identifier, not a credential
 
 // SystemAPIKeySecret represents the structure of the system API key secret
 type SystemAPIKeySecret struct {
@@ -65,15 +63,24 @@ type Service struct {
 	port       int16
 	cancelCh   chan struct{}
 	clients    *aws.Clients
+	config     *env.Config
 }
 
 // New initialize 'Service' struct, setup HTTP routes, and middleware
-func New(ctx context.Context, av *app.View, pds *pds.PDS, clients *aws.Clients, logger *slog.Logger) (*Service, error) {
+func New(
+	ctx context.Context,
+	av *app.View,
+	pds *pds.PDS,
+	clients *aws.Clients,
+	config *env.Config,
+	logger *slog.Logger,
+) (*Service, error) {
 	srv := &Service{
 		mux:      chi.NewRouter(),
 		av:       av,
 		pds:      pds,
 		clients:  clients,
+		config:   config,
 		log:      logger,
 		port:     80,
 		cancelCh: make(chan struct{}),
@@ -88,11 +95,9 @@ func New(ctx context.Context, av *app.View, pds *pds.PDS, clients *aws.Clients, 
 	srv.setupRoutes()
 
 	srv.httpServer = &http.Server{
-		Addr:         fmt.Sprintf(":%d", srv.port),
-		Handler:      srv.mux,
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  15 * time.Second,
+		Addr:              fmt.Sprintf(":%d", srv.port),
+		Handler:           srv.mux,
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	return srv, nil
@@ -183,16 +188,20 @@ func (s *Service) ensureSystemUserExists(ctx context.Context, secret *SystemAPIK
 }
 
 func (s *Service) createSystemUser(ctx context.Context, secret *SystemAPIKeySecret) error {
-	handle := "system.referendumapp.com"
-	displayName := "System User"
-	email := "system@referendumapp.com"
-
-	actor, apiErr := s.pds.CreateActor(ctx, handle, displayName, "", email, "", secret.APIKey)
+	actor, apiErr := s.pds.CreateActor(
+		ctx,
+		s.config.SystemUserConfig.Handle,
+		s.config.SystemUserConfig.DisplayName,
+		"",
+		s.config.SystemUserConfig.Email,
+		"",
+		secret.APIKey,
+	)
 	if apiErr != nil {
 		return fmt.Errorf("failed to create actor: %w", apiErr)
 	}
 
-	user, err := s.av.CreateUser(ctx, actor, displayName)
+	user, err := s.av.CreateUser(ctx, actor, s.config.SystemUserConfig.DisplayName)
 	if err != nil {
 		return fmt.Errorf("failed to create user: %w", err)
 	}
@@ -208,7 +217,7 @@ func (s *Service) createSystemUser(ctx context.Context, secret *SystemAPIKeySecr
 }
 
 func (s *Service) getSystemApiKeySecret(ctx context.Context) (*SystemAPIKeySecret, error) {
-	secretKeyName := SECRET_KEY_NAME
+	secretKeyName := s.config.SystemUserConfig.SecretName
 	input := &secretsmanager.GetSecretValueInput{
 		SecretId: &secretKeyName,
 	}
@@ -242,7 +251,7 @@ func (s *Service) updateSystemApiKeySecret(ctx context.Context, secret *SystemAP
 	}
 
 	secretString := string(secretBytes)
-	secretKeyName := SECRET_KEY_NAME
+	secretKeyName := s.config.SystemUserConfig.SecretName
 
 	params := &secretsmanager.PutSecretValueInput{
 		SecretId:     &secretKeyName,

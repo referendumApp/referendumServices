@@ -129,7 +129,7 @@ func setupAndRunTests(m *testing.M, servChErr chan error) int {
 		return 1
 	}
 
-	testService, err = New(ctx, av, pds, clients, logger)
+	testService, err = New(ctx, av, pds, clients, cfg, logger)
 	if err != nil {
 		return 1
 	}

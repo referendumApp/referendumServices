@@ -113,7 +113,7 @@ func (d *Docker) setupSecretsManager() error {
 			"aws", "--endpoint-url=http://localhost:4566",
 			"--region=us-east-1",
 			"secretsmanager", "create-secret",
-			"--name", "API_KEY_SECRET_KEY",
+			"--name", "SYSTEM_USER_SECRET_NAME",
 			"--description", "System API key for referendum app authentication",
 			"--secret-string", secretValue,
 		},
@@ -128,7 +128,7 @@ func (d *Docker) setupSecretsManager() error {
 		return fmt.Errorf("secretsmanager create-secret command exited with code: %d", exitCode)
 	}
 
-	log.Println("Successfully created API_KEY_SECRET_KEY in SecretsManager")
+	log.Println("Successfully created SYSTEM_USER_SECRET_NAME in SecretsManager")
 	return nil
 }
 
