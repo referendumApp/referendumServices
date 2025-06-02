@@ -110,8 +110,8 @@ services:
         condition: service_healthy
       kms:
         condition: service_healthy
-      localstack-init:
-        condition: service_completed_successfully
+      localstack:
+        condition: service_healthy
       local-db-init:
         condition: service_completed_successfully
       migrations:
@@ -182,23 +182,6 @@ services:
       start_period: 10s
     profiles: ["local-data", "local-empty", "test"]
 
-  localstack-init:
-    image: amazon/aws-cli:latest
-    depends_on:
-      localstack:
-        condition: service_healthy
-    environment:
-      - AWS_ACCESS_KEY_ID=test
-      - AWS_SECRET_ACCESS_KEY=test
-      - AWS_DEFAULT_REGION=us-east-1
-    volumes:
-      - ./data_service/scripts:/scripts
-    entrypoint: []
-    command:
-      - /bin/bash
-      - /scripts/localstack_init.sh
-    profiles: ["local-data", "local-empty", "test"]
-
   kms:
     container_name: kms
     image: kng93/local-kms
@@ -222,7 +205,7 @@ services:
         - "-d"
         - "{}"
       start_period: 3s
-      interval: 2s
+      interval: 5s
       timeout: 5s
       retries: 3
     profiles: ["local-data", "local-empty", "test"]
@@ -237,8 +220,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      localstack-init:
-        condition: service_completed_successfully
+      localstack:
+        condition: service_healthy
     command: ["/code/local_db_init.sh"]
     profiles: ["local-data", "local-empty", "test"]
 
@@ -264,7 +247,7 @@ services:
     image: pipeline
     depends_on:
       api-local:
-        condition: service_healthy
+        condition: service_started
       user-api-local:
         condition: service_healthy
       db:
@@ -289,8 +272,8 @@ services:
         condition: service_healthy
       db:
         condition: service_healthy
-      localstack-init:
-        condition: service_completed_successfully
+      localstack:
+        condition: service_healthy
       local-db-init:
         condition: service_completed_successfully
       migrations:
