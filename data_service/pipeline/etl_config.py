@@ -8,6 +8,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import text
 from sqlalchemy.orm.session import Session
 
+from common.user_service.client import UserServiceClient
+
 logger = logging.getLogger(__name__)
 
 
@@ -151,25 +153,20 @@ class PDSLoader:
         """Create or update legislator in PDS and return PDS response with DID/AID"""
         try:
             # Try to get existing legislator first
-            existing = None
-            try:
-                existing = self.user_client.get_legislator(
-                    legislator_id=legislator_data["legislatorId"]
-                )
-            except Exception:
-                pass  # Legislator doesn't exist in PDS
+            existing = self.user_client.get_legislator(
+                legislator_id=legislator_data["legislatorId"]
+            )
 
             if existing:
                 # Update existing legislator
                 response = self.user_client.update_legislator(legislator_data)
                 logger.info(f"Updated legislator {legislator_data['legislatorId']} in PDS")
 
-                # For updates, we should already have DID/AID, but return them
                 return {
                     "legislatorId": legislator_data["legislatorId"],
-                    "did": existing.get("did"),
-                    "aid": existing.get("aid"),
-                    "handle": existing.get("handle"),
+                    "did": response.get("did"),
+                    "aid": response.get("aid"),
+                    "handle": response.get("handle"),
                     "action": "updated",
                 }
             else:
