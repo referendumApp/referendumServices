@@ -149,7 +149,7 @@ class PDSLoader:
     def __init__(self):
         self.user_client = UserServiceClient()
 
-    def create_or_update_legislator(self, legislator_data: Dict[str, Any]) -> Dict[str, Any]:
+    def create_or_update_legislator(self, legislator_data: Dict) -> Dict:
         """Create or update legislator in PDS and return PDS response with DID/AID"""
         try:
             # Try to get existing legislator first
@@ -199,6 +199,7 @@ class ETLConfig(BaseModel):
     pds_load: bool = False
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+    _pds_loader: PDSLoader = None
 
     def _get_source_query(self, join_config: Optional[JoinConfig]) -> str:
         """Generate SQL query for source data extraction"""
@@ -371,3 +372,8 @@ class ETLConfig(BaseModel):
             logger.error(f"Error upserting data into '{self.destination}': {e}")
             conn.rollback()
             raise
+
+    def create_or_update_legislator(self, legislator_data: Dict) -> Dict:
+        if not self._pds_loader:
+            self._pds_loader = PDSLoader()
+        return self._pds_loader.create_or_update_legislator(legislator_data)

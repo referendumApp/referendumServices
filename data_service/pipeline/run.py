@@ -14,8 +14,6 @@ from common.object_storage.client import S3Client
 from pipeline.bill_text_extraction import BillTextExtractor
 from pipeline.etl_config import ETLConfig
 
-from common.user_service.client import UserServiceClient
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -193,11 +191,10 @@ def run_pds_processing():
 
     with open(pds_config_filepath, "r") as config_file:
         pds_config_data = json.load(config_file)
-        pds_config_data["pds_bidirectional"] = True
         pds_etl_config = ETLConfig(**pds_config_data)
 
     try:
-        logger.info("Beginning bidirectional PDS ETL")
+        logger.info("Beginning PDS ETL")
 
         # Extract from referendum database
         referendum_db = next(get_referendum_db())

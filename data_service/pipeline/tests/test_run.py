@@ -17,7 +17,7 @@ def test_pipeline_execution():
     legiscan_db = legiscan_api_connection.SessionLocal()
 
     directory = os.path.dirname(os.path.abspath(__file__))
-    config_filepath = f"{directory}/../etl_configs.json"
+    config_filepath = f"{directory}/../legiscan_etl_configs.json"
     with open(config_filepath, "r") as config_file:
         config_data = json.load(config_file)
         etl_configs = [ETLConfig(**config) for config in config_data]
@@ -41,3 +41,5 @@ def test_pipeline_execution():
 
     referendum_db.close()
     legiscan_db.close()
+
+    # run.orchestrate(stage="pds_processing")
