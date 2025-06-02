@@ -12,11 +12,7 @@ import (
 	"github.com/referendumApp/referendumServices/pkg/common"
 )
 
-var (
-	s3Once      sync.Once
-	s3Container *dockertest.Resource
-	s3Port      string
-)
+var s3Once sync.Once
 
 // S3Container holds information about the LocalStack docker container
 type S3Container struct {
@@ -26,13 +22,21 @@ type S3Container struct {
 
 // SetupS3 creates a LocalStack container with S3 service
 func (d *Docker) SetupS3(ctx context.Context) (*S3Container, error) {
-	var s3Err error
+	var (
+		s3Container *dockertest.Resource
+		s3Port      string
+		s3Err       error
+	)
 
 	id, err := common.GetEnvOrFail("AWS_ACCESS_KEY_ID")
 	if err != nil {
 		return nil, err
 	}
 	secret, err := common.GetEnvOrFail("AWS_SECRET_ACCESS_KEY")
+	if err != nil {
+		return nil, err
+	}
+	expPort, err := common.GetEnvOrFail("LOCALSTACK_PORT")
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +51,7 @@ func (d *Docker) SetupS3(ctx context.Context) (*S3Container, error) {
 				"SERVICES=s3,secretsmanager",
 				"AWS_DEFAULT_REGION=us-east-1",
 			},
-			ExposedPorts: []string{"4566/tcp"},
+			ExposedPorts: []string{expPort + "/tcp"},
 			NetworkID:    d.network.ID,
 		})
 		if s3Err != nil {
@@ -55,7 +59,7 @@ func (d *Docker) SetupS3(ctx context.Context) (*S3Container, error) {
 			return
 		}
 
-		s3Port = s3Container.GetPort("4566/tcp")
+		s3Port = s3Container.GetPort(expPort + "/tcp")
 		s3IP := s3Container.Container.NetworkSettings.Networks[d.network.Name].IPAddress
 
 		if s3Err = d.pool.Retry(func() error {
