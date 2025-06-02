@@ -94,7 +94,7 @@ func (d *Docker) SetupLocalStack(ctx context.Context) (*LocalStackContainer, err
 	if err := os.Setenv("S3_ENDPOINT_URL", endpointURL); err != nil {
 		return nil, fmt.Errorf("failed to set S3_ENDPOINT_URL environment variable: %w", err)
 	}
-	if err := os.Setenv("SECRETSMANAGER_ENDPOINT_URL", endpointURL); err != nil {
+	if err := os.Setenv("SECRETS_MANAGER_ENDPOINT_URL", endpointURL); err != nil {
 		return nil, fmt.Errorf("failed to set SECRETS_MANAGER_ENDPOINT environment variable: %w", err)
 	}
 
