@@ -20,18 +20,3 @@ type ServerCreateAccount_Input struct {
 	RecoveryKey       *string `json:"recoveryKey,omitempty" cborgen:"recoveryKey,omitempty" validate:"omitempty"`
 	VerificationPhone *string `json:"verificationPhone,omitempty" cborgen:"verificationPhone,omitempty" validate:"omitempty,e164"`
 }
-
-// ServerCreateAccount_Output is the output of a com.referendumapp.server.createAccount call.
-//
-// Account login session returned on successful account creation.
-type ServerCreateAccount_Output struct {
-	AccessToken string `json:"accessToken" cborgen:"accessToken" validate:"required"`
-	// did: The DID of the new account.
-	Did string `json:"did" cborgen:"did" validate:"required,did"`
-	// didDoc: Complete DID document.
-	DidDoc       *interface{} `json:"didDoc,omitempty" cborgen:"didDoc,omitempty" validate:"omitempty"`
-	DisplayName  string       `json:"displayName" cborgen:"displayName" validate:"required,name,max=60"`
-	Handle       string       `json:"handle" cborgen:"handle" validate:"required,handle"`
-	RefreshToken string       `json:"refreshToken" cborgen:"refreshToken" validate:"required"`
-	TokenType    string       `json:"tokenType" cborgen:"tokenType" validate:"required"`
-}

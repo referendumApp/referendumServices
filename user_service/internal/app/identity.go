@@ -73,38 +73,38 @@ func (v *View) ResolveNewUser(ctx context.Context, req *refApp.ServerCreateAccou
 func (v *View) CreateUser(
 	ctx context.Context,
 	actor *atp.Actor,
-	name string,
-) (*atp.User, *refErr.APIError) {
-	user, err := v.meta.insertActorAndUserRecords(ctx, actor, name)
-	if err != nil {
-		return nil, refErr.Database()
+	dname string,
+) *refErr.APIError {
+	if err := v.meta.insertActorAndUserRecords(ctx, actor, dname); err != nil {
+		return refErr.Database()
 	}
-	return &user, nil
+
+	profile := &actorProfile{
+		ID:          actor.ID,
+		Did:         actor.Did,
+		DisplayName: dname,
+		Handle:      actor.Handle,
+		Email:       actor.Email,
+	}
+	v.cache.UserCache.Set(ctx, actor.ID, profile)
+
+	return nil
 }
 
-// GetAuthenticatedActor validates username (which can be email or handle) and password
-func (v *View) GetAuthenticatedActor(
+// GetAuthenticatedUser validates username (which can be email or handle) and password
+func (v *View) GetAuthenticatedUser(
 	ctx context.Context,
 	username string,
 	pw string,
-) (*atp.Actor, *refErr.APIError) {
+) (*actorAuth, *refErr.APIError) {
 	// TODO - improve this flow by using caching
 
 	defaultErr := refErr.FieldError{Message: "Username or password not found"}
 
-	// First try to fetch the actor by email
-	actor, err := v.meta.LookupActorByEmail(ctx, username)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		v.log.ErrorContext(ctx, "Failed to fetch actor details by email", "error", err, "username", username)
+	actor, err := v.meta.authenticateActor(ctx, username)
+	if err != nil {
+		v.log.ErrorContext(ctx, "Failed to authenticate actor", "error", err, "username", username)
 		return nil, defaultErr.NotFound()
-	}
-
-	// If user not found by email, try to fetch by handle
-	if actor == nil || errors.Is(err, sql.ErrNoRows) {
-		actor, err = v.meta.LookupActorByHandle(ctx, username)
-		if err != nil {
-			return nil, defaultErr.NotFound()
-		}
 	}
 
 	// Verify the password
@@ -124,7 +124,26 @@ func (v *View) GetAuthenticatedActor(
 		return nil, defaultErr.NotFound()
 	}
 
+	v.cache.UserCache.Set(ctx, actor.ID, &actor.actorProfile)
+
 	return actor, nil
+}
+
+// GetActorProfile return a actor profile
+func (v *View) GetActorProfile(ctx context.Context, aid atp.Aid) (*actorProfile, *refErr.APIError) {
+	if profile := v.cache.UserCache.Get(ctx, aid); profile != nil {
+		return profile, nil
+	}
+
+	profile, err := v.meta.GetActorProfileByID(ctx, aid)
+	if err != nil {
+		v.log.ErrorContext(ctx, "Failed to lookup actor", "error", err, "aid", aid)
+		return nil, refErr.Database()
+	}
+
+	v.cache.UserCache.Set(ctx, aid, profile)
+
+	return profile, nil
 }
 
 // AuthenticateSession validates a session based on the actor ID and DID

@@ -31,6 +31,7 @@ import (
 	"github.com/referendumApp/referendumServices/internal/util"
 	"github.com/referendumApp/referendumServices/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -88,13 +89,23 @@ func setupAndRunTests(m *testing.M, servChErr chan error) int {
 	}
 	defer kms.CleanupKMS(docker)
 
+	cache, err := docker.SetupCache(ctx, cfg)
+	if err != nil {
+		log.Printf("Failed to setup cache container: %v\n", err)
+		return 1
+	}
+	defer cache.CleanupCache(docker)
+
 	db, err := database.Connect(ctx, cfg.DBConfig, logger)
 	if err != nil {
 		return 1
 	}
 	defer db.Close()
 
-	av := app.NewAppView(db, cfg.DBConfig.AtpDBSchema, cfg.HandleSuffix, logger)
+	av, err := app.NewAppView(ctx, db, cfg.DBConfig.AtpDBSchema, cfg.HandleSuffix, cfg.CacheHost, logger)
+	if err != nil {
+		return 1
+	}
 
 	clients, err := aws.NewClients(ctx, cfg.Env)
 	if err != nil {
@@ -137,9 +148,9 @@ func setupAndRunTests(m *testing.M, servChErr chan error) int {
 		servChErr <- testService.Start(ctx)
 	}()
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(3 * time.Second)
 
-	client = &http.Client{Timeout: 5 * time.Second}
+	client = &http.Client{Timeout: 15 * time.Second}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseUrl+"/health", nil)
 	if err != nil {
@@ -155,7 +166,7 @@ func setupAndRunTests(m *testing.M, servChErr chan error) int {
 	defer func() {
 		_ = resp.Body.Close()
 	}()
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusNoContent {
 		log.Printf("Server did not start properly, got status %v\n", resp.Status)
 		return 1
 	}
@@ -206,7 +217,7 @@ func (tr *testRequest) handleJsonRequest(t *testing.T) *http.Request {
 
 func (tr *testRequest) handleFormRequest(t *testing.T) *http.Request {
 	form, ok := tr.body.(url.Values)
-	assert.True(t, ok, "Request body must be 'url.Values'")
+	require.True(t, ok, "Request body must be 'url.Values'")
 
 	req, err := http.NewRequestWithContext(
 		context.Background(),
@@ -214,7 +225,7 @@ func (tr *testRequest) handleFormRequest(t *testing.T) *http.Request {
 		baseUrl+tr.path,
 		strings.NewReader(form.Encode()),
 	)
-	assert.NoError(t, err, "Failed to create HTTP request")
+	require.NoError(t, err, "Failed to create HTTP request")
 
 	for k, v := range tr.headers {
 		req.Header.Set(k, v)
@@ -230,7 +241,7 @@ type testResponse struct {
 
 func (e *testResponse) getResponse(t *testing.T, req *http.Request) int {
 	resp, err := client.Do(req)
-	assert.NoError(t, err, "HTTP request failed")
+	require.NoError(t, err, "HTTP request failed")
 	defer resp.Body.Close()
 
 	// Always log request details for debugging
@@ -306,7 +317,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Email:       email,
@@ -316,7 +327,7 @@ func TestCreateAccount(t *testing.T) {
 			},
 			testResponse{
 				status: http.StatusCreated,
-				body:   &refApp.ServerCreateAccount_Output{},
+				body:   &refApp.ServerCreateSession_Output{},
 			},
 			nil,
 		},
@@ -324,7 +335,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Email:       "kenny@gmail.com",
@@ -334,7 +345,7 @@ func TestCreateAccount(t *testing.T) {
 			},
 			testResponse{
 				status: http.StatusCreated,
-				body:   &refApp.ServerCreateAccount_Output{},
+				body:   &refApp.ServerCreateSession_Output{},
 			},
 			nil,
 		},
@@ -342,7 +353,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Duplicate Handle",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Email:       "kenny@referendumapp.com",
@@ -359,7 +370,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Duplicate Email",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Email:       email,
@@ -376,7 +387,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Invalid Handle",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Email:       email,
@@ -393,7 +404,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Invalid Handle",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Email:       email,
@@ -410,7 +421,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Invalid Handle",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Email:       email,
@@ -427,7 +438,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Invalid Handle",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Email:       "kenny@gmail.com",
@@ -444,7 +455,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Invalid Handle",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Email:       email,
@@ -461,7 +472,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Invalid Email",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Email:       "kengmail.com",
@@ -478,7 +489,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Invalid Password",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Email:       email,
@@ -495,7 +506,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Invalid Display Name",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken.",
 					Email:       email,
@@ -512,7 +523,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Missing Display Name",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					Email:    email,
 					Handle:   handle,
@@ -528,7 +539,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Missing Email",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Handle:      handle,
@@ -544,7 +555,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Missing Handle",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Email:       email,
@@ -560,7 +571,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Missing Password",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Email:       email,
@@ -588,7 +599,7 @@ func TestSession(t *testing.T) {
 			"Create Session w/ Handle",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/login",
+				path:   "/auth/session",
 				body: url.Values{
 					"grantType": {"password"},
 					"username":  {handle},
@@ -606,7 +617,7 @@ func TestSession(t *testing.T) {
 			"Create Session w/ Email",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/login",
+				path:   "/auth/session",
 				body: url.Values{
 					"grantType": {"password"},
 					"username":  {email},
@@ -624,7 +635,7 @@ func TestSession(t *testing.T) {
 			"Create Session w/ Invalid Grant",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/login",
+				path:   "/auth/session",
 				body: url.Values{
 					"grantType": {"test"},
 					"username":  {email},
@@ -642,7 +653,7 @@ func TestSession(t *testing.T) {
 			"Create Session w/ Incorrect Password",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/login",
+				path:   "/auth/session",
 				body: url.Values{
 					"grantType": {"password"},
 					"username":  {email},
@@ -660,7 +671,7 @@ func TestSession(t *testing.T) {
 			"Create Session w/ Incorrect Username",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/login",
+				path:   "/auth/session",
 				body: url.Values{
 					"grantType": {"password"},
 					"username":  {"wrong.referendumapp.com"},
@@ -678,7 +689,7 @@ func TestSession(t *testing.T) {
 			"Create Session w/ Missing Username",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/login",
+				path:   "/auth/session",
 				body: url.Values{
 					"grantType": {"password"},
 					"password":  {pw},
@@ -695,7 +706,7 @@ func TestSession(t *testing.T) {
 			"Create Session w/ Missing Password",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/login",
+				path:   "/auth/session",
 				body: url.Values{
 					"grantType": {"password"},
 					"username":  {handle},
@@ -729,14 +740,14 @@ func TestSession(t *testing.T) {
 		jwt.SigningMethodHS256,
 		jwt.MapClaims{"sub": "1", "did": "did:plc:fjadklfjlkadsjf", "iss": "test", "type": "refresh"},
 	).SignedString(bytes.NewBufferString("test").Bytes())
-	assert.NoError(t, err, "Error generating test token")
+	require.NoError(t, err, "Error generating test token")
 
-	refreshTests := []testCase{
+	refreshSessionTests := []testCase{
 		{
 			"Refresh Session",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/refresh",
+				path:   "/auth/session/refresh",
 				body: refApp.ServerRefreshSession_Input{
 					RefreshToken: refreshToken,
 				},
@@ -751,7 +762,7 @@ func TestSession(t *testing.T) {
 			"Refresh Session w/ Missing Token",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/refresh",
+				path:   "/auth/session/refresh",
 				body:   refApp.ServerRefreshSession_Input{},
 			},
 			testResponse{
@@ -764,7 +775,7 @@ func TestSession(t *testing.T) {
 			"Refresh Session w/ Invalid Token",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/refresh",
+				path:   "/auth/session/refresh",
 				body: refApp.ServerRefreshSession_Input{
 					RefreshToken: testRefreshToken,
 				},
@@ -777,7 +788,7 @@ func TestSession(t *testing.T) {
 		},
 	}
 
-	for _, tc := range refreshTests {
+	for _, tc := range refreshSessionTests {
 		t.Run(tc.name, func(t *testing.T) {
 			req := tc.request.handleJsonRequest(t)
 			tc.response.getResponse(t, req)
@@ -793,11 +804,73 @@ func TestSession(t *testing.T) {
 		})
 	}
 
+	refreshAccTests := []testCase{
+		{
+			"Refresh Account",
+			testRequest{
+				method: http.MethodPost,
+				path:   "/auth/account/refresh",
+				body: refApp.ServerRefreshSession_Input{
+					RefreshToken: refreshToken,
+				},
+			},
+			testResponse{
+				status: http.StatusOK,
+				body:   &refApp.ServerCreateSession_Output{},
+			},
+			nil,
+		},
+		{
+			"Refresh Account w/ Missing Token",
+			testRequest{
+				method: http.MethodPost,
+				path:   "/auth/account/refresh",
+				body:   refApp.ServerRefreshSession_Input{},
+			},
+			testResponse{
+				status: http.StatusUnprocessableEntity,
+				body:   &refApp.ServerCreateSession_Output{},
+			},
+			nil,
+		},
+		{
+			"Refresh Account w/ Invalid Token",
+			testRequest{
+				method: http.MethodPost,
+				path:   "/auth/account/refresh",
+				body: refApp.ServerRefreshSession_Input{
+					RefreshToken: testRefreshToken,
+				},
+			},
+			testResponse{
+				status: http.StatusUnauthorized,
+				body:   &refApp.ServerCreateSession_Output{},
+			},
+			nil,
+		},
+	}
+
+	for _, tc := range refreshAccTests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := tc.request.handleJsonRequest(t)
+			tc.response.getResponse(t, req)
+
+			session, ok := tc.response.body.(*refApp.ServerCreateSession_Output)
+			require.True(t, ok, "Response body should be *ServerRefreshSession_Output")
+
+			if session.AccessToken != "" && session.RefreshToken != "" {
+				accessToken = session.AccessToken
+				refreshToken = session.RefreshToken
+				t.Logf("Tokens Refreshed: Access: %s Refresh %s", accessToken, refreshToken)
+			}
+		})
+	}
+
 	testAccessToken, err := jwt.NewWithClaims(
 		jwt.SigningMethodHS256,
 		jwt.MapClaims{"sub": "1", "did": "did:plc:fjadklfjlkadsjf", "iss": "test", "type": "access"},
 	).SignedString(bytes.NewBufferString("test").Bytes())
-	assert.NoError(t, err, "Error generating test token")
+	require.NoError(t, err, "Error generating test token")
 
 	deleteSessionTests := []testCase{
 		{
@@ -881,7 +954,7 @@ func TestSession(t *testing.T) {
 			if sc == http.StatusOK {
 				loginReq := testRequest{
 					method: http.MethodPost,
-					path:   "/auth/login",
+					path:   "/auth/session",
 					body: url.Values{
 						"grantType": {"password"},
 						"username":  {handle},
@@ -1036,8 +1109,8 @@ func TestLegislator(t *testing.T) {
 	t.Run("Get", func(t *testing.T) {
 		// Create a test legislator for retrieval tests
 		testLegislator, err := createTestLegislator(99999, "Senator Test")
-		assert.NoError(t, err, "Failed to create test legislator")
-		assert.NotEmpty(t, testLegislator.Handle, "Created legislator should have a handle")
+		require.NoError(t, err, "Failed to create test legislator")
+		require.NotEmpty(t, testLegislator.Handle, "Created legislator should have a handle")
 
 		tests := []struct {
 			name     string

@@ -4,7 +4,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -47,6 +46,12 @@ func TestServiceInitialization(t *testing.T) {
 	}
 	defer kms.CleanupKMS(docker)
 
+	cache, err := docker.SetupCache(ctx, cfg)
+	if err != nil {
+		t.Fatalf("Failed to setup cache container: %v", err)
+	}
+	defer cache.CleanupCache(docker)
+
 	done := make(chan struct{})
 
 	go func() {
@@ -55,10 +60,8 @@ func TestServiceInitialization(t *testing.T) {
 			t.Errorf("Failed to start server: %v", err)
 		}
 	}()
-	time.Sleep(1 * time.Second)
 
+	time.Sleep(3 * time.Second)
 	cancel()
-
 	<-done
-	fmt.Println("Server shutdown complete")
 }

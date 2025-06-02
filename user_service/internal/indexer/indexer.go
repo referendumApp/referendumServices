@@ -98,7 +98,7 @@ package indexer
 // 		})
 
 // 		if err := ix.handleRepoOp(ctx, evt, &op); err != nil {
-// 			ix.log.ErrorContext(ctx, "failed to handle repo op", "err", err)
+// 			ix.log.ErrorContext(ctx, "failed to handle repo op", "error", err)
 // 		}
 // 	}
 
@@ -193,7 +193,7 @@ package indexer
 // 			if e.Type == "mention" {
 // 				_, err := ix.GetUserOrMissing(ctx, e.Value)
 // 				if err != nil {
-// 					ix.log.InfoContext(ctx, "failed to parse user mention", "ref", e.Value, "err", err)
+// 					ix.log.InfoContext(ctx, "failed to parse user mention", "ref", e.Value, "error", err)
 // 				}
 // 			}
 // 		}
@@ -204,13 +204,13 @@ package indexer
 
 // 		if rec.Reply.Parent != nil {
 // 			if err := ix.crawlAtUriRef(ctx, rec.Reply.Parent.Uri); err != nil {
-// 				ix.log.InfoContext(ctx, "failed to crawl reply parent", "cid", op.RecCid, "replyuri", rec.Reply.Parent.Uri, "err", err)
+// 				ix.log.InfoContext(ctx, "failed to crawl reply parent", "cid", op.RecCid, "replyuri", rec.Reply.Parent.Uri, "error", err)
 // 			}
 // 		}
 
 // 		if rec.Reply.Root != nil {
 // 			if err := ix.crawlAtUriRef(ctx, rec.Reply.Root.Uri); err != nil {
-// 				ix.log.InfoContext(ctx, "failed to crawl reply root", "cid", op.RecCid, "rooturi", rec.Reply.Root.Uri, "err", err)
+// 				ix.log.InfoContext(ctx, "failed to crawl reply root", "cid", op.RecCid, "rooturi", rec.Reply.Root.Uri, "error", err)
 // 			}
 // 		}
 
@@ -218,27 +218,27 @@ package indexer
 // 	case *bsky.FeedRepost:
 // 		if rec.Subject != nil {
 // 			if err := ix.crawlAtUriRef(ctx, rec.Subject.Uri); err != nil {
-// 				ix.log.InfoContext(ctx, "failed to crawl repost subject", "cid", op.RecCid, "subjecturi", rec.Subject.Uri, "err", err)
+// 				ix.log.InfoContext(ctx, "failed to crawl repost subject", "cid", op.RecCid, "subjecturi", rec.Subject.Uri, "error", err)
 // 			}
 // 		}
 // 		return nil
 // 	case *bsky.FeedLike:
 // 		if rec.Subject != nil {
 // 			if err := ix.crawlAtUriRef(ctx, rec.Subject.Uri); err != nil {
-// 				ix.log.InfoContext(ctx, "failed to crawl like subject", "cid", op.RecCid, "subjecturi", rec.Subject.Uri, "err", err)
+// 				ix.log.InfoContext(ctx, "failed to crawl like subject", "cid", op.RecCid, "subjecturi", rec.Subject.Uri, "error", err)
 // 			}
 // 		}
 // 		return nil
 // 	case *bsky.GraphFollow:
 // 		_, err := ix.GetUserOrMissing(ctx, rec.Subject)
 // 		if err != nil {
-// 			ix.log.InfoContext(ctx, "failed to crawl follow subject", "cid", op.RecCid, "subjectdid", rec.Subject, "err", err)
+// 			ix.log.InfoContext(ctx, "failed to crawl follow subject", "cid", op.RecCid, "subjectdid", rec.Subject, "error", err)
 // 		}
 // 		return nil
 // 	case *bsky.GraphBlock:
 // 		_, err := ix.GetUserOrMissing(ctx, rec.Subject)
 // 		if err != nil {
-// 			ix.log.InfoContext(ctx, "failed to crawl follow subject", "cid", op.RecCid, "subjectdid", rec.Subject, "err", err)
+// 			ix.log.InfoContext(ctx, "failed to crawl follow subject", "cid", op.RecCid, "subjectdid", rec.Subject, "error", err)
 // 		}
 // 		return nil
 // 	case *bsky.ActorProfile:

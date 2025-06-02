@@ -34,7 +34,10 @@ func run(ctx context.Context, stdout io.Writer, cfg *env.Config) error {
 	}
 	defer db.Close()
 
-	av := app.NewAppView(db, cfg.DBConfig.AtpDBSchema, cfg.HandleSuffix, logger)
+	av, err := app.NewAppView(ctx, db, cfg.DBConfig.AtpDBSchema, cfg.HandleSuffix, cfg.CacheHost, logger)
+	if err != nil {
+		return err
+	}
 
 	clients, err := aws.NewClients(ctx, cfg.Env)
 	if err != nil {
