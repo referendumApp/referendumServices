@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from pdfminer.high_level import extract_pages
 from pdfminer.layout import LTTextContainer, LTTextLine, LTChar
 
-from common.object_storage.schemas import (
+from common.aws.s3.schemas import (
     ContentBlock,
     ContentBlockType,
     StructuredBillText,

@@ -10,11 +10,9 @@ from typing import List, Dict
 
 from common.database.referendum import connection as referendum_connection
 from common.database.legiscan_api import connection as legiscan_api_connection
-from common.object_storage.client import S3Client
+from common.aws.s3.client import S3Client
 from pipeline.bill_text_extraction import BillTextExtractor
 from pipeline.etl_config import ETLConfig
-
-from common.user_service.client import UserServiceClient
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
