@@ -231,4 +231,5 @@ def orchestrate(stage: str = "all"):
 
 
 if __name__ == "__main__":
-    orchestrate()
+    orchestrate("etl")
+    orchestrate("pds_processing")
