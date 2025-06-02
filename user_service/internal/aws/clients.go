@@ -36,7 +36,7 @@ func NewClients(ctx context.Context, env string) (*Clients, error) {
 	})
 
 	secretsmanagerClient := secretsmanager.NewFromConfig(cfg, func(o *secretsmanager.Options) {
-		endpoint := os.Getenv("SECRETSMANAGER_ENDPOINT_URL")
+		endpoint := os.Getenv("SECRETS_MANAGER_ENDPOINT_URL")
 		if endpoint != "" {
 			o.BaseEndpoint = &endpoint
 		}
