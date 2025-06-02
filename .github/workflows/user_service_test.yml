@@ -19,6 +19,10 @@ env:
   AWS_SECRET_ACCESS_KEY: test
   LOCALSTACK_PORT: 4566
   KMS_PORT: 9002
+  SYSTEM_USER_HANDLE: "system.referendumapp.com"
+  SYSTEM_USER_DISPLAY_NAME: "System User"
+  SYSTEM_USER_EMAIL: "system@referendumapp.com"
+  SYSTEM_USER_SECRET_NAME: "SYSTEM_USER_SECRET_NAME"
 
 jobs:
   lint:
@@ -111,6 +115,10 @@ jobs:
             --env AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY }} \
             --env LOCALSTACK_PORT=${{ env.LOCALSTACK_PORT }} \
             --env KMS_PORT=${{ env.KMS_PORT }} \
+            --env SYSTEM_USER_HANDLE="${{ env.SYSTEM_USER_HANDLE }}" \
+            --env SYSTEM_USER_DISPLAY_NAME="${{ env.SYSTEM_USER_DISPLAY_NAME }}" \
+            --env SYSTEM_USER_EMAIL="${{ env.SYSTEM_USER_EMAIL }}" \
+            --env SYSTEM_USER_SECRET_NAME="${{ env.SYSTEM_USER_SECRET_NAME }}" \
             --env-file .env \
             --volume /var/run/docker.sock:/var/run/docker.sock \
             --rm \

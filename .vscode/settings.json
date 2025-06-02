@@ -1,3 +1,8 @@
 {
-    "CodeGPT.apiKey": "Ollama"
+    "CodeGPT.apiKey": "Ollama",
+    "terminal.integrated.env.linux": {
+        "GOCACHE": "${env:HOME}/.cache/go-build",
+        "GOPATH": "${env:HOME}/go",
+        "GOMODCACHE": "${env:HOME}/.cache/go-mod"
+    }
 }
