@@ -9,8 +9,7 @@ from common.database.legiscan_api import connection as legiscan_api_connection
 from pipeline.etl_config import ETLConfig
 
 
-def test_pipeline_execution():
-    # We skip pulling & processing PDF data
+def _test_etl():
     run.orchestrate(stage="etl")
 
     referendum_db = referendum_connection.SessionLocal()
@@ -42,4 +41,12 @@ def test_pipeline_execution():
     referendum_db.close()
     legiscan_db.close()
 
-    # run.orchestrate(stage="pds_processing")
+
+def _test_pds():
+    run.orchestrate(stage="pds_processing")
+
+
+def test_pipeline_execution():
+    _test_etl()
+    # We skip pulling & processing PDF data
+    _test_pds()

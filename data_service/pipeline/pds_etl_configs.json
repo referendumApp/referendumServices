@@ -1,5 +1,5 @@
 {
-  "source": "(SELECT l.legiscan_id, l.name, l.district, l.pds_handle, p.name as party_name, r.name as role_name, s.state_abbr, s.state_name FROM legislators l LEFT JOIN partys p ON l.party_id = p.id LEFT JOIN roles r ON l.role_id = r.id LEFT JOIN states s ON l.state_id = s.id WHERE l.pds_synced_at IS NULL OR l.pds_synced_at < l.updated_at) AS unsynced_legislators",
+  "source": "(SELECT l.legiscan_id, l.name, l.district, p.name as party_name, r.name as role_name, s.name as state_name, c.name as legislature_name FROM legislators l LEFT JOIN partys p ON l.party_id = p.id LEFT JOIN roles r ON l.role_id = r.id LEFT JOIN states s ON l.state_id = s.id LEFT JOIN states c ON l.legislature_id = c.id WHERE l.pds_synced_at IS NULL OR l.pds_synced_at < l.updated_at) AS unsynced_legislators",
   "destination": "legislators",
   "source_columns": [
     "legiscan_id",
@@ -7,8 +7,8 @@
     "district",
     "party_name",
     "role_name",
-    "state_abbr",
-    "state_name"
+    "state_name",
+    "legislature_name"
   ],
   "destination_columns": [
     "legislatorId",
@@ -27,8 +27,8 @@
           "legiscan_id": "legislatorId",
           "party_name": "party",
           "role_name": "role", 
-          "state_abbr": "state",
-          "state_name": "legislature"
+          "state_name": "state",
+          "legislature_name": "legislature"
         }
       }
     }
