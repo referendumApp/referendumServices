@@ -34,7 +34,7 @@ env:
   ECR_REPOSITORY_PIPELINE: referendum/pipeline
   POSTGRES_PASSWORD_SECRET_NAME: rds!db-a5c629ff-4d6e-4d68-9680-6cdab848369c
   SECRET_KEY_SECRET_NAME: /system/SECRET_KEY
-  S3_ACCESS_CREDENTIALS_SECRET_NAME: /system/S3_BILL_TEXTS_CREDENTIALS
+  AWS_ACCESS_CREDENTIALS_SECRET_NAME: /system/AWS_CREDENTIALS
 
 permissions:
   contents: write
@@ -189,12 +189,12 @@ jobs:
               "POSTGRES_PASSWORD=$(echo $POSTGRES_SECRET | jq -r '.password')",
               "SECRET_KEY_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.SECRET_KEY_SECRET_NAME }} --query SecretString --output text)",
               "SECRET_KEY=$(echo $SECRET_KEY_SECRET | jq -r '.token')",
-              "S3_ACCESS_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.S3_ACCESS_CREDENTIALS_SECRET_NAME }} --query SecretString --output text)",
-              "S3_ACCESS_KEY=$(echo $S3_ACCESS_SECRET | jq -r '.access_key')",
-              "S3_SECRET_KEY=$(echo $S3_ACCESS_SECRET | jq -r '.secret_key')",
+              "AWS_ACCESS_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.AWS_ACCESS_CREDENTIALS_SECRET_NAME }} --query SecretString --output text)",
+              "AWS_ACCESS_KEY=$(echo $AWS_ACCESS_SECRET | jq -r '.access_key')",
+              "AWS_SECRET_KEY=$(echo $AWS_ACCESS_SECRET | jq -r '.secret_key')",
               "echo \"Running database migrations...\"",
               "echo \"Starting application...\"",
-              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e ENVIRONMENT=${{ env.DEPLOY_ENV }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e SECRET_KEY=\"$SECRET_KEY\" -e S3_ACCESS_KEY=\"$S3_ACCESS_KEY\" -e S3_SECRET_KEY=\"$S3_SECRET_KEY\" -e GOOGLE_IOS_CLIENT_ID=\"${{ secrets.GOOGLE_IOS_CLIENT_ID }}\" -e GOOGLE_ANDROID_CLIENT_ID=\"${{ secrets.GOOGLE_ANDROID_CLIENT_ID }}\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.IMAGE_TAG }}",
+              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e ENVIRONMENT=${{ env.DEPLOY_ENV }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e SECRET_KEY=\"$SECRET_KEY\" -e AWS_ACCESS_KEY=\"$AWS_ACCESS_KEY\" -e AWS_SECRET_KEY=\"$AWS_SECRET_KEY\" -e GOOGLE_IOS_CLIENT_ID=\"${{ secrets.GOOGLE_IOS_CLIENT_ID }}\" -e GOOGLE_ANDROID_CLIENT_ID=\"${{ secrets.GOOGLE_ANDROID_CLIENT_ID }}\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.IMAGE_TAG }}",
               "docker container prune -f",
               "docker image prune -af",
               "docker network prune -f",
@@ -297,6 +297,6 @@ jobs:
               "POSTGRES_PASSWORD=$(echo $POSTGRES_SECRET | jq -r '.password')",
               "SECRET_KEY_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.SECRET_KEY_SECRET_NAME }} --query SecretString --output text)",
               "SECRET_KEY=$(echo $SECRET_KEY_SECRET | jq -r '.token')",
-              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e ENVIRONMENT=${{ env.DEPLOY_ENV }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e SECRET_KEY=\"$SECRET_KEY\" -e S3_ACCESS_KEY=\"$S3_ACCESS_KEY\" -e S3_SECRET_KEY=\"$S3_SECRET_KEY\" -e GOOGLE_IOS_CLIENT_ID=\"${{ secrets.GOOGLE_IOS_CLIENT_ID }}\" -e GOOGLE_ANDROID_CLIENT_ID=\"${{ secrets.GOOGLE_ANDROID_CLIENT_ID }}\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.DEPLOY_ENV }}-stable"
+              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e ENVIRONMENT=${{ env.DEPLOY_ENV }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e SECRET_KEY=\"$SECRET_KEY\" -e AWS_ACCESS_KEY=\"$AWS_ACCESS_KEY\" -e AWS_SECRET_KEY=\"$AWS_SECRET_KEY\" -e GOOGLE_IOS_CLIENT_ID=\"${{ secrets.GOOGLE_IOS_CLIENT_ID }}\" -e GOOGLE_ANDROID_CLIENT_ID=\"${{ secrets.GOOGLE_ANDROID_CLIENT_ID }}\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.DEPLOY_ENV }}-stable"
             ]
           }'

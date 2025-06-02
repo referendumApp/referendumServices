@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 
 class S3Client:
     def __init__(self) -> None:
-        self.access_key = os.getenv("S3_ACCESS_KEY")
-        self.secret_key = os.getenv("S3_SECRET_KEY")
+        self.access_key = os.getenv("AWS_ACCESS_KEY")
+        self.secret_key = os.getenv("AWS_SECRET_KEY")
 
         if not self.access_key or not self.secret_key:
             raise ValueError("AWS credentials not found in environment variables")

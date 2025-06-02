@@ -13,6 +13,10 @@ from api.security import create_access_token
 from api.settings import settings
 from api.tests.test_utils import generate_random_string
 from common.aws.s3.client import S3Client
+from common.aws.secrets_manager.client import SecretsManagerClient
+
+test_client = SecretsManagerClient()
+test_client.check_connection()
 
 ENV = os.environ.get("ENVIRONMENT")
 DEBUGGER = os.environ.get("ENABLE_DEBUGGER")
