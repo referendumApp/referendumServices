@@ -4,6 +4,8 @@ import requests
 import time
 from typing import Any, Dict, Optional
 
+from common.aws.secrets_manager.client import SecretsManagerClient
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -16,18 +18,32 @@ class UserServiceClient:
 
         self.base_url = self.base_url.rstrip("/")
 
-        self.system_token = os.getenv("SYSTEM_AUTH_TOKEN")
-        if not self.system_token:
-            raise ValueError("SYSTEM_AUTH_TOKEN environment variable is required")
+        self._set_api_key()
 
         self.session = requests.Session()
         self.session.headers.update(
-            {"Content-Type": "application/json", "Authorization": f"Bearer {self.system_token}"}
+            {"Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"}
         )
 
         self.timeout = 30
         self.check_connection()
         logger.info(f"Initialized UserServiceClient with URL: {self.base_url}")
+
+    def _set_api_key(self):
+        """Retrieve API key from AWS Secrets Manager"""
+        sm_client = SecretsManagerClient()
+        secret_name = os.getenv("SYSTEM_USER_SECRET_NAME")
+
+        if not secret_name:
+            raise ValueError("SYSTEM_USER_SECRET_NAME environment variable is required")
+
+        secret_data = sm_client.get_secret_json(secret_name)
+
+        if not secret_data or "apiKey" not in secret_data:
+            raise ValueError(f"API key not found in secret {secret_name}")
+
+        self.api_key = secret_data["apiKey"]
+        logger.info("Successfully retrieved API key from Secrets Manager")
 
     def check_connection(self):
         """Check if the user service is accessible"""

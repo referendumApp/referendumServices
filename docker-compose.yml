@@ -129,7 +129,7 @@ services:
       interval: 30s
       timeout: 3s
       start_period: 30s
-    profiles: ["local-data", "local-empty"]
+    profiles: ["local-data", "local-empty", "test"]
 
   db:
     container_name: db
@@ -225,7 +225,7 @@ services:
       interval: 2s
       timeout: 5s
       retries: 3
-    profiles: ["local-data", "local-empty"]
+    profiles: ["local-data", "local-empty", "test"]
 
   local-db-init:
     container_name: local_db_init
@@ -256,13 +256,17 @@ services:
         condition: service_completed_successfully
     profiles: ["local-data", "local-empty", "test"]
 
-  pipeline:
+  pipeline-local:
     container_name: pipeline
     build:
       context: ./data_service
       target: pipeline
     image: pipeline
     depends_on:
+      api-local:
+        condition: service_healthy
+      user-api-local:
+        condition: service_healthy
       db:
         condition: service_healthy
       localstack:
@@ -281,6 +285,8 @@ services:
       target: test
     image: data-test
     depends_on:
+      user-api-local:
+        condition: service_healthy
       db:
         condition: service_healthy
       localstack-init:

@@ -42,3 +42,25 @@ aws --endpoint-url=http://localstack:4566 \
     s3 ls s3://bill-texts
 
 echo "LocalStack initialization complete!"
+
+# Setup Secrets Manager
+echo "Creating API key secret for system authentication..."
+
+# Create the secret in Secrets Manager
+SECRET_VALUE='{"apiKey":"TEST_API_KEY"}'
+
+aws --endpoint-url=http://localstack:4566 \
+    --region=us-east-1 \
+    secretsmanager create-secret \
+    --name "SYSTEM_USER_SECRET_NAME" \
+    --description "System API key for referendum app authentication" \
+    --secret-string "$SECRET_VALUE"
+
+if [ $? -eq 0 ]; then
+    echo "Successfully created SYSTEM_USER_SECRET_NAME in SecretsManager"
+else
+    echo "Failed to create secret in SecretsManager"
+    exit 1
+fi
+
+echo "LocalStack initialization complete!"
