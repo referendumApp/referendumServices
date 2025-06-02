@@ -1,4 +1,4 @@
-"""pds data
+"""add pds data to legislators
 
 Revision ID: 3adfde5f33f0
 Revises: 5dde7444fa97
@@ -34,16 +34,40 @@ def upgrade() -> None:
     op.create_index("ix_legislators_did", "legislators", ["did"])
     op.create_index("ix_legislators_aid", "legislators", ["aid"])
 
+    # Create trigger for updated_at
+    op.execute(
+        """
+        CREATE OR REPLACE FUNCTION update_updated_at_column()
+        RETURNS TRIGGER AS $$
+        BEGIN
+            NEW.updated_at = NOW();
+            RETURN NEW;
+        END;
+        $$ language 'plpgsql';
+    """
+    )
+    op.execute(
+        """
+        CREATE TRIGGER update_legislators_updated_at
+            BEFORE UPDATE ON legislators
+            FOR EACH ROW
+            EXECUTE FUNCTION update_updated_at_column();
+    """
+    )
+
 
 def downgrade() -> None:
+    op.execute("DROP TRIGGER IF EXISTS update_legislators_updated_at ON legislators;")
+    op.execute("DROP FUNCTION IF EXISTS update_updated_at_column();")
+
     op.drop_index("ix_legislators_aid", table_name="legislators")
     op.drop_index("ix_legislators_did", table_name="legislators")
     op.drop_index("ix_legislators_updated_at", table_name="legislators")
     op.drop_index("ix_legislators_pds_synced_at", table_name="legislators")
 
     op.drop_column("legislators", "pds_synced_at")
+    op.drop_column("legislators", "updated_at")
     op.drop_column("legislators", "pds_handle")
-    op.drop_column("legislators", "aid")
     op.alter_column(
         "legislators",
         "aid",
