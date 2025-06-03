@@ -223,7 +223,7 @@ services:
       db:
         condition: service_healthy
       localstack:
-        condition: service_completed_successfully
+        condition: service_healthy
     command: ["/code/local_db_init.sh"]
     profiles: ["local-data", "local-empty", "test"]
 
@@ -306,7 +306,7 @@ services:
     container_name: plc
     build:
       context: ./plc
-      dockerfile: Dockerfile
+      dockerfile: ../docker/plc/Dockerfile
     ports:
       - "2582:2582"
     environment:
@@ -315,6 +315,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      local-db-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:2582/health"]
       interval: 30s
