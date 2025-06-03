@@ -178,7 +178,7 @@ services:
         "--cache_mode=true",
         "--maxmemory=1.5gb",
       ]
-    profiles: ["local-data", "local-empty"]
+    profiles: ["local-data", "local-empty", "test"]
 
   localstack:
     container_name: localstack
