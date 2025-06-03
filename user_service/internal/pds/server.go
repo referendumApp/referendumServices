@@ -18,7 +18,7 @@ func (p *PDS) CreateActor(
 	handle string,
 	displayName string,
 	email string,
-	hashedPassword string,
+	auth *atp.AuthSettings,
 	recoveryKey *string,
 ) (*atp.Actor, *refErr.APIError) {
 	var recKey string
@@ -49,7 +49,7 @@ func (p *PDS) CreateActor(
 		Handle:       sql.NullString{String: handle, Valid: true},
 		Email:        sql.NullString{String: email, Valid: true},
 		RecoveryKey:  recKey,
-		AuthSettings: &atp.AuthSettings{HashedPassword: hashedPassword},
+		AuthSettings: auth,
 	}
 
 	return actor, nil

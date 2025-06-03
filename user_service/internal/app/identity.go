@@ -35,16 +35,19 @@ func (v *View) ValidateHandle(ctx context.Context, handle string) *refErr.APIErr
 }
 
 // ResolveNewUser validates if the new account request can be handled and returns a hashed password
-func (v *View) ResolveNewUser(ctx context.Context, req *refApp.ServerCreateAccount_Input) (string, *refErr.APIError) {
+func (v *View) ResolveNewUser(
+	ctx context.Context,
+	req *refApp.ServerCreateAccount_Input,
+) (*atp.AuthSettings, *refErr.APIError) {
 	filter := sq.Eq{"email": req.Email}
 	if exists, err := v.meta.recordExists(ctx, &atp.Actor{}, filter); err != nil {
 		v.log.ErrorContext(ctx, "Error checking database for actor email", "error", err)
-		return "", refErr.InternalServer()
+		return nil, refErr.InternalServer()
 	} else if exists {
 		nerr := errors.New("email already exists")
 		v.log.ErrorContext(ctx, nerr.Error(), "email", req.Email)
 		fieldErr := refErr.FieldError{Field: "email", Message: nerr.Error()}
-		return "", fieldErr.Conflict()
+		return nil, fieldErr.Conflict()
 	}
 	// if !errors.Is(err, pgx.ErrNoRows) && err != nil {
 	// 	s.log.ErrorContext(ctx, "Error checking database for user", "error", err)
@@ -63,10 +66,10 @@ func (v *View) ResolveNewUser(ctx context.Context, req *refApp.ServerCreateAccou
 	hashedPassword, err := util.HashPassword(req.Password, util.DefaultParams())
 	if err != nil {
 		v.log.ErrorContext(ctx, "Failed to hash password", "error", err)
-		return "", refErr.InternalServer()
+		return nil, refErr.InternalServer()
 	}
 
-	return hashedPassword, nil
+	return &atp.AuthSettings{HashedPassword: hashedPassword}, nil
 }
 
 // CreateUser inserts a actor and user record to the DB

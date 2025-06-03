@@ -79,8 +79,8 @@ services:
     image: user-api-base
     env_file: .env
     environment:
-      - AWS_ACCESS_KEY_ID=$S3_ACCESS_KEY
-      - AWS_SECRET_ACCESS_KEY=$S3_SECRET_KEY
+      - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY
+      - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_KEY
     profiles: ["base"]
 
   user-api:
@@ -312,6 +312,9 @@ services:
       migrations:
         condition: service_completed_successfully
     env_file: .env
+    environment:
+      - AWS_ACCESS_KEY=test
+      - AWS_SECRET_KEY=test
     profiles: ["test"]
 
   user-test:

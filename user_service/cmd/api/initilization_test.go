@@ -34,11 +34,11 @@ func TestServiceInitialization(t *testing.T) {
 	}
 	defer pc.CleanupPostgres(docker)
 
-	sc, err := docker.SetupS3(ctx)
+	sc, err := docker.SetupLocalStack(ctx)
 	if err != nil {
 		t.Fatalf("Failed to setup s3 container: %v", err)
 	}
-	defer sc.CleanupS3(docker)
+	defer sc.CleanupLocalStack(docker)
 
 	kms, err := docker.SetupKMS(ctx, cfg)
 	if err != nil {

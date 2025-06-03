@@ -6,7 +6,7 @@ from sqlalchemy import text
 from tenacity import retry, stop_after_attempt, wait_exponential
 from pathlib import Path
 
-from common.object_storage.schemas import StructuredBillText
+from common.aws.s3.schemas import StructuredBillText
 from pipeline.bill_pdf_parser import BillPDFParser
 
 logger = logging.getLogger(__name__)

@@ -37,7 +37,7 @@ env:
   SECRET_KEY_SECRET_NAME: /system/SECRET_KEY
   PIPELINE_CLUSTER: ETLCluster
   PIPELINE_TASK_DEFINITION: load-referendum-from-legiscan
-  S3_ACCESS_CREDENTIALS_SECRET_NAME: /system/S3_BILL_TEXTS_CREDENTIALS
+  AWS_ACCESS_CREDENTIALS_SECRET_NAME: /system/AWS_CREDENTIALS
   OPENAI_API_ENDPOINT: https://api.openai.com/v1/chat/completions
 
 permissions:
@@ -249,9 +249,9 @@ jobs:
               "API_ACCESS_TOKEN=$(echo $API_ACCESS_TOKEN_SECRET | jq -r '.token')",
               "SECRET_KEY_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.SECRET_KEY_SECRET_NAME }} --query SecretString --output text)",
               "SECRET_KEY=$(echo $SECRET_KEY_SECRET | jq -r '.token')",
-              "S3_ACCESS_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.S3_ACCESS_CREDENTIALS_SECRET_NAME }} --query SecretString --output text)",
-              "S3_ACCESS_KEY=$(echo $S3_ACCESS_SECRET | jq -r '.access_key')",
-              "S3_SECRET_KEY=$(echo $S3_ACCESS_SECRET | jq -r '.secret_key')",
+              "AWS_ACCESS_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.AWS_ACCESS_CREDENTIALS_SECRET_NAME }} --query SecretString --output text)",
+              "AWS_ACCESS_KEY=$(echo $AWS_ACCESS_SECRET | jq -r '.access_key')",
+              "AWS_SECRET_KEY=$(echo $AWS_ACCESS_SECRET | jq -r '.secret_key')",
               "echo \"Running database migrations...\"",
               "if ! docker run --rm -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"$SECRET_KEY\" -e OPENAI_API_KEY=\"${{ secrets.OPENAI_API_KEY }}\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:migrations-${{ env.IMAGE_TAG }} alembic upgrade head; then",
               "  echo \"Database migration failed. Aborting deployment.\"",
@@ -259,7 +259,7 @@ jobs:
               "fi",
               "echo \"Database migrations completed successfully.\"",
               "echo \"Starting application...\"",
-              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e ENVIRONMENT=${{ env.DEPLOY_ENV }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"$SECRET_KEY\" -e S3_ACCESS_KEY=\"$S3_ACCESS_KEY\" -e S3_SECRET_KEY=\"$S3_SECRET_KEY\" -e OPENAI_API_KEY=\"${{ secrets.OPENAI_API_KEY }}\" -e GOOGLE_IOS_CLIENT_ID=\"${{ secrets.GOOGLE_IOS_CLIENT_ID }}\" -e GOOGLE_ANDROID_CLIENT_ID=\"${{ secrets.GOOGLE_ANDROID_CLIENT_ID }}\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.IMAGE_TAG }}",
+              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e ENVIRONMENT=${{ env.DEPLOY_ENV }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"$SECRET_KEY\" -e AWS_ACCESS_KEY=\"$AWS_ACCESS_KEY\" -e AWS_SECRET_KEY=\"$AWS_SECRET_KEY\" -e OPENAI_API_KEY=\"${{ secrets.OPENAI_API_KEY }}\" -e GOOGLE_IOS_CLIENT_ID=\"${{ secrets.GOOGLE_IOS_CLIENT_ID }}\" -e GOOGLE_ANDROID_CLIENT_ID=\"${{ secrets.GOOGLE_ANDROID_CLIENT_ID }}\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.IMAGE_TAG }}",
               "docker container prune -f",
               "docker image prune -af",
               "docker network prune -f",
@@ -368,7 +368,7 @@ jobs:
               "API_ACCESS_TOKEN=$(echo $API_ACCESS_TOKEN_SECRET | jq -r '.token')",
               "SECRET_KEY_SECRET=$(aws secretsmanager get-secret-value --secret-id ${{ env.SECRET_KEY_SECRET_NAME }} --query SecretString --output text)",
               "SECRET_KEY=$(echo $SECRET_KEY_SECRET | jq -r '.token')",
-              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e ENVIRONMENT=${{ env.DEPLOY_ENV }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"$SECRET_KEY\" -e S3_ACCESS_KEY=\"$S3_ACCESS_KEY\" -e S3_SECRET_KEY=\"$S3_SECRET_KEY\" -e OPENAI_API_KEY=\"${{ secrets.OPENAI_API_KEY }}\" -e GOOGLE_IOS_CLIENT_ID=\"${{ secrets.GOOGLE_IOS_CLIENT_ID }}\" -e GOOGLE_ANDROID_CLIENT_ID=\"${{ secrets.GOOGLE_ANDROID_CLIENT_ID }}\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.DEPLOY_ENV }}-stable"
+              "docker run -d --name ${{ env.DEPLOY_ENV }}-app -p ${{ env.PORT_MAPPING }} -e ENVIRONMENT=${{ env.DEPLOY_ENV }} -e POSTGRES_PASSWORD=\"$POSTGRES_PASSWORD\" -e API_ACCESS_TOKEN=\"$API_ACCESS_TOKEN\" -e SECRET_KEY=\"$SECRET_KEY\" -e AWS_ACCESS_KEY=\"$AWS_ACCESS_KEY\" -e AWS_SECRET_KEY=\"$AWS_SECRET_KEY\" -e OPENAI_API_KEY=\"${{ secrets.OPENAI_API_KEY }}\" -e GOOGLE_IOS_CLIENT_ID=\"${{ secrets.GOOGLE_IOS_CLIENT_ID }}\" -e GOOGLE_ANDROID_CLIENT_ID=\"${{ secrets.GOOGLE_ANDROID_CLIENT_ID }}\" $ENV_VARS ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_API }}:${{ env.DEPLOY_ENV }}-stable"
             ]
           }'
 
@@ -443,8 +443,8 @@ jobs:
           jq \
             --arg IMAGE "${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_PIPELINE }}:${{ env.IMAGE_TAG }}" \
             --argjson ENV_VARS "$ENV_VARS" \
-            --arg SECRET_ARN "arn:aws:secretsmanager:${{ env.AWS_REGION }}:${{ env.AWS_ACCOUNT_ID }}:secret:${{ env.POSTGRES_PASSWORD_SECRET_NAME }}" \
-            --arg S3_SECRET_ARN "arn:aws:secretsmanager:${{ env.AWS_REGION }}:${{ env.AWS_ACCOUNT_ID }}:secret:${{ env.S3_ACCESS_CREDENTIALS_SECRET_NAME }}" \
+            --arg PG_SECRET_ARN "arn:aws:secretsmanager:${{ env.AWS_REGION }}:${{ env.AWS_ACCOUNT_ID }}:secret:${{ env.POSTGRES_PASSWORD_SECRET_NAME }}" \
+            --arg AWS_SECRET_ARN "arn:aws:secretsmanager:${{ env.AWS_REGION }}:${{ env.AWS_ACCOUNT_ID }}:secret:${{ env.AWS_ACCESS_CREDENTIALS_SECRET_NAME }}" \
             '
               del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy) |
               .containerDefinitions[0].image = $IMAGE |
@@ -452,15 +452,15 @@ jobs:
               .containerDefinitions[0].secrets = [
                 {
                   "name": "POSTGRES_PASSWORD",
-                  "valueFrom": ($SECRET_ARN + ":password::")
+                  "valueFrom": ($PG_SECRET_ARN + ":password::")
                 },
                 {
-                  "name": "S3_ACCESS_KEY",
-                  "valueFrom": ($S3_SECRET_ARN + ":access_key::")
+                  "name": "AWS_ACCESS_KEY",
+                  "valueFrom": ($AWS_SECRET_ARN + ":access_key::")
                 },
                 {
-                  "name": "S3_SECRET_KEY",
-                  "valueFrom": ($S3_SECRET_ARN + ":secret_key::")
+                  "name": "AWS_SECRET_KEY",
+                  "valueFrom": ($AWS_SECRET_ARN + ":secret_key::")
                 }
               ] |
               .cpu = "1024" |

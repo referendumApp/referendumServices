@@ -4,7 +4,7 @@ from sqlalchemy import text
 from typing import Dict
 import os
 
-from common.object_storage.client import S3Client
+from common.aws.s3.client import S3Client
 
 from ..database import get_db
 from ..schemas.interactions import ErrorResponse, HealthResponse

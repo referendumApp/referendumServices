@@ -46,13 +46,13 @@ func (s *Service) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hashed_pw, err := s.av.ResolveNewUser(ctx, &req)
+	auth, err := s.av.ResolveNewUser(ctx, &req)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	actor, err := s.pds.CreateActor(ctx, req.Handle, req.DisplayName, req.Email, hashed_pw, req.RecoveryKey)
+	actor, err := s.pds.CreateActor(ctx, req.Handle, req.DisplayName, req.Email, auth, req.RecoveryKey)
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -101,7 +101,7 @@ func (s *Service) handleCreateLegislator(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	actor, err := s.pds.CreateActor(ctx, handle, req.Name, "", "", nil)
+	actor, err := s.pds.CreateActor(ctx, handle, req.Name, "", nil, nil)
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -260,7 +260,7 @@ func (s *Service) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Service) handleUserProfileUpdate(w http.ResponseWriter, r *http.Request) {
+func (s *Service) handleUpdateUserProfile(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var req refApp.UserUpdateProfile_Input
