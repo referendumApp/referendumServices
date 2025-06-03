@@ -1,7 +1,7 @@
 """add pds data to legislators
 
 Revision ID: 3adfde5f33f0
-Revises: 5dde7444fa97
+Revises: 7e50042a4e42
 Create Date: 2025-06-02 07:31:05.489956
 
 """
@@ -14,7 +14,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = "3adfde5f33f0"
-down_revision: Union[str, None] = "5dde7444fa97"
+down_revision: Union[str, None] = "7e50042a4e42"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
