@@ -10,29 +10,29 @@ authors = [{name = "Makani Dalton", email = "makani@referendumapp.com"}]
 readme = "README.md"
 requires-python = ">=3.13.2"
 dependencies = [
-    "alembic==1.15.2",
+    "alembic==1.16.1",
     "argon2-cffi==23.1.0",
-    "boto3==1.38.6",
+    "boto3==1.38.27",
     "debugpy==1.8.14",
     "fastapi[standard]",
-    "google-auth==2.39.0",
-    "langchain==0.3.24",
-    "langchain-community==0.3.23",
-    "langchain-openai==0.3.14",
-    "openai==1.76.2",
+    "google-auth==2.40.2",
+    "langchain==0.3.25",
+    "langchain-community==0.3.24",
+    "langchain-openai==0.3.18",
+    "openai==1.82.1",
     "pandas==2.2.3",
     "passlib==1.7.4",
-    "pdfminer.six==20250416",
+    "pdfminer.six==20250506",
     "psycopg2-binary==2.9.10",
-    "pydantic==2.11.4",
+    "pydantic==2.11.5",
     "pydantic-settings==2.9.1",
-    "python-jose==3.4.0",
+    "python-jose==3.5.0",
     "requests==2.32.3",
-    "sqlalchemy==2.0.40",
+    "sqlalchemy==2.0.41",
     "tenacity==9.1.2",
     "watchtower==3.4.0",
-    "structlog==24.1.0",
-    "sentry-sdk[fastapi]==1.43.0"
+    "structlog==25.3.0",
+    "sentry-sdk[fastapi]==2.29.1"
 ]
 
 [project.optional-dependencies]
