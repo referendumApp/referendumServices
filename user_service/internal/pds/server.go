@@ -111,6 +111,7 @@ func (p *PDS) CreateNewLegislatorRepo(
 	}
 
 	return &refApp.ServerCreateLegislator_Output{
+		Aid:    actor.ID,
 		Did:    actor.Did,
 		Handle: actor.Handle.String,
 	}, nil

@@ -1,0 +1,509 @@
+[
+  {
+    "source": "ls_state",
+    "destination": "states",
+    "source_columns": [
+      "state_id",
+      "state_name",
+      "state_abbr"
+    ],
+    "destination_columns": [
+      "id",
+      "name",
+      "abbr",
+      "level"
+    ],
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "state_id": "id",
+            "state_name": "name",
+            "state_abbr": "abbr"
+          }
+        }
+      },
+      {
+        "function": "map",
+        "parameters": {
+          "source_name": "id",
+          "destination_name": "level",
+          "mapping": {
+            "52": "federal"
+          },
+          "default": "state"
+        }
+      }
+    ],
+    "dataframe": null
+  },
+  {
+    "source": "ls_role",
+    "destination": "roles",
+    "source_columns": [
+      "role_id",
+      "role_name"
+    ],
+    "destination_columns": [
+      "id",
+      "name"
+    ],
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "role_id": "id",
+            "role_name": "name"
+          }
+        }
+      }
+    ],
+    "dataframe": null
+  },
+  {
+    "source": "ls_body",
+    "destination": "legislative_bodys",
+    "source_columns": [
+      "body_id",
+      "state_id",
+      "role_id"
+    ],
+    "destination_columns": [
+      "id",
+      "legislature_id",
+      "role_id"
+    ],
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "body_id": "id",
+            "state_id": "legislature_id"
+          }
+        }
+      }
+    ],
+    "dataframe": null
+  },
+  {
+    "source": "ls_party",
+    "destination": "partys",
+    "source_columns": [
+      "party_id",
+      "party_name"
+    ],
+    "destination_columns": [
+      "id",
+      "name"
+    ],
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "party_id": "id",
+            "party_name": "name"
+          }
+        }
+      }
+    ],
+    "dataframe": null
+  },
+  {
+    "source": "ls_session",
+    "destination": "sessions",
+    "source_columns": [
+      "session_id",
+      "session_name",
+      "state_id"
+    ],
+    "destination_columns": [
+      "id",
+      "name",
+      "legislature_id"
+    ],
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "session_id": "id",
+            "session_name": "name",
+            "state_id": "legislature_id"
+          }
+        }
+      }
+    ],
+    "dataframe": null
+  },
+  {
+    "source": "ls_bill",
+    "destination": "bills",
+    "source_columns": [
+      "bill_id",
+      "title",
+      "description",
+      "state_id",
+      "body_id",
+      "bill_number",
+      "session_id",
+      "status_id",
+      "status_date"
+    ],
+    "destination_columns": [
+      "id",
+      "legiscan_id",
+      "title",
+      "description",
+      "legislature_id",
+      "legislative_body_id",
+      "identifier",
+      "session_id",
+      "status_id",
+      "status_date"
+    ],
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "bill_id": "id",
+            "bill_number": "identifier",
+            "body_id": "legislative_body_id",
+            "state_id": "legislature_id"
+          }
+        }
+      },
+      {
+        "function": "duplicate",
+        "parameters": {
+          "source_name": "id",
+          "destination_name": "legiscan_id"
+        }
+      }
+    ],
+    "dataframe": null
+  },
+  {
+    "source": "(SELECT p.*, SPLIT_PART(p.district, '-', 2) as representing_state_abbr FROM ls_people p) AS derived_people",
+    "destination": "legislators",
+    "source_columns": [
+      "people_id",
+      "name",
+      "party_id",
+      "district",
+      "ballotpedia",
+      "state_id",
+      "role_id",
+      "representing_state_abbr",
+      "followthemoney_eid"
+    ],
+    "destination_columns": [
+      "id",
+      "legiscan_id",
+      "name",
+      "party_id",
+      "district",
+      "state_id",
+      "legislature_id",
+      "image_url",
+      "role_id",
+      "followthemoney_eid"
+    ],
+    "join_config": {
+      "join_type": "LEFT JOIN",
+      "table": "ls_state",
+      "on": ["representing_state_abbr", "state_abbr"],
+      "columns": [
+        "ls_state.state_id AS representing_state_id"
+      ]
+    },
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "people_id": "id",
+            "state_id": "legislature_id",
+            "representing_state_id": "state_id"
+          }
+        }
+      },
+      {
+        "function": "duplicate",
+        "parameters": {
+          "source_name": "id",
+          "destination_name": "legiscan_id"
+        }
+      },
+      {
+        "function": "add_url",
+        "parameters": {
+          "source_name": "ballotpedia",
+          "destination_name": "image_url"
+        }
+      }
+    ],
+    "dataframe": null,
+    "unique_constraints": [
+      "id"
+    ]
+  },
+  {
+    "source": "ls_committee",
+    "destination": "committees",
+    "source_columns": [
+      "committee_id",
+      "committee_body_id",
+      "committee_name"
+    ],
+    "destination_columns": [
+      "id",
+      "legislative_body_id",
+      "name"
+    ],
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "committee_id": "id",
+            "committee_body_id": "legislative_body_id",
+            "committee_name": "name"
+          }
+        }
+      }
+    ],
+    "dataframe": null
+  },
+  {
+    "source": "ls_bill_text",
+    "destination": "bill_versions",
+    "source_columns": [
+      "text_id",
+      "bill_id",
+      "bill_text_type_id",
+      "bill_text_date",
+      "state_url"
+    ],
+    "destination_columns": [
+      "id",
+      "bill_id",
+      "version_type",
+      "date",
+      "url",
+      "hash"
+    ],
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "state_url": "url",
+            "text_id": "id",
+            "bill_text_date": "date"
+          }
+        }
+      },
+      {
+        "function": "hash",
+        "parameters": {
+          "source_name": "url",
+          "destination_name": "hash"
+        }
+      },
+      {
+        "function": "map",
+        "parameters": {
+          "source_name": "bill_text_type_id",
+          "destination_name": "version_type",
+          "mapping": {
+            "1": "Introduced",
+            "2": "Comm Sub",
+            "3": "Amended",
+            "4": "Engrossed",
+            "5": "Enrolled",
+            "6": "Chaptered",
+            "7": "Fiscal Note",
+            "8": "Analysis",
+            "9": "Draft",
+            "10": "Conference Sub",
+            "11": "Prefiled",
+            "12": "Veto Message",
+            "13": "Veto Response",
+            "14": "Substitute"
+          }
+        }
+      }
+    ],
+    "dataframe": null
+  },
+  {
+    "source": "ls_bill_vote",
+    "destination": "bill_actions",
+    "source_columns": [
+      "roll_call_id",
+      "bill_id",
+      "roll_call_body_id",
+      "roll_call_date",
+      "roll_call_desc"
+    ],
+    "destination_columns": [
+      "id",
+      "bill_id",
+      "legislative_body_id",
+      "date",
+      "description"
+    ],
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "roll_call_id": "id",
+            "roll_call_body_id": "legislative_body_id",
+            "roll_call_date": "date",
+            "roll_call_desc": "description"
+          }
+        }
+      }
+    ],
+    "dataframe": null
+  },
+  {
+    "source": "ls_vote",
+    "destination": "vote_choices",
+    "source_columns": [
+      "vote_id",
+      "vote_desc"
+    ],
+    "destination_columns": [
+      "id",
+      "name"
+    ],
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "vote_id": "id",
+            "vote_desc": "name"
+          }
+        }
+      }
+    ],
+    "dataframe": null
+  },
+  {
+    "source": "ls_bill_vote_detail",
+    "destination": "legislator_votes",
+    "source_columns": [
+      "roll_call_id",
+      "people_id",
+      "vote_id"
+    ],
+    "destination_columns": [
+      "bill_action_id",
+      "legislator_id",
+      "vote_choice_id",
+      "bill_id"
+    ],
+    "join_config": {
+      "join_type": "LEFT JOIN",
+      "table": "ls_bill_vote",
+      "on": "roll_call_id",
+      "columns": [
+        "bill_id"
+      ]
+    },
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "roll_call_id": "bill_action_id",
+            "people_id": "legislator_id",
+            "vote_id": "vote_choice_id"
+          }
+        }
+      }
+    ],
+    "dataframe": null,
+    "unique_constraints": [
+      "bill_action_id",
+      "legislator_id"
+    ]
+  },
+  {
+    "source": "ls_bill_sponsor",
+    "destination": "bill_sponsors",
+    "source_columns": [
+      "bill_id",
+      "people_id",
+      "sponsor_order",
+      "sponsor_type_id"
+    ],
+    "destination_columns": [
+      "bill_id",
+      "legislator_id",
+      "rank",
+      "type"
+    ],
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "people_id": "legislator_id",
+            "sponsor_order": "rank"
+          }
+        }
+      },
+      {
+        "function": "map",
+        "parameters": {
+          "source_name": "sponsor_type_id",
+          "destination_name": "type",
+          "mapping": {
+            "0": "Sponsor",
+            "1": "Primary Sponsor",
+            "2": "Co-Sponsor",
+            "4": "Joint Sponsor"
+          }
+        }
+      }
+    ],
+    "dataframe": null,
+    "unique_constraints": [
+      "bill_id",
+      "legislator_id"
+    ]
+  },
+  {
+    "source": "ls_progress",
+    "destination": "statuses",
+    "source_columns": [
+      "progress_event_id",
+      "progress_desc"
+    ],
+    "destination_columns": [
+      "id",
+      "name"
+    ],
+    "transformations": [
+      {
+        "function": "rename",
+        "parameters": {
+          "columns": {
+            "progress_event_id": "id",
+            "progress_desc": "name"
+          }
+        }
+      }
+    ],
+    "dataframe": null
+  }
+]
