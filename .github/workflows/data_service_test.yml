@@ -47,9 +47,67 @@ jobs:
       run: |
         docker compose --profile test build
 
+    - name: Start services and show logs
+      run: |
+        echo "Starting services..."
+        docker compose --profile test up -d
+        
+        echo "Waiting for services to start..."
+        sleep 30
+        
+        echo "=== Container Status ==="
+        docker compose --profile test ps
+        
+        echo "=== All Container Logs ==="
+        docker compose --profile test logs
+        
+        echo "=== User API Local Logs ==="
+        docker compose --profile test logs user-api-local || echo "user-api-local container not found"
+        
+        echo "=== Database Logs ==="
+        docker compose --profile test logs db || echo "db container not found"
+        
+        echo "=== Localstack Logs ==="
+        docker compose --profile test logs localstack || echo "localstack container not found"
+        
+        echo "=== PLC Logs ==="
+        docker compose --profile test logs plc || echo "plc container not found"
+
+    - name: Check container health status
+      run: |
+        echo "=== Detailed Container Health Status ==="
+        docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+        
+        echo "=== Inspect user-api-local health ==="
+        docker inspect user-api-local --format='{{.State.Health.Status}}' || echo "Health status not available"
+        docker inspect user-api-local --format='{{range .State.Health.Log}}{{.Output}}{{end}}' || echo "Health logs not available"
+
+    - name: Test health endpoints manually
+      run: |
+        echo "=== Testing health endpoints manually ==="
+        
+        # Test if curl is available in user-api-local
+        echo "Testing if curl is available in user-api-local..."
+        docker exec user-api-local which curl || echo "curl not found"
+        docker exec user-api-local which wget || echo "wget not found"
+        
+        # Test the health endpoint from outside the container
+        echo "Testing user service health endpoint from host..."
+        curl -f http://localhost:8080/health || echo "Health endpoint not reachable from host"
+        
+        # Test from inside the container
+        echo "Testing user service health endpoint from inside container..."
+        docker exec user-api-local curl -f http://localhost:80/health || echo "Health endpoint not reachable from inside container"
+
     - name: Run API Tests
       run: |
         docker compose --profile test run --rm data-test pytest api/ common/
+
+    - name: Show logs after API tests
+      if: always()
+      run: |
+        echo "=== Logs after API tests ==="
+        docker compose --profile test logs --tail=50
 
     - name: Clean up after API tests
       if: always()
@@ -59,6 +117,12 @@ jobs:
       run: |
         docker compose --profile test build
         docker compose --profile test run --rm data-test pytest pipeline/
+
+    - name: Show final logs
+      if: always()
+      run: |
+        echo "=== Final container logs ==="
+        docker compose --profile test logs --tail=100
 
     - name: Final cleanup
       if: always()
