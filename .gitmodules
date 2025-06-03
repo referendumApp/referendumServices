@@ -1,0 +1,3 @@
+[submodule "plc"]
+	path = plc
+	url = https://github.com/did-method-plc/did-method-plc
