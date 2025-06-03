@@ -837,7 +837,7 @@ func (rm *Manager) ImportNewRepo(ctx context.Context, actor atp.Aid, repoDid str
 					rm.log.ErrorContext(
 						ctx,
 						"failed to process repo op",
-						"err",
+						"error",
 						perr,
 						"path",
 						op.Rpath,
@@ -919,7 +919,7 @@ func (rm *Manager) processOp(
 				return nil, err
 			}
 
-			rm.log.WarnContext(ctx, "failed processing repo diff", "err", err)
+			rm.log.WarnContext(ctx, "failed processing repo diff", "error", err)
 		} else {
 			outop.Record = rec
 		}

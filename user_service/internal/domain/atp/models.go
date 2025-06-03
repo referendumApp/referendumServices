@@ -28,6 +28,7 @@ type Base struct {
 // AuthSettings stores authentication configuration
 type AuthSettings struct {
 	HashedPassword string `json:"hashed_password,omitempty"`
+	ApiKey         string `json:"api_key,omitempty"`
 }
 
 // Marshal serializes Settings to JSON
@@ -42,30 +43,17 @@ func (u *AuthSettings) Unmarshal(data []byte) error {
 
 // Actor is the core account object that owns a repo and contains auth information
 type Actor struct {
-	Handle      sql.NullString `db:"handle,omitempty"        json:"-"`
-	RecoveryKey string         `db:"recovery_key,omitempty"  json:"-"`
-	Did         string         `db:"did,omitempty"           json:"did"`
+	Handle      sql.NullString `db:"handle,omitempty"`
+	RecoveryKey string         `db:"recovery_key,omitempty"`
+	Did         string         `db:"did,omitempty"`
 	Metadata
-	ID           Aid            `db:"id,omitempty,pk"         json:"id"`
-	PDS          sql.NullInt64  `db:"pds_id,omitempty"        json:"-"`
-	Email        sql.NullString `db:"email,omitempty"         json:"email"`
-	AuthSettings *AuthSettings  `db:"auth_settings,omitempty" json:"auth_settings"`
+	ID           Aid            `db:"id,omitempty,pk"`
+	PDS          sql.NullInt64  `db:"pds_id,omitempty"`
+	Email        sql.NullString `db:"email,omitempty"`
+	AuthSettings *AuthSettings  `db:"auth_settings,omitempty"`
 }
 
 func (u Actor) TableName() string {
-	return "actors"
-}
-
-// ActorBasic represents the data to be used when displaying a basic profile
-type ActorBasic struct {
-	ID           Aid           `db:"id,omitempty,pk"         json:"id"`
-	Handle       *string       `db:"handle,omitempty"        json:"handle"`
-	Did          string        `db:"did,omitempty"           json:"did"`
-	DeletedAt    sql.NullTime  `db:"deleted_at,omitempty"    json:"-"`
-	AuthSettings *AuthSettings `db:"auth_settings,omitempty" json:"auth_settings"`
-}
-
-func (a ActorBasic) TableName() string {
 	return "actors"
 }
 
@@ -100,7 +88,7 @@ func (f ActivityPost) TableName() string {
 
 // UserSettings stores user configuration settings
 type UserSettings struct {
-	Type string `db:"type" json:"type"`
+	Type string `json:"type"`
 }
 
 func (u *UserSettings) Marshal() ([]byte, error) {
@@ -115,14 +103,15 @@ func (u *UserSettings) Unmarshal(data []byte) error {
 // Each User is associated with exactly one Actor via the Aid field.
 type User struct {
 	Base
-	Aid         Aid           `db:"aid,omitempty"          json:"-"`
-	DisplayName string        `db:"display_name,omitempty" json:"display_name"`
-	Following   int64         `db:"following,omitempty"    json:"following"`
-	Followers   int64         `db:"followers,omitempty"    json:"followers"`
-	Posts       int64         `db:"posts,omitempty"        json:"posts"`
-	PDS         sql.NullInt64 `db:"pds_id,omitempty"       json:"-"`
-	ValidHandle bool          `db:"valid_handle,omitempty" json:"valid_handle"`
-	Settings    *UserSettings `db:"settings,omitempty"     json:"settings"`
+	Did         string        `db:"did,omitempty"`
+	Aid         Aid           `db:"aid,omitempty"`
+	DisplayName string        `db:"display_name,omitempty"`
+	Following   int64         `db:"following,omitempty"`
+	Followers   int64         `db:"followers,omitempty"`
+	Posts       int64         `db:"posts,omitempty"`
+	PDS         sql.NullInt64 `db:"pds_id,omitempty"`
+	ValidHandle bool          `db:"valid_handle,omitempty"`
+	Settings    *UserSettings `db:"settings,omitempty"`
 }
 
 func (a User) TableName() string {

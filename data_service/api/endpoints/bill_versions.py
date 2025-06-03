@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from common.chat.bill import BillChatSessionManager
 from common.chat.service import LLMService, OpenAIException
 from common.database.referendum import crud, schemas
-from common.object_storage.client import S3Client
+from common.aws.s3.client import S3Client
 
 from ..database import get_db
 from ..schemas.interactions import (

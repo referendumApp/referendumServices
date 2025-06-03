@@ -31,13 +31,15 @@ import (
 	"github.com/referendumApp/referendumServices/internal/util"
 	"github.com/referendumApp/referendumServices/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
-	baseUrl = "http://localhost:80"
-	handle  = "k1ng.referendumapp.com"
-	email   = "ken@referendumapp.com"
-	pw      = "Testing123$"
+	baseUrl     = "http://localhost:80"
+	handle      = "k1ng.referendumapp.com"
+	email       = "ken@referendumapp.com"
+	pw          = "Testing123$"
+	adminApiKey = "TEST_API_KEY"
 )
 
 var (
@@ -74,12 +76,12 @@ func setupAndRunTests(m *testing.M, servChErr chan error) int {
 	}
 	defer pc.CleanupPostgres(docker)
 
-	sc, err := docker.SetupS3(ctx)
+	sc, err := docker.SetupLocalStack(ctx)
 	if err != nil {
 		log.Printf("Failed to setup s3 container: %v\n", err)
 		return 1
 	}
-	defer sc.CleanupS3(docker)
+	defer sc.CleanupLocalStack(docker)
 
 	kms, err := docker.SetupKMS(ctx, cfg)
 	if err != nil {
@@ -88,13 +90,23 @@ func setupAndRunTests(m *testing.M, servChErr chan error) int {
 	}
 	defer kms.CleanupKMS(docker)
 
+	cache, err := docker.SetupCache(ctx, cfg)
+	if err != nil {
+		log.Printf("Failed to setup cache container: %v\n", err)
+		return 1
+	}
+	defer cache.CleanupCache(docker)
+
 	db, err := database.Connect(ctx, cfg.DBConfig, logger)
 	if err != nil {
 		return 1
 	}
 	defer db.Close()
 
-	av := app.NewAppView(db, cfg.DBConfig.AtpDBSchema, cfg.HandleSuffix, logger)
+	av, err := app.NewAppView(ctx, db, cfg.DBConfig.AtpDBSchema, cfg.HandleSuffix, cfg.CacheHost, logger)
+	if err != nil {
+		return 1
+	}
 
 	clients, err := aws.NewClients(ctx, cfg.Env)
 	if err != nil {
@@ -128,7 +140,7 @@ func setupAndRunTests(m *testing.M, servChErr chan error) int {
 		return 1
 	}
 
-	testService, err = New(ctx, av, pds, logger)
+	testService, err = New(ctx, av, pds, clients, cfg, logger)
 	if err != nil {
 		return 1
 	}
@@ -137,9 +149,9 @@ func setupAndRunTests(m *testing.M, servChErr chan error) int {
 		servChErr <- testService.Start(ctx)
 	}()
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(3 * time.Second)
 
-	client = &http.Client{Timeout: 5 * time.Second}
+	client = &http.Client{Timeout: 15 * time.Second}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseUrl+"/health", nil)
 	if err != nil {
@@ -155,7 +167,7 @@ func setupAndRunTests(m *testing.M, servChErr chan error) int {
 	defer func() {
 		_ = resp.Body.Close()
 	}()
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusNoContent {
 		log.Printf("Server did not start properly, got status %v\n", resp.Status)
 		return 1
 	}
@@ -206,7 +218,7 @@ func (tr *testRequest) handleJsonRequest(t *testing.T) *http.Request {
 
 func (tr *testRequest) handleFormRequest(t *testing.T) *http.Request {
 	form, ok := tr.body.(url.Values)
-	assert.True(t, ok, "Request body must be 'url.Values'")
+	require.True(t, ok, "Request body must be 'url.Values'")
 
 	req, err := http.NewRequestWithContext(
 		context.Background(),
@@ -214,7 +226,7 @@ func (tr *testRequest) handleFormRequest(t *testing.T) *http.Request {
 		baseUrl+tr.path,
 		strings.NewReader(form.Encode()),
 	)
-	assert.NoError(t, err, "Failed to create HTTP request")
+	require.NoError(t, err, "Failed to create HTTP request")
 
 	for k, v := range tr.headers {
 		req.Header.Set(k, v)
@@ -230,7 +242,7 @@ type testResponse struct {
 
 func (e *testResponse) getResponse(t *testing.T, req *http.Request) int {
 	resp, err := client.Do(req)
-	assert.NoError(t, err, "HTTP request failed")
+	require.NoError(t, err, "HTTP request failed")
 	defer resp.Body.Close()
 
 	// Always log request details for debugging
@@ -306,7 +318,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Email:       email,
@@ -316,7 +328,7 @@ func TestCreateAccount(t *testing.T) {
 			},
 			testResponse{
 				status: http.StatusCreated,
-				body:   &refApp.ServerCreateAccount_Output{},
+				body:   &refApp.ServerCreateSession_Output{},
 			},
 			nil,
 		},
@@ -324,7 +336,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Email:       "kenny@gmail.com",
@@ -334,7 +346,7 @@ func TestCreateAccount(t *testing.T) {
 			},
 			testResponse{
 				status: http.StatusCreated,
-				body:   &refApp.ServerCreateAccount_Output{},
+				body:   &refApp.ServerCreateSession_Output{},
 			},
 			nil,
 		},
@@ -342,7 +354,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Duplicate Handle",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Email:       "kenny@referendumapp.com",
@@ -359,7 +371,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Duplicate Email",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Email:       email,
@@ -376,7 +388,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Invalid Handle",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Email:       email,
@@ -393,7 +405,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Invalid Handle",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Email:       email,
@@ -410,7 +422,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Invalid Handle",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Email:       email,
@@ -427,7 +439,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Invalid Handle",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Email:       "kenny@gmail.com",
@@ -444,7 +456,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Invalid Handle",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Email:       email,
@@ -461,7 +473,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Invalid Email",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Email:       "kengmail.com",
@@ -478,7 +490,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Invalid Password",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Email:       email,
@@ -495,7 +507,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Invalid Display Name",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken.",
 					Email:       email,
@@ -512,7 +524,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Missing Display Name",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					Email:    email,
 					Handle:   handle,
@@ -528,7 +540,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Missing Email",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Handle:      handle,
@@ -544,7 +556,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Missing Handle",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Email:       email,
@@ -560,7 +572,7 @@ func TestCreateAccount(t *testing.T) {
 			"Create Account w/ Missing Password",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/signup",
+				path:   "/auth/account",
 				body: refApp.ServerCreateAccount_Input{
 					DisplayName: "Ken",
 					Email:       email,
@@ -588,7 +600,7 @@ func TestSession(t *testing.T) {
 			"Create Session w/ Handle",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/login",
+				path:   "/auth/session",
 				body: url.Values{
 					"grantType": {"password"},
 					"username":  {handle},
@@ -606,7 +618,7 @@ func TestSession(t *testing.T) {
 			"Create Session w/ Email",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/login",
+				path:   "/auth/session",
 				body: url.Values{
 					"grantType": {"password"},
 					"username":  {email},
@@ -624,7 +636,7 @@ func TestSession(t *testing.T) {
 			"Create Session w/ Invalid Grant",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/login",
+				path:   "/auth/session",
 				body: url.Values{
 					"grantType": {"test"},
 					"username":  {email},
@@ -642,7 +654,7 @@ func TestSession(t *testing.T) {
 			"Create Session w/ Incorrect Password",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/login",
+				path:   "/auth/session",
 				body: url.Values{
 					"grantType": {"password"},
 					"username":  {email},
@@ -660,7 +672,7 @@ func TestSession(t *testing.T) {
 			"Create Session w/ Incorrect Username",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/login",
+				path:   "/auth/session",
 				body: url.Values{
 					"grantType": {"password"},
 					"username":  {"wrong.referendumapp.com"},
@@ -678,7 +690,7 @@ func TestSession(t *testing.T) {
 			"Create Session w/ Missing Username",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/login",
+				path:   "/auth/session",
 				body: url.Values{
 					"grantType": {"password"},
 					"password":  {pw},
@@ -695,7 +707,7 @@ func TestSession(t *testing.T) {
 			"Create Session w/ Missing Password",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/login",
+				path:   "/auth/session",
 				body: url.Values{
 					"grantType": {"password"},
 					"username":  {handle},
@@ -729,14 +741,14 @@ func TestSession(t *testing.T) {
 		jwt.SigningMethodHS256,
 		jwt.MapClaims{"sub": "1", "did": "did:plc:fjadklfjlkadsjf", "iss": "test", "type": "refresh"},
 	).SignedString(bytes.NewBufferString("test").Bytes())
-	assert.NoError(t, err, "Error generating test token")
+	require.NoError(t, err, "Error generating test token")
 
-	refreshTests := []testCase{
+	refreshSessionTests := []testCase{
 		{
 			"Refresh Session",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/refresh",
+				path:   "/auth/session/refresh",
 				body: refApp.ServerRefreshSession_Input{
 					RefreshToken: refreshToken,
 				},
@@ -751,7 +763,7 @@ func TestSession(t *testing.T) {
 			"Refresh Session w/ Missing Token",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/refresh",
+				path:   "/auth/session/refresh",
 				body:   refApp.ServerRefreshSession_Input{},
 			},
 			testResponse{
@@ -764,7 +776,7 @@ func TestSession(t *testing.T) {
 			"Refresh Session w/ Invalid Token",
 			testRequest{
 				method: http.MethodPost,
-				path:   "/auth/refresh",
+				path:   "/auth/session/refresh",
 				body: refApp.ServerRefreshSession_Input{
 					RefreshToken: testRefreshToken,
 				},
@@ -777,7 +789,7 @@ func TestSession(t *testing.T) {
 		},
 	}
 
-	for _, tc := range refreshTests {
+	for _, tc := range refreshSessionTests {
 		t.Run(tc.name, func(t *testing.T) {
 			req := tc.request.handleJsonRequest(t)
 			tc.response.getResponse(t, req)
@@ -793,11 +805,73 @@ func TestSession(t *testing.T) {
 		})
 	}
 
+	refreshAccTests := []testCase{
+		{
+			"Refresh Account",
+			testRequest{
+				method: http.MethodPost,
+				path:   "/auth/account/refresh",
+				body: refApp.ServerRefreshSession_Input{
+					RefreshToken: refreshToken,
+				},
+			},
+			testResponse{
+				status: http.StatusOK,
+				body:   &refApp.ServerCreateSession_Output{},
+			},
+			nil,
+		},
+		{
+			"Refresh Account w/ Missing Token",
+			testRequest{
+				method: http.MethodPost,
+				path:   "/auth/account/refresh",
+				body:   refApp.ServerRefreshSession_Input{},
+			},
+			testResponse{
+				status: http.StatusUnprocessableEntity,
+				body:   &refApp.ServerCreateSession_Output{},
+			},
+			nil,
+		},
+		{
+			"Refresh Account w/ Invalid Token",
+			testRequest{
+				method: http.MethodPost,
+				path:   "/auth/account/refresh",
+				body: refApp.ServerRefreshSession_Input{
+					RefreshToken: testRefreshToken,
+				},
+			},
+			testResponse{
+				status: http.StatusUnauthorized,
+				body:   &refApp.ServerCreateSession_Output{},
+			},
+			nil,
+		},
+	}
+
+	for _, tc := range refreshAccTests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := tc.request.handleJsonRequest(t)
+			tc.response.getResponse(t, req)
+
+			session, ok := tc.response.body.(*refApp.ServerCreateSession_Output)
+			require.True(t, ok, "Response body should be *ServerRefreshSession_Output")
+
+			if session.AccessToken != "" && session.RefreshToken != "" {
+				accessToken = session.AccessToken
+				refreshToken = session.RefreshToken
+				t.Logf("Tokens Refreshed: Access: %s Refresh %s", accessToken, refreshToken)
+			}
+		})
+	}
+
 	testAccessToken, err := jwt.NewWithClaims(
 		jwt.SigningMethodHS256,
 		jwt.MapClaims{"sub": "1", "did": "did:plc:fjadklfjlkadsjf", "iss": "test", "type": "access"},
 	).SignedString(bytes.NewBufferString("test").Bytes())
-	assert.NoError(t, err, "Error generating test token")
+	require.NoError(t, err, "Error generating test token")
 
 	deleteSessionTests := []testCase{
 		{
@@ -874,14 +948,13 @@ func TestSession(t *testing.T) {
 
 	for _, tc := range deleteAcctTests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Logf("%s: %s", tc.name, tc.request.headers)
 			req := tc.request.handleJsonRequest(t)
 			sc := tc.response.getResponse(t, req)
 
 			if sc == http.StatusOK {
 				loginReq := testRequest{
 					method: http.MethodPost,
-					path:   "/auth/login",
+					path:   "/auth/session",
 					body: url.Values{
 						"grantType": {"password"},
 						"username":  {handle},
@@ -923,6 +996,7 @@ func TestLegislator(t *testing.T) {
 				Address:      stringPtr(fmt.Sprintf("%d Capitol St", id)),
 				Phone:        stringPtr(fmt.Sprintf("+1206555%04d", id%10000)),
 			},
+			headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 		}
 
 		req := createReq.handleJsonRequest(t)
@@ -959,6 +1033,7 @@ func TestLegislator(t *testing.T) {
 						Address:      stringPtr("123 Capitol St"),
 						Phone:        stringPtr("+12065551234"),
 					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
 					status: http.StatusCreated,
@@ -980,6 +1055,7 @@ func TestLegislator(t *testing.T) {
 						State:        "CA",
 						Legislature:  "US",
 					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
 					status: http.StatusConflict,
@@ -996,6 +1072,7 @@ func TestLegislator(t *testing.T) {
 						Name:         "Representative Missing",
 						// Missing required fields like District, Party, Role, State, Legislature
 					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
 					status: http.StatusUnprocessableEntity,
@@ -1017,9 +1094,51 @@ func TestLegislator(t *testing.T) {
 						Legislature:  "State House",
 						Phone:        stringPtr("555-1234"), // Invalid format
 					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
 					status: http.StatusUnprocessableEntity,
+				},
+				nil,
+			},
+			{
+				"Create Legislator without API Key",
+				testRequest{
+					method: http.MethodPost,
+					path:   "/legislators",
+					body: refApp.ServerCreateLegislator_Input{
+						LegislatorId: 98767,
+						Name:         "Representative Unauthorized",
+						District:     "WA-SD-02",
+						Party:        "Independent",
+						Role:         "Representative",
+						State:        "WA",
+						Legislature:  "US",
+					},
+				},
+				testResponse{
+					status: http.StatusUnauthorized,
+				},
+				nil,
+			},
+			{
+				"Create Legislator with Invalid API Key",
+				testRequest{
+					method: http.MethodPost,
+					path:   "/legislators",
+					body: refApp.ServerCreateLegislator_Input{
+						LegislatorId: 98768,
+						Name:         "Representative Invalid Key",
+						District:     "WA-SD-03",
+						Party:        "Independent",
+						Role:         "Representative",
+						State:        "WA",
+						Legislature:  "US",
+					},
+					headers: map[string]string{"Authorization": "Bearer INVALID_API_KEY"},
+				},
+				testResponse{
+					status: http.StatusUnauthorized,
 				},
 				nil,
 			},
@@ -1036,42 +1155,49 @@ func TestLegislator(t *testing.T) {
 	t.Run("Get", func(t *testing.T) {
 		// Create a test legislator for retrieval tests
 		testLegislator, err := createTestLegislator(99999, "Senator Test")
-		assert.NoError(t, err, "Failed to create test legislator")
-		assert.NotEmpty(t, testLegislator.Handle, "Created legislator should have a handle")
+		require.NoError(t, err, "Failed to create test legislator")
+		require.NotEmpty(t, testLegislator.Handle, "Created legislator should have a handle")
 
 		tests := []struct {
 			name     string
 			path     string
+			headers  map[string]string
 			expected int
 		}{
 			{
 				"Get Legislator By ID",
 				"/legislators?legislatorId=99999",
+				map[string]string{"Authorization": "Bearer " + adminApiKey},
 				http.StatusOK,
 			},
 			{
 				"Get Legislator That Doesn't Exist",
 				"/legislators?legislatorId=88888",
+				map[string]string{"Authorization": "Bearer " + adminApiKey},
 				http.StatusNotFound,
 			},
 			{
 				"Get Legislator With Invalid ID Format",
 				"/legislators?legislatorId=invalid",
+				map[string]string{"Authorization": "Bearer " + adminApiKey},
 				http.StatusBadRequest,
 			},
 			{
 				"Get Legislator Without Parameters",
 				"/legislators",
+				map[string]string{"Authorization": "Bearer " + adminApiKey},
 				http.StatusBadRequest,
 			},
 			{
 				"Get Legislator Using Handle",
 				fmt.Sprintf("/legislators?handle=%s", testLegislator.Handle),
+				map[string]string{"Authorization": "Bearer " + adminApiKey},
 				http.StatusOK,
 			},
 			{
 				"Get Legislator Using Invalid Handle",
 				"/legislators?handle=invalid-handle",
+				map[string]string{"Authorization": "Bearer " + adminApiKey},
 				http.StatusNotFound,
 			},
 		}
@@ -1085,6 +1211,12 @@ func TestLegislator(t *testing.T) {
 					nil,
 				)
 				assert.NoError(t, err, "Failed to create HTTP request")
+
+				if tc.headers != nil {
+					for k, v := range tc.headers {
+						req.Header.Set(k, v)
+					}
+				}
 
 				resp, err := client.Do(req)
 				assert.NoError(t, err, "HTTP request failed")
@@ -1116,6 +1248,7 @@ func TestLegislator(t *testing.T) {
 						LegislatorId: updateID,
 						Handle:       stringPtr("updated-handle.referendumapp.com"),
 					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
 					status: http.StatusOK,
@@ -1131,6 +1264,7 @@ func TestLegislator(t *testing.T) {
 						LegislatorId: updateID,
 						Name:         stringPtr("Senator Updated Name"),
 					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
 					status: http.StatusOK,
@@ -1146,6 +1280,7 @@ func TestLegislator(t *testing.T) {
 						LegislatorId: updateID,
 						Address:      stringPtr("999 Updated Capitol Ave"),
 					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
 					status: http.StatusOK,
@@ -1163,6 +1298,7 @@ func TestLegislator(t *testing.T) {
 						Name:         stringPtr("Senator Multi Update"),
 						Address:      stringPtr("888 Multi Update St"),
 					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
 					status: http.StatusOK,
@@ -1178,6 +1314,7 @@ func TestLegislator(t *testing.T) {
 						LegislatorId: 999999,
 						Name:         stringPtr("NonExistent"),
 					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
 					status: http.StatusNotFound,
@@ -1193,6 +1330,7 @@ func TestLegislator(t *testing.T) {
 						LegislatorId: updateID,
 						Handle:       stringPtr("invalid_handle"),
 					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
 					status: http.StatusUnprocessableEntity,
@@ -1207,6 +1345,7 @@ func TestLegislator(t *testing.T) {
 					body: refApp.LegislatorUpdateProfile_Input{
 						Name: stringPtr("Missing ID"),
 					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
 					status: http.StatusUnprocessableEntity,
@@ -1221,9 +1360,42 @@ func TestLegislator(t *testing.T) {
 					body: refApp.LegislatorUpdateProfile_Input{
 						LegislatorId: updateID,
 					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
 				},
 				testResponse{
 					status: http.StatusOK, // Should succeed even with no fields to update
+				},
+				nil,
+			},
+			{
+				"Update Legislator without API Key",
+				testRequest{
+					method: http.MethodPut,
+					path:   "/legislators",
+					body: refApp.LegislatorUpdateProfile_Input{
+						LegislatorId: updateID,
+						Name:         stringPtr("Unauthorized Update"),
+					},
+					// No Authorization header
+				},
+				testResponse{
+					status: http.StatusUnauthorized,
+				},
+				nil,
+			},
+			{
+				"Update Legislator with Invalid API Key",
+				testRequest{
+					method: http.MethodPut,
+					path:   "/legislators",
+					body: refApp.LegislatorUpdateProfile_Input{
+						LegislatorId: updateID,
+						Name:         stringPtr("Invalid Key Update"),
+					},
+					headers: map[string]string{"Authorization": "Bearer INVALID_API_KEY"},
+				},
+				testResponse{
+					status: http.StatusUnauthorized,
 				},
 				nil,
 			},
@@ -1243,6 +1415,7 @@ func TestLegislator(t *testing.T) {
 						nil,
 					)
 					assert.NoError(t, err, "Failed to create GET request")
+					getReq.Header.Set("Authorization", "Bearer "+adminApiKey)
 
 					getResp, err := client.Do(getReq)
 					assert.NoError(t, err, "Failed to fetch updated legislator")
@@ -1269,72 +1442,103 @@ func TestLegislator(t *testing.T) {
 		_, err := createTestLegislator(deleteID, "Senator ToDelete")
 		assert.NoError(t, err, "Failed to create test legislator for deletion")
 
-		tests := []struct {
-			name     string
-			path     string
-			expected int
-		}{
+		tests := []testCase{
 			{
 				"Delete Legislator By ID",
-				"/legislators?legislatorId=77777",
-				http.StatusOK,
-			},
-			{
-				"Delete Already Deleted Legislator",
-				"/legislators?legislatorId=77777",
-				http.StatusNotFound,
+				testRequest{
+					method:  http.MethodDelete,
+					path:    "/legislators?legislatorId=77777",
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
+				},
+				testResponse{
+					status: http.StatusOK,
+				},
+				nil,
 			},
 			{
 				"Delete Non-existent Legislator",
-				"/legislators?legislatorId=99999999",
-				http.StatusNotFound,
+				testRequest{
+					method:  http.MethodDelete,
+					path:    "/legislators?legislatorId=88888",
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
+				},
+				testResponse{
+					status: http.StatusNotFound,
+				},
+				nil,
 			},
 			{
-				"Delete Legislator With Invalid ID Format",
-				"/legislators?legislatorId=invalid",
-				http.StatusBadRequest,
+				"Delete Legislator with Invalid ID Format",
+				testRequest{
+					method:  http.MethodDelete,
+					path:    "/legislators?legislatorId=invalid",
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
+				},
+				testResponse{
+					status: http.StatusBadRequest,
+				},
+				nil,
 			},
 			{
 				"Delete Legislator Without Parameters",
-				"/legislators",
-				http.StatusBadRequest,
+				testRequest{
+					method:  http.MethodDelete,
+					path:    "/legislators",
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
+				},
+				testResponse{
+					status: http.StatusBadRequest,
+				},
+				nil,
+			},
+			{
+				"Delete Legislator without API Key",
+				testRequest{
+					method: http.MethodDelete,
+					path:   "/legislators?legislatorId=99998",
+					// No Authorization header
+				},
+				testResponse{
+					status: http.StatusUnauthorized,
+				},
+				nil,
+			},
+			{
+				"Delete Legislator with Invalid API Key",
+				testRequest{
+					method:  http.MethodDelete,
+					path:    "/legislators?legislatorId=99997",
+					headers: map[string]string{"Authorization": "Bearer INVALID_API_KEY"},
+				},
+				testResponse{
+					status: http.StatusUnauthorized,
+				},
+				nil,
 			},
 		}
 
 		for _, tc := range tests {
 			t.Run(tc.name, func(t *testing.T) {
-				req, err := http.NewRequestWithContext(
-					context.Background(),
-					http.MethodDelete,
-					baseUrl+tc.path,
-					nil,
-				)
-				assert.NoError(t, err, "Failed to create HTTP request")
+				req := tc.request.handleJsonRequest(t)
+				sc := tc.response.getResponse(t, req)
 
-				resp, err := client.Do(req)
-				assert.NoError(t, err, "HTTP request failed")
-				defer resp.Body.Close()
+				if sc == http.StatusOK {
+					verificationReq := testRequest{
+						method:  http.MethodGet,
+						path:    tc.request.path,
+						headers: tc.request.headers,
+					}
 
-				assert.Equal(t, tc.expected, resp.StatusCode)
+					verificationResp := testResponse{
+						status: http.StatusNotFound,
+					}
 
-				// Verify deletion by trying to fetch the deleted legislator
-				if resp.StatusCode == http.StatusOK && strings.Contains(tc.path, "legislatorId=") {
-					idStr := strings.Split(strings.Split(tc.path, "legislatorId=")[1], "&")[0]
+					req := verificationReq.handleJsonRequest(t)
+					actualStatus := verificationResp.getResponse(t, req)
 
-					getReq, err := http.NewRequestWithContext(
-						context.Background(),
-						http.MethodGet,
-						baseUrl+fmt.Sprintf("/legislators?legislatorId=%s", idStr),
-						nil,
-					)
-					assert.NoError(t, err, "Failed to create GET request")
-
-					getResp, err := client.Do(getReq)
-					assert.NoError(t, err, "Failed to verify deletion")
-					defer getResp.Body.Close()
-
-					assert.Equal(t, http.StatusNotFound, getResp.StatusCode,
-						"Legislator should not be found after deletion")
+					if actualStatus == http.StatusNotFound {
+						t.Logf("Verified deletion: Legislator %d returns 404 after deletion", legislatorID)
+					}
 				}
 			})
 		}

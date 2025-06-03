@@ -665,6 +665,13 @@ func (ts *TypeSchema) WriteType(name string, w io.Writer) error {
 	return nil
 }
 
+func updateValTags(valTags *strings.Builder, tag string) {
+	if valTags.Len() > 0 {
+		valTags.WriteString(",")
+	}
+	valTags.WriteString(tag)
+}
+
 // name is the top level type name from outputType
 // writeTypeDefinition is not called recursively, but only on a top level TypeSchema
 func (ts *TypeSchema) writeTypeDefinition(name string, w io.Writer) error {
@@ -758,24 +765,19 @@ func (ts *TypeSchema) writeTypeDefinition(name string, w io.Writer) error {
 			}
 
 			if v.Format != "" {
-				valTags.WriteString(",")
-				valTags.WriteString(v.Format)
+				updateValTags(&valTags, v.Format)
 			}
 			if v.MinLength != 0 {
-				valTags.WriteString(",")
-				valTags.WriteString(fmt.Sprintf("min=%d", v.MinLength))
+				updateValTags(&valTags, fmt.Sprintf("min=%d", v.MinLength))
 			}
 			if v.MaxLength != 0 {
-				valTags.WriteString(",")
-				valTags.WriteString(fmt.Sprintf("max=%d", v.MaxLength))
+				updateValTags(&valTags, fmt.Sprintf("max=%d", v.MaxLength))
 			}
 			if len(v.Validate) > 0 {
-				valTags.WriteString(",")
-				valTags.WriteString(strings.Join(v.Validate, ","))
+				updateValTags(&valTags, strings.Join(v.Validate, ","))
 			}
 			for _, enum := range v.Enum {
-				valTags.WriteString(",")
-				valTags.WriteString(fmt.Sprintf("oneof=%s", enum))
+				updateValTags(&valTags, fmt.Sprintf("oneof=%s", enum))
 			}
 
 			jsonOmit, cborOmit := omit, omit

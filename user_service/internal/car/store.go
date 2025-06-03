@@ -874,7 +874,7 @@ func (cs *S3CarStore) compactBucket(
 		}); err != nil {
 			// If we ever fail to iterate a shard file because its
 			// corrupted, just log an error and skip the shard
-			cs.log.ErrorContext(ctx, "iterating blocks in shard", "shard", s.ID, "err", err, "aid", actor)
+			cs.log.ErrorContext(ctx, "iterating blocks in shard", "shard", s.ID, "error", err, "aid", actor)
 		}
 	}
 
@@ -891,14 +891,14 @@ func (cs *S3CarStore) compactBucket(
 		// if writing the shard fails, we should also delete the file
 		_ = fi.Close()
 
-		if err2 := os.Remove(fi.Name()); err2 != nil {
+		if rerr := os.Remove(fi.Name()); rerr != nil {
 			cs.log.ErrorContext(
 				ctx,
 				"failed to remove shard file after failed db transaction",
 				"path",
 				fi.Name(),
-				"err",
-				err2,
+				"error",
+				rerr,
 			)
 		}
 

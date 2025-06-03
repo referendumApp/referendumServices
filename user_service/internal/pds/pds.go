@@ -49,7 +49,7 @@ func NewPDS(
 
 	// repoman.SetEventHandler(func(ctx context.Context, evt *repo.Event) {
 	// 	if err := idxr.HandleRepoEvent(ctx, evt); err != nil {
-	// 		log.ErrorContext(ctx, "Handle repo event failed", "user", evt.User, "err", err)
+	// 		log.ErrorContext(ctx, "Handle repo event failed", "user", evt.User, "error", err)
 	// 	}
 	// }, true)
 

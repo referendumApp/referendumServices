@@ -53,37 +53,6 @@
             }
           }
         }
-      },
-      "output": {
-        "encoding": "application/json",
-        "schema": {
-          "type": "object",
-          "description": "Account login session returned on successful account creation.",
-          "required": ["accessToken", "refreshToken", "handle", "displayName", "did", "tokenType"],
-          "properties": {
-            "accessToken": { "type": "string" },
-            "refreshToken": { "type": "string" },
-            "handle": {
-              "type": "string",
-              "format": "handle"
-            },
-            "displayName": {
-              "type": "string",
-              "format": "name",
-              "maxLength": 60
-            },
-            "did": {
-              "type": "string",
-              "format": "did",
-              "description": "The DID of the new account."
-            },
-            "didDoc": {
-              "type": "unknown",
-              "description": "Complete DID document."
-            },
-            "tokenType": { "type": "string" }
-          }
-        }
       }
     }
   }

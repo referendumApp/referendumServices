@@ -9,6 +9,13 @@ import (
 	"github.com/referendumApp/referendumServices/pkg/common"
 )
 
+type SystemUserConfig struct {
+	Handle      string
+	DisplayName string
+	Email       string
+	SecretName  string
+}
+
 type DBConfig struct {
 	PgUser      string
 	PgPassword  string
@@ -25,21 +32,50 @@ type DBConfig struct {
 
 // Config contains all required environment variables
 type Config struct {
-	DBConfig     *DBConfig
-	Env          string
-	HandleSuffix string
-	ServiceUrl   string
-	RecoveryKey  string
-	KeyDir       string
-	CarDir       string
-	PLCHost      string
-	SecretKey    []byte
-	CarMaxConns  int
+	SystemUserConfig *SystemUserConfig
+	DBConfig         *DBConfig
+	Env              string
+	HandleSuffix     string
+	ServiceUrl       string
+	RecoveryKey      string
+	KeyDir           string
+	CarDir           string
+	PLCHost          string
+	CacheHost        string
+	SecretKey        []byte
+	CarMaxConns      int
 }
 
 // LoadConfig initializes 'Config' struct
 func LoadConfig() (*Config, error) {
 	log.Println("Loading runtime env vars")
+
+	systemHandle, err := common.GetEnvOrFail("SYSTEM_USER_HANDLE")
+	if err != nil {
+		return nil, err
+	}
+
+	systemDisplayName, err := common.GetEnvOrFail("SYSTEM_USER_DISPLAY_NAME")
+	if err != nil {
+		return nil, err
+	}
+
+	systemEmail, err := common.GetEnvOrFail("SYSTEM_USER_EMAIL")
+	if err != nil {
+		return nil, err
+	}
+
+	systemSecretName, err := common.GetEnvOrFail("SYSTEM_USER_SECRET_NAME")
+	if err != nil {
+		return nil, err
+	}
+
+	systemUserConfig := &SystemUserConfig{
+		Handle:      systemHandle,
+		DisplayName: systemDisplayName,
+		Email:       systemEmail,
+		SecretName:  systemSecretName,
+	}
 
 	dbUser, err := common.GetEnvOrFail("POSTGRES_USER")
 	if err != nil {
@@ -120,10 +156,15 @@ func LoadConfig() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	cache, err := common.GetEnvOrFail("CACHE_HOST")
+	if err != nil {
+		return nil, err
+	}
 
 	config := &Config{
-		DBConfig: dbConfig,
-		Env:      environment,
+		SystemUserConfig: systemUserConfig,
+		DBConfig:         dbConfig,
+		Env:              environment,
 
 		// Server
 		SecretKey: []byte(skey),
@@ -140,6 +181,9 @@ func LoadConfig() (*Config, error) {
 
 		// PLC
 		PLCHost: ph,
+
+		// Cache
+		CacheHost: cache,
 	}
 
 	log.Println("Successfully loaded env vars!")
