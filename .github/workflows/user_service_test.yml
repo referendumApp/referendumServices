@@ -116,6 +116,7 @@ jobs:
             --env AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY }} \
             --env LOCALSTACK_PORT=${{ env.LOCALSTACK_PORT }} \
             --env KMS_PORT=${{ env.KMS_PORT }} \
+            --env CACHE_PORT=${{ env.CACHE_PORT }} \
             --env SYSTEM_USER_HANDLE="${{ env.SYSTEM_USER_HANDLE }}" \
             --env SYSTEM_USER_DISPLAY_NAME="${{ env.SYSTEM_USER_DISPLAY_NAME }}" \
             --env SYSTEM_USER_EMAIL="${{ env.SYSTEM_USER_EMAIL }}" \
