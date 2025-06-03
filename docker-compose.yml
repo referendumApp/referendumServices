@@ -229,7 +229,7 @@ services:
         - "-d"
         - "{}"
       start_period: 3s
-      interval: 2s
+      interval: 5s
       timeout: 5s
       retries: 3
     profiles: ["local-data", "local-empty"]
@@ -272,6 +272,8 @@ services:
     depends_on:
       api-local:
         condition: service_started
+      user-api-local:
+        condition: service_healthy
       db:
         condition: service_healthy
       localstack:
@@ -337,7 +339,7 @@ services:
       local-db-init:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:2582/health"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:2582', (res) => process.exit([200, 302].includes(res.statusCode) ? 0 : 1)).on('error', () => process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3
