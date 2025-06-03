@@ -19,6 +19,7 @@ env:
   AWS_SECRET_ACCESS_KEY: test
   LOCALSTACK_PORT: 4566
   KMS_PORT: 9002
+  CACHE_PORT: 6379
   SYSTEM_USER_HANDLE: "system.referendumapp.com"
   SYSTEM_USER_DISPLAY_NAME: "System User"
   SYSTEM_USER_EMAIL: "system@referendumapp.com"
