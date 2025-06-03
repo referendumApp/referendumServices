@@ -133,7 +133,7 @@ services:
       interval: 30s
       timeout: 3s
       start_period: 30s
-    profiles: ["local-data", "local-empty", "test"]
+    profiles: ["local-data", "local-empty"]
 
   db:
     container_name: db
@@ -178,7 +178,7 @@ services:
         "--cache_mode=true",
         "--maxmemory=1.5gb",
       ]
-    profiles: ["local-data", "local-empty", "test"]
+    profiles: ["local-data", "local-empty"]
 
   localstack:
     container_name: localstack
@@ -232,7 +232,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 3
-    profiles: ["local-data", "local-empty", "test"]
+    profiles: ["local-data", "local-empty"]
 
   local-db-init:
     container_name: local_db_init
