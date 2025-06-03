@@ -6,11 +6,14 @@ func (s *Service) setupRoutes() {
 	s.mux.Get("/health", s.handleHealth)
 
 	s.mux.Route("/auth", func(r chi.Router) {
-		r.Post("/signup", s.handleCreateUser)
-		r.Post("/login", s.handleCreateSession)
-		r.Post("/refresh", s.handleRefreshSession)
-		r.With(s.pds.AuthorizeUser).Delete("/session", s.handleDeleteSession)
-		r.With(s.pds.AuthorizeUser).Delete("/account", s.handleDeleteUser)
+		r.Post("/account", s.handleCreateUser)
+		r.Post("/session", s.handleCreateSession)
+		r.Post("/account/refresh", s.handleRefreshAccount)
+		r.Post("/session/refresh", s.handleRefreshSession)
+
+		authorize := r.With(s.pds.AuthorizeUser)
+		authorize.Delete("/session", s.handleDeleteSession)
+		authorize.Delete("/account", s.handleDeleteUser)
 	})
 
 	s.mux.Route("/users", func(r chi.Router) {
@@ -20,8 +23,6 @@ func (s *Service) setupRoutes() {
 		r.Put("/profile", s.handleUpdateUserProfile)
 
 		r.Post("/follow", s.handleGraphFollow)
-		r.Get("/followers", s.handleGraphFollowers)
-		r.Get("/following", s.handleGraphFollowing)
 	})
 
 	s.mux.Route("/follows", func(r chi.Router) {

@@ -149,21 +149,37 @@ func (j *JWTConfig) CreateToken(sub atp.Aid, did string, tokenType TokenType) (s
 	return tokenString, nil
 }
 
-// ExtractToken get the JWT from the Authorization request header
-func (j *JWTConfig) ExtractToken(r *http.Request) string {
+// ParseAuthHeader get the token from the Authorization request header
+func ParseAuthHeader(r *http.Request, prefix string) (string, error) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
-		return authHeader
+		return "", errors.New("missing Authorization header")
 	}
 
-	authSchemeRegex := regexp.MustCompile(fmt.Sprintf(`%s\s+(.*)`, j.AuthScheme))
+	authSchemeRegex := regexp.MustCompile(fmt.Sprintf(`%s\s+(.*)`, prefix))
 
 	match := authSchemeRegex.FindStringSubmatch(authHeader)
-	if len(match) > 1 {
-		return strings.TrimSpace(match[1])
+
+	if len(match) < 1 {
+		return "", errors.New("invalid Authorization header format")
 	}
 
-	return ""
+	token := strings.TrimSpace(match[1])
+	if token == "" {
+		return "", errors.New("empty token")
+	}
+
+	return token, nil
+}
+
+// ExtractToken get the JWT from the Authorization request header
+func (j *JWTConfig) ExtractToken(r *http.Request) (string, error) {
+	token, err := ParseAuthHeader(r, j.AuthScheme)
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
 }
 
 // DecodeJWT parse the JWT and check that the token is valid

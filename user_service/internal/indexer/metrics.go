@@ -38,7 +38,7 @@ package indexer
 // var catchupEventsFailed = promauto.NewCounterVec(prometheus.CounterOpts{
 // 	Name: "indexer_catchup_events_failed",
 // 	Help: "Number of catchup events processed",
-// }, []string{"err"})
+// }, []string{"error"})
 
 // var catchupReposGauge = promauto.NewGauge(prometheus.GaugeOpts{
 // 	Name: "indexer_catchup_repos",

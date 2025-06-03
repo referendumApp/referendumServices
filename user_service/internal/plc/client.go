@@ -261,7 +261,7 @@ func (c *Client) GetLatestOp(ctx context.Context, did string) (*LogOp, error) {
 
 	op, err := findLatestOp(log)
 	if err != nil {
-		c.log.InfoContext(ctx, "Failed to get the latest PLC operation", "err", err)
+		c.log.InfoContext(ctx, "Failed to get the latest PLC operation", "error", err)
 		return nil, err
 	}
 

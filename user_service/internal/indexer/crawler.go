@@ -224,7 +224,7 @@ package indexer
 // func (c *CrawlDispatcher) fetchWorker() {
 // 	for job := range c.repoSync {
 // 		if err := c.repoFetcher.FetchAndIndexRepo(context.TODO(), job); err != nil {
-// 			c.log.Error("failed to perform repo crawl", "did", job.act.Did, "err", err)
+// 			c.log.Error("failed to perform repo crawl", "did", job.act.Did, "error", err)
 // 		}
 // 		// TODO: do we still just do this if it errors?
 // 		c.complete <- job.act.Aid

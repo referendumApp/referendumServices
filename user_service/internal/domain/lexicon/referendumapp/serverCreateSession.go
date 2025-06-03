@@ -4,6 +4,10 @@ package referendumapp
 
 // schema: com.referendumapp.server.createSession
 
+import (
+	"github.com/referendumApp/referendumServices/internal/domain/atp"
+)
+
 // ServerCreateSession_Input is the input argument to a com.referendumapp.server.createSession call.
 type ServerCreateSession_Input struct {
 	GrantType string `json:"grantType" cborgen:"grantType" validate:"required,oneof=password"`
@@ -15,11 +19,13 @@ type ServerCreateSession_Input struct {
 // ServerCreateSession_Output is the output of a com.referendumapp.server.createSession call.
 type ServerCreateSession_Output struct {
 	AccessToken    string       `json:"accessToken" cborgen:"accessToken" validate:"required"`
+	Aid            atp.Aid      `json:"aid" cborgen:"aid" validate:"required"`
 	Did            string       `json:"did" cborgen:"did" validate:"required,did"`
 	DidDoc         *interface{} `json:"didDoc,omitempty" cborgen:"didDoc,omitempty" validate:"omitempty"`
-	Email          *string      `json:"email,omitempty" cborgen:"email,omitempty" validate:"omitempty,email,max=100"`
+	DisplayName    string       `json:"displayName" cborgen:"displayName" validate:"required,name"`
+	Email          string       `json:"email" cborgen:"email" validate:"required,email"`
 	EmailConfirmed *bool        `json:"emailConfirmed,omitempty" cborgen:"emailConfirmed,omitempty" validate:"omitempty"`
-	Handle         string       `json:"handle" cborgen:"handle" validate:"required,handle,min=8,max=100"`
+	Handle         string       `json:"handle" cborgen:"handle" validate:"required,handle"`
 	RefreshToken   string       `json:"refreshToken" cborgen:"refreshToken" validate:"required"`
 	TokenType      string       `json:"tokenType" cborgen:"tokenType" validate:"required"`
 }

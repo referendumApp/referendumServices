@@ -196,21 +196,19 @@ func (s *Service) createSystemUser(ctx context.Context, secret *SystemAPIKeySecr
 		ctx,
 		s.config.SystemUserConfig.Handle,
 		s.config.SystemUserConfig.DisplayName,
-		"",
 		s.config.SystemUserConfig.Email,
-		"",
-		secret.APIKey,
+		&atp.AuthSettings{ApiKey: secret.APIKey},
+		nil,
 	)
 	if apiErr != nil {
 		return fmt.Errorf("failed to create actor: %w", apiErr)
 	}
 
-	user, err := s.av.CreateUser(ctx, actor, s.config.SystemUserConfig.DisplayName)
-	if err != nil {
+	if err := s.av.CreateUser(ctx, actor, s.config.SystemUserConfig.DisplayName); err != nil {
 		return fmt.Errorf("failed to create user: %w", err)
 	}
 
-	_, err = s.pds.CreateNewUserRepo(ctx, actor, user)
+	_, err := s.pds.CreateNewUserRepo(ctx, actor, s.config.SystemUserConfig.DisplayName)
 	if err != nil {
 		return fmt.Errorf("failed to create user repo: %w", err)
 	}

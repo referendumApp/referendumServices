@@ -41,6 +41,7 @@ type Config struct {
 	KeyDir           string
 	CarDir           string
 	PLCHost          string
+	CacheHost        string
 	SecretKey        []byte
 	CarMaxConns      int
 }
@@ -155,6 +156,10 @@ func LoadConfig() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	cache, err := common.GetEnvOrFail("CACHE_HOST")
+	if err != nil {
+		return nil, err
+	}
 
 	config := &Config{
 		SystemUserConfig: systemUserConfig,
@@ -176,6 +181,9 @@ func LoadConfig() (*Config, error) {
 
 		// PLC
 		PLCHost: ph,
+
+		// Cache
+		CacheHost: cache,
 	}
 
 	log.Println("Successfully loaded env vars!")
