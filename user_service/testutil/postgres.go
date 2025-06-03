@@ -15,10 +15,8 @@ import (
 )
 
 var (
-	dbOnce       sync.Once
-	postgresDB   *sql.DB
-	pgContainer  *dockertest.Resource
-	postgresPort string
+	dbOnce     sync.Once
+	postgresDB *sql.DB
 )
 
 // PostgresContainer holds information about the postgres container
@@ -32,7 +30,9 @@ type PostgresContainer struct {
 // SetupPostgres creates a postgres container and runs migrations
 func (d *Docker) SetupPostgres(ctx context.Context, cfg *env.DBConfig) (*PostgresContainer, error) {
 	var (
+		pgContainer        *dockertest.Resource
 		migrationContainer *dockertest.Resource
+		pgPort             string
 		dbErr              error
 		code               int
 	)
@@ -53,13 +53,13 @@ func (d *Docker) SetupPostgres(ctx context.Context, cfg *env.DBConfig) (*Postgre
 			return
 		}
 
-		postgresPort = pgContainer.GetPort(cfg.PgPort + "/tcp")
+		pgPort = pgContainer.GetPort(cfg.PgPort + "/tcp")
 
 		if dbErr = d.pool.Retry(func() error {
 			var err error
 			postgresDB, err = sql.Open("postgres", fmt.Sprintf(
 				"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-				d.Host, postgresPort, cfg.PgUser, cfg.PgPassword, cfg.DBName,
+				d.Host, pgPort, cfg.PgUser, cfg.PgPassword, cfg.DBName,
 			))
 			if err != nil {
 				return err
@@ -127,14 +127,14 @@ func (d *Docker) SetupPostgres(ctx context.Context, cfg *env.DBConfig) (*Postgre
 		return nil, dbErr
 	}
 
-	log.Printf("Successfully setup postgres DB container on port: %s\n", postgresPort)
+	log.Printf("Successfully setup postgres DB container on port: %s\n", pgPort)
 
 	cfg.PgHost = d.Host
-	cfg.PgPort = postgresPort
+	cfg.PgPort = pgPort
 
 	return &PostgresContainer{
 		DB:          postgresDB,
-		Port:        postgresPort,
+		Port:        pgPort,
 		DBSchema:    cfg.AtpDBSchema,
 		pgContainer: pgContainer,
 	}, nil

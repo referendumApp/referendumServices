@@ -19,7 +19,7 @@ func (d *DB) GetRow(ctx context.Context, sql string, args ...any) pgx.Row {
 }
 
 // GetWithTx returns a record within a transaction
-func GetWithTx[T TableEntity](ctx context.Context, tx pgx.Tx, sql string, args ...any) (*T, error) {
+func GetWithTx[T any](ctx context.Context, tx pgx.Tx, sql string, args ...any) (*T, error) {
 	rows, err := tx.Query(ctx, sql, args...)
 	if err != nil {
 		return nil, err
@@ -42,7 +42,7 @@ func GetWithTx[T TableEntity](ctx context.Context, tx pgx.Tx, sql string, args .
 }
 
 // Get returns a record
-func Get[T TableEntity](ctx context.Context, d *DB, sql string, args ...any) (*T, error) {
+func Get[T any](ctx context.Context, d *DB, sql string, args ...any) (*T, error) {
 	rows, err := d.pool.Query(ctx, sql, args...)
 	if err != nil {
 		d.Log.ErrorContext(ctx, "Error executing query", "error", err, "sql", sql)
@@ -90,8 +90,39 @@ func GetAll[T TableEntity](
 	return Get[T](ctx, d, sql, args...)
 }
 
+// GetLeft returns a record from a left join
+func GetLeft[T JoinEntity](
+	ctx context.Context,
+	d *DB,
+	entity T,
+	filters ...sq.Sqlizer,
+) (*T, error) {
+	query, err := BuildLeftJoinSelect(entity, d.Schema, filters...)
+	if err != nil {
+		d.Log.ErrorContext(ctx, "Error building left join select query", "error", err)
+		return nil, err
+	}
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		d.Log.ErrorContext(
+			ctx,
+			"Failed to compile left join select query",
+			"error",
+			err,
+			"left",
+			entity.LeftTable(),
+			"right",
+			entity.RightTable(),
+		)
+		return nil, err
+	}
+
+	return Get[T](ctx, d, sql, args...)
+}
+
 // Select returns all records
-func Select[T TableEntity](ctx context.Context, d *DB, sql string, args ...any) ([]*T, error) {
+func Select[T any](ctx context.Context, d *DB, sql string, args ...any) ([]*T, error) {
 	rows, err := d.pool.Query(ctx, sql, args...)
 	if err != nil {
 		d.Log.ErrorContext(ctx, "Error executing query", "error", err, "sql", sql)
@@ -136,27 +167,20 @@ func SelectAll[T TableEntity](
 	return Select[T](ctx, d, sql, args...)
 }
 
-// SelectLeft  returns all records with all columns from a left join
-func SelectLeft[T TableEntity](
+// SelectLeft returns all records with all columns from a left join
+func SelectLeft[T JoinEntity](
 	ctx context.Context,
 	d *DB,
 	entity T,
-	onLeft string,
-	rightEnt TableEntity,
-	onRight string,
 	filters ...sq.Sqlizer,
 ) ([]*T, error) {
-	leftTbl := d.Schema + "." + entity.TableName()
-	rightTbl := d.Schema + "." + rightEnt.TableName()
-	leftJoin := fmt.Sprintf("%s ON %s.%s = %s.%s", rightTbl, leftTbl, onLeft, rightTbl, onRight)
-
-	query, err := BuildSelect(entity, d.Schema, filters...)
+	query, err := BuildLeftJoinSelect(entity, d.Schema, filters...)
 	if err != nil {
-		d.Log.ErrorContext(ctx, "Error building select query", "error", err)
+		d.Log.ErrorContext(ctx, "Error building left join select query", "error", err)
 		return nil, err
 	}
 
-	sql, args, err := query.LeftJoin(leftJoin).ToSql()
+	sql, args, err := query.ToSql()
 	if err != nil {
 		d.Log.ErrorContext(
 			ctx,
@@ -164,9 +188,9 @@ func SelectLeft[T TableEntity](
 			"error",
 			err,
 			"left",
-			leftTbl,
+			entity.LeftTable(),
 			"right",
-			rightTbl,
+			entity.RightTable(),
 		)
 		return nil, err
 	}

@@ -15,9 +15,9 @@ func (p *PDS) AuthorizeUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestCtx := r.Context()
 
-		accessToken := p.jwt.ExtractToken(r)
-		if accessToken == "" {
-			refErr.Unauthorized("Token not found").WriteResponse(w)
+		accessToken, err := p.jwt.ExtractToken(r)
+		if err != nil {
+			refErr.Unauthorized(err.Error()).WriteResponse(w)
 			return
 		}
 

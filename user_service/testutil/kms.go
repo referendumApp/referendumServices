@@ -14,11 +14,7 @@ import (
 	"github.com/referendumApp/referendumServices/pkg/common"
 )
 
-var (
-	kmsOnce      sync.Once
-	kmsContainer *dockertest.Resource
-	kmsPort      string
-)
+var kmsOnce sync.Once
 
 // KMSContainer holds information about the local-kms docker container
 type KMSContainer struct {
@@ -30,7 +26,9 @@ type KMSContainer struct {
 func (d *Docker) SetupKMS(ctx context.Context, cfg *env.Config) (*KMSContainer, error) {
 	var (
 		initContainer *dockertest.Resource
+		kmsContainer  *dockertest.Resource
 		seedContent   []byte
+		kmsPort       string
 		kmsErr        error
 	)
 
@@ -95,7 +93,7 @@ func (d *Docker) SetupKMS(ctx context.Context, cfg *env.Config) (*KMSContainer, 
 				fmt.Sprintf("KMS_ACCOUNT_ID=%s", acctId),
 				fmt.Sprintf("PORT=%s", expPort),
 			},
-			ExposedPorts: []string{expPort},
+			ExposedPorts: []string{expPort + "/tcp"},
 			Mounts:       []string{volumeName + ":/init"},
 			NetworkID:    d.network.ID,
 		})

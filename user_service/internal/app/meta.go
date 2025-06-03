@@ -15,14 +15,9 @@ type ViewMeta struct {
 	*database.DB
 }
 
-func (vm *ViewMeta) insertActorAndUserRecords(
-	ctx context.Context,
-	actor *atp.Actor,
-	name string,
-) (atp.User, error) {
-	var user atp.User
+func (vm *ViewMeta) insertActorAndUserRecords(ctx context.Context, actor *atp.Actor, dname string) error {
 	err := vm.WithTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		row, err := database.CreateReturningWithTx(ctx, vm.DB, tx, *actor, "id")
+		row, err := database.CreateReturningWithTx(ctx, vm.DB, tx, actor, "id")
 		if err != nil {
 			vm.Log.ErrorContext(ctx, "Failed to create actor", "error", err)
 			return err
@@ -32,8 +27,7 @@ func (vm *ViewMeta) insertActorAndUserRecords(
 			return serr
 		}
 
-		userObj := &atp.User{Aid: actor.ID, DisplayName: name}
-		if err := vm.CreateWithTx(ctx, tx, userObj); err != nil {
+		if err := vm.CreateWithTx(ctx, tx, &atp.User{Did: actor.Did, Aid: actor.ID, DisplayName: dname}); err != nil {
 			vm.Log.ErrorContext(ctx, "Failed to create user", "error", err)
 			return err
 		}
@@ -64,11 +58,10 @@ func (vm *ViewMeta) insertActorAndUserRecords(
 		// 	return
 		// }
 
-		user = *userObj
 		return nil
 	})
 
-	return user, err
+	return err
 }
 
 func (vm *ViewMeta) insertActorAndLegislatorRecords(
@@ -204,6 +197,49 @@ func (vm *ViewMeta) LookupLegislatorByAid(ctx context.Context, aid atp.Aid) (*at
 	return vm.lookupLegislatorQuery(ctx, filter)
 }
 
+func (vm *ViewMeta) getActorProfile(
+	ctx context.Context,
+	filter sq.Sqlizer,
+) (*actorProfile, error) {
+	combinedFilter := sq.And{sq.Eq{atp.Actor{}.TableName() + ".deleted_at": nil}, filter}
+
+	profile, err := database.GetLeft(ctx, vm.DB, actorProfile{}, combinedFilter)
+	if err != nil {
+		vm.Log.ErrorContext(ctx, "Error getting actor profile", "error", err)
+		return nil, err
+	}
+
+	return profile, nil
+}
+
+// GetActorProfileByID queries actor table for profile data
+func (vm *ViewMeta) GetActorProfileByID(ctx context.Context, aid atp.Aid) (*actorProfile, error) {
+	filter := sq.Eq{atp.Actor{}.TableName() + ".id": aid}
+
+	return vm.getActorProfile(ctx, filter)
+}
+
+func (vm *ViewMeta) authenticateActor(
+	ctx context.Context,
+	aname string,
+) (*actorAuth, error) {
+	filter := sq.And{
+		sq.Eq{atp.Actor{}.TableName() + ".deleted_at": nil},
+		sq.Or{
+			sq.Eq{"email": aname},
+			sq.Eq{"handle": aname},
+		},
+	}
+
+	actor, err := database.GetLeft(ctx, vm.DB, actorAuth{}, filter)
+	if err != nil {
+		vm.Log.ErrorContext(ctx, "Error querying actor profile and auth_settings", "error", err)
+		return nil, err
+	}
+
+	return actor, nil
+}
+
 func (vm *ViewMeta) lookupActorQuery(ctx context.Context, filter sq.Sqlizer) (*atp.Actor, error) {
 	combinedFilter := sq.And{
 		filter,
@@ -244,59 +280,54 @@ func (vm *ViewMeta) LookupActorByEmail(ctx context.Context, email string) (*atp.
 	return vm.lookupActorQuery(ctx, filter)
 }
 
-// LookupGraphFollowers queries user records with a join to user_follow_record filtered by 'target'
-func (vm *ViewMeta) LookupGraphFollowers(ctx context.Context, aid atp.Aid) ([]*atp.ActorBasic, error) {
-	filter := sq.Eq{"target": aid}
-	var leftTbl atp.ActorBasic
-	var rightTbl atp.ActorFollow
-
-	followers, err := database.SelectLeft(ctx, vm.DB, leftTbl, "id", rightTbl, "follower", filter)
+// GetAllPublicServantIDs queries to get all the aids and dids in the `public_servants` table
+func (vm *ViewMeta) GetAllPublicServantIDs(ctx context.Context) ([]*publicServantIDs, error) {
+	query, err := database.BuildSelect(&publicServantIDs{}, vm.Schema)
 	if err != nil {
-		vm.Log.ErrorContext(ctx, "Failed to lookup followers", "id", aid)
-		return nil, err
-	}
-
-	return followers, nil
-}
-
-// LookupGraphFollowing queries actor records with a join to actor_follow_record filtered by 'follower'
-func (vm *ViewMeta) LookupGraphFollowing(ctx context.Context, aid atp.Aid) ([]*atp.ActorBasic, error) {
-	filter := sq.Eq{"follower": aid}
-	var leftTbl atp.ActorBasic
-	var rightTbl atp.ActorFollow
-
-	following, err := database.SelectLeft(ctx, vm.DB, leftTbl, "id", rightTbl, "target", filter)
-	if err != nil {
-		vm.Log.ErrorContext(ctx, "Failed to lookup followers", "id", aid)
-		return nil, err
-	}
-
-	return following, nil
-}
-
-// GetActorBasic queries actor record for the basic information
-func (vm *ViewMeta) GetActorBasic(ctx context.Context, aid atp.Aid) (*atp.ActorBasic, error) {
-	filter := sq.And{
-		sq.Eq{"id": aid},
-		sq.Eq{"deleted_at": nil},
-	}
-	query, err := database.BuildSelect(&atp.ActorBasic{}, vm.Schema, filter)
-	if err != nil {
-		vm.Log.ErrorContext(ctx, "Error building profile select query", "error", err)
+		vm.Log.ErrorContext(ctx, "Failed to get public servant Aids and DIDs", "error", err)
 		return nil, err
 	}
 
 	sql, args, err := query.ToSql()
 	if err != nil {
-		vm.Log.ErrorContext(ctx, "Error compiling profile select query", "error", err)
+		vm.Log.ErrorContext(ctx, "Error building select query for public servant IDs", "error", err)
 		return nil, err
 	}
 
-	actorBasic, err := database.Get[atp.ActorBasic](ctx, vm.DB, sql, args...)
+	ps, err := database.Select[publicServantIDs](ctx, vm.DB, sql, args...)
 	if err != nil {
-		vm.Log.ErrorContext(ctx, "Failed getting profile", "sql", sql, "aid", aid, "err", err)
 		return nil, err
 	}
 
-	return actorBasic, nil
+	return ps, nil
 }
+
+// // LookupGraphFollowers queries user records with a join to user_follow_record filtered by 'target'
+// func (vm *ViewMeta) LookupGraphFollowers(ctx context.Context, aid atp.Aid) ([]*atp.ActorBasic, error) {
+// 	filter := sq.Eq{"target": aid}
+// 	var leftTbl atp.ActorBasic
+// 	var rightTbl atp.ActorFollow
+//
+// 	followers, err := database.SelectLeft(ctx, vm.DB, leftTbl, "id", rightTbl, "follower", filter)
+// 	if err != nil {
+// 		vm.Log.ErrorContext(ctx, "Failed to lookup followers", "id", aid)
+// 		return nil, err
+// 	}
+//
+// 	return followers, nil
+// }
+//
+// // LookupGraphFollowing queries actor records with a join to actor_follow_record filtered by 'follower'
+// func (vm *ViewMeta) LookupGraphFollowing(ctx context.Context, aid atp.Aid) ([]*atp.ActorBasic, error) {
+// 	filter := sq.Eq{"follower": aid}
+// 	var leftTbl atp.ActorBasic
+// 	var rightTbl atp.ActorFollow
+//
+// 	following, err := database.SelectLeft(ctx, vm.DB, leftTbl, "id", rightTbl, "target", filter)
+// 	if err != nil {
+// 		vm.Log.ErrorContext(ctx, "Failed to lookup followers", "id", aid)
+// 		return nil, err
+// 	}
+//
+// 	return following, nil
+// }

@@ -160,13 +160,13 @@ func HandleRepoStream(ctx context.Context, con *websocket.Conn, sched Scheduler,
 			select {
 			case <-t.C:
 				if err := con.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(time.Second*10)); err != nil {
-					log.Warn("failed to ping", "err", err)
+					log.Warn("failed to ping", "error", err)
 					failcount++
 					if failcount >= 4 {
 						log.Error("too many ping fails", "count", failcount)
 						defer func() {
 							if err := con.Close(); err == nil {
-								log.ErrorContext(ctx, "failed to close websocket connection", "err", err)
+								log.ErrorContext(ctx, "failed to close websocket connection", "error", err)
 							}
 						}()
 						return
@@ -177,7 +177,7 @@ func HandleRepoStream(ctx context.Context, con *websocket.Conn, sched Scheduler,
 			case <-ctx.Done():
 				defer func() {
 					if err := con.Close(); err == nil {
-						log.ErrorContext(ctx, "failed to close websocket connection", "err", err)
+						log.ErrorContext(ctx, "failed to close websocket connection", "error", err)
 					}
 				}()
 				return
@@ -197,7 +197,7 @@ func HandleRepoStream(ctx context.Context, con *websocket.Conn, sched Scheduler,
 
 	con.SetPongHandler(func(_ string) error {
 		if err := con.SetReadDeadline(time.Now().Add(time.Minute)); err != nil {
-			log.ErrorContext(ctx, "failed to set read deadline", "err", err)
+			log.ErrorContext(ctx, "failed to set read deadline", "error", err)
 		}
 
 		return nil

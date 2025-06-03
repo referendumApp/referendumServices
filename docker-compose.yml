@@ -112,6 +112,8 @@ services:
         condition: service_healthy
       localstack:
         condition: service_healthy
+      dragonfly:
+        condition: service_healthy
       local-db-init:
         condition: service_completed_successfully
       migrations:
@@ -157,6 +159,26 @@ services:
       timeout: 5s
       retries: 5
     profiles: ["local-data", "local-empty", "test"]
+
+  dragonfly:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly
+    ulimits:
+      memlock: -1
+    ports:
+      - "6379:6379"
+    # For better performance, consider `host` mode instead `port` to avoid docker NAT.
+    # `host` mode is NOT currently supported in Swarm Mode.
+    # https://docs.docker.com/compose/compose-file/compose-file-v3/#network_mode
+    # network_mode: "host"
+    volumes:
+      - dragonflydata:/data
+    command:
+      [
+        "dragonfly",
+        "--cache_mode=true",
+        "--maxmemory=1.5gb",
+      ]
+    profiles: ["local-data", "local-empty"]
 
   localstack:
     container_name: localstack
@@ -295,6 +317,7 @@ services:
       - AWS_SECRET_ACCESS_KEY=test
       - LOCALSTACK_PORT=4566
       - KMS_PORT=9002
+      - CACHE_PORT=6379
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
@@ -323,5 +346,6 @@ services:
 
 volumes:
   postgres_data:
+  dragonflydata:
   go-mod-cache:
   go-build-cache:
