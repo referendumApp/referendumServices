@@ -17,13 +17,15 @@ func (p *PDS) CreateActor(
 	ctx context.Context,
 	handle string,
 	displayName string,
-	recoveryKey string,
 	email string,
-	hashedPassword string,
-	apiKey string,
+	auth *atp.AuthSettings,
+	recoveryKey *string,
 ) (*atp.Actor, *refErr.APIError) {
-	if recoveryKey == "" {
-		recoveryKey = p.km.RecoveryKey()
+	var recKey string
+	if recoveryKey == nil {
+		recKey = p.km.RecoveryKey()
+	} else {
+		recKey = *recoveryKey
 	}
 
 	sigkey, err := p.km.CreateSigningKey(ctx)
@@ -31,7 +33,7 @@ func (p *PDS) CreateActor(
 		return nil, refErr.InternalServer()
 	}
 
-	did, err := p.plc.CreateDID(ctx, sigkey, []string{recoveryKey, p.km.RotationKey()}, handle, p.serviceUrl)
+	did, err := p.plc.CreateDID(ctx, sigkey, []string{recKey, p.km.RotationKey()}, handle, p.serviceUrl)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Failed to create DID", "error", err)
 		return nil, refErr.PLCServer()
@@ -45,9 +47,9 @@ func (p *PDS) CreateActor(
 	actor := &atp.Actor{
 		Did:          did,
 		Handle:       sql.NullString{String: handle, Valid: true},
-		RecoveryKey:  recoveryKey,
 		Email:        sql.NullString{String: email, Valid: true},
-		AuthSettings: &atp.AuthSettings{HashedPassword: hashedPassword, ApiKey: apiKey},
+		RecoveryKey:  recKey,
+		AuthSettings: auth,
 	}
 
 	return actor, nil
@@ -57,10 +59,10 @@ func (p *PDS) CreateActor(
 func (p *PDS) CreateNewUserRepo(
 	ctx context.Context,
 	actor *atp.Actor,
-	user *atp.User,
-) (*refApp.ServerCreateAccount_Output, *refErr.APIError) {
+	dname string,
+) (*refApp.ServerCreateSession_Output, *refErr.APIError) {
 	profile := &refApp.UserProfile{
-		DisplayName: &user.DisplayName,
+		DisplayName: &dname,
 	}
 
 	if err := p.repoman.InitNewRepo(ctx, actor.ID, actor.Did, profile.NSID(), profile.Key(), profile); err != nil {
@@ -73,10 +75,12 @@ func (p *PDS) CreateNewUserRepo(
 		return nil, refErr.InternalServer()
 	}
 
-	return &refApp.ServerCreateAccount_Output{
+	return &refApp.ServerCreateSession_Output{
+		Aid:          actor.ID,
 		Did:          actor.Did,
-		DisplayName:  user.DisplayName,
+		DisplayName:  dname,
 		Handle:       actor.Handle.String,
+		Email:        actor.Email.String,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    p.jwt.AuthScheme,
@@ -131,53 +135,58 @@ func (p *PDS) CreateTokens(ctx context.Context, aid atp.Aid, did string) (string
 // CreateSession completes a login request and returns the access and refresh tokens
 func (p *PDS) CreateSession(
 	ctx context.Context,
-	actor *atp.Actor,
+	aid atp.Aid,
+	did string,
+	dname string,
+	handle string,
+	email string,
 ) (*refApp.ServerCreateSession_Output, *refErr.APIError) {
-	accessToken, refreshToken, err := p.CreateTokens(ctx, actor.ID, actor.Did)
+	accessToken, refreshToken, err := p.CreateTokens(ctx, aid, did)
 	if err != nil {
 		return nil, refErr.InternalServer()
 	}
 
-	if err := p.km.UpdateKeyCache(ctx, actor.Did); err != nil {
+	if err := p.km.UpdateKeyCache(ctx, did); err != nil {
 		return nil, refErr.InternalServer()
 	}
 
 	return &refApp.ServerCreateSession_Output{
-		Did:          actor.Did,
-		Handle:       actor.Handle.String,
-		Email:        &actor.Email.String,
+		Aid:          aid,
+		Did:          did,
+		DisplayName:  dname,
+		Handle:       handle,
+		Email:        email,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    p.jwt.AuthScheme,
 	}, nil
 }
 
-// RefreshSession refreshes the JWT refresh token
-// TODO: store the token in a HTTP cookie
+// RefreshSession refreshes the JWT refresh and access tokens
 func (p *PDS) RefreshSession(
 	ctx context.Context,
 	refreshToken string,
-) (*refApp.ServerRefreshSession_Output, atp.Aid, string, *refErr.APIError) {
+) (atp.Aid, string, *refApp.ServerRefreshSession_Output, *refErr.APIError) {
 	token, err := p.jwt.DecodeJWT(refreshToken)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Failed to decode refresh token", "error", err)
-		return nil, 0, "", refErr.Unauthorized("Invalid refresh token")
+		return 0, "", nil, refErr.Unauthorized("Invalid refresh token")
 	}
 
 	// Parse and validate the token
 	aid, did, err := util.ValidateToken(token, util.Refresh)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Token validation failed", "error", err)
-		return nil, 0, "", refErr.BadRequest("Failed to validate refresh token")
+		return 0, "", nil, refErr.BadRequest("Failed to validate refresh token")
 	}
 
 	accessToken, refreshToken, err := p.CreateTokens(ctx, aid, did)
 	if err != nil {
-		return nil, 0, "", refErr.InternalServer()
+		return 0, "", nil, refErr.InternalServer()
 	}
 
 	if err := p.km.UpdateKeyCache(ctx, did); err != nil {
-		return nil, 0, "", refErr.InternalServer()
+		return 0, "", nil, refErr.InternalServer()
 	}
 
 	resp := &refApp.ServerRefreshSession_Output{
@@ -186,7 +195,7 @@ func (p *PDS) RefreshSession(
 		TokenType:    p.jwt.AuthScheme,
 	}
 
-	return resp, aid, did, nil
+	return aid, did, resp, nil
 }
 
 func (p *PDS) DeleteSession(ctx context.Context, did string) *refErr.APIError {

@@ -51,7 +51,7 @@ func (s *Service) handleValidationErrors(ctx context.Context, err error) *refErr
 		for _, e := range valErr {
 			s.log.ErrorContext(
 				ctx,
-				"Request validation failed",
+				"HTTP body validation failed",
 				"field",
 				e.Field(),
 				"validationTag",
@@ -64,12 +64,21 @@ func (s *Service) handleValidationErrors(ctx context.Context, err error) *refErr
 		}
 		return refErr.ValidationAPIError(fieldErrs)
 	}
-	return nil
+
+	s.log.ErrorContext(ctx, "HTTP body validation failed", "err", err)
+	return refErr.UnproccessableEntity("Failed to validate object: " + err.Error())
 }
 
 func (s *Service) encode(ctx context.Context, w http.ResponseWriter, status int, v any) {
+	if err := util.Validate.StructCtx(ctx, v); err != nil {
+		apiErr := s.handleValidationErrors(ctx, err)
+		apiErr.WriteResponse(w)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
+
 	if err := json.NewEncoder(w).Encode(v); err != nil {
 		s.log.ErrorContext(ctx, "Error encoding response: %v", "error", err)
 		refErr.UnproccessableEntity("Unproccessable response body").WriteResponse(w)
@@ -84,7 +93,7 @@ func (s *Service) decodeAndValidate(ctx context.Context, w http.ResponseWriter, 
 		return err
 	}
 
-	if err := util.Validate.Struct(v); err != nil {
+	if err := util.Validate.StructCtx(ctx, v); err != nil {
 		apiErr := s.handleValidationErrors(ctx, err)
 		apiErr.WriteResponse(w)
 		return err

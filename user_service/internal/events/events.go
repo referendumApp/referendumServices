@@ -68,7 +68,7 @@ func (em *EventManager) Shutdown(ctx context.Context) error {
 func (em *EventManager) broadcastEvent(ctx context.Context, evt *XRPCStreamEvent) {
 	// the main thing we do is send it out, so MarshalCBOR once
 	if err := evt.Preserialize(); err != nil {
-		em.log.ErrorContext(ctx, "broadcast serialize failed", "err", err)
+		em.log.ErrorContext(ctx, "broadcast serialize failed", "error", err)
 		// serialize isn't going to go better later, this event is cursed
 		return
 	}
@@ -134,7 +134,7 @@ func (em *EventManager) persistAndSendEvent(ctx context.Context, evt *XRPCStream
 	// accept a aid. The lookup inside the persister is notably expensive (despite
 	// being an lru cache?)
 	if err := em.persister.Persist(ctx, evt); err != nil {
-		em.log.ErrorContext(ctx, "failed to persist outbound event", "err", err)
+		em.log.ErrorContext(ctx, "failed to persist outbound event", "error", err)
 	}
 }
 
@@ -438,9 +438,9 @@ func (em *EventManager) Subscribe(
 			}
 		}); err != nil {
 			if errors.Is(err, ErrPlaybackShutdown) {
-				em.log.WarnContext(ctx, "events playback", "err", err)
+				em.log.WarnContext(ctx, "events playback", "error", err)
 			} else {
-				em.log.ErrorContext(ctx, "events playback", "err", err)
+				em.log.ErrorContext(ctx, "events playback", "error", err)
 			}
 
 			// TODO: send an error frame or something?
@@ -468,7 +468,7 @@ func (em *EventManager) Subscribe(
 			}
 		}); err != nil {
 			if !errors.Is(err, ErrCaughtUp) {
-				em.log.ErrorContext(ctx, "events playback", "err", err)
+				em.log.ErrorContext(ctx, "events playback", "error", err)
 
 				// TODO: send an error frame or something?
 				close(out)

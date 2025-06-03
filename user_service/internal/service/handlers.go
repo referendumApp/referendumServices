@@ -24,9 +24,7 @@ func (s *Service) handleHealth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := map[string]bool{"healthy": true}
-
-	s.encode(r.Context(), w, http.StatusOK, resp)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Service) handleDescribeServer(w http.ResponseWriter, r *http.Request) {
@@ -48,30 +46,24 @@ func (s *Service) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hashed_pw, err := s.av.ResolveNewUser(ctx, &req)
+	auth, err := s.av.ResolveNewUser(ctx, &req)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	var recoveryKey string
-	if req.RecoveryKey != nil {
-		recoveryKey = *req.RecoveryKey
-	}
-
-	actor, err := s.pds.CreateActor(ctx, req.Handle, req.DisplayName, recoveryKey, req.Email, hashed_pw, "")
+	actor, err := s.pds.CreateActor(ctx, req.Handle, req.DisplayName, req.Email, auth, req.RecoveryKey)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	user, cerr := s.av.CreateUser(ctx, actor, req.DisplayName)
-	if cerr != nil {
+	if cerr := s.av.CreateUser(ctx, actor, req.DisplayName); cerr != nil {
 		cerr.WriteResponse(w)
 		return
 	}
 
-	resp, err := s.pds.CreateNewUserRepo(ctx, actor, user)
+	resp, err := s.pds.CreateNewUserRepo(ctx, actor, req.DisplayName)
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -109,7 +101,7 @@ func (s *Service) handleCreateLegislator(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	actor, err := s.pds.CreateActor(ctx, handle, req.Name, "", "", "", "")
+	actor, err := s.pds.CreateActor(ctx, handle, req.Name, "", nil, nil)
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -150,19 +142,60 @@ func (s *Service) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actor, err := s.av.GetAuthenticatedActor(ctx, login.Username, login.Password)
+	actor, err := s.av.GetAuthenticatedUser(ctx, login.Username, login.Password)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
-	resp, err := s.pds.CreateSession(ctx, actor)
+	resp, err := s.pds.CreateSession(
+		ctx,
+		actor.ID,
+		actor.Did,
+		actor.DisplayName,
+		actor.Handle.String,
+		actor.Email.String,
+	)
 	if err != nil {
 		err.WriteResponse(w)
 		return
 	}
 
 	s.encode(ctx, w, http.StatusCreated, resp)
+}
+
+func (s *Service) handleRefreshAccount(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var req refApp.ServerRefreshSession_Input
+	if err := s.decodeAndValidate(ctx, w, r.Body, &req); err != nil {
+		return
+	}
+
+	aid, did, tokens, err := s.pds.RefreshSession(ctx, req.RefreshToken)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	profile, err := s.av.GetActorProfile(ctx, aid)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	resp := refApp.ServerCreateSession_Output{
+		Aid:          aid,
+		Did:          did,
+		DisplayName:  profile.DisplayName,
+		Handle:       profile.Handle.String,
+		Email:        profile.Email.String,
+		AccessToken:  tokens.AccessToken,
+		RefreshToken: tokens.RefreshToken,
+		TokenType:    tokens.TokenType,
+	}
+
+	s.encode(ctx, w, http.StatusOK, resp)
 }
 
 func (s *Service) handleRefreshSession(w http.ResponseWriter, r *http.Request) {
@@ -173,7 +206,7 @@ func (s *Service) handleRefreshSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, aid, did, err := s.pds.RefreshSession(ctx, req.RefreshToken)
+	aid, did, resp, err := s.pds.RefreshSession(ctx, req.RefreshToken)
 	if err != nil {
 		err.WriteResponse(w)
 		return
@@ -473,41 +506,41 @@ func (s *Service) handleGraphUnfollow(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Service) handleGraphFollowers(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+// func (s *Service) handleGraphFollowers(w http.ResponseWriter, r *http.Request) {
+// 	ctx := r.Context()
+//
+// 	aid, _, err := s.getAuthenticatedIds(ctx)
+// 	if err != nil {
+// 		err.WriteResponse(w)
+// 		return
+// 	}
+//
+// 	followers, err := s.av.HandleGraphFollowers(ctx, aid)
+// 	if err != nil {
+// 		err.WriteResponse(w)
+// 		return
+// 	}
+//
+// 	s.encode(ctx, w, http.StatusOK, followers)
+// }
 
-	aid, _, err := s.getAuthenticatedIds(ctx)
-	if err != nil {
-		err.WriteResponse(w)
-		return
-	}
-
-	followers, err := s.av.HandleGraphFollowers(ctx, aid)
-	if err != nil {
-		err.WriteResponse(w)
-		return
-	}
-
-	s.encode(ctx, w, http.StatusOK, followers)
-}
-
-func (s *Service) handleGraphFollowing(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	aid, _, err := s.getAuthenticatedIds(ctx)
-	if err != nil {
-		err.WriteResponse(w)
-		return
-	}
-
-	following, err := s.av.HandleGraphFollowing(ctx, aid)
-	if err != nil {
-		err.WriteResponse(w)
-		return
-	}
-
-	s.encode(ctx, w, http.StatusOK, following)
-}
+// func (s *Service) handleGraphFollowing(w http.ResponseWriter, r *http.Request) {
+// 	ctx := r.Context()
+//
+// 	aid, _, err := s.getAuthenticatedIds(ctx)
+// 	if err != nil {
+// 		err.WriteResponse(w)
+// 		return
+// 	}
+//
+// 	following, err := s.av.HandleGraphFollowing(ctx, aid)
+// 	if err != nil {
+// 		err.WriteResponse(w)
+// 		return
+// 	}
+//
+// 	s.encode(ctx, w, http.StatusOK, following)
+// }
 
 func (s *Service) handleGraphVote(w http.ResponseWriter, r *http.Request) {}
 
