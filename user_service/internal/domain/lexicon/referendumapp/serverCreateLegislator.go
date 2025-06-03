@@ -6,6 +6,7 @@ package referendumapp
 
 import (
 	"github.com/bluesky-social/indigo/lex/util"
+	"github.com/referendumApp/referendumServices/internal/domain/atp"
 )
 
 // ServerCreateLegislator_Input is the input argument to a com.referendumapp.server.createLegislator call.
@@ -30,6 +31,7 @@ type ServerCreateLegislator_Input struct {
 //
 // Confirmation returned on successful legislator creation.
 type ServerCreateLegislator_Output struct {
-	Did    string `json:"did" cborgen:"did" validate:"required,did"`
-	Handle string `json:"handle" cborgen:"handle" validate:"required,handle"`
+	Aid    atp.Aid `json:"aid" cborgen:"aid" validate:"required"`
+	Did    string  `json:"did" cborgen:"did" validate:"required,did"`
+	Handle string  `json:"handle" cborgen:"handle" validate:"required,handle"`
 }

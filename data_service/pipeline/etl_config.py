@@ -257,9 +257,8 @@ class ETLConfig(BaseModel):
             }
 
             for _, row in self.dataframe.iterrows():
+                legislator_data = row.to_dict()
                 try:
-                    legislator_data = row.to_dict()
-
                     pds_response = self.create_or_update_legislator(legislator_data)
                     results["pds_responses"].append(pds_response)
                     results["succeeded"] += 1
@@ -287,32 +286,40 @@ class ETLConfig(BaseModel):
     def _update_database_with_pds_data(self, conn: Session, pds_responses: list):
         """Update database with DID/AID values returned from PDS"""
         try:
-            logger.info(f"Updating {len(pds_responses)} legislators with PDS data (DID/AID)")
+            valid_responses = [
+                response
+                for response in pds_responses
+                if response.get("did") and response.get("aid")
+            ]
 
-            for response in pds_responses:
-                if response.get("did") and response.get("aid"):
-                    update_query = text(
-                        """
-                        UPDATE legislators 
-                        SET 
-                            did = :did,
-                            aid = :aid,
-                            pds_handle = :handle,
-                            pds_synced_at = NOW()
-                        WHERE legiscan_id = :legislator_id
-                    """
-                    )
+            if not valid_responses:
+                logger.info("No valid PDS responses with both DID and AID found")
+                return
 
-                    conn.execute(
-                        update_query,
-                        {
-                            "did": response["did"],
-                            "aid": response["aid"],
-                            "handle": response["handle"],
-                            "legislator_id": response["legislatorId"],
-                        },
-                    )
+            logger.info(f"Updating {len(valid_responses)} legislators with PDS data (DID/AID)")
 
+            invalid_response_count = len(pds_responses) - len(valid_responses)
+            logger.info(f"Skipping {invalid_response_count} responses without DID/AID")
+
+            update_values = []
+            for response in valid_responses:
+                update_values.append(
+                    f"({response['legislatorId']}, '{response['did']}', '{response['aid']}', '{response['handle']}')"
+                )
+            bulk_update_query = text(
+                f"""
+                UPDATE legislators 
+                SET 
+                    did = updates.did,
+                    aid = updates.aid,
+                    pds_handle = updates.handle,
+                    pds_synced_at = NOW()
+                FROM (VALUES {', '.join(update_values)}) AS updates(legislator_id, did, aid, handle)
+                WHERE legislators.legiscan_id = updates.legislator_id::integer
+            """
+            )
+
+            conn.execute(bulk_update_query)
             conn.commit()
             logger.info("Successfully updated legislators table with PDS data")
 

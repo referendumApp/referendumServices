@@ -196,7 +196,6 @@ def run_pds_processing():
     try:
         logger.info("Beginning PDS ETL")
 
-        # Extract from referendum database
         referendum_db = next(get_referendum_db())
         with referendum_db.connection() as conn:
             pds_etl_config.extract(conn)

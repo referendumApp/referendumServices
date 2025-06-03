@@ -1,5 +1,6 @@
 {
-  "source": "(SELECT l.legiscan_id, l.name, l.district, p.name as party_name, r.name as role_name, s.name as state_name, c.name as legislature_name FROM legislators l LEFT JOIN partys p ON l.party_id = p.id LEFT JOIN roles r ON l.role_id = r.id LEFT JOIN states s ON l.state_id = s.id LEFT JOIN states c ON l.legislature_id = c.id WHERE l.pds_synced_at IS NULL OR l.pds_synced_at < l.updated_at) AS unsynced_legislators",
+  "_TODO": "Remove state ID filter and limit for local run",
+  "source": "(SELECT l.legiscan_id, l.name, l.district, p.name as party_name, r.name as role_name, s.name as state_name, c.name as legislature_name FROM legislators l LEFT JOIN partys p ON l.party_id = p.id LEFT JOIN roles r ON l.role_id = r.id LEFT JOIN states s ON l.state_id = s.id LEFT JOIN states c ON l.legislature_id = c.id WHERE l.state_id IS NOT NULL AND (l.pds_synced_at IS NULL OR l.pds_synced_at < l.updated_at) LIMIT 5) AS unsynced_legislators",
   "destination": "legislators",
   "source_columns": [
     "legiscan_id",

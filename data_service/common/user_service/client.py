@@ -49,7 +49,7 @@ class UserServiceClient:
         """Check if the user service is accessible"""
         try:
             response = requests.get(f"{self.base_url}/health", timeout=self.timeout)
-            if response.status_code == 200:
+            if response.status_code == 204:
                 logger.info("Successfully connected to user service")
                 return True
             else:
@@ -97,15 +97,17 @@ class UserServiceClient:
             # Prepare the payload for the user service
             payload = {
                 "legislatorId": legislator_data.get("legislatorId"),
-                "handle": legislator_data.get("handle"),
-                "displayName": legislator_data.get("displayName"),
-                "description": legislator_data.get("description", ""),
-                "avatar": legislator_data.get("avatar", ""),
+                "name": legislator_data.get("name"),
                 "state": legislator_data.get("state", ""),
                 "party": legislator_data.get("party", ""),
                 "chamber": legislator_data.get("chamber", ""),
                 "active": legislator_data.get("active", True),
+                "role": legislator_data.get("role", ""),
+                "legislature": legislator_data.get("legislature", ""),
+                "district": legislator_data.get("district", ""),
             }
+
+            logger.info(f"Using Payload: {payload}")
 
             response = self._make_request("POST", "/legislators", payload)
             result = response.json()
