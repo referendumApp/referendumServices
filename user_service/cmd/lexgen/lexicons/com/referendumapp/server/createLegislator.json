@@ -65,8 +65,9 @@
           "schema": {
             "type": "object",
             "description": "Confirmation returned on successful legislator creation.",
-            "required": ["did", "handle"],
+            "required": ["aid", "did", "handle"],
             "properties": {
+              "aid": {"type": "aid"},
               "did": {
                 "type": "string",
                 "format": "did"
