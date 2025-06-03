@@ -178,7 +178,7 @@ services:
         "--cache_mode=true",
         "--maxmemory=1.5gb",
       ]
-    profiles: ["local-data", "local-empty"]
+    profiles: ["local-data", "local-empty", "test"]
 
   localstack:
     container_name: localstack
@@ -263,7 +263,7 @@ services:
         condition: service_completed_successfully
     profiles: ["local-data", "local-empty", "test"]
 
-  pipeline-local:
+  pipeline:
     container_name: pipeline
     build:
       context: ./data_service
