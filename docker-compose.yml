@@ -110,12 +110,14 @@ services:
         condition: service_healthy
       kms:
         condition: service_healthy
-      localstack-init:
-        condition: service_completed_successfully
+      localstack:
+        condition: service_healthy
       local-db-init:
         condition: service_completed_successfully
       migrations:
         condition: service_completed_successfully
+      plc:
+        condition: service_healthy
     volumes:
       - ./user_service/go.mod:/code/go.mod
       - ./user_service/go.sum:/code/go.sum
@@ -182,23 +184,6 @@ services:
       start_period: 10s
     profiles: ["local-data", "local-empty", "test"]
 
-  localstack-init:
-    image: amazon/aws-cli:latest
-    depends_on:
-      localstack:
-        condition: service_healthy
-    environment:
-      - AWS_ACCESS_KEY_ID=test
-      - AWS_SECRET_ACCESS_KEY=test
-      - AWS_DEFAULT_REGION=us-east-1
-    volumes:
-      - ./data_service/scripts:/scripts
-    entrypoint: []
-    command:
-      - /bin/bash
-      - /scripts/localstack_init.sh
-    profiles: ["local-data", "local-empty", "test"]
-
   kms:
     container_name: kms
     image: kng93/local-kms
@@ -225,7 +210,7 @@ services:
       interval: 2s
       timeout: 5s
       retries: 3
-    profiles: ["local-data", "local-empty"]
+    profiles: ["local-data", "local-empty", "test"]
 
   local-db-init:
     container_name: local_db_init
@@ -237,7 +222,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      localstack-init:
+      localstack:
         condition: service_completed_successfully
     command: ["/code/local_db_init.sh"]
     profiles: ["local-data", "local-empty", "test"]
@@ -263,6 +248,10 @@ services:
       target: pipeline
     image: pipeline
     depends_on:
+      api-local:
+        condition: service_started
+      user-api-local:
+        condition: service_healthy
       db:
         condition: service_healthy
       localstack:
@@ -281,10 +270,12 @@ services:
       target: test
     image: data-test
     depends_on:
+      user-api-local:
+        condition: service_healthy
       db:
         condition: service_healthy
-      localstack-init:
-        condition: service_completed_successfully
+      localstack:
+        condition: service_healthy
       local-db-init:
         condition: service_completed_successfully
       migrations:
@@ -310,6 +301,27 @@ services:
       - KMS_PORT=9002
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+
+  plc:
+    container_name: plc
+    build:
+      context: ./plc
+      dockerfile: Dockerfile
+    ports:
+      - "2582:2582"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/plc_dev
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:2582/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    profiles: ["local-data", "local-empty", "test"]
 
 volumes:
   postgres_data:
