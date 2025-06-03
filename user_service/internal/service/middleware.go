@@ -3,11 +3,9 @@ package service
 import (
 	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
@@ -47,6 +45,7 @@ func getOrCreateCustomWriter(w http.ResponseWriter) *CustomResponseWriter {
 
 func (s *Service) logRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
 		startTime := time.Now()
 
 		// Wrap the ResponseWriter so we can include the status code in our logs
@@ -54,7 +53,7 @@ func (s *Service) logRequest(next http.Handler) http.Handler {
 
 		// Log request details
 		s.log.InfoContext(
-			r.Context(),
+			ctx,
 			"Request started",
 			"method",
 			r.Method,
@@ -68,7 +67,7 @@ func (s *Service) logRequest(next http.Handler) http.Handler {
 
 		duration := fmt.Sprintf("%d ms", time.Since(startTime).Milliseconds())
 		s.log.InfoContext(
-			r.Context(),
+			ctx,
 			"Request completed",
 			"method",
 			r.Method,
@@ -109,26 +108,6 @@ func (s *Service) requestTimeout(next http.Handler) http.Handler {
 	})
 }
 
-// extractBearerToken extracts and validates the Bearer token from the Authorization header
-func (s *Service) extractBearerToken(r *http.Request) (string, error) {
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		return "", errors.New("missing Authorization header")
-	}
-
-	const bearerPrefix = "Bearer "
-	if !strings.HasPrefix(authHeader, bearerPrefix) {
-		return "", errors.New("invalid Authorization header format")
-	}
-
-	token := strings.TrimSpace(authHeader[len(bearerPrefix):])
-	if token == "" {
-		return "", errors.New("empty token")
-	}
-
-	return token, nil
-}
-
 // setContextFromAuth sets the DID and Subject context values from auth results
 func (s *Service) setContextFromAuth(ctx context.Context, aid atp.Aid, did string) context.Context {
 	didCtx := context.WithValue(ctx, util.DidKey, did)
@@ -145,15 +124,10 @@ func (s *Service) writeUnauthorizedError(w http.ResponseWriter, r *http.Request,
 	refErr.Unauthorized(message).WriteResponse(w)
 }
 
-// AuthorizeUser validates regular user tokens only (delegates to PDS)
-func (s *Service) AuthorizeUser(next http.Handler) http.Handler {
-	return s.pds.AuthorizeUser(next)
-}
-
 // AuthorizeSystem validates system user tokens only
 func (s *Service) AuthorizeSystem(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token, err := s.extractBearerToken(r)
+		token, err := util.ParseAuthHeader(r, util.DefaultAuthScheme)
 		if err != nil {
 			s.writeUnauthorizedError(w, r, err.Error(), nil)
 			return
@@ -173,7 +147,9 @@ func (s *Service) AuthorizeSystem(next http.Handler) http.Handler {
 // AuthorizeSystemOrUser validates both system user and regular user tokens
 func (s *Service) AuthorizeSystemOrUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token, err := s.extractBearerToken(r)
+		reqCtx := r.Context()
+
+		token, err := util.ParseAuthHeader(r, util.DefaultAuthScheme)
 		if err != nil {
 			s.writeUnauthorizedError(w, r, err.Error(), nil)
 			return
@@ -181,17 +157,17 @@ func (s *Service) AuthorizeSystemOrUser(next http.Handler) http.Handler {
 
 		// Try API key validation first
 		if aid, did, err := s.AuthenticateSystemUser(r.Context(), token); err == nil {
-			s.log.InfoContext(r.Context(), "Authenticated as system user")
-			ctx := s.setContextFromAuth(r.Context(), *aid, *did)
+			s.log.InfoContext(reqCtx, "Authenticated as system user")
+			ctx := s.setContextFromAuth(reqCtx, *aid, *did)
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
 
-		s.log.InfoContext(r.Context(), "API key validation failed, trying user token validation")
+		s.log.InfoContext(reqCtx, "API key validation failed, trying user token validation")
 
 		authCapture := &authResponseCapture{ResponseWriter: w}
 
-		s.AuthorizeUser(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.pds.AuthorizeUser(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authCapture.authSucceeded = true
 			next.ServeHTTP(w, r)
 		})).ServeHTTP(authCapture, r)

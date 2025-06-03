@@ -28,29 +28,25 @@
         "encoding": "application/json",
         "schema": {
           "type": "object",
-          "required": [
-            "accessToken",
-            "refreshToken",
-            "handle",
-            "did",
-            "tokenType"
-          ],
+          "required": ["accessToken", "refreshToken", "email", "handle", "displayName", "aid", "did", "tokenType"],
           "properties": {
             "accessToken": { "type": "string" },
             "refreshToken": { "type": "string" },
-            "handle": {
-              "type": "string",
-              "format": "handle",
-              "minLength": 8,
-              "maxLength": 100
-            },
-            "did": { "type": "string", "format": "did" },
-            "didDoc": { "type": "unknown" },
             "email": {
               "type": "string",
-              "format": "email",
-              "maxLength": 100
+              "format": "email"
             },
+            "handle": {
+              "type": "string",
+              "format": "handle"
+            },
+            "displayName": {
+              "type": "string",
+              "format": "name"
+            },
+            "aid": { "type": "aid" },
+            "did": { "type": "string", "format": "did" },
+            "didDoc": { "type": "unknown" },
             "emailConfirmed": { "type": "boolean" },
             "tokenType": { "type": "string" }
           }
