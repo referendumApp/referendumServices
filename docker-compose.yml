@@ -292,8 +292,6 @@ services:
       target: test
     image: data-test
     depends_on:
-      user-api-local:
-        condition: service_healthy
       db:
         condition: service_healthy
       localstack:
