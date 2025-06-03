@@ -341,7 +341,7 @@ services:
       local-db-init:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:2582/health"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:2582', (res) => process.exit([200, 302].includes(res.statusCode) ? 0 : 1)).on('error', () => process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3
