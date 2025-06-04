@@ -64,11 +64,22 @@ def test_pds(mock_user_service_client):
         created_legislators[legislator_id] = {**legislator_data, **response, "action": "created"}
         return response
 
-    def mock_get_or_create_legislator(legislator_id):
-        legislator = mock_get_legislator(legislator_id)
-        if not legislator:
-            legislator = mock_create_legislator(legislator)
-        return legislator
+    def mock_create_or_update_legislator(legislator_data):
+        legislator_id = legislator_data.get("legislatorId")
+        existing = mock_get_legislator(legislator_id)
+
+        if existing:
+            response = mock_update_legislator(legislator_data)
+        else:
+            response = mock_create_legislator(legislator_data)
+
+        return {
+            "legislatorId": legislator_id,
+            "did": response.get("did"),
+            "aid": response.get("aid"),
+            "handle": response.get("handle"),
+            "action": "created",
+        }
 
     def mock_update_legislator(legislator_data):
         legislator_id = legislator_data.get("legislatorId")
@@ -82,7 +93,7 @@ def test_pds(mock_user_service_client):
     mock_client.get_legislator.side_effect = mock_get_legislator
     mock_client.create_legislator.side_effect = mock_create_legislator
     mock_client.update_legislator.side_effect = mock_update_legislator
-    mock_client.get_or_create_legislator.side_effect = mock_get_or_create_legislator
+    mock_client.create_or_update_legislator.side_effect = mock_create_or_update_legislator
     mock_user_service_client.return_value = mock_client
 
     # Run the PDS processing
