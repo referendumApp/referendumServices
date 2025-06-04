@@ -253,6 +253,7 @@ class ETLConfig(BaseModel):
             batch_end = min(batch_start + self.batch_size, total_legislators)
             batch_data = legislator_data_list[batch_start:batch_end]
             batch_num = (batch_start // self.batch_size) + 1
+            total_batches = (total_legislators + self.batch_size - 1) // self.batch_size
 
             logger.info(
                 f"Processing batch {batch_num}/{total_batches} ({len(batch_data)} legislators)"
