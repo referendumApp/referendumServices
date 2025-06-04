@@ -7,7 +7,6 @@ from unittest.mock import Mock, patch
 
 from common.database.referendum import connection as referendum_connection
 from common.database.legiscan_api import connection as legiscan_api_connection
-from common.user_service.client import UserServiceClient
 from pipeline.etl_config import ETLConfig
 
 
@@ -44,36 +43,58 @@ def test_etl():
     legiscan_db.close()
 
 
-@patch.object(UserServiceClient, "create_or_update_legislator")
-def test_pds(mock_create_or_update):
+@patch("pipeline.etl_config.UserServiceClient")
+def test_pds(mock_user_service_client):
+    # Mock the UserServiceClient
+    mock_client = Mock()
     created_legislators = {}
 
-    def mock_create_or_update_legislator(self, legislator_data):
+    def mock_get_legislator(legislator_id):
+        return created_legislators.get(legislator_id)
+
+    def mock_create_legislator(legislator_data):
         legislator_id = legislator_data.get("legislatorId")
-        existing = created_legislators.get(legislator_id)
+        if legislator_id in created_legislators:
+            raise Exception(f"Legislator already exists: {legislator_id}")
+        response = {
+            "did": f"did:plc:{legislator_id}",
+            "aid": legislator_id,
+            "handle": f"legislator-{legislator_id}.referendum.app",
+        }
+        created_legislators[legislator_id] = {**legislator_data, **response, "action": "created"}
+        return response
+
+    def mock_create_or_update_legislator(legislator_data):
+        legislator_id = legislator_data.get("legislatorId")
+        existing = mock_get_legislator(legislator_id)
 
         if existing:
-            return {
-                "legislatorId": legislator_id,
-                "did": existing["did"],
-                "aid": existing["aid"],
-                "handle": existing["handle"],
-                "action": "updated",
-            }
+            response = mock_update_legislator(legislator_data)
         else:
-            response = {
-                "did": f"did:plc:{legislator_id}",
-                "aid": legislator_id,
-                "handle": f"legislator-{legislator_id}.referendum.app",
-            }
-            created_legislators[legislator_id] = {**legislator_data, **response}
-            return {
-                "legislatorId": legislator_id,
-                "did": response["did"],
-                "aid": response["aid"],
-                "handle": response["handle"],
-                "action": "created",
-            }
+            response = mock_create_legislator(legislator_data)
 
-    mock_create_or_update.side_effect = mock_create_or_update_legislator
+        return {
+            "legislatorId": legislator_id,
+            "did": response.get("did"),
+            "aid": response.get("aid"),
+            "handle": response.get("handle"),
+            "action": "created",
+        }
+
+    def mock_update_legislator(legislator_data):
+        legislator_id = legislator_data.get("legislatorId")
+        if legislator_id not in created_legislators:
+            raise Exception(f"Legislator not found: {legislator_id}")
+        existing = created_legislators[legislator_id]
+        updated_data = {**existing, **legislator_data, "action": "updated"}
+        created_legislators[legislator_id] = updated_data
+        return {"did": existing["did"], "aid": existing["aid"], "handle": existing["handle"]}
+
+    mock_client.get_legislator.side_effect = mock_get_legislator
+    mock_client.create_legislator.side_effect = mock_create_legislator
+    mock_client.update_legislator.side_effect = mock_update_legislator
+    mock_client.create_or_update_legislator.side_effect = mock_create_or_update_legislator
+    mock_user_service_client.return_value = mock_client
+
+    # Run the PDS processing
     run.orchestrate(stage="pds_processing")
