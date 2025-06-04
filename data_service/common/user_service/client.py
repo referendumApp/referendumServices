@@ -221,6 +221,38 @@ class UserServiceClient:
             logger.error(f"Error deleting legislator {legislator_id}: {str(e)}")
             raise
 
+    def create_or_update_legislator(self, legislator_data: Dict) -> Dict:
+        """Create or update legislator in PDS and return PDS response with DID/AID"""
+        try:
+            existing = self.get_legislator(legislator_id=legislator_data["legislatorId"])
+
+            if existing:
+                response = self.update_legislator(legislator_data)
+                logger.info(f"Updated legislator {legislator_data['legislatorId']} in PDS")
+
+                return {
+                    "legislatorId": legislator_data["legislatorId"],
+                    "did": response.get("did"),
+                    "aid": response.get("aid"),
+                    "handle": response.get("handle"),
+                    "action": "updated",
+                }
+            else:
+                response = self.create_legislator(legislator_data)
+                logger.info(f"Created legislator {legislator_data['legislatorId']} in PDS")
+
+                return {
+                    "legislatorId": legislator_data["legislatorId"],
+                    "did": response.get("did"),
+                    "aid": response.get("aid"),
+                    "handle": response.get("handle"),
+                    "action": "created",
+                }
+
+        except Exception as e:
+            logger.error(f"Failed to process legislator {legislator_data.get('legislatorId')}: {e}")
+            raise
+
     def batch_create_legislators(self, legislators_data: list) -> Dict[str, Any]:
         """Create multiple legislators in batch"""
         results = {"succeeded": 0, "failed": 0, "errors": [], "responses": []}

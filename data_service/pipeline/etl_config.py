@@ -1,7 +1,9 @@
 import hashlib
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from enum import Enum
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple
+import time
 
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field
@@ -143,48 +145,21 @@ class JoinConfig(BaseModel):
                   ON {join_condition}"""
 
 
-class PDSLoader:
-    """Handles loading data into the PDS"""
-
-    def __init__(self):
-        self.user_client = UserServiceClient()
-
-    def create_or_update_legislator(self, legislator_data: Dict) -> Dict:
-        """Create or update legislator in PDS and return PDS response with DID/AID"""
-        try:
-            # Try to get existing legislator first
-            existing = self.user_client.get_legislator(
-                legislator_id=legislator_data["legislatorId"]
-            )
-
-            if existing:
-                # Update existing legislator
-                response = self.user_client.update_legislator(legislator_data)
-                logger.info(f"Updated legislator {legislator_data['legislatorId']} in PDS")
-
-                return {
-                    "legislatorId": legislator_data["legislatorId"],
-                    "did": response.get("did"),
-                    "aid": response.get("aid"),
-                    "handle": response.get("handle"),
-                    "action": "updated",
-                }
-            else:
-                # Create new legislator - this will return DID and AID
-                response = self.user_client.create_legislator(legislator_data)
-                logger.info(f"Created legislator {legislator_data['legislatorId']} in PDS")
-
-                return {
-                    "legislatorId": legislator_data["legislatorId"],
-                    "did": response.get("did"),
-                    "aid": response.get("aid"),
-                    "handle": response.get("handle"),
-                    "action": "created",
-                }
-
-        except Exception as e:
-            logger.error(f"Failed to process legislator {legislator_data.get('legislatorId')}: {e}")
-            raise
+def process_single_legislator(legislator_data: Dict) -> Tuple[bool, Dict]:
+    """
+    Process a single legislator. Returns (success, result_data).
+    This function will be called in parallel threads.
+    """
+    user_service_client = UserServiceClient()
+    try:
+        pds_response = user_service_client.create_or_update_legislator(legislator_data)
+        return True, pds_response
+    except Exception as e:
+        error_data = {
+            "legislator_id": legislator_data.get("legislatorId"),
+            "error": str(e),
+        }
+        return False, error_data
 
 
 class ETLConfig(BaseModel):
@@ -197,9 +172,11 @@ class ETLConfig(BaseModel):
     unique_constraints: List[str] = Field(default=["id"])
     dataframe: Optional[pd.DataFrame] = None
     pds_load: bool = False
+    max_workers: int = Field(default=50)
+    batch_size: int = Field(default=100)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    _pds_loader: PDSLoader = None
+    _user_service_client: UserServiceClient = None
 
     def _get_source_query(self, join_config: Optional[JoinConfig]) -> str:
         """Generate SQL query for source data extraction"""
@@ -249,39 +226,82 @@ class ETLConfig(BaseModel):
         """Enhanced load method with bidirectional PDS support"""
 
         if self.pds_load:
-            results = {
-                "succeeded": 0,
-                "failed": 0,
-                "errors": [],
-                "pds_responses": [],  # Contains DID/AID data to update database
-            }
-
-            for _, row in self.dataframe.iterrows():
-                legislator_data = row.to_dict()
-                try:
-                    pds_response = self.create_or_update_legislator(legislator_data)
-                    results["pds_responses"].append(pds_response)
-                    results["succeeded"] += 1
-
-                except Exception as e:
-                    results["failed"] += 1
-                    results["errors"].append(
-                        {"legislator_id": legislator_data.get("legislatorId"), "error": str(e)}
-                    )
-
-            logger.info(
-                f"PDS load completed for {self.destination}. "
-                f"Succeeded: {results['succeeded']}, Failed: {results['failed']}"
-            )
-
-            if results["failed"] > 0:
-                logger.error(f"PDS load errors: {results['errors']}")
-                raise Exception(f"PDS load had {results['failed']} failures")
-
-            self._update_database_with_pds_data(conn, results["pds_responses"])
-
+            self._load_legislators_pds(conn)
         else:
             self._load_to_database(conn)
+
+    def _load_legislators_pds(self, conn: Session):
+        """
+        Parallel version of PDS loading using ThreadPoolExecutor
+        """
+        start_time = time.time()
+        total_legislators = len(self.dataframe)
+
+        logger.info(
+            f"Starting PDS load for {total_legislators} legislators with {self.max_workers} workers"
+        )
+
+        results = {
+            "succeeded": 0,
+            "failed": 0,
+            "errors": [],
+            "pds_responses": [],
+        }
+
+        legislator_data_list = [row.to_dict() for _, row in self.dataframe.iterrows()]
+        for batch_start in range(0, total_legislators, self.batch_size):
+            batch_end = min(batch_start + self.batch_size, total_legislators)
+            batch_data = legislator_data_list[batch_start:batch_end]
+            batch_num = (batch_start // self.batch_size) + 1
+            total_batches = (total_legislators + self.batch_size - 1) // self.batch_size
+
+            logger.info(
+                f"Processing batch {batch_num}/{total_batches} ({len(batch_data)} legislators)"
+            )
+
+            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                future_to_data = {
+                    executor.submit(process_single_legislator, legislator_data): legislator_data
+                    for legislator_data in batch_data
+                }
+
+                for future in as_completed(future_to_data):
+                    success, result_data = future.result()
+
+                    if success:
+                        results["pds_responses"].append(result_data)
+                        results["succeeded"] += 1
+                    else:
+                        results["errors"].append(result_data)
+                        results["failed"] += 1
+
+            elapsed_time = time.time() - start_time
+            processed_count = batch_end
+            rate = processed_count / elapsed_time if elapsed_time > 0 else 0
+            estimated_remaining = (total_legislators - processed_count) / rate if rate > 0 else 0
+
+            logger.info(
+                f"Batch {batch_num} complete. Progress: {processed_count}/{total_legislators} "
+                f"({processed_count / total_legislators * 100:.1f}%) - "
+                f"Rate: {rate:.1f} legislators/sec - "
+                f"ETA: {estimated_remaining:.1f}s"
+            )
+
+        total_time = time.time() - start_time
+        avg_rate = total_legislators / total_time if total_time > 0 else 0
+
+        logger.info(
+            f"PDS load completed for {self.destination} in {total_time:.2f}s. "
+            f"Succeeded: {results['succeeded']}, Failed: {results['failed']} "
+            f"(Average rate: {avg_rate:.1f} legislators/sec)"
+        )
+
+        if results["failed"] > 0:
+            logger.error(f"PDS load errors: {results['errors']}")
+            raise Exception(f"PDS load had {results['failed']} failures")
+
+        if results["pds_responses"]:
+            self._update_database_with_pds_data(conn, results["pds_responses"])
 
     def _update_database_with_pds_data(self, conn: Session, pds_responses: list):
         """Update database with DID/AID values returned from PDS"""
@@ -381,6 +401,6 @@ class ETLConfig(BaseModel):
             raise
 
     def create_or_update_legislator(self, legislator_data: Dict) -> Dict:
-        if not self._pds_loader:
-            self._pds_loader = PDSLoader()
-        return self._pds_loader.create_or_update_legislator(legislator_data)
+        if not self._user_service_client:
+            self._user_service_client = UserServiceClient()
+        return self._user_service_client.create_or_update_legislator(legislator_data)
