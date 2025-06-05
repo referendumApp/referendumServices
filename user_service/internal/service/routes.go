@@ -71,7 +71,7 @@ func (s *Service) setupRoutes() {
 		r.Group(func(r chi.Router) {
 			r.Use(s.AuthorizeSystem)
 			r.Post("/", s.handleCreateBill)
-			// r.Put("/", s.handleUpdateBill)
+			r.Put("/", s.handleUpdateBill)
 			// 	r.Delete("/", s.handleDeleteBill)
 		})
 

@@ -525,6 +525,45 @@ func (s *Service) handleGetBill(w http.ResponseWriter, r *http.Request) {
 	s.encode(ctx, w, http.StatusOK, detail)
 }
 
+func (s *Service) handleUpdateBill(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var req refApp.ServerCreateBill_Input
+	if err := s.decodeAndValidate(ctx, w, r.Body, &req); err != nil {
+		return
+	}
+
+	serviceAid, _, err := s.getAuthenticatedSystemIds(ctx)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	rec := &refApp.BillDetail{
+		Identifier:      req.Identifier,
+		Title:           req.Title,
+		LegislativeBody: req.LegislativeBody,
+		Legislature:     req.Legislature,
+		Session:         req.Session,
+		Status:          req.Status,
+		StatusDate:      req.StatusDate,
+	}
+
+	cc, err := s.pds.UpdateRecord(ctx, *serviceAid, rec)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	cid := cc.String()
+	resp := refApp.ServerCreateBill_Output{
+		Cid: cid,
+		Aid: serviceAid,
+	}
+
+	s.encode(ctx, w, http.StatusOK, resp)
+}
+
 func (s *Service) handleGraphFollow(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
