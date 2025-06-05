@@ -20,8 +20,8 @@ type BillDetail struct {
 	CurrentVersion  *comatproto.RepoStrongRef `json:"currentVersion,omitempty" cborgen:"currentVersion,omitempty" validate:"omitempty"`
 	Description     *string                   `json:"description,omitempty" cborgen:"description,omitempty" validate:"omitempty"`
 	Identifier      string                    `json:"identifier" cborgen:"identifier" validate:"required"`
-	Jurisdiction    string                    `json:"jurisdiction" cborgen:"jurisdiction" validate:"required"`
 	LegislativeBody string                    `json:"legislativeBody" cborgen:"legislativeBody" validate:"required"`
+	Legislature     string                    `json:"legislature" cborgen:"legislature" validate:"required"`
 	Session         string                    `json:"session" cborgen:"session" validate:"required"`
 	Status          string                    `json:"status" cborgen:"status" validate:"required,oneof=Introduced,oneof=Passed,oneof=Vetoed,oneof=Failed,oneof=Prefiled,oneof=Engrossed,oneof=Enrolled,oneof=Override,oneof=Chaptered,oneof=Refer,oneof=Draft,oneof=Report Pass,oneof=Report DNP"`
 	// statusDate: Client-declared timestamp when this post was originally created.
@@ -35,5 +35,5 @@ func (t BillDetail) NSID() string {
 }
 
 func (t BillDetail) Key() string {
-	return repo.LID(t.Identifier, t.Session, t.Jurisdiction)
+	return repo.LID(t.Identifier, t.Session, t.Legislature)
 }

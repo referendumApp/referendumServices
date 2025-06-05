@@ -5,14 +5,14 @@
     "main": {
       "type": "record",
       "description": "Record containing bill details.",
-      "key": "lid:identifier:session:jurisdiction",
+      "key": "lid:identifier:session:legislature",
       "record": {
         "type": "object",
         "required": [
           "identifier",
           "title",
           "legislativeBody",
-          "jurisdiction",
+          "legislature",
           "status",
           "session",
           "statusDate"
@@ -22,7 +22,7 @@
           "title": { "type": "string" },
           "description": { "type": "string" },
           "legislativeBody": { "type": "string" },
-          "jurisdiction": { "type": "string" },
+          "legislature": { "type": "string" },
           "status": {
             "type": "string",
             "enum": [

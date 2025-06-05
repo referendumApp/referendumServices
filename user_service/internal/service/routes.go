@@ -67,6 +67,20 @@ func (s *Service) setupRoutes() {
 		})
 	})
 
+	s.mux.Route("/bills", func(r chi.Router) {
+		r.Group(func(r chi.Router) {
+			r.Use(s.AuthorizeSystem)
+			r.Post("/", s.handleCreateBill)
+			// 	r.Put("/", s.handleUpdateBill)
+			// 	r.Delete("/", s.handleDeleteBill)
+		})
+
+		// r.Group(func(r chi.Router) {
+		// 	r.Use(s.AuthorizeSystemOrUser)
+		// 	r.Get("/", s.handleGetBill)
+		// })
+	})
+
 	s.mux.Route("/server", func(r chi.Router) {
 		r.Use(s.AuthorizeSystem)
 		r.Get("/describeServer", s.handleDescribeServer)

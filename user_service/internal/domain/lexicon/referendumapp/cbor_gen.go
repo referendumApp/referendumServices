@@ -723,26 +723,26 @@ func (t *BillDetail) MarshalCBOR(w io.Writer) error {
 		}
 	}
 
-	// t.Jurisdiction (string) (string)
-	if len("jurisdiction") > 1000000 {
-		return xerrors.Errorf("Value in field \"jurisdiction\" was too long")
+	// t.Legislature (string) (string)
+	if len("legislature") > 1000000 {
+		return xerrors.Errorf("Value in field \"legislature\" was too long")
 	}
 
-	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len("jurisdiction"))); err != nil {
+	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len("legislature"))); err != nil {
 		return err
 	}
-	if _, err := cw.WriteString(string("jurisdiction")); err != nil {
+	if _, err := cw.WriteString(string("legislature")); err != nil {
 		return err
 	}
 
-	if len(t.Jurisdiction) > 1000000 {
-		return xerrors.Errorf("Value in field t.Jurisdiction was too long")
+	if len(t.Legislature) > 1000000 {
+		return xerrors.Errorf("Value in field t.Legislature was too long")
 	}
 
-	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len(t.Jurisdiction))); err != nil {
+	if err := cw.WriteMajorTypeHeader(cbg.MajTextString, uint64(len(t.Legislature))); err != nil {
 		return err
 	}
-	if _, err := cw.WriteString(string(t.Jurisdiction)); err != nil {
+	if _, err := cw.WriteString(string(t.Legislature)); err != nil {
 		return err
 	}
 
@@ -958,8 +958,8 @@ func (t *BillDetail) UnmarshalCBOR(r io.Reader) (err error) {
 					t.Description = (*string)(&sval)
 				}
 			}
-			// t.Jurisdiction (string) (string)
-		case "jurisdiction":
+			// t.Legislature (string) (string)
+		case "legislature":
 
 			{
 				sval, err := cbg.ReadStringWithMax(cr, 1000000)
@@ -967,7 +967,7 @@ func (t *BillDetail) UnmarshalCBOR(r io.Reader) (err error) {
 					return err
 				}
 
-				t.Jurisdiction = string(sval)
+				t.Legislature = string(sval)
 			}
 			// t.CurrentVersion (atproto.RepoStrongRef) (struct)
 		case "currentVersion":
