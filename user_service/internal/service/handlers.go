@@ -491,6 +491,40 @@ func (s *Service) handleCreateBill(w http.ResponseWriter, r *http.Request) {
 	s.encode(ctx, w, http.StatusCreated, resp)
 }
 
+func (s *Service) handleGetBill(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	identifier := r.URL.Query().Get("identifier")
+	session := r.URL.Query().Get("session")
+	legislature := r.URL.Query().Get("legislature")
+
+	if identifier == "" || session == "" || legislature == "" {
+		apiErr := refErr.BadRequest("Missing required parameters: identifier, session, and legislature")
+		apiErr.WriteResponse(w)
+		return
+	}
+
+	systemAid, _, err := s.getAuthenticatedSystemIds(ctx)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	detail := refApp.BillDetail{
+		Identifier:  identifier,
+		Session:     session,
+		Legislature: legislature,
+	}
+
+	_, err = s.pds.GetRecord(ctx, *systemAid, &detail)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	s.encode(ctx, w, http.StatusOK, detail)
+}
+
 func (s *Service) handleGraphFollow(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
