@@ -72,7 +72,7 @@ func (s *Service) setupRoutes() {
 			r.Use(s.AuthorizeSystem)
 			r.Post("/", s.handleCreateBill)
 			r.Put("/", s.handleUpdateBill)
-			// 	r.Delete("/", s.handleDeleteBill)
+			r.Delete("/", s.handleDeleteBill)
 		})
 
 		r.Group(func(r chi.Router) {
