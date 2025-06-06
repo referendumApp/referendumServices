@@ -60,7 +60,6 @@ func (p *PDS) DeleteRecord(ctx context.Context, aid atp.Aid, collection string, 
 // GetRecord 'Record' interface handler for getting a repo record
 func (p *PDS) GetRecord(ctx context.Context, aid atp.Aid, rec Record) (cid.Cid, *refErr.APIError) {
 	cc, err := p.repoman.GetRecord(ctx, aid, rec.NSID(), rec.Key(), rec, cid.Undef)
-	p.log.InfoContext(ctx, "Got record", "cid", cc, "err", err)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Error getting repo record", "error", err, "aid", aid, "record", rec)
 		if strings.Contains(err.Error(), "could not find record with key:") {

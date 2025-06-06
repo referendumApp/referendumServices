@@ -563,16 +563,12 @@ func (s *Service) handleGetBill(w http.ResponseWriter, r *http.Request) {
 		Legislature: legislature,
 	}
 
-	s.log.InfoContext(ctx, "Created partial struct", "detail", detail)
-
 	_, err = s.pds.GetRecord(ctx, *systemAid, &detail)
 	if err != nil {
 		pdsErr := refErr.NotFound(detail.Key(), detail.NSID())
 		pdsErr.WriteResponse(w)
 		return
 	}
-
-	s.log.InfoContext(ctx, "Updated struct", "detail", detail)
 
 	s.encode(ctx, w, http.StatusOK, detail)
 }
@@ -614,17 +610,10 @@ func (s *Service) handleUpdateBill(w http.ResponseWriter, r *http.Request) {
 		Legislature: req.Legislature,
 	}
 
-	_, existsErr := s.pds.GetRecord(ctx, *serviceAid, &existingBill)
-	if existsErr != nil {
-		// Bill doesn't exist, return 404
-		notFoundErr := refErr.NotFound(existingBill.Key(), existingBill.NSID())
-		notFoundErr.WriteResponse(w)
-		return
-	}
-
 	cc, err := s.pds.UpdateRecord(ctx, *serviceAid, rec)
 	if err != nil {
-		err.WriteResponse(w)
+		notFoundErr := refErr.NotFound(existingBill.Key(), existingBill.NSID())
+		notFoundErr.WriteResponse(w)
 		return
 	}
 
