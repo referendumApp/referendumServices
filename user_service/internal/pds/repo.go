@@ -7,6 +7,7 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
 	refErr "github.com/referendumApp/referendumServices/internal/error"
+	"github.com/referendumApp/referendumServices/internal/repo"
 	cbg "github.com/whyrusleeping/cbor-gen"
 )
 
@@ -77,7 +78,27 @@ func (p *PDS) RecordExists(
 	nsid string,
 	rkey string,
 ) (bool, *refErr.APIError) {
-	_, err := p.repoman.GetRecord(ctx, aid, nsid, rkey, nil, cid.Undef)
+	// Use the repo manager's internal methods to check existence without unmarshaling
+	bs, err := p.repoman.CarStore().ReadOnlySession(aid)
+	if err != nil {
+		p.log.ErrorContext(ctx, "Error getting read-only session", "error", err, "aid", aid)
+		return false, refErr.Repo()
+	}
+
+	head, err := p.repoman.CarStore().GetActorRepoHead(ctx, aid)
+	if err != nil {
+		p.log.ErrorContext(ctx, "Error getting repo head", "error", err, "aid", aid)
+		return false, refErr.Repo()
+	}
+
+	r, err := repo.OpenRepo(ctx, bs, head) // Note: you'll need to import the repo package
+	if err != nil {
+		p.log.ErrorContext(ctx, "Error opening repo", "error", err, "aid", aid)
+		return false, refErr.Repo()
+	}
+
+	// Try to get just the CID and bytes without unmarshaling
+	_, _, err = r.GetRecordBytes(ctx, nsid+"/"+rkey)
 	if err != nil {
 		if strings.Contains(err.Error(), "mst: not found") {
 			return false, nil
