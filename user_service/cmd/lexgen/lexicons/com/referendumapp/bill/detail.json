@@ -23,28 +23,10 @@
           "description": { "type": "string" },
           "legislativeBody": { "type": "string" },
           "legislature": { "type": "string" },
-          "status": {
-            "type": "string",
-            "enum": [
-              "Introduced",
-              "Passed",
-              "Vetoed",
-              "Failed",
-              "Prefiled",
-              "Engrossed",
-              "Enrolled",
-              "Override",
-              "Chaptered",
-              "Refer",
-              "Draft",
-              "Report Pass",
-              "Report DNP"
-            ]
-          },
+          "status": { "type": "string" },
           "session": { "type": "string" },
           "statusDate": {
             "type": "string",
-            "format": "datetime",
             "description": "Client-declared timestamp when this post was originally created."
           },
           "topic": {

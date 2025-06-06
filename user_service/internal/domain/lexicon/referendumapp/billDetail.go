@@ -23,9 +23,9 @@ type BillDetail struct {
 	LegislativeBody string                    `json:"legislativeBody" cborgen:"legislativeBody" validate:"required"`
 	Legislature     string                    `json:"legislature" cborgen:"legislature" validate:"required"`
 	Session         string                    `json:"session" cborgen:"session" validate:"required"`
-	Status          string                    `json:"status" cborgen:"status" validate:"required,oneof=Introduced,oneof=Passed,oneof=Vetoed,oneof=Failed,oneof=Prefiled,oneof=Engrossed,oneof=Enrolled,oneof=Override,oneof=Chaptered,oneof=Refer,oneof=Draft,oneof=Report Pass,oneof=Report DNP"`
+	Status          string                    `json:"status" cborgen:"status" validate:"required"`
 	// statusDate: Client-declared timestamp when this post was originally created.
-	StatusDate string   `json:"statusDate" cborgen:"statusDate" validate:"required,datetime"`
+	StatusDate string   `json:"statusDate" cborgen:"statusDate" validate:"required"`
 	Title      string   `json:"title" cborgen:"title" validate:"required"`
 	Topic      []string `json:"topic,omitempty" cborgen:"topic,omitempty" validate:"omitempty"`
 }

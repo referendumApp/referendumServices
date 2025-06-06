@@ -512,8 +512,12 @@ func (s *Service) handleCreateBill(w http.ResponseWriter, r *http.Request) {
 		Legislature: req.Legislature,
 	}
 
-	_, existsErr := s.pds.GetRecord(ctx, *serviceAid, &existingBill)
-	if existsErr == nil {
+	exists, existsErr := s.pds.RecordExists(ctx, *serviceAid, existingBill.NSID(), existingBill.Key())
+	if existsErr != nil {
+		existsErr.WriteResponse(w)
+		return
+	}
+	if exists {
 		conflictErr := refErr.Conflict()
 		conflictErr.WriteResponse(w)
 		return
@@ -559,12 +563,16 @@ func (s *Service) handleGetBill(w http.ResponseWriter, r *http.Request) {
 		Legislature: legislature,
 	}
 
+	s.log.InfoContext(ctx, "Created partial struct", "detail", detail)
+
 	_, err = s.pds.GetRecord(ctx, *systemAid, &detail)
 	if err != nil {
 		pdsErr := refErr.NotFound(detail.Key(), detail.NSID())
 		pdsErr.WriteResponse(w)
 		return
 	}
+
+	s.log.InfoContext(ctx, "Updated struct", "detail", detail)
 
 	s.encode(ctx, w, http.StatusOK, detail)
 }
