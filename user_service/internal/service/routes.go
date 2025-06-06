@@ -73,11 +73,12 @@ func (s *Service) setupRoutes() {
 			r.Post("/", s.handleCreateBill)
 			r.Put("/", s.handleUpdateBill)
 			r.Delete("/", s.handleDeleteBill)
+			r.Get("/", s.handleGetBill)
 		})
 
 		r.Group(func(r chi.Router) {
 			r.Use(s.AuthorizeSystemOrUser)
-			r.Get("/", s.handleGetBill)
+			// TODO - allow users to GET
 		})
 	})
 

@@ -169,6 +169,14 @@ func PLCServer() *APIError {
 	}
 }
 
+func Conflict() *APIError {
+	return &APIError{
+		Detail:     "Conflict",
+		StatusCode: http.StatusConflict,
+		Code:       ErrorCodeConflict,
+	}
+}
+
 func InternalServer() *APIError {
 	return &APIError{
 		Detail:     "Internal Server Error",

@@ -2,6 +2,7 @@ package pds
 
 import (
 	"context"
+	"strings"
 
 	"github.com/ipfs/go-cid"
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
@@ -33,6 +34,9 @@ func (p *PDS) UpdateRecord(ctx context.Context, aid atp.Aid, rec Record) (cid.Ci
 	cc, err := p.repoman.UpdateRecord(ctx, aid, rec.NSID(), rec.Key(), rec)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Error updating repo record", "error", err, "aid", aid, "record", rec)
+		if strings.Contains(err.Error(), "could not find record with key:") {
+			return cid.Undef, refErr.NotFound(rec.Key(), rec.NSID())
+		}
 		return cid.Undef, refErr.Repo()
 	}
 
@@ -43,6 +47,9 @@ func (p *PDS) UpdateRecord(ctx context.Context, aid atp.Aid, rec Record) (cid.Ci
 func (p *PDS) DeleteRecord(ctx context.Context, aid atp.Aid, collection string, rkey string) *refErr.APIError {
 	if err := p.repoman.DeleteRecord(ctx, aid, collection, rkey); err != nil {
 		p.log.ErrorContext(ctx, "Error deleting repo record", "error", err, "nsid", collection, "rkey", rkey)
+		if strings.Contains(err.Error(), "could not find record with key:") {
+			return refErr.NotFound(rkey, collection)
+		}
 		return refErr.Repo()
 	}
 
@@ -54,8 +61,10 @@ func (p *PDS) GetRecord(ctx context.Context, aid atp.Aid, rec Record) (cid.Cid, 
 	cc, err := p.repoman.GetRecord(ctx, aid, rec.NSID(), rec.Key(), rec, cid.Undef)
 	if err != nil {
 		p.log.ErrorContext(ctx, "Error getting repo record", "error", err, "aid", aid, "record", rec)
+		if strings.Contains(err.Error(), "could not find record with key:") {
+			return cid.Undef, refErr.NotFound(rec.Key(), rec.NSID())
+		}
 		return cid.Undef, refErr.Repo()
 	}
-
 	return cc, nil
 }

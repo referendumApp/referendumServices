@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -452,6 +453,30 @@ func (s *Service) handleDeleteLegislator(w http.ResponseWriter, r *http.Request)
 	}
 }
 
+func (s *Service) validateBillDetail(ctx context.Context, detail *refApp.BillDetail) *refErr.APIError {
+	validStatuses := []string{
+		"Introduced", "Passed", "Vetoed", "Failed", "Prefiled",
+		"Engrossed", "Enrolled", "Override", "Chaptered",
+		"Refer", "Draft", "Report Pass", "Report DNP",
+	}
+
+	statusValid := false
+	for _, validStatus := range validStatuses {
+		if detail.Status == validStatus {
+			statusValid = true
+			break
+		}
+	}
+	if !statusValid {
+		return refErr.UnproccessableEntity("Status must be one of: " + strings.Join(validStatuses, ", "))
+	}
+	if _, err := time.Parse("2006-01-02", detail.StatusDate); err != nil {
+		return refErr.UnproccessableEntity("StatusDate must be in YYYY-MM-DD format")
+	}
+
+	return nil
+}
+
 func (s *Service) handleCreateBill(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -474,6 +499,24 @@ func (s *Service) handleCreateBill(w http.ResponseWriter, r *http.Request) {
 		Session:         req.Session,
 		Status:          req.Status,
 		StatusDate:      req.StatusDate,
+	}
+
+	if validationErr := s.validateBillDetail(ctx, rec); validationErr != nil {
+		validationErr.WriteResponse(w)
+		return
+	}
+
+	existingBill := refApp.BillDetail{
+		Identifier:  req.Identifier,
+		Session:     req.Session,
+		Legislature: req.Legislature,
+	}
+
+	_, existsErr := s.pds.GetRecord(ctx, *serviceAid, &existingBill)
+	if existsErr == nil {
+		conflictErr := refErr.Conflict()
+		conflictErr.WriteResponse(w)
+		return
 	}
 
 	cc, _, err := s.pds.CreateRecord(ctx, *serviceAid, rec)
@@ -518,7 +561,8 @@ func (s *Service) handleGetBill(w http.ResponseWriter, r *http.Request) {
 
 	_, err = s.pds.GetRecord(ctx, *systemAid, &detail)
 	if err != nil {
-		err.WriteResponse(w)
+		pdsErr := refErr.NotFound(detail.Key(), detail.NSID())
+		pdsErr.WriteResponse(w)
 		return
 	}
 
@@ -547,6 +591,27 @@ func (s *Service) handleUpdateBill(w http.ResponseWriter, r *http.Request) {
 		Session:         req.Session,
 		Status:          req.Status,
 		StatusDate:      req.StatusDate,
+	}
+
+	// Add business logic validation BEFORE updating
+	if validationErr := s.validateBillDetail(ctx, rec); validationErr != nil {
+		validationErr.WriteResponse(w)
+		return
+	}
+
+	// Check if the bill exists before updating
+	existingBill := refApp.BillDetail{
+		Identifier:  req.Identifier,
+		Session:     req.Session,
+		Legislature: req.Legislature,
+	}
+
+	_, existsErr := s.pds.GetRecord(ctx, *serviceAid, &existingBill)
+	if existsErr != nil {
+		// Bill doesn't exist, return 404
+		notFoundErr := refErr.NotFound(existingBill.Key(), existingBill.NSID())
+		notFoundErr.WriteResponse(w)
+		return
 	}
 
 	cc, err := s.pds.UpdateRecord(ctx, *serviceAid, rec)
