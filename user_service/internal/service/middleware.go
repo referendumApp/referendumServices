@@ -13,6 +13,9 @@ import (
 	"github.com/referendumApp/referendumServices/internal/util"
 )
 
+type systemAidKey struct{}
+type systemDidKey struct{}
+
 // CustomResponseWriter wrapper around 'http.ResponseWriter' to track the status code of the request
 type CustomResponseWriter struct {
 	http.ResponseWriter
@@ -124,22 +127,27 @@ func (s *Service) writeUnauthorizedError(w http.ResponseWriter, r *http.Request,
 	refErr.Unauthorized(message).WriteResponse(w)
 }
 
-// AuthorizeSystem validates system user tokens only
+// AuthorizeSystem middleware for system-level API calls
 func (s *Service) AuthorizeSystem(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token, err := util.ParseAuthHeader(r, util.DefaultAuthScheme)
+		ctx := r.Context()
+
+		apiKey, err := util.ParseAuthHeader(r, util.DefaultAuthScheme)
 		if err != nil {
 			s.writeUnauthorizedError(w, r, err.Error(), nil)
 			return
 		}
 
-		aid, did, err := s.AuthenticateSystemUser(r.Context(), token)
+		aid, did, err := s.AuthenticateSystemUser(ctx, apiKey)
 		if err != nil {
 			s.writeUnauthorizedError(w, r, "System authentication failed", err)
 			return
 		}
 
-		ctx := s.setContextFromAuth(r.Context(), *aid, *did)
+		// Store authenticated system user info in context
+		ctx = context.WithValue(ctx, systemAidKey{}, *aid)
+		ctx = context.WithValue(ctx, systemDidKey{}, *did)
+
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

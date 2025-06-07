@@ -1,0 +1,65 @@
+{
+    "lexicon": 1,
+    "id": "com.referendumapp.server.createBill",
+    "defs": {
+      "main": {
+        "type": "string",
+        "description": "Create a bill. Implemented by PDS.",
+        "input": {
+          "encoding": "application/json",
+          "schema": {
+            "needsType": true,
+            "type": "object",
+            "required": [
+              "billId",
+              "identifier",
+              "title",
+              "legislativeBody",
+              "legislature",
+              "status",
+              "session",
+              "statusDate"
+            ],
+            "properties": {
+              "billId": {
+                "type": "integer"
+              },
+              "identifier": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "legislativeBody": {
+                "type": "string"
+              },
+              "legislature": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "session": {
+                "type": "string"
+              },
+              "statusDate": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "output": {
+          "encoding": "application/json",
+          "schema": {
+            "type": "object",
+            "description": "Confirmation returned on successful bill creation.",
+            "required": ["cid", "did"],
+            "properties": {
+              "aid": {"type": "aid"},
+              "cid": {"type": "string"}
+            }
+          }
+        }
+      }
+    }
+  }

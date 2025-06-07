@@ -5,14 +5,14 @@
     "main": {
       "type": "record",
       "description": "Record containing bill details.",
-      "key": "lid:identifier:session:jurisdiction",
+      "key": "lid:identifier:session:legislature",
       "record": {
         "type": "object",
         "required": [
           "identifier",
           "title",
           "legislativeBody",
-          "jurisdiction",
+          "legislature",
           "status",
           "session",
           "statusDate"
@@ -22,29 +22,11 @@
           "title": { "type": "string" },
           "description": { "type": "string" },
           "legislativeBody": { "type": "string" },
-          "jurisdiction": { "type": "string" },
-          "status": {
-            "type": "string",
-            "enum": [
-              "Introduced",
-              "Passed",
-              "Vetoed",
-              "Failed",
-              "Prefiled",
-              "Engrossed",
-              "Enrolled",
-              "Override",
-              "Chaptered",
-              "Refer",
-              "Draft",
-              "Report Pass",
-              "Report DNP"
-            ]
-          },
+          "legislature": { "type": "string" },
+          "status": { "type": "string" },
           "session": { "type": "string" },
           "statusDate": {
             "type": "string",
-            "format": "datetime",
             "description": "Client-declared timestamp when this post was originally created."
           },
           "topic": {

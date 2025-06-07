@@ -17,6 +17,7 @@ import (
 	"github.com/referendumApp/referendumServices/internal/aws"
 	"github.com/referendumApp/referendumServices/internal/domain/atp"
 	env "github.com/referendumApp/referendumServices/internal/env-config"
+	refErr "github.com/referendumApp/referendumServices/internal/error"
 	"github.com/referendumApp/referendumServices/internal/pds"
 )
 
@@ -267,4 +268,19 @@ func (s *Service) updateSystemApiKeySecret(ctx context.Context, secret *SystemAP
 
 	s.log.InfoContext(ctx, "Successfully updated system API key secret")
 	return nil
+}
+
+// getAuthenticatedSystemIds returns just the IDs for the authenticated system user
+func (s *Service) getAuthenticatedSystemIds(ctx context.Context) (*atp.Aid, *string, *refErr.APIError) {
+	aid, ok := ctx.Value(systemAidKey{}).(atp.Aid)
+	if !ok {
+		return nil, nil, refErr.Unauthorized("System user not authenticated")
+	}
+
+	did, ok := ctx.Value(systemDidKey{}).(string)
+	if !ok {
+		return nil, nil, refErr.Unauthorized("System user not authenticated")
+	}
+
+	return &aid, &did, nil
 }

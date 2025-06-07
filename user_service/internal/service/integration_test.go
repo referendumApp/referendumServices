@@ -1548,3 +1548,635 @@ func TestLegislator(t *testing.T) {
 func stringPtr(s string) *string {
 	return &s
 }
+
+func TestBill(t *testing.T) {
+	billID := int64(12345)
+	duplicateID := int64(12345)
+	updateID := int64(54321)
+	deleteID := int64(77777)
+
+	createTestBill := func(id int64, identifier string) (*refApp.ServerCreateBill_Output, error) {
+		createReq := testRequest{
+			method: http.MethodPost,
+			path:   "/bills",
+			body: refApp.ServerCreateBill_Input{
+				BillId:          id,
+				Identifier:      identifier,
+				Title:           fmt.Sprintf("Test Bill %s", identifier),
+				LegislativeBody: "House",
+				Legislature:     "US",
+				Session:         "2025",
+				Status:          "Introduced",
+				StatusDate:      "2025-01-01",
+			},
+			headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
+		}
+
+		req := createReq.handleJsonRequest(t)
+		resp, err := client.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusCreated {
+			return nil, fmt.Errorf("expected 201, got %d", resp.StatusCode)
+		}
+
+		var createResp refApp.ServerCreateBill_Output
+		err = json.NewDecoder(resp.Body).Decode(&createResp)
+		return &createResp, err
+	}
+
+	t.Run("Create", func(t *testing.T) {
+		tests := []testCase{
+			{
+				"Create Bill Successfully",
+				testRequest{
+					method: http.MethodPost,
+					path:   "/bills",
+					body: refApp.ServerCreateBill_Input{
+						BillId:          billID,
+						Identifier:      "HB-001",
+						Title:           "Test Healthcare Bill",
+						LegislativeBody: "House",
+						Legislature:     "US",
+						Session:         "2025",
+						Status:          "Introduced",
+						StatusDate:      "2025-01-01",
+					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
+				},
+				testResponse{
+					status: http.StatusCreated,
+					body:   &refApp.ServerCreateBill_Output{},
+				},
+				nil,
+			},
+			{
+				"Create Bill with Duplicate ID",
+				testRequest{
+					method: http.MethodPost,
+					path:   "/bills",
+					body: refApp.ServerCreateBill_Input{
+						BillId:          duplicateID,
+						Identifier:      "HB-001",
+						Title:           "Duplicate Test Healthcare Bill",
+						LegislativeBody: "House",
+						Legislature:     "US",
+						Session:         "2025",
+						Status:          "Introduced",
+						StatusDate:      "2025-01-01",
+					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
+				},
+				testResponse{
+					status: http.StatusConflict,
+				},
+				nil,
+			},
+			{
+				"Create Bill with Missing Required Fields",
+				testRequest{
+					method: http.MethodPost,
+					path:   "/bills",
+					body: refApp.ServerCreateBill_Input{
+						BillId:     98765,
+						Identifier: "HB-003",
+						Title:      "Incomplete Bill",
+						// Missing required fields: LegislativeBody, Legislature, Session, Status, StatusDate
+					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
+				},
+				testResponse{
+					status: http.StatusUnprocessableEntity,
+				},
+				nil,
+			},
+			{
+				"Create Bill with Invalid Status",
+				testRequest{
+					method: http.MethodPost,
+					path:   "/bills",
+					body: refApp.ServerCreateBill_Input{
+						BillId:          98766,
+						Identifier:      "HB-004",
+						Title:           "Invalid Status Bill",
+						LegislativeBody: "House",
+						Legislature:     "US",
+						Session:         "2025",
+						Status:          "InvalidStatus", // Invalid status
+						StatusDate:      "2025-01-01",
+					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
+				},
+				testResponse{
+					status: http.StatusUnprocessableEntity,
+				},
+				nil,
+			},
+			{
+				"Create Bill with Empty Identifier",
+				testRequest{
+					method: http.MethodPost,
+					path:   "/bills",
+					body: refApp.ServerCreateBill_Input{
+						BillId:          98767,
+						Identifier:      "", // Empty identifier
+						Title:           "Empty Identifier Bill",
+						LegislativeBody: "House",
+						Legislature:     "US",
+						Session:         "2025",
+						Status:          "Introduced",
+						StatusDate:      "2025-01-01",
+					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
+				},
+				testResponse{
+					status: http.StatusUnprocessableEntity,
+				},
+				nil,
+			},
+			{
+				"Create Bill with Empty Title",
+				testRequest{
+					method: http.MethodPost,
+					path:   "/bills",
+					body: refApp.ServerCreateBill_Input{
+						BillId:          98768,
+						Identifier:      "HB-005",
+						Title:           "", // Empty title
+						LegislativeBody: "House",
+						Legislature:     "US",
+						Session:         "2025",
+						Status:          "Introduced",
+						StatusDate:      "2025-01-01",
+					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
+				},
+				testResponse{
+					status: http.StatusUnprocessableEntity,
+				},
+				nil,
+			},
+			{
+				"Create Bill without API Key",
+				testRequest{
+					method: http.MethodPost,
+					path:   "/bills",
+					body: refApp.ServerCreateBill_Input{
+						BillId:          98769,
+						Identifier:      "HB-006",
+						Title:           "Unauthorized Bill",
+						LegislativeBody: "House",
+						Legislature:     "US",
+						Session:         "2025",
+						Status:          "Introduced",
+						StatusDate:      "2025-01-01",
+					},
+				},
+				testResponse{
+					status: http.StatusUnauthorized,
+				},
+				nil,
+			},
+			{
+				"Create Bill with Invalid API Key",
+				testRequest{
+					method: http.MethodPost,
+					path:   "/bills",
+					body: refApp.ServerCreateBill_Input{
+						BillId:          98770,
+						Identifier:      "HB-007",
+						Title:           "Invalid Key Bill",
+						LegislativeBody: "House",
+						Legislature:     "US",
+						Session:         "2025",
+						Status:          "Introduced",
+						StatusDate:      "2025-01-01",
+					},
+					headers: map[string]string{"Authorization": "Bearer INVALID_API_KEY"},
+				},
+				testResponse{
+					status: http.StatusUnauthorized,
+				},
+				nil,
+			},
+		}
+
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				req := tc.request.handleJsonRequest(t)
+				tc.response.getResponse(t, req)
+			})
+		}
+	})
+
+	t.Run("Get", func(t *testing.T) {
+		// Create a test bill for retrieval tests
+		testBill, err := createTestBill(99999, "HB-TEST-GET")
+		require.NoError(t, err, "Failed to create test bill")
+		require.NotEmpty(t, testBill.Cid, "Created bill should have a CID")
+
+		tests := []struct {
+			name     string
+			path     string
+			headers  map[string]string
+			expected int
+		}{
+			{
+				"Get Bill by Parameters",
+				"/bills?identifier=HB-TEST-GET&session=2025&legislature=US",
+				map[string]string{"Authorization": "Bearer " + adminApiKey},
+				http.StatusOK,
+			},
+			{
+				"Get Bill with Missing Identifier",
+				"/bills?session=2025&legislature=US",
+				map[string]string{"Authorization": "Bearer " + adminApiKey},
+				http.StatusBadRequest,
+			},
+			{
+				"Get Bill with Missing Session",
+				"/bills?identifier=HB-TEST-GET&legislature=US",
+				map[string]string{"Authorization": "Bearer " + adminApiKey},
+				http.StatusBadRequest,
+			},
+			{
+				"Get Bill with Missing Legislature",
+				"/bills?identifier=HB-TEST-GET&session=2025",
+				map[string]string{"Authorization": "Bearer " + adminApiKey},
+				http.StatusBadRequest,
+			},
+			{
+				"Get Bill with All Missing Parameters",
+				"/bills",
+				map[string]string{"Authorization": "Bearer " + adminApiKey},
+				http.StatusBadRequest,
+			},
+			{
+				"Get Non-existent Bill",
+				"/bills?identifier=NON-EXISTENT&session=2025&legislature=US",
+				map[string]string{"Authorization": "Bearer " + adminApiKey},
+				http.StatusNotFound,
+			},
+			{
+				"Get Bill with Different Session",
+				"/bills?identifier=HB-TEST-GET&session=2024&legislature=US",
+				map[string]string{"Authorization": "Bearer " + adminApiKey},
+				http.StatusNotFound,
+			},
+			{
+				"Get Bill with Different Legislature",
+				"/bills?identifier=HB-TEST-GET&session=2025&legislature=CA",
+				map[string]string{"Authorization": "Bearer " + adminApiKey},
+				http.StatusNotFound,
+			},
+		}
+
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				req, err := http.NewRequestWithContext(
+					context.Background(),
+					http.MethodGet,
+					baseUrl+tc.path,
+					nil,
+				)
+				assert.NoError(t, err, "Failed to create HTTP request")
+
+				if tc.headers != nil {
+					for k, v := range tc.headers {
+						req.Header.Set(k, v)
+					}
+				}
+
+				resp, err := client.Do(req)
+				assert.NoError(t, err, "HTTP request failed")
+				defer resp.Body.Close()
+
+				assert.Equal(t, tc.expected, resp.StatusCode)
+
+				if resp.StatusCode == http.StatusOK {
+					var bill refApp.BillDetail
+					err := json.NewDecoder(resp.Body).Decode(&bill)
+					assert.NoError(t, err, "Failed to decode response")
+					assert.NotEmpty(t, bill.Title, "Bill title should not be empty")
+					assert.Equal(t, "HB-TEST-GET", bill.Identifier, "Bill identifier should match")
+					assert.Equal(t, "2025", bill.Session, "Bill session should match")
+					assert.Equal(t, "US", bill.Legislature, "Bill legislature should match")
+				}
+			})
+		}
+	})
+
+	t.Run("Update", func(t *testing.T) {
+		_, err := createTestBill(updateID, "HB-UPDATE-TEST")
+		assert.NoError(t, err, "Failed to create test bill for updates")
+
+		tests := []testCase{
+			{
+				"Update Bill Successfully",
+				testRequest{
+					method: http.MethodPut,
+					path:   "/bills",
+					body: refApp.ServerCreateBill_Input{
+						BillId:          updateID,
+						Identifier:      "HB-UPDATE-TEST",
+						Title:           "Updated Healthcare Bill Title",
+						LegislativeBody: "Senate", // Changed from House
+						Legislature:     "US",
+						Session:         "2025",
+						Status:          "Passed",     // Changed from Introduced
+						StatusDate:      "2025-02-01", // Changed date
+					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
+				},
+				testResponse{
+					status: http.StatusOK,
+					body:   &refApp.ServerCreateBill_Output{},
+				},
+				nil,
+			},
+			{
+				"Update Bill with Invalid Status",
+				testRequest{
+					method: http.MethodPut,
+					path:   "/bills",
+					body: refApp.ServerCreateBill_Input{
+						BillId:          updateID,
+						Identifier:      "HB-UPDATE-TEST",
+						Title:           "Bill with Invalid Status",
+						LegislativeBody: "House",
+						Legislature:     "US",
+						Session:         "2025",
+						Status:          "InvalidStatus",
+						StatusDate:      "2025-01-01",
+					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
+				},
+				testResponse{
+					status: http.StatusUnprocessableEntity,
+				},
+				nil,
+			},
+			{
+				"Update Non-existent Bill",
+				testRequest{
+					method: http.MethodPut,
+					path:   "/bills",
+					body: refApp.ServerCreateBill_Input{
+						BillId:          999999,
+						Identifier:      "NON-EXISTENT",
+						Title:           "Non-existent Bill",
+						LegislativeBody: "House",
+						Legislature:     "US",
+						Session:         "2025",
+						Status:          "Introduced",
+						StatusDate:      "2025-01-01",
+					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
+				},
+				testResponse{
+					status: http.StatusNotFound,
+				},
+				nil,
+			},
+			{
+				"Update Bill with Missing Required Fields",
+				testRequest{
+					method: http.MethodPut,
+					path:   "/bills",
+					body: refApp.ServerCreateBill_Input{
+						BillId:     updateID,
+						Identifier: "HB-UPDATE-TEST",
+						Title:      "Missing Fields Bill",
+						// Missing required fields
+					},
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
+				},
+				testResponse{
+					status: http.StatusUnprocessableEntity,
+				},
+				nil,
+			},
+			{
+				"Update Bill without API Key",
+				testRequest{
+					method: http.MethodPut,
+					path:   "/bills",
+					body: refApp.ServerCreateBill_Input{
+						BillId:          updateID,
+						Identifier:      "HB-UPDATE-TEST",
+						Title:           "Unauthorized Update",
+						LegislativeBody: "House",
+						Legislature:     "US",
+						Session:         "2025",
+						Status:          "Introduced",
+						StatusDate:      "2025-01-01",
+					},
+					// No Authorization header
+				},
+				testResponse{
+					status: http.StatusUnauthorized,
+				},
+				nil,
+			},
+			{
+				"Update Bill with Invalid API Key",
+				testRequest{
+					method: http.MethodPut,
+					path:   "/bills",
+					body: refApp.ServerCreateBill_Input{
+						BillId:          updateID,
+						Identifier:      "HB-UPDATE-TEST",
+						Title:           "Invalid Key Update",
+						LegislativeBody: "House",
+						Legislature:     "US",
+						Session:         "2025",
+						Status:          "Introduced",
+						StatusDate:      "2025-01-01",
+					},
+					headers: map[string]string{"Authorization": "Bearer INVALID_API_KEY"},
+				},
+				testResponse{
+					status: http.StatusUnauthorized,
+				},
+				nil,
+			},
+		}
+
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				req := tc.request.handleJsonRequest(t)
+				status := tc.response.getResponse(t, req)
+
+				if status == http.StatusOK {
+					// Verify the update by fetching the bill
+					updateReq := tc.request.body.(refApp.ServerCreateBill_Input)
+					getPath := fmt.Sprintf("/bills?identifier=%s&session=%s&legislature=%s",
+						updateReq.Identifier, updateReq.Session, updateReq.Legislature)
+
+					getReq, err := http.NewRequestWithContext(
+						context.Background(),
+						http.MethodGet,
+						baseUrl+getPath,
+						nil,
+					)
+					assert.NoError(t, err, "Failed to create GET request")
+					getReq.Header.Set("Authorization", "Bearer "+adminApiKey)
+
+					getResp, err := client.Do(getReq)
+					assert.NoError(t, err, "Failed to fetch updated bill")
+					defer getResp.Body.Close()
+
+					if getResp.StatusCode == http.StatusOK {
+						var bill refApp.BillDetail
+						err := json.NewDecoder(getResp.Body).Decode(&bill)
+						assert.NoError(t, err, "Failed to decode updated bill")
+
+						assert.Equal(t, updateReq.Title, bill.Title, "Title should be updated")
+						assert.Equal(t, updateReq.Status, bill.Status, "Status should be updated")
+						assert.Equal(
+							t,
+							updateReq.LegislativeBody,
+							bill.LegislativeBody,
+							"Legislative body should be updated",
+						)
+						assert.Equal(t, updateReq.StatusDate, bill.StatusDate, "Status date should be updated")
+					}
+				}
+			})
+		}
+	})
+
+	t.Run("Delete", func(t *testing.T) {
+		_, err := createTestBill(deleteID, "HB-DELETE-TEST")
+		assert.NoError(t, err, "Failed to create test bill for deletion")
+
+		tests := []testCase{
+			{
+				"Delete Bill Successfully",
+				testRequest{
+					method:  http.MethodDelete,
+					path:    "/bills?identifier=HB-DELETE-TEST&session=2025&legislature=US",
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
+				},
+				testResponse{
+					status: http.StatusOK,
+				},
+				nil,
+			},
+			{
+				"Delete Non-existent Bill",
+				testRequest{
+					method:  http.MethodDelete,
+					path:    "/bills?identifier=NON-EXISTENT&session=2025&legislature=US",
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
+				},
+				testResponse{
+					status: http.StatusNotFound,
+				},
+				nil,
+			},
+			{
+				"Delete Bill with Missing Identifier",
+				testRequest{
+					method:  http.MethodDelete,
+					path:    "/bills?session=2025&legislature=US",
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
+				},
+				testResponse{
+					status: http.StatusBadRequest,
+				},
+				nil,
+			},
+			{
+				"Delete Bill with Missing Session",
+				testRequest{
+					method:  http.MethodDelete,
+					path:    "/bills?identifier=HB-DELETE-TEST&legislature=US",
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
+				},
+				testResponse{
+					status: http.StatusBadRequest,
+				},
+				nil,
+			},
+			{
+				"Delete Bill with Missing Legislature",
+				testRequest{
+					method:  http.MethodDelete,
+					path:    "/bills?identifier=HB-DELETE-TEST&session=2025",
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
+				},
+				testResponse{
+					status: http.StatusBadRequest,
+				},
+				nil,
+			},
+			{
+				"Delete Bill with All Missing Parameters",
+				testRequest{
+					method:  http.MethodDelete,
+					path:    "/bills",
+					headers: map[string]string{"Authorization": "Bearer " + adminApiKey},
+				},
+				testResponse{
+					status: http.StatusBadRequest,
+				},
+				nil,
+			},
+			{
+				"Delete Bill without API Key",
+				testRequest{
+					method: http.MethodDelete,
+					path:   "/bills?identifier=HB-UNAUTHORIZED&session=2025&legislature=US",
+					// No Authorization header
+				},
+				testResponse{
+					status: http.StatusUnauthorized,
+				},
+				nil,
+			},
+			{
+				"Delete Bill with Invalid API Key",
+				testRequest{
+					method:  http.MethodDelete,
+					path:    "/bills?identifier=HB-INVALID-KEY&session=2025&legislature=US",
+					headers: map[string]string{"Authorization": "Bearer INVALID_API_KEY"},
+				},
+				testResponse{
+					status: http.StatusUnauthorized,
+				},
+				nil,
+			},
+		}
+
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				req := tc.request.handleJsonRequest(t)
+				sc := tc.response.getResponse(t, req)
+
+				if sc == http.StatusOK {
+					// Verify deletion by attempting to fetch the bill
+					verificationReq := testRequest{
+						method:  http.MethodGet,
+						path:    tc.request.path,
+						headers: tc.request.headers,
+					}
+
+					verificationResp := testResponse{
+						status: http.StatusNotFound,
+					}
+
+					req := verificationReq.handleJsonRequest(t)
+					actualStatus := verificationResp.getResponse(t, req)
+
+					if actualStatus == http.StatusNotFound {
+						t.Logf("Verified deletion: Bill returns 404 after deletion")
+					}
+				}
+			})
+		}
+	})
+}

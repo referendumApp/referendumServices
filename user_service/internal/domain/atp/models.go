@@ -279,13 +279,13 @@ func ClientForPds(pds *PDS) *xrpc.Client {
 
 // Feed represents a content feed with filtering criteria
 type Feed struct {
-	ID           uint      `db:"id,omitempty,pk"`
-	IndexedAt    time.Time `db:"indexed_at,omitempty"`
-	Rkey         string    `db:"rkey"`
-	Cid          DbCID     `db:"cid"`
-	Jurisdiction string    `db:"jurisdiction,omitempty"`
-	Topic        []string  `db:"topic,omitempty"`
-	Type         string    `db:"type"`
+	ID          uint      `db:"id,omitempty,pk"`
+	IndexedAt   time.Time `db:"indexed_at,omitempty"`
+	Rkey        string    `db:"rkey"`
+	Cid         DbCID     `db:"cid"`
+	Legislature string    `db:"legislature,omitempty"`
+	Topic       []string  `db:"topic,omitempty"`
+	Type        string    `db:"type"`
 }
 
 func (p Feed) TableName() string {

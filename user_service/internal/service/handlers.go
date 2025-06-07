@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -447,6 +448,210 @@ func (s *Service) handleDeleteLegislator(w http.ResponseWriter, r *http.Request)
 	}
 
 	if err := s.av.DeleteLegislator(ctx, legislator.Aid, *did); err != nil {
+		err.WriteResponse(w)
+		return
+	}
+}
+
+func (s *Service) validateBillDetail(ctx context.Context, detail *refApp.BillDetail) *refErr.APIError {
+	validStatuses := []string{
+		"Introduced", "Passed", "Vetoed", "Failed", "Prefiled",
+		"Engrossed", "Enrolled", "Override", "Chaptered",
+		"Refer", "Draft", "Report Pass", "Report DNP",
+	}
+
+	statusValid := false
+	for _, validStatus := range validStatuses {
+		if detail.Status == validStatus {
+			statusValid = true
+			break
+		}
+	}
+	if !statusValid {
+		return refErr.UnproccessableEntity("Status must be one of: " + strings.Join(validStatuses, ", "))
+	}
+	if _, err := time.Parse("2006-01-02", detail.StatusDate); err != nil {
+		return refErr.UnproccessableEntity("StatusDate must be in YYYY-MM-DD format")
+	}
+
+	return nil
+}
+
+func (s *Service) handleCreateBill(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var req refApp.ServerCreateBill_Input
+	if err := s.decodeAndValidate(ctx, w, r.Body, &req); err != nil {
+		return
+	}
+
+	serviceAid, _, err := s.getAuthenticatedSystemIds(ctx)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	rec := &refApp.BillDetail{
+		Identifier:      req.Identifier,
+		Title:           req.Title,
+		LegislativeBody: req.LegislativeBody,
+		Legislature:     req.Legislature,
+		Session:         req.Session,
+		Status:          req.Status,
+		StatusDate:      req.StatusDate,
+	}
+
+	if validationErr := s.validateBillDetail(ctx, rec); validationErr != nil {
+		validationErr.WriteResponse(w)
+		return
+	}
+
+	existingBill := refApp.BillDetail{
+		Identifier:  req.Identifier,
+		Session:     req.Session,
+		Legislature: req.Legislature,
+	}
+
+	exists, existsErr := s.pds.RecordExists(ctx, *serviceAid, existingBill.NSID(), existingBill.Key())
+	if existsErr != nil {
+		existsErr.WriteResponse(w)
+		return
+	}
+	if exists {
+		conflictErr := refErr.Conflict()
+		conflictErr.WriteResponse(w)
+		return
+	}
+
+	cc, _, err := s.pds.CreateRecord(ctx, *serviceAid, rec)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	cid := cc.String()
+	resp := refApp.ServerCreateBill_Output{
+		Cid: cid,
+		Aid: serviceAid,
+	}
+
+	s.encode(ctx, w, http.StatusCreated, resp)
+}
+
+func (s *Service) handleGetBill(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	identifier := r.URL.Query().Get("identifier")
+	session := r.URL.Query().Get("session")
+	legislature := r.URL.Query().Get("legislature")
+
+	if identifier == "" || session == "" || legislature == "" {
+		apiErr := refErr.BadRequest("Missing required parameters: identifier, session, and legislature")
+		apiErr.WriteResponse(w)
+		return
+	}
+
+	systemAid, _, err := s.getAuthenticatedSystemIds(ctx)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	detail := refApp.BillDetail{
+		Identifier:  identifier,
+		Session:     session,
+		Legislature: legislature,
+	}
+
+	_, err = s.pds.GetRecord(ctx, *systemAid, &detail)
+	if err != nil {
+		pdsErr := refErr.NotFound(detail.Key(), detail.NSID())
+		pdsErr.WriteResponse(w)
+		return
+	}
+
+	s.encode(ctx, w, http.StatusOK, detail)
+}
+
+func (s *Service) handleUpdateBill(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var req refApp.ServerCreateBill_Input
+	if err := s.decodeAndValidate(ctx, w, r.Body, &req); err != nil {
+		return
+	}
+
+	serviceAid, _, err := s.getAuthenticatedSystemIds(ctx)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	rec := &refApp.BillDetail{
+		Identifier:      req.Identifier,
+		Title:           req.Title,
+		LegislativeBody: req.LegislativeBody,
+		Legislature:     req.Legislature,
+		Session:         req.Session,
+		Status:          req.Status,
+		StatusDate:      req.StatusDate,
+	}
+
+	// Add business logic validation BEFORE updating
+	if validationErr := s.validateBillDetail(ctx, rec); validationErr != nil {
+		validationErr.WriteResponse(w)
+		return
+	}
+
+	// Check if the bill exists before updating
+	existingBill := refApp.BillDetail{
+		Identifier:  req.Identifier,
+		Session:     req.Session,
+		Legislature: req.Legislature,
+	}
+
+	cc, err := s.pds.UpdateRecord(ctx, *serviceAid, rec)
+	if err != nil {
+		notFoundErr := refErr.NotFound(existingBill.Key(), existingBill.NSID())
+		notFoundErr.WriteResponse(w)
+		return
+	}
+
+	cid := cc.String()
+	resp := refApp.ServerCreateBill_Output{
+		Cid: cid,
+		Aid: serviceAid,
+	}
+
+	s.encode(ctx, w, http.StatusOK, resp)
+}
+
+func (s *Service) handleDeleteBill(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	identifier := r.URL.Query().Get("identifier")
+	session := r.URL.Query().Get("session")
+	legislature := r.URL.Query().Get("legislature")
+
+	if identifier == "" || session == "" || legislature == "" {
+		apiErr := refErr.BadRequest("Missing required parameters: identifier, session, and legislature")
+		apiErr.WriteResponse(w)
+		return
+	}
+
+	systemAid, _, err := s.getAuthenticatedSystemIds(ctx)
+	if err != nil {
+		err.WriteResponse(w)
+		return
+	}
+
+	detail := refApp.BillDetail{
+		Identifier:  identifier,
+		Session:     session,
+		Legislature: legislature,
+	}
+
+	if err := s.pds.DeleteRecord(ctx, *systemAid, detail.NSID(), detail.Key()); err != nil {
 		err.WriteResponse(w)
 		return
 	}
